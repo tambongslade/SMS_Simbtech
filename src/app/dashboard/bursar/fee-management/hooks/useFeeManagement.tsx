@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Student, Payment, NewStudent } from '../types';
+import { fetchStudents, addStudent, recordPayment } from '../services/mockApi';
 
 export const useFeeManagement = () => {
   const [selectedClass, setSelectedClass] = useState('all');
@@ -31,15 +32,11 @@ export const useFeeManagement = () => {
   });
 
   useEffect(() => {
-    // Fetch students from backend API
-    const fetchStudents = async () => {
+    // Fetch students from mock API
+    const loadStudents = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/students');
-        if (!response.ok) {
-          throw new Error('Failed to fetch students');
-        }
-        const data = await response.json();
+        const data = await fetchStudents();
         setStudents(data);
         setError(null);
       } catch (error) {
@@ -50,7 +47,7 @@ export const useFeeManagement = () => {
       }
     };
 
-    fetchStudents();
+    loadStudents();
   }, []);
 
   const getFilteredStudents = useCallback(() => {
@@ -106,18 +103,9 @@ export const useFeeManagement = () => {
     };
 
     try {
-      const response = await fetch('/api/payments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payment),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to record payment');
-      }
-
+      // Use mock API instead of fetch
+      await recordPayment(payment);
+      
       // Update the student's payment info locally
       const updatedStudents = students.map(student =>
         student.id === selectedStudent.id
@@ -190,17 +178,8 @@ export const useFeeManagement = () => {
     };
 
     try {
-      const response = await fetch('/api/students', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newStudentData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add student');
-      }
+      // Use mock API instead of fetch
+      await addStudent(newStudentData);
 
       setStudents([...students, newStudentData]);
       resetStudentForm();

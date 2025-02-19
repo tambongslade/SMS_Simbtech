@@ -105,15 +105,14 @@ export default function FeeManagementPage() {
         />
       )}
 
-      {showStudentModal && (
-        <StudentModal
-          newStudent={newStudent}
-          setNewStudent={setNewStudent}
-          handleAddStudent={handleAddStudent}
-          resetStudentForm={resetStudentForm}
-          setShowStudentModal={setShowStudentModal}
-        />
-      )}
+<StudentModal
+        isOpen={showStudentModal}
+        onClose={() => setShowStudentModal(false)}
+        newStudent={newStudent}
+        setNewStudent={setNewStudent}
+        handleAddStudent={handleAddStudent}
+        isLoading={isLoading}
+      />
     </div>
   );
 }
