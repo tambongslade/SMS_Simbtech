@@ -19,10 +19,6 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
       { name: 'Second Semester', startDate: '', endDate: '', feePaymentDeadline: '' },
       { name: 'Third Semester', startDate: '', endDate: '', feePaymentDeadline: '' }
     ],
-    registrationFees: {
-      newStudent: 0,
-      returningStudent: 0
-    }
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -138,48 +134,6 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                 </div>
               </div>
             ))}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-800 mb-3">Registration Fees</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Student Fee
-                </label>
-                <input
-                  type="number"
-                  value={formData.registrationFees?.newStudent}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    registrationFees: {
-                      ...formData.registrationFees,
-                      newStudent: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Returning Student Fee
-                </label>
-                <input
-                  type="number"
-                  value={formData.registrationFees?.returningStudent}
-                  onChange={(e) => setFormData({
-                    ...formData,
-                    registrationFees: {
-                      ...formData.registrationFees,
-                      returningStudent: Number(e.target.value)
-                    }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-            </div>
           </div>
         </div>
 

@@ -14,6 +14,7 @@ export default function SubmitMarks() {
   const [saveStatus, setSaveStatus] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [maxScore, setMaxScore] = useState(100); // Default max score is 100
   
   // Mock data that would come from backend
   useEffect(() => {
@@ -78,6 +79,10 @@ export default function SubmitMarks() {
         
         // Simulate last update timestamp
         setLastUpdated(new Date(2025, 1, 15, 14, 35).toLocaleString());
+        
+        // Simulate fetching the max score for this exam
+        // In a real app, this would come from the backend
+        setMaxScore(100);
       }, 800);
     } else {
       setStudents([]);
@@ -86,8 +91,8 @@ export default function SubmitMarks() {
   }, [selectedClass, selectedSubject, selectedExamType]);
   
   const handleMarkChange = (studentId, value) => {
-    // Validate input (only numbers between 0-100)
-    if (value === '' || (Number(value) >= 0 && Number(value) <= 100)) {
+    // Validate input (only numbers between 0-maxScore)
+    if (value === '' || (Number(value) >= 0 && Number(value) <= maxScore)) {
       setMarks({
         ...marks,
         [studentId]: value
@@ -95,11 +100,18 @@ export default function SubmitMarks() {
     }
   };
   
+  const handleMaxScoreChange = (value) => {
+    // Validate input (only positive numbers)
+    if (value === '' || (Number(value) > 0 && Number(value) <= 1000)) {
+      setMaxScore(value === '' ? 0 : Number(value));
+    }
+  };
+  
   const validateMarks = () => {
     // Check if all marks are valid
     for (const studentId in marks) {
       const mark = marks[studentId];
-      if (mark !== '' && (isNaN(Number(mark)) || Number(mark) < 0 || Number(mark) > 100)) {
+      if (mark !== '' && (isNaN(Number(mark)) || Number(mark) < 0 || Number(mark) > maxScore)) {
         return false;
       }
     }
@@ -121,6 +133,7 @@ export default function SubmitMarks() {
         subjectId: selectedSubject,
         classId: selectedClass,
         examType: selectedExamType,
+        maxScore: maxScore,
         marks: Object.entries(marks).map(([studentId, mark]) => ({
           studentId,
           mark: mark === '' ? null : Number(mark)
@@ -223,12 +236,35 @@ export default function SubmitMarks() {
       {selectedSubject && selectedClass && selectedExamType && students.length > 0 && !loading && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-4 py-5 sm:px-6 bg-gray-50 border-b">
-            <h3 className="text-lg font-medium text-gray-900">
-              {subjects.find(s => s.id === selectedSubject)?.name} - {classes.find(c => c.id === selectedClass)?.name} - {examTypes.find(e => e.id === selectedExamType)?.name}
-            </h3>
-            <p className="mt-1 text-sm text-gray-500">
-              Enter marks for {students.length} students (scores 0-100)
-            </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {subjects.find(s => s.id === selectedSubject)?.name} - {classes.find(c => c.id === selectedClass)?.name} - {examTypes.find(e => e.id === selectedExamType)?.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Enter marks for {students.length} students
+                </p>
+              </div>
+              
+              <div className="mt-3 md:mt-0 flex items-center">
+                <label className="block text-sm font-medium text-gray-700 mr-2">
+                  Maximum Score:
+                </label>
+                {editMode ? (
+                  <input
+                    type="number"
+                    className="w-20 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                    value={maxScore}
+                    onChange={(e) => handleMaxScoreChange(e.target.value)}
+                    min="1"
+                    max="1000"
+                    disabled={saveStatus === 'saving'}
+                  />
+                ) : (
+                  <span className="text-sm font-medium">{maxScore}</span>
+                )}
+              </div>
+            </div>
           </div>
           
           <div className="overflow-x-auto">
@@ -242,7 +278,7 @@ export default function SubmitMarks() {
                     Student Name
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Marks
+                    Marks (out of {maxScore})
                   </th>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -264,13 +300,13 @@ export default function SubmitMarks() {
                           type="text"
                           className={`w-20 p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500 ${
                             marks[student.id] !== '' && 
-                            (isNaN(Number(marks[student.id])) || Number(marks[student.id]) < 0 || Number(marks[student.id]) > 100) 
+                            (isNaN(Number(marks[student.id])) || Number(marks[student.id]) < 0 || Number(marks[student.id]) > maxScore) 
                               ? 'border-red-500 bg-red-50' 
                               : 'border-gray-300'
                           }`}
                           value={marks[student.id]}
                           onChange={(e) => handleMarkChange(student.id, e.target.value)}
-                          placeholder="0-100"
+                          placeholder={`0-${maxScore}`}
                           disabled={saveStatus === 'saving'}
                         />
                       ) : (
@@ -302,7 +338,7 @@ export default function SubmitMarks() {
                 {saveStatus === 'error' && (
                   <p className="text-sm text-red-600 flex items-center gap-1">
                     <ExclamationCircleIcon className="h-5 w-5" />
-                    Please check all marks are between 0-100
+                    Please check all marks are between 0-{maxScore}
                   </p>
                 )}
                 {saveStatus === 'success' && (

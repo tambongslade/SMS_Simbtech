@@ -13,8 +13,4 @@ export interface Semester {
     endDate: string;
     isActive: boolean;
     semesters: Semester[];
-    registrationFees: {
-      newStudent: number;
-      returningStudent: number;
-    };
   }
