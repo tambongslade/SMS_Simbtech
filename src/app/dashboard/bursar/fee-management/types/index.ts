@@ -59,4 +59,10 @@ export interface Student {
     email: string;
     parentName: string;
     parentPhone: string;
+    dateOfBirth: string;
+    sex: string;
+    previousSchool: string;
+    parentContact2: string;
+    paymentBank: string;
+    datePaid: string;
   }

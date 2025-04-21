@@ -1,0 +1,52 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Most Follow Rules for School Management System Development
+
+## 1. Type Safety (TypeScript)
+
+*   **Define Types Explicitly**: Always define interfaces or types for props, state, and API response objects (e.g., `Personnel`, `AcademicYear`, `Semester`). Avoid using `any` unless absolutely necessary.
+*   **Check for Undefined/Null**: Before accessing nested properties (e.g., `user.userRoles`, `semester.isActive`), always check if the parent object exists to prevent `TypeError: Cannot read properties of undefined`.
+*   **Use TypeScript Features**: Leverage features like optional chaining (`?.`) and nullish coalescing (`??`) for safer property access and default values.
+
+## 2. State Management (React Hooks)
+
+*   **Initialize State Correctly**: Ensure `useState` hooks are initialized with appropriate default values (e.g., `[]` for arrays, `null` or `''` for optional values).
+*   **Manage Dependencies in `useEffect`**: Include all variables used inside `useEffect` in the dependency array unless you have a specific reason not to (e.g., preventing infinite loops). Be mindful of how dependencies trigger effects.
+*   **Handle Asynchronous Operations**: Use `async/await` or `.then/.catch` properly within `useEffect` for data fetching, and manage loading/error states.
+
+## 3. Routing and Navigation (Next.js)
+
+*   **Consistent Path Formatting**: Ensure consistency when comparing or constructing paths. Use lowercase and hyphens (`kebab-case`) for URL segments derived from roles or other identifiers (e.g., `/dashboard/super-manager`).
+*   **Use `useRouter` and `usePathname` Correctly**: Understand how these hooks work for navigation and path checking. Ensure redirects (`router.push`) point to valid, correctly formatted paths.
+*   **Protect Routes**: Implement checks (e.g., in `useEffect` or middleware) to ensure users are authenticated and have the correct role before accessing specific dashboard layouts or pages.
+
+## 4. API Interaction
+
+*   **Consistent API Endpoints**: Store base API URLs and endpoints in a configuration file or constants.
+*   **Standardized Data Handling**: Ensure consistent extraction of data from API responses (e.g., always check `response.data.user.userRoles` for roles).
+*   **Error Handling**: Implement robust error handling for API calls using `try...catch` blocks. Provide user feedback (e.g., toasts) on success or failure.
+
+## 5. Data Structures and Naming Conventions
+
+*   **Consistent Keys**: Use consistent naming conventions for keys in objects and data structures (e.g., use `super-manager` consistently if that's the standard, rather than mixing `supermanager`).
+*   **Role Formatting**: Standardize how roles are stored (e.g., `localStorage`) and how they are formatted for use in URLs or object keys (e.g., always convert to `lowercase-kebab-case`).
+
+## 6. UI Components and Styling
+
+*   **Reusable Components**: Create reusable components for common UI elements (forms, modals, tables, buttons) to maintain consistency and reduce duplication.
+*   **Consistent Styling**: Adhere to the project's styling conventions using Tailwind CSS. Use consistent spacing, colors, and typography.
+*   **Accessibility**: Ensure components are accessible by using semantic HTML and appropriate ARIA attributes where necessary.
+
+## 7. Error Handling and User Feedback
+
+*   **Clear Error Messages**: Provide informative error messages to the user when something goes wrong (e.g., failed API calls, form validation errors).
+*   **Use Toasts/Notifications**: Use a consistent toast or notification system to provide feedback on successful operations (create, update, delete) or errors.
+
+## 8. Local Storage Management
+
+*   **Centralize Keys**: Define keys for `localStorage` items (e.g., `userRole`, `userData`, `authToken`) as constants to avoid typos.
+*   **Clear on Logout**: Ensure all relevant user data is cleared from `localStorage` upon logout.
+*   **Parse Safely**: Use `try...catch` when parsing JSON data retrieved from `localStorage`. 

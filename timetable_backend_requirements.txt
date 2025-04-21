@@ -1,0 +1,145 @@
+# Timetable Feature: Backend & Database Requirements (Detailed)
+
+This document outlines the necessary database changes and API endpoints required to support the frontend timetable management feature for both Vice Principals and Super Managers.
+
+## 1. Database Schema Considerations
+
+The following tables and relationships are likely needed. Adjust names and fields based on your existing schema conventions.
+
+*   **`Periods` Table:**
+    *   `id`: Primary Key (INT or UUID)
+    *   `name`: VARCHAR (e.g., "Period 1", "Lunch Break")
+    *   `start_time`: TIME (e.g., "07:30:00")
+    *   `end_time`: TIME (e.g., "08:25:00")
+    *   `is_break`: BOOLEAN (Indicates if this is a break/lunch period, default: false)
+    *   *(Optional)* `sort_order`: INT (To ensure periods appear in the correct sequence)
+
+*   **`Subjects` Table:** (Likely already exists)
+    *   `id`: Primary Key
+    *   `name`: VARCHAR
+
+*   **`Teachers` Table:** (Likely part of `Users` or `Personnel` table)
+    *   `id`: Primary Key (User ID)
+    *   `name`: VARCHAR
+    *   *(Ensure a way to link teachers to subjects they can teach)*
+
+*   **`Teacher_Subjects` Table (Many-to-Many Join):**
+    *   `teacher_id`: Foreign Key referencing Teachers/Users Table
+    *   `subject_id`: Foreign Key referencing Subjects Table
+    *   *(Primary Key: composite of teacher_id, subject_id)*
+
+*   **`Classes` Table:** (Likely already exists)
+    *   `id`: Primary Key
+    *   `name`: VARCHAR
+
+*   **`SubClasses` Table:** (Likely already exists)
+    *   `id`: Primary Key
+    *   `name`: VARCHAR
+    *   `class_id`: Foreign Key referencing Classes Table
+
+*   **`TimetableSlots` Table:** (New table to store assignments)
+    *   `id`: Primary Key (INT or UUID)
+    *   `subclass_id`: Foreign Key referencing SubClasses Table (Required)
+    *   `day_of_week`: VARCHAR or ENUM (e.g., "Monday", "Tuesday", ..., "Friday") (Required)
+    *   `period_id`: Foreign Key referencing Periods Table (Required)
+    *   `subject_id`: Foreign Key referencing Subjects Table (Nullable)
+    *   `teacher_id`: Foreign Key referencing Teachers/Users Table (Nullable)
+    *   `created_at`, `updated_at`: Timestamps
+    *   **Constraints:**
+        *   Consider a UNIQUE constraint on (`subclass_id`, `day_of_week`, `period_id`) to prevent duplicate slots for the same time in the same class.
+        *   Consider database-level checks or application logic to enforce teacher availability constraints if desired, though this is often handled during the save operation.
+
+## 2. API Endpoints - Detailed Logic
+
+### Essential Data Fetching Endpoints
+
+*   **`GET /api/v1/classes`:**
+    *   **Purpose:** Fetch list of all parent classes.
+    *   **Response:** `[{ id, name }, ...]`
+    *   *(Already used by the context)*
+
+*   **`GET /api/v1/classes/sub-classes`:**
+    *   **Purpose:** Fetch list of all subclasses, ideally with parent class info.
+    *   **Response:** `[{ id, name, class: { id, name } }, ...]`
+    *   *(Already used by the context)*
+
+*   **`GET /api/v1/subjects`:**
+    *   **Purpose:** Fetch list of all available subjects.
+    *   **Response:** `[{ id, name }, ...]`
+    *   *(Already used by the context)*
+
+*   **`GET /api/v1/periods`:**
+    *   **Purpose:** Fetch the defined list of school periods.
+    *   **Logic:** Query the `Periods` table. Order results by `sort_order` or `start_time`.
+    *   **Response:** `[{ id, name, startTime, endTime, isBreak }, ...]` (Ensure consistent casing, e.g., `isBreak` or `is_break`)
+    *   *(Currently missing - Causes 404)*
+
+*   **`GET /api/v1/teachers`:**
+    *   **Purpose:** Fetch list of users designated as teachers. Should include subjects they teach.
+    *   **Optional Query Params:** `?subjectId={subject_id}` (To filter teachers qualified for a specific subject).
+    *   **Logic:** Query the `Teachers` table (or `Users` table filtered by role). Join with `Teacher_Subjects` and `Subjects` tables. Group results by teacher to return nested subject information.
+    *   **Response:** `[{ id, name, subjects: [{ id, name }, ...] }, ...]` (Return nested subjects for easier frontend use).
+
+### Timetable Assignment Endpoints
+
+*   **`GET /api/v1/timetables?subClassId={subclass_id}` (or `/api/v1/subclasses/{subclassId}/timetable`)**
+    *   **Purpose:** Get the *complete structure* for a specific subclass's timetable, populated with existing assignments.
+    *   **Logic:**
+        1.  Receive and validate `subClassId`.
+        2.  Fetch *all* periods from the `Periods` table (ordered).
+        3.  Fetch *assigned* slots from `TimetableSlots` table, filtering by `subclass_id`. **Crucially, join** with `Periods`, `Subjects`, and `Teachers` tables to get names (`period.name`, `subject.name`, `teacher.name`) and other relevant info (`period.is_break`, etc.) in this single query.
+        4.  **In backend code:**
+            *   Initialize an empty array `fullTimetableGrid`.
+            *   Define `daysOfWeek = ['Monday', ..., 'Friday']`.
+            *   Loop through each `day` in `daysOfWeek`.
+            *   Inside, loop through each `period` fetched in Step 2.
+            *   Create a base `slotData` object: `{ day, periodId: period.id, periodName: period.name, isBreak: period.is_break, subjectId: null, teacherId: null, subjectName: null, teacherName: null }`.
+            *   Search the `assignedSlots` data (from Step 3) for an entry matching the current `day` and `period.id`.
+            *   If a match is found, update `slotData` with `subjectId`, `teacherId`, `subjectName`, `teacherName` from the matched assigned slot.
+            *   Append `slotData` to `fullTimetableGrid`.
+        5.  Return `fullTimetableGrid`.
+
+*   **`POST /api/v1/timetables/bulk-update` (Recommended Approach)**
+    *   **Purpose:** Save multiple slot changes for a subclass atomically.
+    *   **Request Body:**
+        ```json
+        {
+          "subClassId": "sc1a",
+          "slots": [
+            { "day": "Monday", "periodId": "p1", "subjectId": "sub1", "teacherId": "teacher1" }, // Assign/Update
+            { "day": "Monday", "periodId": "p2", "subjectId": null, "teacherId": null },   // Clear
+            // ... other modified slots
+          ]
+        }
+        ```
+    *   **Logic:**
+        1.  Receive and validate `subClassId` and the `slots` array.
+        2.  **Start Database Transaction.**
+        3.  **Loop through each `slot` in the request `slots` array:**
+            *   **Validate Input IDs:** Check if `periodId`, `subjectId` (if not null), and `teacherId` (if not null) actually exist in their respective tables. If not, prepare to rollback.
+            *   **Validate Teacher Qualification:** If `subjectId` and `teacherId` are present, query `Teacher_Subjects` to verify the teacher can teach the subject. If not, prepare to rollback with a clear error.
+            *   **Validate Teacher Availability:** If `teacherId` is present, query `TimetableSlots` for records where `teacher_id` matches `slot.teacherId`, `day_of_week` matches `slot.day`, `period_id` matches `slot.periodId`, AND `subclass_id` is **different** from the request's `subClassId`. If any such record exists, prepare to rollback with a conflict error message (include the conflicting class name).
+            *   **Perform Upsert:** Execute an SQL query (e.g., using `ON CONFLICT ... DO UPDATE` in PostgreSQL, or a separate `SELECT` then `INSERT`/`UPDATE` logic) to:
+                *   Find the row in `TimetableSlots` matching `subclass_id`, `day_of_week`, `period_id`.
+                *   If it exists, **UPDATE** its `subject_id` and `teacher_id` to the values in the current `slot` (which might be `null`).
+                *   If it doesn't exist, **INSERT** a new row with all the details (`subclass_id`, `day_of_week`, `period_id`, `subject_id`, `teacher_id`).
+            *   If any validation or the upsert fails, immediately break the loop and ensure the transaction will be rolled back.
+        4.  **Commit or Rollback Transaction:** If the loop completed successfully, commit. Otherwise, rollback.
+        5.  **Return Response:** Send a success message (200 OK) on commit. On rollback, send an appropriate error status (400/409) with details about the validation failure(s) or conflict(s).
+
+*   **(Alternative) `PUT /api/v1/timetables/slot/{slotId}`:**
+    *   **Purpose:** Update a single timetable slot. Less efficient for grid changes.
+    *   **Request Body:** `{ "subjectId": "sub1", "teacherId": "teacher1" }`
+    *   **Logic:** Similar validation as the bulk update.
+
+*   **(Alternative) `DELETE /api/v1/timetables/slot/{slotId}`:**
+    *   **Purpose:** Clear the subject/teacher assignment for a single slot (set subject/teacher to null).
+
+## 3. Important Considerations
+
+*   **Authorization:** Ensure all endpoints are protected and verify the user (Super Manager or Vice Principal) has the necessary permissions.
+*   **Validation:** Implement robust validation on the backend for all inputs, especially IDs and constraints (teacher availability/qualification).
+*   **Error Handling:** Provide clear error messages from the API (e.g., "Teacher conflict: Mr. Johnson already assigned to Class 7B during Monday Period 1").
+*   **Data Consistency:** Ensure field names (snake_case vs. camelCase) are handled consistently between the database, backend API, and frontend mapping.
+*   **Performance:** For `GET /timetables`, ensure efficient database queries, possibly using joins to fetch nested data if needed.
+*   **Concurrency:** The bulk update with transaction helps, but consider potential race conditions if multiple users might edit the same timetable simultaneously (less likely in this specific scenario, but good practice). 

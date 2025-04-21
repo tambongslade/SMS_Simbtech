@@ -3,6 +3,16 @@ import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
 import '@fontsource/inter/700.css';
 import './globals.css';
+import { SWRProvider } from '@/components/providers/SWRProvider';
+import { Inter } from 'next/font/google';
+import React from 'react';
+
+const inter = Inter({ subsets: ['latin'] });
+
+export const metadata = {
+  title: 'School Management System',
+  description: 'Manage your school efficiently',
+};
 
 export default function RootLayout({
   children,
@@ -11,7 +21,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">{children}</body>
+      <body className={inter.className}>
+        <SWRProvider>
+          {children}
+        </SWRProvider>
+      </body>
     </html>
   );
 }

@@ -7,6 +7,7 @@ import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
 import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
+import { Student, NewStudent } from './types';
 
 export default function FeeManagementPage() {
   const {
@@ -44,6 +45,37 @@ export default function FeeManagementPage() {
     resetStudentForm,
   } = useFeeManagement();
 
+  // Handler function to select student and open payment modal
+  const handleRecordPaymentClick = (student: Student) => {
+    setSelectedStudent(student);
+    setShowPaymentModal(true);
+  };
+
+  // Handler for adding a new student with payment in one step
+  const handleAddStudentWithPayment = async (newStudentWithPayment: NewStudent) => {
+    // Extract payment info from the newStudentWithPayment object
+    const { paymentAmount, paymentMethod, paymentDescription, ...studentData } = newStudentWithPayment as any;
+    
+    // Set payment data
+    setPaymentAmount(paymentAmount);
+    setPaymentMethod(paymentMethod);
+    setPaymentDescription(paymentDescription || '');
+    
+    // Set student data
+    setNewStudent(studentData);
+    
+    // Call the handleAddStudent function first and then handlePayment
+    await handleAddStudent(new Event('submit') as any);
+    // After adding the student, the payment can be made (this flow may need adjustment)
+    // handlePayment will need to be called with the newly created student
+  };
+
+  // Placeholder handler for viewing payment history
+  const handleViewHistory = (student: Student) => {
+    console.log('View history for:', student.name); // Replace with actual logic later
+    // Example: setSelectedStudent(student); setShowHistoryModal(true);
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
@@ -76,21 +108,25 @@ export default function FeeManagementPage() {
       ) : viewMode === "list" ? (
         <ListView
           students={getFilteredStudents()}
-          setSelectedStudent={setSelectedStudent}
-          setShowPaymentModal={setShowPaymentModal}
+          onRecordPayment={handleRecordPaymentClick}
         />
       ) : (
         <CardView
           students={getFilteredStudents()}
-          setSelectedStudent={setSelectedStudent}
-          setShowPaymentModal={setShowPaymentModal}
+          onRecordPayment={handleRecordPaymentClick}
+          onViewHistory={handleViewHistory}
         />
       )}
 
       {/* Modals */}
-      {showPaymentModal && selectedStudent && (
+      {showPaymentModal && (
         <PaymentModal
-          selectedStudent={selectedStudent}
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false);
+            resetPaymentForm();
+          }}
+          student={selectedStudent}
           selectedPaymentType={selectedPaymentType}
           setSelectedPaymentType={setSelectedPaymentType}
           paymentAmount={paymentAmount}
@@ -100,12 +136,13 @@ export default function FeeManagementPage() {
           paymentDescription={paymentDescription}
           setPaymentDescription={setPaymentDescription}
           handlePayment={handlePayment}
-          resetPaymentForm={resetPaymentForm}
-          setShowPaymentModal={setShowPaymentModal}
+          handleAddStudentWithPayment={handleAddStudentWithPayment}
+          isLoading={isLoading}
+          students={students}
         />
       )}
 
-<StudentModal
+      <StudentModal
         isOpen={showStudentModal}
         onClose={() => setShowStudentModal(false)}
         newStudent={newStudent}

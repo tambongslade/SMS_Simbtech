@@ -1,0 +1,82 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Project Development Rules & Patterns (As of Teacher/Class Master Implementation)
+
+## 1. Personnel Management (Super Manager)
+
+*   **Structure**:
+    *   Main overview page: `/dashboard/super-manager/personnel-management` (linked as "All Personnel" in submenu).
+    *   Individual role management pages (e.g., `/vice-principal-management`, `/discipline-master-management`, `/teacher-management`) linked as sub-items under "Personnel Management".
+*   **Data Fetching**:
+    *   Fetch personnel lists by role using query parameters: `GET /users?role=ROLE_NAME` (e.g., `VICE_PRINCIPAL`, `TEACHER`).
+*   **Assignment Management**:
+    *   Use dedicated API endpoints for managing assignments (e.g., assigning subclasses to VPs/DMs). Example: `POST /users/{userId}/assignments/{roleType}` and `DELETE /users/{userId}/assignments/{roleType}/{assignmentId}`.
+    *   Implement assignment logic within modals specific to the role management page.
+    *   Carefully map assignment data from the API response (e.g., `user.vicePrincipalAssignments`, `user.disciplineMasterAssignments`).
+*   **UI**:
+    *   Display personnel lists in tables.
+    *   Provide buttons ("Manage Assignments") to open assignment modals.
+
+## 2. Class & Subclass Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/classes` handles both classes and their nested subclasses.
+*   **Subclass Class Master**:
+    *   Subclasses can have an assigned "Class Master" (a Teacher).
+    *   **Type**: The `SubClass` type includes optional `classMasterId: number | null` and `classMasterName: string | null`.
+    *   **Fetching Masters**: Fetch the list of teachers (`GET /users?role=TEACHER`) on the Classes page to populate assignment dropdowns.
+    *   **UI**:
+        *   Display `classMasterName` in the subclass table.
+        *   The `SubClassForm` component includes a `<select>` dropdown populated with fetched teachers (and a "None" option).
+    *   **API Interaction**:
+        *   Assigning/Updating: Use `POST /classes/sub-classes/{subclassId}/class-master` with `{ "userId": teacherId }` payload.
+        *   Removing: Use `DELETE /classes/sub-classes/{subclassId}/class-master`.
+        *   **Logic**: Subclass creation/update is a two-step process:
+            1.  Create/update the subclass name (`POST /classes/{classId}/subclasses` or `PUT /subclasses/{subclassId}`).
+            2.  If the Class Master needs changing, make a separate `POST` or `DELETE` call to the `/class-master` endpoint.
+    *   **Data Fetching (Verification Needed)**: The `GET /classes` endpoint should ideally return `classMasterId` and `classMasterName` (or nested `classMaster` object) within each subclass object for display. Verify the actual API response structure.
+
+## 3. Student Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/student-management`.
+*   **Functionality**: View, Add, Edit Details, Enroll/Manage Enrollment.
+*   **Data Fetching**: `GET /students` endpoint should return student details along with nested `enrollments` (containing `subclass` and `class` info) and `parents` arrays.
+*   **API Data Mapping**: Pay close attention to nested structures (e.g., `s.enrollments?.[0]?.subclass?.name`) and potential case inconsistencies (e.g., `formerSchool` vs `former_school`). Map fields explicitly in the `fetchStudents` function.
+*   **Student Creation**: Two-step process:
+    1.  `POST /students` with basic details.
+    2.  `POST /students/{newStudentId}/enroll` with enrollment details (subclass, academic year, etc.).
+*   **UI**:
+    *   Use separate modals for "Add & Enroll", "Edit Details", and "Enroll/Manage".
+    *   Implement client-side filtering (search term, enrollment status, subclass) and pagination.
+    *   Display key student and current enrollment details in the main table.
+    *   Provide export functionality (ideally via a backend endpoint like `GET /students/export?subClassId=...&format=...`).
+
+## 4. Subject Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/subject-management`.
+*   **Status**: Basic page structure created.
+*   **TODO**: Implement Modals (Add/Edit), connect CRUD operations to API (`GET /subjects`, `POST /subjects`, `PUT /subjects/{id}`, `DELETE /subjects/{id}`), verify API details.
+
+## 5. Layout & Navigation (`layout.tsx`)
+
+*   **Structure**: Defines sidebar navigation based on user role stored in `localStorage`.
+*   **Configuration**: Uses a `menuItems` object mapping roles (e.g., `super-manager`, `teacher`) to arrays of `MenuItem` objects.
+*   **Submenus**: Supports nested navigation using the optional `subItems` array within a `MenuItem`.
+*   **Active State**: Dynamically highlights the active menu item (and parent if in a submenu) based on the current `pathname`.
+*   **Icons**: Imports necessary icons from `@heroicons/react/24/outline`.
+
+## 6. General Technical Patterns
+
+*   **API Interaction**:
+    *   Use `process.env.NEXT_PUBLIC_API_BASE_URL` for the base API URL.
+    *   Retrieve auth token from `localStorage` using a helper function (`getAuthToken`). Include it as a `Bearer` token in `Authorization` headers.
+    *   Handle API errors robustly using `try...catch`, check `response.ok`, and attempt to parse JSON error messages from the response body.
+*   **State Management**: Use `useState` for component state (data lists, loading status, modal visibility, form data). Use `useEffect` for initial data fetching.
+*   **Data Fetching**: Use `async/await` with `fetch`. Combine multiple initial fetches using `Promise.all` within a dedicated function (e.g., `fetchAllData`) called by `useEffect`.
+*   **User Feedback**: Use `react-hot-toast` for success and error notifications. Prefer standard `toast()` calls over deprecated `toast.info/warn`. Use loading states (`isLoading`) to disable buttons and show indicators.
+*   **Modals**: Use a consistent Modal component structure for Add/Edit/Assignment forms. Pass data via props (`initialData`) and handle submissions via callback props (`onSubmit`).
+*   **Forms**: Control form inputs using component state. Perform basic validation before submitting.
+*   **Types**: Use TypeScript interfaces/types (`type`/`interface`) for API data structures, component props, and form data to ensure type safety. Define types in relevant files (e.g., `types/class.ts`) or locally within the component if specific to it.
+*   **Code Structure**: Organize related components and types into subdirectories where appropriate (e.g., `classes/components`, `classes/types`).
