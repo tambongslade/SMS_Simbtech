@@ -1,0 +1,114 @@
+# Project Development Rules & Patterns (As of Marks/Communication Implementation)
+
+## 1. Personnel Management (Super Manager)
+
+*   **Structure**:
+    *   Main overview page: `/dashboard/super-manager/personnel-management` (linked as "All Personnel" in submenu).
+    *   Individual role management pages (e.g., `/vice-principal-management`, `/discipline-master-management`, `/teacher-management`) linked as sub-items under "Personnel Management".
+*   **Data Fetching**:
+    *   Fetch personnel lists by role using query parameters: `GET /users?role=ROLE_NAME` (e.g., `VICE_PRINCIPAL`, `TEACHER`).
+*   **Assignment Management**:
+    *   Use dedicated API endpoints for managing assignments (e.g., assigning subclasses to VPs/DMs). Example: `POST /users/{userId}/assignments/{roleType}` and `DELETE /users/{userId}/assignments/{roleType}/{assignmentId}`.
+    *   Implement assignment logic within modals specific to the role management page.
+    *   Carefully map assignment data from the API response (e.g., `user.vicePrincipalAssignments`, `user.disciplineMasterAssignments`).
+*   **UI**:
+    *   Display personnel lists in tables.
+    *   Provide buttons ("Manage Assignments") to open assignment modals.
+
+## 2. Class & Subclass Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/classes` handles both classes and their nested subclasses.
+*   **Subclass Class Master**:
+    *   Subclasses can have an assigned "Class Master" (a Teacher).
+    *   **Type**: The `SubClass` type includes optional `classMasterId: number | null` and `classMasterName: string | null`.
+    *   **Fetching Masters**: Fetch the list of teachers (`GET /users?role=TEACHER`) on the Classes page to populate assignment dropdowns.
+    *   **UI**:
+        *   Display `classMasterName` in the subclass table.
+        *   The `SubClassForm` component includes a `<select>` dropdown populated with fetched teachers (and a "None" option).
+    *   **API Interaction**:
+        *   Assigning/Updating: Use `POST /classes/sub-classes/{subclassId}/class-master` with `{ "userId": teacherId }` payload.
+        *   Removing: Use `DELETE /classes/sub-classes/{subclassId}/class-master`.
+        *   **Logic**: Subclass creation/update is a two-step process:
+            1.  Create/update the subclass name (`POST /classes/{classId}/subclasses` or `PUT /subclasses/{subclassId}`).
+            2.  If the Class Master needs changing, make a separate `POST` or `DELETE` call to the `/class-master` endpoint.
+    *   **Data Fetching (Verification Needed)**: The `GET /classes` endpoint should ideally return `classMasterId` and `classMasterName` (or nested `classMaster` object) within each subclass object for display. Verify the actual API response structure.
+
+## 3. Student Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/student-management`.
+*   **Functionality**: View, Add, Edit Details, Enroll/Manage Enrollment.
+*   **Data Fetching**: `GET /students` endpoint should return student details along with nested `enrollments` (containing `subclass` and `class` info) and `parents` arrays.
+*   **API Data Mapping**: Pay close attention to nested structures (e.g., `s.enrollments?.[0]?.subclass?.name`) and potential case inconsistencies (e.g., `formerSchool` vs `former_school`). Map fields explicitly in the `fetchStudents` function.
+*   **Student Creation**: Two-step process:
+    1.  `POST /students` with basic details.
+    2.  `POST /students/{newStudentId}/enroll` with enrollment details (subclass, academic year, etc.).
+*   **UI**:
+    *   Use separate modals for "Add & Enroll", "Edit Details", and "Enroll/Manage".
+    *   Implement client-side filtering (search term, enrollment status, subclass) and pagination.
+    *   Display key student and current enrollment details in the main table.
+    *   Provide export functionality (ideally via a backend endpoint like `GET /students/export?subClassId=...&format=...`).
+
+## 4. Subject Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/subject-management`.
+*   **Functionality**: View subjects, assign subjects to subclasses/teachers.
+*   **Data Fetching**: `GET /subjects` (potentially with includes like `?include_subclasses=true&include_teachers=true`).
+*   **API Interaction**: CRUD via `POST /subjects`, `PUT /subjects/{id}`, `DELETE /subjects/{id}`. Assignment via modals using endpoints like `POST /subjects/{subjectId}/assignments/subclass`.
+*   **UI**: Table for subjects, modals for CRUD and assignment (`SubjectForm`, `AssignSubjectModal`, `AssignmentsView`).
+
+## 5. Marks Management (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/marks-management`.
+*   **Functionality**: Input, update, and delete marks for students based on selected filters (Academic Year, Term, Sequence, Class, Subclass, Subject).
+    *   Marks are numerical (0-20) and can include decimals.
+*   **Data Fetching**:
+    *   Initial Filters: `GET /academic-years`, `GET /classes`.
+    *   Dependent Filters:
+        *   `GET /academic-years/{yearId}/terms` (on year change).
+        *   `GET /exams?termId={termId}&academicYearId={yearId}` (on term change - *Verify exact params*).
+        *   `GET /classes/{classId}/sub-classes` (on class change).
+        *   `GET /subclasses/{subClassId}/subjects` (on subclass change - **Crucial: Endpoint must return only subjects *assigned* to the subclass**).
+    *   Main Data:
+        *   `GET /students?subclassId={subClassId}&academicYearId={yearId}&status=ENROLLED` (on subclass change).
+        *   `GET /marks?subClassId={subClassId}&examSequenceId={sequenceId}&academicYearId={yearId}` (on all filters selected).
+*   **State Management**: Uses `localMarks` state (`Map<number, { mark: number | null, markId?: number }>`) to manage inputs before saving.
+*   **API Interaction**:
+    *   Save Changes (`handleSaveAllMarks`):
+        *   Determines Creates/Updates/Deletes by comparing `localMarks` to fetched `marks`.
+        *   `POST /marks` (Payload: `studentId`, `subjectId`, `examId`, `teacherId`, `mark`, `comment?`). **Requires `teacherId` of logged-in user.**
+        *   `PUT /marks/{markId}` (Payload: `mark`, `comment?`).
+        *   `DELETE /marks/{markId}`.
+    *   Delete Button (`handleDeleteMark`): `DELETE /marks/{markId}`.
+*   **UI**: Grid of dependent dropdown filters. Table displaying students of selected subclass with input fields for marks.
+
+## 6. Communication & Announcements (Super Manager)
+
+*   **Location**: `/dashboard/super-manager/communication`.
+*   **Functionality**: View internal and public announcements. Create new announcements.
+*   **Data Fetching**: `GET /communications/announcements` (paginated).
+*   **Types**: `Announcement` (id, title, message, audience: 'INTERNAL'|'EXTERNAL'|'BOTH', authorName?, academicYearId?, createdAt, updatedAt).
+*   **API Interaction**: `POST /communications/announcements` (Payload: title, message, audience, academicYearId?).
+*   **UI**: Displays separate lists for Internal (INTERNAL, BOTH) and Public (EXTERNAL, BOTH) announcements. Uses `AnnouncementModal` component for creation.
+*   **TODO**: Implement Edit/Delete functionality and modals. Implement mobile notifications (`POST /communications/notifications`).
+
+## 7. Layout & Navigation (`layout.tsx`)
+
+*   **Structure**: Defines sidebar navigation based on user role stored in `localStorage`.
+*   **Configuration**: Uses a `menuItems` object mapping roles (e.g., `super-manager`, `teacher`) to arrays of `MenuItem` objects (`label`, `href`, `icon`, optional `subItems`).
+*   **Active State**: Dynamically highlights the active menu item (and parent if in a submenu) based on the current `pathname`.
+*   **Role Handling**: Redirects users to their specific role dashboard (e.g., `/dashboard/super-manager`) if they try to access a path not prefixed with their role.
+
+## 8. General Technical Patterns
+
+*   **API Interaction**:
+    *   Use `process.env.NEXT_PUBLIC_API_BASE_URL` for the base API URL.
+    *   Retrieve auth token from `localStorage` using a local helper function (`getAuthToken`). Include it as a `Bearer` token in `Authorization` headers.
+    *   Handle API errors robustly using `try...catch`, check `response.ok`, and attempt to parse JSON error messages.
+    *   Be mindful of potential `snake_case` vs `camelCase` differences between frontend and backend, especially in API request/response bodies.
+*   **State Management**: Use `useState` for component state (data lists, loading status, modal visibility, form data, selected filters). Use `useEffect` for initial and dependent data fetching.
+*   **Data Fetching**: Use `async/await` with `fetch`. Use `Promise.allSettled` for batch operations (like saving marks).
+*   **User Feedback**: Use `react-hot-toast` for success and error notifications. Use loading states (`isLoading`, `isSubmitting`) to disable buttons and show indicators.
+*   **Modals**: Use consistent Modal component structures. Pass data via props (`initialData`) and handle submissions via callback props (`onSubmit`). Control visibility via parent state (`isModalOpen`).
+*   **Forms**: Control form inputs using component state. Perform basic validation before submitting.
+*   **Types**: Use TypeScript interfaces/types (`type`/`interface`) for API data structures, component props, and form data. Define types in relevant files or locally.
+*   **Code Structure**: Organize related components and types into subdirectories (e.g., `communication/components`). 
