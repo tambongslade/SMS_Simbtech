@@ -1,31 +1,35 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { PlusIcon, PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
+import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
-import { AnnouncementModal } from './components/AnnouncementModal';
+import { useRouter } from 'next/navigation';
+import { AnnouncementModal } from './components/AnnouncementModal'; 
+import { TrashIcon, PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
-
-// Define getAuthToken locally (consistent with other pages)
-const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+// --- Define getAuthToken locally (consistent with other pages) ---
+const getAuthToken = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('authToken');
+};
 
 // --- Types ---
 type Audience = 'INTERNAL' | 'EXTERNAL' | 'BOTH';
-type Announcement = {
-    id: number;
+
+interface Announcement {
+    id: string;
     title: string;
     message: string;
     audience: Audience;
-    authorName?: string; 
-    academicYearId?: number;
-    createdAt: string; 
-    updatedAt: string; 
-};
+    authorId?: string; // Assuming author ID is available
+    authorName?: string; // Assuming author name is available
+    createdAt: string; // ISO string format
+    updatedAt?: string;
+    // Add any other relevant fields from your API
+}
 
-// Type for the form data submitted from the modal
-type AnnouncementSubmitData = {
+interface NewAnnouncementData {
     title: string;
     message: string;
     audience: Audience;
@@ -34,140 +38,164 @@ type AnnouncementSubmitData = {
 
 // --- Main Page Component ---
 export default function CommunicationPage() {
+    const router = useRouter();
+    // --- State ---
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
 
     // --- Data Fetching ---
-    const fetchAnnouncements = async () => {
+    const fetchAnnouncements = useCallback(async () => {
         setIsLoading(true);
         setError(null);
         const token = getAuthToken();
-        if (!token) { toast.error("Authentication required."); setIsLoading(false); setError("Not authenticated"); return; }
+        if (!token) {
+            toast.error('Authentication token not found. Redirecting to login.');
+            setError('Authentication required.');
+            setIsLoading(false);
+            router.push('/');
+            return;
+        }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/communications/announcements`, { 
-                headers: { 'Authorization': `Bearer ${token}` } 
+            const response = await fetch(`${API_BASE_URL}/announcements`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
             });
+
             if (!response.ok) {
-                 const errorData = await response.json().catch(() => ({ message: 'Failed to fetch announcements' }));
+                const errorData = await response.json().catch(() => ({ message: 'Failed to fetch announcements' }));
                 throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
             }
-            const data = await response.json();
-            setAnnouncements(data.data || []);
+
+            const result = await response.json();
+            setAnnouncements(result.data || []); // Assuming data is in result.data
         } catch (err: any) {
-            console.error("Fetch error:", err);
+            console.error("Fetch Announcements Error:", err);
             setError(err.message || 'An unexpected error occurred.');
             toast.error(`Failed to load announcements: ${err.message}`);
-            setAnnouncements([]); // Clear list on error
         } finally {
             setIsLoading(false);
         }
-    };
-    
+    }, [router]);
+
     useEffect(() => {
         fetchAnnouncements();
-    }, []); 
+    }, [fetchAnnouncements]); // Depend on the memoized fetch function
 
     // --- Handlers ---
     const handleCreateClick = () => {
         setEditingAnnouncement(null);
         setIsModalOpen(true);
     };
-    
+
     const handleEditClick = (announcement: Announcement) => {
         setEditingAnnouncement(announcement);
         setIsModalOpen(true);
     };
-    
+
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingAnnouncement(null);
     };
-    
-    // Handle form submission from modal
-    const handleSubmitAnnouncement = async (formData: AnnouncementSubmitData) => {
+
+    const handleSubmitAnnouncement = async (data: NewAnnouncementData | Announcement) => {
         setIsSubmitting(true);
         const token = getAuthToken();
-        if (!token) { toast.error("Auth error"); setIsSubmitting(false); return; }
-        
-        // TODO: Add PUT logic if editingAnnouncement exists
-        const isEditing = !!editingAnnouncement;
-        const url = isEditing 
-            ? `${API_BASE_URL}/communications/announcements/${editingAnnouncement.id}` 
-            : `${API_BASE_URL}/communications/announcements`;
+        if (!token) {
+            toast.error('Authentication required.');
+            setIsSubmitting(false);
+            return;
+        }
+
+        const isEditing = 'id' in data; // Check if it's an existing announcement
+        const url = isEditing ? `${API_BASE_URL}/announcements/${data.id}` : `${API_BASE_URL}/announcements`;
         const method = isEditing ? 'PUT' : 'POST';
+
+        // Ensure only valid fields for NewAnnouncementData are sent for POST
+        const payload: NewAnnouncementData = {
+            title: data.title,
+            message: data.message,
+            audience: data.audience,
+        };
 
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: {
+                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(formData) // Send submitted form data
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
                 let errorMsg = `Failed to ${isEditing ? 'update' : 'create'} announcement`;
-                 try {
-                     const errorData = await response.json();
-                     errorMsg = `${errorMsg}: ${errorData.message || response.statusText}`;
-                 } catch (e) { /* Ignore if body isn't JSON */ errorMsg = `${errorMsg}: ${response.statusText}`; }
-                 throw new Error(errorMsg);
+                try {
+                    const errorData = await response.json();
+                    errorMsg = `${errorMsg}: ${errorData.message || response.statusText}`;
+                } catch (jsonError) {
+                    // Ignore if response body is not JSON
+                }
+                throw new Error(errorMsg);
             }
-            
-            toast.success(`Announcement ${isEditing ? 'updated' : 'created'} successfully!`);
-            handleCloseModal(); // Close modal on success
-            await fetchAnnouncements(); // Refresh the list
 
+            toast.success(`Announcement ${isEditing ? 'updated' : 'created'} successfully!`);
+            handleCloseModal();
+            fetchAnnouncements(); // Re-fetch the list
         } catch (err: any) {
-            console.error("Submit error:", err);
+            console.error("Submit Announcement Error:", err);
             toast.error(err.message);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Handle Deletion
-    const handleDeleteClick = async (announcementId: number) => {
-         if (!window.confirm("Are you sure you want to delete this announcement?")) {
-             return;
-         }
+    const handleDeleteClick = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this announcement?')) {
+            return;
+        }
+        setIsLoading(true); // Use main loading indicator or add a specific delete loading state
+        const token = getAuthToken();
+        if (!token) {
+            toast.error('Authentication required.');
+            setIsLoading(false);
+            return;
+        }
 
-         const token = getAuthToken();
-         if (!token) { toast.error("Auth error"); return; }
+        try {
+            const response = await fetch(`${API_BASE_URL}/announcements/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
 
-         setIsLoading(true); // Use main loading indicator or a specific one
+            if (!response.ok) {
+                 let errorMsg = `Failed to delete announcement`;
+                 try {
+                    const errorData = await response.json();
+                    errorMsg = `${errorMsg}: ${errorData.message || response.statusText}`;
+                 } catch (jsonError) {
+                     // Ignore if response body is not JSON
+                 }
+                 throw new Error(errorMsg);
+            }
 
-         try {
-             const response = await fetch(`${API_BASE_URL}/communications/announcements/${announcementId}`, {
-                 method: 'DELETE',
-                 headers: { 'Authorization': `Bearer ${token}` },
-             });
-
-             if (!response.ok) {
-                 let errorMsg = 'Failed to delete announcement';
-                  try {
-                      const errorData = await response.json();
-                      errorMsg = `${errorMsg}: ${errorData.message || response.statusText}`;
-                  } catch (e) { /* Ignore if body isn't JSON */ errorMsg = `${errorMsg}: ${response.statusText}`; }
-                  throw new Error(errorMsg);
-             }
-
-             toast.success("Announcement deleted successfully!");
-             await fetchAnnouncements(); // Refresh list after successful deletion
-
-         } catch (err: any) {
-             console.error("Delete error:", err);
-             toast.error(err.message);
-             setError(err.message); // Optionally update main error state
-         } finally {
+            toast.success('Announcement deleted successfully!');
+            fetchAnnouncements(); // Re-fetch the list
+        } catch (err: any) {
+            console.error("Delete Announcement Error:", err);
+            toast.error(err.message);
+            // Don't set main error state on delete failure, maybe just log or toast
+        } finally {
+            // Make sure to turn off the correct loading indicator
              setIsLoading(false);
-         }
+        }
     };
 
     // --- JSX Structure ---
@@ -225,7 +253,7 @@ export default function CommunicationPage() {
                                         <p className="text-gray-700 whitespace-pre-wrap mt-2">{announcement.message}</p>
                                     </div>
                                 ))}
-                             </div>
+                            </div>
                         ) : (
                             <p className="text-gray-500 italic">No internal announcements found.</p>
                         )}
@@ -243,6 +271,8 @@ export default function CommunicationPage() {
                                              <div>
                                                 <h3 className="text-lg font-semibold text-gray-800 mb-1">{announcement.title}</h3>
                                                 <p className="text-sm text-gray-500">Posted on {new Date(announcement.createdAt).toLocaleDateString()}</p>
+                                                {/* Audience maybe less relevant for public view, but could be shown */}
+                                                {/* <p className="text-xs text-gray-400 mt-1">Audience: {announcement.audience}</p> */}
                                              </div>
                                              {/* Action Buttons */} 
                                             <div className="flex space-x-2 flex-shrink-0">

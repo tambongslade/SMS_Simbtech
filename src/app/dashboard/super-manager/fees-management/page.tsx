@@ -1,14 +1,21 @@
 "use client";
 
+import { useState } from 'react';
 import { useFeeManagement } from "./hooks/useFeeManagement";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
-import { PaymentModal } from "./components/ui/PaymentModal";
+import { SearchablePaymentModal } from "./components/ui/SearchablePaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
-import { Student, NewStudent } from './types';
+// import { PaymentConfirmationModal } from "/components/ui/PaymentConfirmationModal"     ;
+import { Student } from './types';
 import { toast } from "react-hot-toast";
+
+interface ConfirmationDetails {
+    studentName: string;
+    amount: string;
+}
 
 export default function FeeManagementPage() {
     const {
@@ -18,90 +25,71 @@ export default function FeeManagementPage() {
         setSelectedTerm,
         selectedPaymentStatus,
         setSelectedPaymentStatus,
-        showPaymentModal,
-        setShowPaymentModal,
         showStudentModal,
         setShowStudentModal,
         searchQuery,
         setSearchQuery,
-        selectedStudent,
-        setSelectedStudent,
-        selectedPaymentType,
-        setSelectedPaymentType,
-        paymentAmount,
-        setPaymentAmount,
-        paymentMethod,
-        setPaymentMethod,
-        paymentDescription,
-        setPaymentDescription,
         viewMode,
         setViewMode,
         students,
         getFilteredStudents,
         handlePayment,
-        handleAddStudent,
+        handleCreateAndPay,
         handleExportPDF,
         handleExportExcel,
         isLoading,
-        isLoadingClasses,
-        error,
+        isMutating,
+        fetchError,
+        mutationError,
         newStudent,
         setNewStudent,
-        resetPaymentForm,
         resetStudentForm,
         classesList,
         termsList,
+        isLoadingClasses,
+        isSearchablePaymentModalOpen,
+        setIsSearchablePaymentModalOpen,
     } = useFeeManagement();
 
-    const handleRecordPaymentClick = (student: Student) => {
-        setSelectedStudent(student);
-        setShowPaymentModal(true);
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [confirmModalDetails, setConfirmModalDetails] = useState<ConfirmationDetails | null>(null);
+
+    const [studentToPrepopulate, setStudentToPrepopulate] = useState<Student | null>(null);
+
+    const handleShowConfirmation = (details: ConfirmationDetails) => {
+        setConfirmModalDetails(details);
+        setShowConfirmModal(true);
     };
 
-    const handleAddStudentWithPayment = async (newStudentWithPayment: NewStudent) => {
-        console.warn("handleAddStudentWithPayment called - ensure hook logic is correct");
-        const { paymentAmount: amount, paymentMethod: method, paymentDescription: description, ...studentData } = newStudentWithPayment as any;
-        try {
-            await handleAddStudent(studentData);
-            console.log("Attempted to add student:", studentData);
+    const handleCloseConfirmation = () => {
+        setShowConfirmModal(false);
+        setConfirmModalDetails(null);
+    };
 
-            const addedStudent = students.find(s => 
-                s.name === studentData.name 
-            );
+    const handleOpenPaymentForStudent = (student: Student) => {
+        setStudentToPrepopulate(student);
+        setIsSearchablePaymentModalOpen(true);
+    };
 
-            if (addedStudent && amount > 0) {
-                console.log(`Student found (ID: ${addedStudent.id}), attempting payment...`);
-                setSelectedStudent(addedStudent);
-                setPaymentAmount(amount);
-                setPaymentMethod(method);
-                setPaymentDescription(description || '');
-                await handlePayment();
-                resetPaymentForm();
-                setShowStudentModal(false);
-                resetStudentForm();
-            } else if (addedStudent) {
-                console.log(`Student found (ID: ${addedStudent.id}), no initial payment.`);
-                setShowStudentModal(false);
-                resetStudentForm();
-            } else {
-                console.error("Failed to find newly added student. Cannot proceed with payment.");
-                toast.error("Student added, but failed to find details for payment.");
-            }
-        } catch (err) {
-            console.error("Error in handleAddStudentWithPayment flow:", err);
-            toast.error(`Failed to add student: ${err instanceof Error ? err.message : String(err)}`);
-        }
+    const handleClosePaymentModal = () => {
+        setIsSearchablePaymentModalOpen(false);
+        setStudentToPrepopulate(null);
     };
 
     const handleViewHistory = (student: Student) => {
         console.log('View history for:', student.name);
     };
 
+    const displayError = fetchError || mutationError;
+
     return (
         <div className="p-4 md:p-6 space-y-6">
             <Header
                 setShowStudentModal={setShowStudentModal}
-                setShowPaymentModal={setShowPaymentModal}
+                openSearchablePaymentModal={() => {
+                    setStudentToPrepopulate(null);
+                    setIsSearchablePaymentModalOpen(true);
+                }}
             />
             <Filters
                 searchQuery={searchQuery}
@@ -121,7 +109,7 @@ export default function FeeManagementPage() {
                 isLoadingClasses={isLoadingClasses}
             />
 
-            {error && <div className="text-red-600 text-center p-2">Error: {error}</div>}
+            {displayError && <div className="text-red-600 text-center p-2">Error: {displayError}</div>}
 
             {isLoading ? (
                 <div className="flex justify-center items-center h-64">
@@ -130,38 +118,24 @@ export default function FeeManagementPage() {
             ) : viewMode === "list" ? (
                 <ListView
                     students={getFilteredStudents()}
-                    onRecordPayment={handleRecordPaymentClick}
+                    onRecordPayment={handleOpenPaymentForStudent}
                 />
             ) : (
                 <CardView
                     students={getFilteredStudents()}
-                    onRecordPayment={handleRecordPaymentClick}
                     onViewHistory={handleViewHistory}
                 />
-            )}
+            )}  
 
-            {showPaymentModal && (
-                <PaymentModal
-                    isOpen={showPaymentModal}
-                    onClose={() => {
-                        setShowPaymentModal(false);
-                        resetPaymentForm();
-                    }}
-                    student={selectedStudent}
-                    selectedPaymentType={selectedPaymentType}
-                    setSelectedPaymentType={setSelectedPaymentType}
-                    paymentAmount={paymentAmount}
-                    setPaymentAmount={setPaymentAmount}
-                    paymentMethod={paymentMethod}
-                    setPaymentMethod={setPaymentMethod}
-                    paymentDescription={paymentDescription}
-                    setPaymentDescription={setPaymentDescription}
-                    handlePayment={handlePayment}
-                    handleAddStudentWithPayment={handleAddStudentWithPayment}
-                    isLoading={isLoading}
-                    students={students}
-                />
-            )}
+            <SearchablePaymentModal
+                isOpen={isSearchablePaymentModalOpen}
+                onClose={handleClosePaymentModal}
+                students={students}
+                handlePayment={handlePayment}
+                isLoading={isMutating}
+                onPaymentSuccess={handleShowConfirmation}
+                initialStudent={studentToPrepopulate}
+            />
             <StudentModal
                 isOpen={showStudentModal}
                 onClose={() => {
@@ -170,9 +144,18 @@ export default function FeeManagementPage() {
                 }}
                 newStudent={newStudent}
                 setNewStudent={setNewStudent}
-                handleAddStudent={handleAddStudent}
-                isLoading={isLoading}
+                handleCreateAndPay={handleCreateAndPay}
+                isLoading={isMutating}
             />
+
+            {/* {confirmModalDetails && (
+                <PaymentConfirmationModal
+                    isOpen={showConfirmModal}
+                    onClose={handleCloseConfirmation}
+                    studentName={confirmModalDetails.studentName}
+                    amount={confirmModalDetails.amount}
+                />
+            )} */}
         </div>
     );
 } 

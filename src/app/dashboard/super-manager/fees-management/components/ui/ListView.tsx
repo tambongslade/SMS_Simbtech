@@ -1,10 +1,12 @@
 "use client";
 
 import { Student } from "../../types";
+import Link from 'next/link';
 
 interface ListViewProps {
   students: Student[];
   onRecordPayment: (student: Student) => void;
+  // onViewHistory?: (student: Student) => void;
 }
 
 export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
@@ -40,7 +42,9 @@ export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
           {students.map((student) => (
             <tr key={student.id}>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {student.name}
+                <Link href={`/dashboard/super-manager/student/${student.id}`} className="text-blue-600 hover:underline">
+                  {student.name}
+                </Link>
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {student.class}
@@ -68,21 +72,30 @@ export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
               </td>
               <td className="px-6 py-4 whitespace-nowrap">
                 <span
-                  className={`px-2 py-1 text-xs font-semibold rounded-full 
-                    ${student.status === "Paid" ? "bg-green-100 text-green-800" : 
-                      student.status === "Partial" ? "bg-yellow-100 text-yellow-800" : 
+                  className={`px-2 py-1 text-xs font-semibold rounded-full
+                    ${student.status === "Paid" ? "bg-green-100 text-green-800" :
+                      student.status === "Partial" ? "bg-yellow-100 text-yellow-800" :
                       "bg-red-100 text-red-800"}`}
                 >
                   {student.status}
                 </span>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                 <button
                   onClick={() => onRecordPayment(student)}
-                  className="text-blue-600 hover:text-blue-900"
+                  className="text-green-600 hover:text-green-900 font-medium"
+                  title="Record Payment"
                 >
                   Record Payment
                 </button>
+                <Link
+                  href={`/dashboard/super-manager/student/${student.id}`}
+                  className="text-indigo-600 hover:text-indigo-900 font-medium"
+                  title="View Details"
+                >
+                  Details
+                </Link>
               </td>
             </tr>
           ))}

@@ -4,6 +4,18 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import { useTimetable } from './TimetableContext';
+import AssignmentModal from './AssignmentModal';
+
+// --- Helper function to shorten names ---
+const shortenSubClassName = (name: string): string => {
+    const match = name.match(/^FORM ([1-5])(.*)$/i); // Match "FORM " followed by 1-5, then capture the rest
+    if (match) {
+        // Reconstruct: the number (match[1]) + the rest (match[2], trimmed)
+        return `${match[1]}${match[2].trim()}`;
+    }
+    // If no match (e.g., "LSA", "Upper Sixth"), return original name
+    return name;
+};
 
 // Period times mapping (same as in TimetableGrid)
 const PERIOD_TIMES: { [key: string]: string } = {
@@ -29,6 +41,15 @@ interface SchoolTimetableViewProps {
   onClassSelect?: (subClassId: string) => void;
 }
 
+// --- Modal Data Type ---
+interface SelectedCellDataType {
+  day: string;
+  periodName: string;
+  subClassId: string;
+  initialSubjectId: string | null;
+  initialTeacherId: string | null;
+}
+
 const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect }) => {
   const {
     allWeeklySlots,
@@ -40,10 +61,19 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     timetables,
     isLoadingTimetable,
     fetchTimetableForSubclass,
+    updateTimetableSlot,
+    getTeachersBySubject,
+    saveAllTimetableChanges,
+    isSavingAll,
+    hasUnsavedChanges
   } = useTimetable();
 
   const [showConflictsOnly, setShowConflictsOnly] = useState<boolean>(false);
   const [compactView, setCompactView] = useState<boolean>(true);
+  
+  // --- State for Assignment Modal ---
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [selectedCellData, setSelectedCellData] = useState<SelectedCellDataType | null>(null);
 
   useEffect(() => {
     console.log("School-Wide View: Checking and fetching timetables...");
@@ -130,52 +160,77 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     });
   }, [subClasses, showConflictsOnly, teacherConflicts, timetables]);
 
-  const renderCompactCell = (day: string, periodName: string, subClassId: string) => {
+  // Renamed from renderCompactCell
+  const renderAssignmentCell = (day: string, periodName: string, subClassId: string) => {
     const assignment = getSlotAssignmentInfo(subClassId, day, periodName);
     const slotDefinition = getSlotDefinition(day, periodName);
 
     if (!slotDefinition) return <div className="w-full h-full bg-gray-50" title="Slot undefined">?</div>;
     if (slotDefinition.isBreak) {
-      return <div className="bg-gray-200 w-full h-full"></div>;
+      return <div className="bg-gray-200 w-full h-full" title={slotDefinition.name}></div>;
     }
 
-    if (!assignment.subjectId || !assignment.teacherId) {
-      return <div className="w-full h-full"></div>;
-    }
+    // Default empty cell look
+    let cellContent = <div className="w-full h-full hover:bg-gray-50 cursor-pointer"></div>; 
+    let bgColor = 'bg-white hover:bg-gray-50';
+    let title = "Click to assign";
 
-    const conflict = hasConflict(day, periodName, assignment.teacherId);
-    const bgColor = conflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
-    const subjectName = assignment.subjectName || subjects.find(s => s.id === assignment.subjectId)?.name || 'Unknown Sub';
-    const teacherName = assignment.teacherName || teachers.find(t => t.id === assignment.teacherId)?.name || 'Unknown Teach';
-    const title = `${subjectName} - ${teacherName}${conflict ? ' (CONFLICT!)' : ''}`;
+    // If assigned
+    if (assignment.subjectId && assignment.teacherId) {
+        const conflict = hasConflict(day, periodName, assignment.teacherId);
+        bgColor = conflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
+        const subjectName = assignment.subjectName || subjects.find(s => String(s.id) === String(assignment.subjectId))?.name || 'Sub?';
+        const teacherName = assignment.teacherName || teachers.find(t => String(t.id) === String(assignment.teacherId))?.name || 'Tch?';
+        title = `${subjectName} - ${teacherName}${conflict ? ' (CONFLICT!)' : ''}`;
+
+        cellContent = (
+             <> {/* Use fragment to avoid extra div */} 
+                 <span>{teacherName.split(' ').map(n => n[0]).join('') || '?'}</span>
+                 <span className="mx-px">/</span>
+                 <span>{subjectName.substring(0, 3).toUpperCase() || '?'}</span>
+             </>
+        );
+    }
 
     return (
       <div
         className={`w-full h-full ${bgColor} cursor-pointer flex items-center justify-center text-[9px] md:text-[10px] text-center leading-tight p-[1px]`}
         title={title}
         onClick={() => {
-          if (conflict && assignment.teacherId) {
-            const conflictClasses = (teacherConflicts[day]?.[periodName]?.[assignment.teacherId] || [])
-              .map(cId => subClasses.find(sc => sc.id === cId)?.name || cId)
-              .join(', ');
-
-            toast.error(
-              `Conflict: ${teacherName} (${subjectName}) in ${conflictClasses || 'multiple classes'}`,
-              { duration: 5000 }
-            );
-            onClassSelect?.(subClassId);
-          } else {
-            toast.success(`${subjectName} - ${teacherName}`, { duration: 2000 });
-            onClassSelect?.(subClassId);
-          }
+            if (!slotDefinition.isBreak) {
+                console.log(`Cell clicked: Day=${day}, Period=${periodName}, SubClass=${subClassId}`)
+                // Prepare data for the modal
+                const cellData: SelectedCellDataType = {
+                    day: day,
+                    periodName: periodName,
+                    subClassId: subClassId,
+                    initialSubjectId: assignment.subjectId ? String(assignment.subjectId) : null,
+                    initialTeacherId: assignment.teacherId ? String(assignment.teacherId) : null,
+                };
+                setSelectedCellData(cellData);
+                setIsModalOpen(true);
+            } else {
+                toast("Cannot assign during breaks.");
+            }
         }}
       >
-        <span>{teacherName.split(' ').map(n => n[0]).join('') || '?'}</span>
-        <span className="mx-px">/</span>
-        <span>{subjectName.substring(0, 3).toUpperCase() || '?'}</span>
+        {cellContent}
       </div>
     );
   };
+
+  // --- Handlers ---
+  const handleSaveAssignment = (subClassId: string, day: string, periodName: string, subjectId: string | null, teacherId: string | null) => {
+    // Update the local state via context function
+    updateTimetableSlot(subClassId, day, periodName, subjectId, teacherId);
+    // Optionally add a toast message
+    toast.success('Slot updated locally. Go to Class View to save permanently.'); 
+  };
+  
+  const handleCloseModal = () => {
+      setIsModalOpen(false);
+      setSelectedCellData(null);
+  }
 
   if (isLoadingTimetable && Object.keys(timetables).length < subClasses.length) {
        return <div className="p-4 text-center">Loading school-wide timetable data...</div>;
@@ -187,9 +242,16 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
         <h2 className="text-2xl font-bold">School-Wide Timetable View</h2>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-4">
+           <Button 
+             color="primary"
+             onClick={saveAllTimetableChanges}
+             disabled={!hasUnsavedChanges || isSavingAll}
+           >
+              {isSavingAll ? 'Saving...' : 'Save All Changes'}
+           </Button>
           <label className="flex items-center space-x-2">
             <input 
               type="checkbox" 
@@ -228,48 +290,66 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             </div>
           </div>
 
+          {/* Refactored Table Structure: Day/Period Rows, Subclass Columns */}
           {compactView ? (
-            <div className="border rounded">
-              <table className="w-full border-collapse text-xs table-fixed">
+            <div className="border rounded overflow-auto">
+              <table className="w-full border-collapse text-xs table-fixed min-w-[1200px]">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="p-1 border sticky left-0 bg-gray-50 z-20 min-w-[80px] md:min-w-[100px]">Time</th>
+                    <th className="p-1 border sticky left-0 bg-gray-50 z-20 min-w-[120px]">Day/Period/Time</th>
                     {filteredSubClasses.map(subClass => (
                       <th
                         key={subClass.id}
-                        className="p-1 border whitespace-nowrap cursor-pointer hover:bg-gray-100 truncate"
+                        className="p-1 border whitespace-nowrap cursor-pointer hover:bg-gray-100 truncate min-w-[70px]"
                         title={`View timetable for ${subClass.name}`}
                         onClick={() => onClassSelect?.(subClass.id)}
                       >
-                        {subClass.name}
+                        {shortenSubClassName(subClass.name)}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                   {uniquePeriodNames.map(periodName => {
-                       const representativeSlotDef = allWeeklySlots.find(ws => ws.name === periodName);
-                       const isBreakPeriod = allWeeklySlots.some(ws => ws.name === periodName && ws.isBreak);
-                       const rowBg = isBreakPeriod ? 'bg-gray-100' : 'hover:bg-gray-50';
+                  {daysOfWeek.map(day => (
+                    <React.Fragment key={day}> {/* Group rows by day */} 
+                       {/* Add a Day Separator Row */} 
+                       <tr className="bg-gray-200"> 
+                           <td colSpan={filteredSubClasses.length + 1} className="p-1 border font-semibold text-center text-gray-700 text-sm capitalize">
+                               {day.toLowerCase()} 
+                           </td>
+                       </tr>
+                       
+                       {uniquePeriodNames.map(periodName => {
+                            const representativeSlotDef = allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
+                            const isBreakPeriod = representativeSlotDef?.isBreak || false;
+                            const rowBg = isBreakPeriod ? 'bg-gray-100' : 'bg-white hover:bg-gray-50'; // White background for non-break rows
+                            const periodTime = representativeSlotDef ? `${representativeSlotDef.startTime?.substring(0, 5)}-${representativeSlotDef.endTime?.substring(0, 5)}` : 'N/A';
 
-                       return (
-                           <tr key={periodName} className={`border-b ${rowBg}`}>
-                               <th className="p-1 border sticky left-0 z-10 font-medium text-gray-800 min-w-[80px] md:min-w-[100px] bg-gray-50">
-                                   <div className="text-center text-xs md:text-sm">{periodName}</div>
-                                   {(representativeSlotDef?.startTime || representativeSlotDef?.endTime) && (
-                                     <div className="text-[9px] md:text-[10px] text-gray-500 font-normal text-center">
-                                        {representativeSlotDef.startTime?.substring(0, 5)} - {representativeSlotDef.endTime?.substring(0, 5)}
-                                     </div>
-                                   )}
-                               </th>
-                               {filteredSubClasses.map(subClass => (
-                                    <td key={`${subClass.id}-${periodName}`} className="border h-8 md:h-10 p-0">
-                                        {renderCompactCell("MONDAY", periodName, subClass.id)}
-                                    </td>
-                               ))}
-                           </tr>
-                       );
-                   })}
+                            return (
+                                <tr key={`${day}-${periodName}`} className={`border-b ${rowBg}`}>
+                                    {/* Time Header Cell - Only show time */}
+                                    <th className="p-1 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[100px]">
+                                        {/* Removed Period Name Div */}
+                                        {(representativeSlotDef?.startTime || representativeSlotDef?.endTime) && (
+                                          <div className="text-[10px] text-gray-500 font-normal text-center">
+                                            {representativeSlotDef.startTime?.substring(0, 5)} - {representativeSlotDef.endTime?.substring(0, 5)}
+                                          </div>
+                                        )}
+                                        {/* Display period name subtly if needed, or remove completely */}
+                                        {/* <div className="text-[9px] text-gray-400 text-center mt-0.5">({periodName})</div> */}
+                                    </th>
+                                    {/* Assignment Cells for each Subclass */}
+                                    {filteredSubClasses.map(subClass => (
+                                        <td key={`${subClass.id}-${day}-${periodName}`} className="border h-10 md:h-12 p-0">
+                                            {/* Pass day, periodName, subClass.id to the cell renderer */} 
+                                            {renderAssignmentCell(day, periodName, subClass.id)} {/* Use renamed function */} 
+                                        </td>
+                                    ))}
+                                </tr>
+                            );
+                        })}
+                    </React.Fragment>
+                   ))}
                 </tbody>
               </table>
             </div>
@@ -280,6 +360,17 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
           )}
         </div>
       </div>
+      
+      {/* Render the Assignment Modal */} 
+      <AssignmentModal 
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        cellData={selectedCellData}
+        subjects={subjects}
+        teachers={teachers}
+        getTeachersBySubject={getTeachersBySubject}
+        onSave={handleSaveAssignment}
+      />
     </div>
   );
 };

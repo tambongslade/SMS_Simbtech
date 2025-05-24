@@ -4,7 +4,7 @@ import { useState, Fragment, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardBody, Input, Button, Fade } from '@/components/ui';
-import { UserIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, LockClosedIcon, CheckCircleIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 
 // --- Role Selection Modal Component Definition ---
@@ -93,6 +93,8 @@ export default function LoginPage() {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [rolesForSelection, setRolesForSelection] = useState<string[]>([]);
   const [loginResponseData, setLoginResponseData] = useState<any>(null);
+  const [loginMode, setLoginMode] = useState<'staff' | 'parent'>('staff'); // Default to staff login
+  const [matricule, setMatricule] = useState(''); // State for parent login matricule
 
   // --- State and Effect for Background Image Cycling ---
   const [bgIndex, setBgIndex] = useState(0);
@@ -141,67 +143,64 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setLoginResponseData(null); // Clear previous login attempt data
 
-    try {
-      // Construct URL using environment variable
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/login`; 
-      // Added a fallback for safety, but .env.local is preferred
+    if (loginMode === 'staff') {
+      // --- STAFF LOGIN LOGIC (Remains the same) --- 
+      setLoginResponseData(null); // Clear previous login attempt data
+      try {
+        const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/login`;
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: formData.email, password: formData.password }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Staff login failed');
+
+        setLoginResponseData(data); // Store response data temporarily
+        const userRolesData = data.data?.user?.userRoles;
+        const roles = Array.isArray(userRolesData) ? userRolesData.map((roleObj: any) => roleObj.role) : [];
+
+        if (roles.length === 0) throw new Error('No roles found for the user');
+
+        if (roles.length > 1) {
+          setRolesForSelection(roles);
+          setIsRoleModalOpen(true);
+        } else {
+          handleRoleSelected(roles[0]);
+        }
+      } catch (error) {
+        console.error('Staff Login error:', error);
+        toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
+        setLoginResponseData(null); // Clear data on error
+      } finally {
+        // Modal handling might keep loading state, adjust if needed. For now, always stop loading.
+        // We set loading false here because role selection modal will handle its own state.
+        setIsLoading(false);
+      }
+      // --- END STAFF LOGIN LOGIC --- 
+
+    } else { 
+      // --- PARENT LOGIN LOGIC (Simplified - Direct Redirect) ---
+      if (!matricule) {
+        toast.error('Please enter the student matricule.');
+        setIsLoading(false);
+        return;
+      }
       
-      const response = await fetch(apiUrl, { // Use the constructed apiUrl
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      // Store response data temporarily
-      setLoginResponseData(data);
-
-      // Extract roles from userRoles array
-      // Ensure the path to roles is correct based on actual API response
-      const userRolesData = data.data?.user?.userRoles;
-      const roles = Array.isArray(userRolesData) ? userRolesData.map((roleObj: any) => roleObj.role) : [];
-
-      if (roles.length === 0) {
-        throw new Error('No roles found for the user');
-      }
-
-      if (roles.length > 1) {
-        // Multiple roles: Open the modal
-        console.log("Multiple roles found, opening modal:", roles); // DEBUG
-        setRolesForSelection(roles);
-        setIsRoleModalOpen(true);
-        // Don't proceed further here, wait for modal selection
-        // setIsLoading(false); // Keep loading indicator until role is chosen or modal closed
-      } else {
-        // Single role: Proceed directly
-        const selectedRole = roles[0];
-        handleRoleSelected(selectedRole); // Use the handler to store data and redirect
-      }
-
-    } catch (error) {
-      console.error('Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
-       setLoginResponseData(null); // Clear data on error
-    } finally {
-      // Only set isLoading to false if modal is NOT opened
-      // If modal is open, loading state remains until role is selected/modal closed
-      if (!isRoleModalOpen) {
-         setIsLoading(false);
-      }
-      // Correction:isLoading should be set false even if modal opens, modal can have its own internal loading state if needed.
-      setIsLoading(false);
+      // Simulate a short delay for UX if desired, otherwise redirect immediately
+      toast.success('Redirecting to parent dashboard...'); 
+      // Optionally store matricule if needed by the parent dashboard
+      // localStorage.setItem('studentMatricule', matricule);
+      
+      // Direct redirect without API call
+      router.push('/dashboard/parent');
+      
+      // No need for API try...catch here
+      // Keep isLoading true until navigation completes (or set false immediately if preferred)
+      // Setting false immediately might cause a flicker before redirect
+      // setIsLoading(false); 
+      // --- END PARENT LOGIN LOGIC --- 
     }
   };
 
@@ -242,42 +241,86 @@ export default function LoginPage() {
              </div>
 
             <CardHeader className="text-center pb-6 pt-0"> 
-              {/* Removed CardTitle and description, relying on logo/form */}
+               {/* Title changes based on mode */}
+               <h2 className="text-xl font-semibold text-gray-800">
+                 {loginMode === 'staff' ? 'Staff Sign In' : 'Parent/Student Access'}
+               </h2>
                <p className="mt-2 text-sm text-gray-700"> {/* Adjusted text color for better contrast */}
-                 Sign in to access your dashboard
+                 {loginMode === 'staff' ? 'Sign in to access your dashboard' : 'Enter student matricule to access parent dashboard'}
                </p>
             </CardHeader>
             <CardBody>
+              {/* --- Login Mode Switcher --- */}
+              <div className="flex justify-center space-x-4 mb-6">
+                  <button
+                      onClick={() => setLoginMode('staff')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${loginMode === 'staff' ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
+                      `}
+                  >
+                      Staff Login
+                  </button>
+                  <button
+                      onClick={() => setLoginMode('parent')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${loginMode === 'parent' ? 'bg-green-600 text-white shadow' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}
+                      `}
+                  >
+                      Parent/Student Login
+                  </button>
+              </div>
+
+              {/* --- Conditional Forms based on loginMode --- */} 
               <form onSubmit={handleSubmit} className="space-y-6">
-                <Input
-                  label="Email"
-                  type="email"
-                  placeholder="Enter your Email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  leftIcon={<UserIcon className="h-5 w-5 text-gray-400" />}
-                  required
-                  disabled={isLoading}
-                />
-                <Input
-                  label="Password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
-                  required
-                  disabled={isLoading}
-                />
-                 <Button
-                   type="submit"
-                   isFullWidth
-                   size="lg"
-                   className="mt-6 bg-blue-700 hover:bg-blue-800 text-white" // Use brand color for button
-                   disabled={!formData.email || !formData.password || isLoading}
-                 >
-                   {isLoading ? 'Signing in...' : 'Sign In'}
-                 </Button>
+                {loginMode === 'staff' && (
+                    <>
+                        <Input
+                          label="Email"
+                          type="email"
+                          placeholder="Enter your Email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          leftIcon={<UserIcon className="h-5 w-5 text-gray-400" />}
+                          required
+                          disabled={isLoading}
+                        />
+                        <Input
+                          label="Password"
+                          type="password"
+                          placeholder="Enter your password"
+                          value={formData.password}
+                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
+                          required
+                          disabled={isLoading}
+                        />
+                    </>
+                )}
+
+                {loginMode === 'parent' && (
+                    <Input
+                      label="Student Matricule"
+                      type="text" // Or number if appropriate
+                      placeholder="Enter student matricule number"
+                      value={matricule}
+                      onChange={(e) => setMatricule(e.target.value)} 
+                      leftIcon={<IdentificationIcon className="h-5 w-5 text-gray-400" />} // Use appropriate icon
+                      required
+                      disabled={isLoading}
+                    />
+                )}
+
+                <Button
+                  type="submit"
+                  isFullWidth
+                  size="lg"
+                  className={`mt-6 ${loginMode === 'staff' ? 'bg-blue-700 hover:bg-blue-800' : 'bg-green-700 hover:bg-green-800'} text-white`}
+                  disabled={
+                      isLoading ||
+                      (loginMode === 'staff' && (!formData.email || !formData.password)) ||
+                      (loginMode === 'parent' && !matricule)
+                  }
+                >
+                  {isLoading ? 'Processing...' : (loginMode === 'staff' ? 'Sign In' : 'Access Dashboard')}
+                </Button>
               </form>
 
               <div className="mt-6 text-center">

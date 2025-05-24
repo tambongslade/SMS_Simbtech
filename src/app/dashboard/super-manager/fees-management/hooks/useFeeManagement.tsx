@@ -7,6 +7,14 @@ import { AcademicYear, Term } from '@/app/dashboard/super-manager/academic-years
 import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
 import useSWR from 'swr'; // Import useSWR
 
+// Add PaymentDetails type, consistent with the modal
+interface PaymentDetails {
+    amount: number;
+    method: string;
+    date: string;
+    description?: string;
+}
+
 // Helper to get auth token (ensure this exists or implement it)
 const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'; // Ensure consistent base URL
@@ -16,30 +24,22 @@ export const useFeeManagement = () => {
   const [selectedClass, setSelectedClass] = useState('all'); 
   const [selectedTerm, setSelectedTerm] = useState('all'); 
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showFeeHistoryModal, setShowFeeHistoryModal] = useState(false);
+  const [isSearchablePaymentModalOpen, setIsSearchablePaymentModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  // Payment Form State
-  const [selectedPaymentType, setSelectedPaymentType] = useState('full');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
-  const [paymentDescription, setPaymentDescription] = useState('');
   // Add Student Form State
   const [newStudent, setNewStudent] = useState<NewStudent>({
     name: '',
     class: '', // Note: POST /students might not take class directly, handled via enrollment
     admissionNumber: '',
     email: '',
-    parentName: '',
-    parentPhone: '',
-    // Fields matching the updated NewStudent type
-    gender: '',
+    parents: [], // Initialize as empty array
     dateOfBirth: '',
+    gender: '',
     placeOfBirth: '',
     residence: '',
     former_school: '',
@@ -85,29 +85,51 @@ export const useFeeManagement = () => {
   // Process Fee Records Data
   const students = useMemo((): Student[] => {
     if (!feeRecordsResult?.data) return [];
-    return feeRecordsResult.data.map((feeRecord: any): Student => {
+    // Ensure we have a stable reference for filtering/searching later
+    const rawFeeRecords = feeRecordsResult.data;
+    return rawFeeRecords.map((feeRecord: any): Student => {
         const studentData = feeRecord.enrollment?.student;
         const subClassId = feeRecord.enrollment?.subClassId;
         const subClassName = findSubClassNameById(subClassId);
+        const amountExpected = feeRecord.amountExpected || 0;
+        const amountPaid = feeRecord.amountPaid || 0;
+
+        // Find the latest payment date
+        const latestPaymentDate = feeRecord.paymentTransactions?.length > 0
+            ? feeRecord.paymentTransactions.reduce((latest: string, tx: any) =>
+                tx.paymentDate > latest ? tx.paymentDate : latest,
+                feeRecord.paymentTransactions[0].paymentDate)
+            : undefined;
+
+        // Determine status
+        let status: Student['status'] = 'Unpaid';
+        if (amountPaid >= amountExpected && amountExpected > 0) {
+            status = 'Paid';
+        } else if (amountPaid > 0) {
+            status = 'Partial';
+        }
+
         return {
-            id: studentData?.id?.toString() || feeRecord.id.toString(),
+            id: studentData?.id?.toString() || feeRecord.enrollment?.studentId?.toString() || `fee-${feeRecord.id}`, // Use student ID if available, fallback needed
             name: studentData?.name || 'Unknown Student',
-            admissionNumber: studentData?.matricule || 'N/A',
-            class: subClassName || 'N/A',
-            expectedFees: feeRecord.amountExpected || 0,
-            paidFees: feeRecord.amountPaid || 0,
-            balance: (feeRecord.amountExpected || 0) - (feeRecord.amountPaid || 0),
-            status: (feeRecord.amountPaid || 0) >= (feeRecord.amountExpected || 0) ? 'Paid' : (feeRecord.amountPaid || 0) > 0 ? 'Partial' : 'Unpaid',
-            lastPaymentDate: feeRecord.paymentTransactions?.length > 0 
-                ? feeRecord.paymentTransactions.reduce((latest: string, tx: any) => 
-                    tx.paymentDate > latest ? tx.paymentDate : latest, 
-                    feeRecord.paymentTransactions[0].paymentDate) 
-                : undefined,
+            admissionNumber: studentData?.admissionNumber || studentData?.matricule || 'N/A', // Use admissionNumber, fallback matricule
+            class: subClassName || feeRecord.enrollment?.subClass?.name || 'N/A', // Use mapped name, fallback direct subClass name
+            expectedFees: amountExpected,
+            paidFees: amountPaid,
+            balance: amountExpected - amountPaid,
+            status: status,
+            lastPaymentDate: latestPaymentDate,
             email: studentData?.email || '',
-            parentName: studentData?.parent?.name || '',
-            parentPhone: studentData?.parent?.phone || '',
-            parentContacts: studentData?.parentContacts || [],
-            feeId: feeRecord.id,
+            // Ensure parents are handled correctly, might need nested access
+            parentName: studentData?.parents?.[0]?.name || '',
+            parentPhone: studentData?.parents?.[0]?.phone || '',
+            parentContacts: studentData?.parents || [], // Assuming parents array structure
+            feeId: feeRecord.id.toString(), // Ensure feeId is string
+            // Add other potential student fields if needed by UI
+            dateOfBirth: studentData?.dateOfBirth,
+            placeOfBirth: studentData?.placeOfBirth,
+         
+            photo: studentData?.photo,
         };
     });
   }, [feeRecordsResult, findSubClassNameById]);
@@ -130,37 +152,54 @@ export const useFeeManagement = () => {
   // --- Filtering (Client-side) --- 
   const getFilteredStudents = useCallback(() => {
     let filtered = [...students]; // Filter the memoized students state
-    // Existing search query filter
+
+    // Search query filter (name or admission number)
     if (searchQuery) {
+      const lowerCaseQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(student =>
-        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase())
+        student.name.toLowerCase().includes(lowerCaseQuery) ||
+        (student.admissionNumber && student.admissionNumber.toLowerCase().includes(lowerCaseQuery))
       );
     }
-    // Client-side class filter (might be redundant if API filters perfectly)
+
+    // Client-side class filter (using the selectedClass which is subClassId)
     if (selectedClass !== 'all') {
-        const selectedSubClassName = findSubClassNameById(selectedClass);
-        if (selectedSubClassName) { filtered = filtered.filter(student => student.class === selectedSubClassName); }
+      const targetSubClassId = Number(selectedClass); // Ensure comparison is number vs number if ID is number
+      // This assumes feeRecordsResult.data has enrollment.subClassId
+      // We need to filter based on the original data structure before mapping if student.class is just a name
+       filtered = filtered.filter(student => {
+           // Find the original fee record corresponding to the student
+           const originalRecord = feeRecordsResult?.data.find(fr => fr.enrollment?.student?.id?.toString() === student.id || fr.enrollment?.studentId?.toString() === student.id || `fee-${fr.id}` === student.id);
+           return originalRecord?.enrollment?.subClassId === targetSubClassId;
+       });
+
+       // Alternative if student.class is reliable and unique:
+       // const selectedSubClassName = findSubClassNameById(selectedClass);
+       // if (selectedSubClassName) { filtered = filtered.filter(student => student.class === selectedSubClassName); }
     }
+
     // Payment status filter
-    if (selectedPaymentStatus !== 'all') { filtered = filtered.filter(student => student.status === selectedPaymentStatus); }
+    if (selectedPaymentStatus !== 'all') {
+        filtered = filtered.filter(student => student.status === selectedPaymentStatus);
+    }
+
     // Sorting
     filtered.sort((a, b) => {
-      const aValue = a[sortBy as keyof Student];
-      const bValue = b[sortBy as keyof Student];
+        const aValue = a[sortBy as keyof Student] as any; // Basic sort, might need refinement for specific fields
+        const bValue = b[sortBy as keyof Student] as any;
 
-      if (typeof aValue === 'string' && typeof bValue === 'string') {
-        return sortOrder === 'asc'
-          ? aValue.localeCompare(bValue)
-          : bValue.localeCompare(aValue);
-      }
+        let comparison = 0;
+        if (aValue > bValue) {
+            comparison = 1;
+        } else if (aValue < bValue) {
+            comparison = -1;
+        }
 
-      return sortOrder === 'asc'
-        ? (aValue as number) - (bValue as number)
-        : (bValue as number) - (aValue as number);
+        return sortOrder === 'desc' ? (comparison * -1) : comparison;
     });
+
     return filtered;
-  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus, findSubClassNameById]);
+  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus, feeRecordsResult, findSubClassNameById]); // Add feeRecordsResult dependency
 
   // --- Placeholder Export Handlers --- (Keep as is for now)
   const handleExport = (format: 'pdf' | 'excel') => {
@@ -169,7 +208,7 @@ export const useFeeManagement = () => {
     toast.success(`Preparing ${format.toUpperCase()} export... (Data logged to console)`);
     // TODO: Replace console.log with actual export logic (frontend library or backend API call)
     // Example backend call structure:
-    /*
+
     const token = getAuthToken();
     if (!token) { toast.error("Auth required"); return; }
     const params = new URLSearchParams({
@@ -182,7 +221,6 @@ export const useFeeManagement = () => {
       // Add other filters/sorting if needed by backend
     });
     window.open(`${API_BASE_URL}/fees/export?${params.toString()}`, '_blank');
-    */
   };
 
   const handleExportPDF = () => handleExport('pdf');
@@ -190,32 +228,37 @@ export const useFeeManagement = () => {
 
   // --- Mutation Handlers (Update to use mutateFeeRecords) --- 
 
-  const handlePayment = async () => {
-    if (!selectedStudent || !paymentAmount) return;
+  const handlePayment = useCallback(async (studentId: string, paymentDetails: PaymentDetails): Promise<void> => {
     setIsMutating(true);
     setMutationError(null);
     
-    const amount = parseFloat(paymentAmount);
-    const feeId = selectedStudent.feeId; 
+    // Find the student's feeId from the students array
+    const studentData = students.find(s => s.id === studentId);
+    const feeId = studentData?.feeId;
+
     if (!feeId) {
-        toast.error("Fee ID not found for the selected student.");
-        setMutationError("Fee ID missing, cannot record payment.");
+        const errorMsg = "Fee record ID not found for the selected student.";
+        toast.error(errorMsg);
+        setMutationError(errorMsg);
         setIsMutating(false);
-        return;
+        throw new Error(errorMsg); // Throw error to be caught by modal if needed
     }
 
     const paymentPayload = {
-        amount: amount,
-        paymentDate: new Date().toISOString(),
-        paymentMethod: paymentMethod.toUpperCase(),
-        description: paymentDescription || null,
+        amount: paymentDetails.amount,
+        paymentDate: paymentDetails.date, // Use date from modal
+        paymentMethod: paymentDetails.method.toUpperCase(), // Use method from modal
+        description: paymentDetails.description || null, // Use description from modal
+        // Add termId, academicYearId if required by the endpoint
+        // termId: selectedTerm === 'all' ? undefined : Number(selectedTerm), // Example
+        // academicYearId: activeAcademicYear?.id, // Example
     };
 
     try {
       const token = getAuthToken();
       if (!token) throw new Error("Authentication required.");
 
-      const url = `${API_BASE_URL}/fees/${feeId}/payments`;
+      const url = `${API_BASE_URL}/fees/${feeId}/payments`; // Endpoint to add payment to a fee record
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -227,108 +270,170 @@ export const useFeeManagement = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to record payment: ${response.statusText}`);
+        // Use a more specific error message if available from backend
+        throw new Error(errorData.message || errorData.error || `Failed to record payment: ${response.statusText}`);
       }
       
       toast.success("Payment recorded successfully!");
-      resetPaymentForm();
-      setShowPaymentModal(false);
-      mutateFeeRecords(); // Revalidate/refetch the fee records
+      await mutateFeeRecords(); // Revalidate/refetch the fee records
+      // No need to close modal or reset form here, modal handles it
+
     } catch (error: any) {
       console.error('Error recording payment:', error);
       const errorMsg = `Failed to record payment: ${error.message}`;
       setMutationError(errorMsg);
       toast.error(errorMsg);
+      throw error; // Re-throw error so modal knows it failed
     } finally {
       setIsMutating(false);
     }
+  }, [students, mutateFeeRecords]); // Dependencies: students list, mutate function
+
+  // --- Combined Create Student and Record Initial Payment --- 
+  const handleCreateAndPay = async (studentWithPayment: NewStudent & { paymentAmount?: number; paymentMethod?: string; paymentDescription?: string }) => {
+    setIsMutating(true);
+    setMutationError(null);
+    const { paymentAmount: amount, paymentMethod: method, paymentDescription: description, ...studentData } = studentWithPayment;
+
+    // 1. Create Student
+    let newStudentId: string | null = null;
+    try {
+        const token = getAuthToken();
+        if (!token) throw new Error("Auth required");
+
+        console.log("Creating student with payload:", studentData);
+
+        const studentRes = await fetch(`${API_BASE_URL}/students`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(studentData),
+        });
+
+        if (!studentRes.ok) {
+            const err = await studentRes.json().catch(() => ({}));
+            throw new Error(err.message || `Failed to create student: ${studentRes.statusText}`);
+        }
+        const studentResData = await studentRes.json();
+        newStudentId = studentResData?.data?.id?.toString(); // Adjust based on actual response structure
+        if (!newStudentId) {
+             throw new Error("Created student but did not receive an ID.");
+        }
+        toast.success("Student created successfully!");
+
+        // 2. Enroll Student (Crucial for Fee Record Creation)
+        // Assuming enrollment happens automatically or needs a separate call
+        // If enrollment needs data like subClassId, academicYearId, termId, fetch/select them
+        const targetSubClassId = classesList.flatMap(c => c.subClasses).find(sc => sc?.name === studentData.class)?.id;
+        const targetTermId = termsList.find(t => t.name === selectedTerm)?.id; // Or determine based on current date/settings
+
+        if (!targetSubClassId || !activeAcademicYear?.id) {
+             console.warn("Cannot auto-enroll: Missing SubClass ID or Active Academic Year ID.");
+             // Potentially skip payment or require manual enrollment/fee setup
+        } else {
+            const enrollmentPayload = {
+                studentId: newStudentId,
+                subClassId: targetSubClassId,
+                academicYearId: activeAcademicYear.id,
+                // termId: targetTermId, // Include if necessary for fee generation
+                enrollmentDate: new Date().toISOString().split('T')[0],
+                status: 'ACTIVE', // Or appropriate status
+            };
+
+            console.log("Enrolling student with payload:", enrollmentPayload);
+            const enrollRes = await fetch(`${API_BASE_URL}/enrollments`, { // Adjust endpoint if needed
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(enrollmentPayload),
+            });
+
+             if (!enrollRes.ok) {
+                const err = await enrollRes.json().catch(() => ({}));
+                console.error("Enrollment failed:", err.message || enrollRes.statusText);
+                toast.error(`Student created, but enrollment failed: ${err.message || enrollRes.statusText}`);
+                // Decide how to proceed - maybe stop payment?
+             } else {
+                 toast.success("Student enrolled successfully!");
+             }
+        }
+
+
+        // 3. Refresh Fee Records to get the new feeId
+        await mutateFeeRecords(); // Wait for refetch
+
+        // Delay slightly to allow SWR update propagation? Unreliable.
+        // A better approach: The POST /payments endpoint should perhaps accept studentId + termId + yearId
+        // OR the enroll endpoint should return the newly created feeId.
+        // Workaround: Find the feeId after mutation.
+        let newlyCreatedFeeId: string | null = null;
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Small delay - IMPROVE THIS
+        const updatedFeeRecords = await mutateFeeRecords(); // Get updated data
+        const newFeeRecord = updatedFeeRecords?.data?.find((fr: any) => fr.enrollment?.studentId?.toString() === newStudentId);
+        newlyCreatedFeeId = newFeeRecord?.id?.toString();
+
+        if (!newlyCreatedFeeId) {
+             console.warn("Could not find Fee ID for the newly created student after enrollment. Skipping payment.");
+             toast("Student created and enrolled, but could not find fee record to apply payment.");
+        } else if (amount && amount > 0 && method) {
+            // 4. Record Payment using the new feeId
+            console.log(`Proceeding to payment for feeId: ${newlyCreatedFeeId}`);
+            const paymentDetails: PaymentDetails = {
+                amount: amount,
+                method: method,
+                date: new Date().toISOString().split('T')[0],
+                description: description || `Initial payment for ${studentData.name}`,
+            };
+
+             // Directly call the payment logic part
+            const paymentPayload = {
+                amount: paymentDetails.amount,
+                paymentDate: paymentDetails.date,
+                paymentMethod: paymentDetails.method.toUpperCase(),
+                description: paymentDetails.description || null,
+            };
+
+             const paymentUrl = `${API_BASE_URL}/fees/${newlyCreatedFeeId}/payments`;
+             const paymentRes = await fetch(paymentUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(paymentPayload),
+             });
+
+             if (!paymentRes.ok) {
+                 const err = await paymentRes.json().catch(() => ({}));
+                 throw new Error(err.message || `Student created/enrolled, but payment failed: ${paymentRes.statusText}`);
+             }
+             toast.success("Initial payment recorded successfully!");
+        }
+
+        resetStudentForm();
+        setShowStudentModal(false);
+        await mutateFeeRecords(); // Final refresh
+
+    } catch (error: any) {
+        console.error("Error in handleCreateAndPay:", error);
+        const errorMsg = `Operation failed: ${error.message}`;
+        setMutationError(errorMsg);
+        toast.error(errorMsg);
+        // Decide if modal should stay open on error
+    } finally {
+        setIsMutating(false);
+    }
   };
 
-  const resetPaymentForm = () => {
-    setPaymentAmount('');
-    setPaymentMethod('cash');
-    setPaymentDescription('');
-    setSelectedPaymentType('full');
-  };
-
-  // --- Re-added Student Form Reset ---
   const resetStudentForm = () => {
     setNewStudent({
       name: '',
       class: '',
       admissionNumber: '',
       email: '',
-      parentName: '',
-      parentPhone: '',
-      // Fields matching the updated NewStudent type
+        parents: [],
+      dateOfBirth: '', 
       gender: '',
-      dateOfBirth: '',
       placeOfBirth: '',
       residence: '',
       former_school: '',
       phone: ''
     });
-  };
-
-  // --- Re-implemented Add Student Handler ---
-  const handleAddStudent = async (studentFormData: NewStudent) => { 
-    setIsMutating(true);
-    setMutationError(null);
-
-    // Construct payload based on NewStudent type and expected API fields
-    // Ensure optional fields are handled (send null or omit if empty)
-    const studentPayload = {
-        name: studentFormData.name,
-        email: studentFormData.email || null,
-        phone: studentFormData.phone || null, // Student phone
-        matricule: studentFormData.admissionNumber || null,
-        gender: studentFormData.gender || null,
-        // Assuming API expects dateOfBirth, placeOfBirth, residence, former_school
-        dateOfBirth: studentFormData.dateOfBirth || null,
-        placeOfBirth: studentFormData.placeOfBirth || null,
-        residence: studentFormData.residence || null,
-        former_school: studentFormData.former_school || null,
-        // Parent info might need separate handling/API calls depending on backend
-        // parentName: studentFormData.parentName, 
-        // parentPhone: studentFormData.parentPhone,
-    };
-
-    try {
-      const token = getAuthToken();
-      if (!token) throw new Error("Authentication required.");
-
-      const url = `${API_BASE_URL}/students`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(studentPayload),
-      });
-
-      if (!response.ok) {
-        let errorMsg = `Failed to add student: ${response.statusText}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorData.message || errorMsg;
-        } catch (_) { /* Ignore parsing error */ }
-        throw new Error(errorMsg);
-      }
-
-      toast.success("Student created successfully!");
-      setShowStudentModal(false);
-      resetStudentForm();
-      return await response.json(); // Return new student data if needed by caller
-    } catch (error: any) {
-      console.error('Error adding student:', error);
-      const errorMsg = `Failed to add student: ${error.message}`;
-      setMutationError(errorMsg);
-      toast.error(errorMsg);
-      throw error; // Re-throw error so caller knows it failed
-    } finally {
-      setIsMutating(false);
-    }
   };
 
   return {
@@ -338,24 +443,14 @@ export const useFeeManagement = () => {
     setSelectedTerm,
     selectedPaymentStatus,
     setSelectedPaymentStatus,
-    showPaymentModal,
-    setShowPaymentModal,
     showStudentModal,
     setShowStudentModal,
     showFeeHistoryModal,
     setShowFeeHistoryModal,
+    isSearchablePaymentModalOpen,
+    setIsSearchablePaymentModalOpen,
     searchQuery,
     setSearchQuery,
-    selectedStudent,
-    setSelectedStudent,
-    selectedPaymentType,
-    setSelectedPaymentType,
-    paymentAmount,
-    setPaymentAmount,
-    paymentMethod,
-    setPaymentMethod,
-    paymentDescription,
-    setPaymentDescription,
     viewMode,
     setViewMode,
     sortBy,
@@ -365,7 +460,7 @@ export const useFeeManagement = () => {
     students,
     getFilteredStudents,
     handlePayment,
-    handleAddStudent,
+    handleCreateAndPay,
     handleExportPDF,
     handleExportExcel,
     isLoading,
@@ -376,7 +471,6 @@ export const useFeeManagement = () => {
     activeAcademicYear,
     newStudent,
     setNewStudent,
-    resetPaymentForm,
     resetStudentForm,
     isMutating,
     mutationError,

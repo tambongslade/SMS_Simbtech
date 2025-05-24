@@ -25,7 +25,10 @@ import {
   UsersIcon,
   MegaphoneIcon,
   ChevronUpDownIcon,
-  ClockIcon
+  ClockIcon,
+  ChevronDoubleLeftIcon,
+  BeakerIcon,
+  UserIcon
 } from '@heroicons/react/24/outline';
 import { Fade } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
@@ -45,7 +48,7 @@ type MenuItemsStructure = {
   bursar: MenuItem[];
   'discipline-master': MenuItem[];
   hod: MenuItem[];
-  parentstudent: MenuItem[];
+  parent: MenuItem[];
   'super-manager': MenuItem[];
   guidancecounselor: MenuItem[];
   teacher: MenuItem[];
@@ -84,11 +87,11 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Performance', href: '/dashboard/hod/performance' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/hod/announcements' },
   ],
-  parentstudent: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/parentstudent' },
-    { icon: CurrencyDollarIcon, label: 'Fees', href: '/dashboard/parentstudent/fees' },
-    { icon: DocumentChartBarIcon, label: 'Results', href: '/dashboard/parentstudent/results' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/parentstudent/announcements' },
+  parent: [
+    { icon: UserIcon, label: 'Child Statistics', href: '/dashboard/parent/statistics' },
+    { icon: CurrencyDollarIcon, label: 'School Fees', href: '/dashboard/parent/fees' },
+    { icon: BeakerIcon, label: 'Quiz', href: '/dashboard/parent/quiz' },
+    { icon: BellIcon, label: 'Announcement', href: '/dashboard/parent/announcements' },
   ],
   'super-manager': [
     { label: 'Dashboard', href: '/dashboard/super-manager', icon: HomeIcon },
@@ -168,6 +171,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // State for collapsible sidebar
   
   // State to manage open submenus { [href]: boolean }
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({});
@@ -187,15 +191,34 @@ export default function DashboardLayout({
 
   // --- Effect to load roles from localStorage and validate initial path ---
   useEffect(() => {
+    console.log("DashboardLayout Effect: Running check for path:", pathname); // Log start
+
+    // --- Allow parent dashboard access without stored role/token ---
+    // Check if the current path is the parent dashboard
+    if (pathname.startsWith('/dashboard/parent')) {
+        // If it is the parent dashboard, skip the authentication checks below.
+        // We assume the parent page itself handles necessary logic based on matricule.
+        console.log("DashboardLayout Effect: Parent dashboard path detected. Skipping token/role check."); // Log parent path detected
+        setIsLoadingRoles(false); // Ensure loading state is cleared for parent view
+        return; // Exit the effect early
+    }
+    // --- End Parent Check ---
+
+    console.log("DashboardLayout Effect: Path is not parent dashboard. Checking for stored role..."); // Log proceeding to role check
+
     const storedRole = localStorage.getItem('userRole'); // e.g., "SUPER_MANAGER"
     const storedRolesList = localStorage.getItem('userRolesList'); // e.g., '["SUPER_MANAGER", "TEACHER"]'
     
+    // This check will now be skipped for /dashboard/parent
     if (!storedRole) {
+      console.log("DashboardLayout Effect: No stored role found. Redirecting to login."); // Log redirect trigger
       toast.error("Not authenticated. Redirecting to login.");
       router.push('/'); // Redirect to login if no primary role found
       return;
     }
     
+    console.log("DashboardLayout Effect: Found stored role:", storedRole, ". Proceeding with role setup."); // Log role found
+
     setUserRoleFromStorage(storedRole);
     setSelectedRole(storedRole); // Initialize dropdown selection
 
@@ -220,12 +243,19 @@ export default function DashboardLayout({
 
     // Validate initial path against the stored primary role (run only once after roles loaded)
     const formattedStoredRole = formatRoleForURL(storedRole);
-    if (roleFromPath && roleFromPath !== formattedStoredRole && !pathname.startsWith(`/dashboard/${formattedStoredRole}`)) {
+    const roleFromPath = pathname.split('/')[2]; // Re-calculate roleFromPath here if needed, or ensure it's up-to-date via dependencies
+    
+    console.log("DashboardLayout Effect: Validating path. Role from path:", roleFromPath, "Formatted stored role:", formattedStoredRole); // Log path validation info
+
+    // Added safety check for formattedStoredRole
+    if (roleFromPath && formattedStoredRole && roleFromPath !== formattedStoredRole && !pathname.startsWith(`/dashboard/${formattedStoredRole}`)) { 
         console.warn(`Initial path ${pathname} doesn't match stored role ${formattedStoredRole}. Redirecting.`);
         router.push(`/dashboard/${formattedStoredRole}`);
+    } else {
+        console.log("DashboardLayout Effect: Path validation passed or not applicable."); // Log path validation result
     }
 
-  }, [router]); // Run once on mount
+  }, [router, pathname]); // Removed roleFromPath from dependencies as it's derived from pathname
 
   // --- Effect to manage sidebar state based on path ---
   useEffect(() => {
@@ -263,7 +293,7 @@ export default function DashboardLayout({
     hod: 'Head of Department',
     'super-manager': 'Super Manager',
     teacher: 'Teacher',
-    parentstudent: 'Parent/Student',
+    parentstudent: 'Parent Dashboard',
     guidancecounselor: 'Guidance Counselor',
     manager: 'Manager',
     'vice-principal': 'Vice Principal'
@@ -309,11 +339,17 @@ export default function DashboardLayout({
   // --- Sidebar Component Logic (with Role Switcher and Logout) ---
   const SidebarContent = (
     <div className="flex flex-col h-full"> {/* Make sidebar flex column */}
-      <div className="p-4 border-b border-gray-200">
-        {/* Use role from path for the title */}
-        <h2 className="text-lg font-medium text-gray-800">
-          {roleFromPath ? roleTitle[roleFromPath] || formatRoleName(roleFromPath) : 'Dashboard'}
-        </h2>
+      <div className={`p-4 border-b border-gray-200 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+        {/* Use role from path for the title - Hide when collapsed */} 
+        {!isSidebarCollapsed && (
+          <h2 className="text-lg font-medium text-gray-800 truncate">
+             {roleFromPath ? roleTitle[roleFromPath] || formatRoleName(roleFromPath) : 'Dashboard'}
+          </h2>
+        )}
+        {/* Optional: Show a small icon or logo when collapsed */} 
+        {isSidebarCollapsed && (
+           <Image src="/logo.png" alt="Logo" width={32} height={32} className="h-8 w-auto" />
+        )}
       </div>
       {/* Main navigation */}
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -327,33 +363,41 @@ export default function DashboardLayout({
               {hasSubItems ? (
                 <button
                   onClick={() => toggleSubmenu(item.href)}
+                  title={item.label} // Add title for tooltip when collapsed
                   className={`
-                    flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-left
+                    flex items-center w-full px-4 py-2.5 text-sm font-medium rounded-lg text-left
                     transition-colors duration-200 group
+                    ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}
                     ${isParentActive
                       ? 'bg-blue-100 text-blue-800' // Active style for parent (Dark Blue)
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' // Inactive style
                     }
                   `}
                 >
-                  <span className="flex items-center">
+                  <span className={`flex items-center ${isSidebarCollapsed ? 'justify-center w-full' : ''}`}>
                     <item.icon 
-                      className={`h-5 w-5 mr-3 flex-shrink-0 ${isParentActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
+                      className={`h-5 w-5 flex-shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'} ${isParentActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
                     />
-                    <span className="truncate">{item.label}</span>
+                    {/* Hide label when collapsed */} 
+                    {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                   </span>
-                  {isSubmenuOpen ? (
+                  {/* Hide arrow when collapsed */} 
+                  {!isSidebarCollapsed && (
+                    isSubmenuOpen ? (
                       <ChevronDownIcon className="h-4 w-4 text-gray-400" />
                     ) : (
                       <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                    )}
+                    )
+                  )}
                 </button>
               ) : (
                 <Link
                   href={item.href}
+                  title={item.label} // Add title for tooltip when collapsed
                   className={`
                     flex items-center px-4 py-2.5 text-sm font-medium rounded-lg group
                     transition-colors duration-200
+                    ${isSidebarCollapsed ? 'justify-center' : ''}
                     ${pathname === item.href
                       ? 'bg-blue-100 text-blue-800' // Active style (Dark Blue)
                       : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' // Inactive style
@@ -362,14 +406,15 @@ export default function DashboardLayout({
                   onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
                 >
                   <item.icon 
-                    className={`h-5 w-5 mr-3 flex-shrink-0 ${pathname === item.href ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
+                    className={`h-5 w-5 flex-shrink-0 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'} ${pathname === item.href ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
                   />
-                  <span className="truncate">{item.label}</span>
+                   {/* Hide label when collapsed */} 
+                  {!isSidebarCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               )}
 
-              {/* Render Submenu Items if open */} 
-              {hasSubItems && isSubmenuOpen && (
+              {/* Render Submenu Items if open AND sidebar is not collapsed */} 
+              {hasSubItems && isSubmenuOpen && !isSidebarCollapsed && (
                  <div className="mt-1 ml-5 pl-4 border-l border-gray-200 space-y-1">
                   {item.subItems?.map((subItem) => {
                     const isSubItemActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/'); // Active if path matches exactly or starts with it
@@ -377,6 +422,7 @@ export default function DashboardLayout({
                       <Link
                         key={subItem.href}
                         href={subItem.href}
+                        title={subItem.label} // Add title for tooltip
                         className={`
                           flex items-center px-4 py-2 text-sm font-medium rounded-lg group
                           transition-colors duration-200
@@ -387,8 +433,7 @@ export default function DashboardLayout({
                         `}
                          onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
                       >
-                         {/* Optional: Add icon for sub-items if needed, or just text */}
-                         {/* <subItem.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${isSubItemActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}`} /> */} 
+                         {/* Hide label when collapsed (already handled by parent check) */}
                          <span className="truncate">{subItem.label}</span>
                       </Link>
                      );
@@ -400,10 +445,10 @@ export default function DashboardLayout({
         })}
       </nav>
       
-      {/* Role Switcher and Logout Section */}
-      <div className="p-4 mt-auto border-t border-gray-200 space-y-4">
-        {/* Role Switcher */}
-        {availableRoles.length > 1 && !isLoadingRoles && (
+      {/* Role Switcher, Logout & Collapse Button Section */}
+      <div className={`p-4 mt-auto border-t border-gray-200 space-y-4 ${isSidebarCollapsed ? 'space-y-2' : ''}`}>
+        {/* Role Switcher - Hide when collapsed */} 
+        {!isSidebarCollapsed && availableRoles.length > 1 && !isLoadingRoles && (
             <div className="relative">
                 <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
                     Switch Role
@@ -412,7 +457,7 @@ export default function DashboardLayout({
                     id="role-switcher"
                     value={selectedRole}
                     onChange={handleRoleChange}
-                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none" // Changed focus ring to blue-500
+                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
                 >
                     {availableRoles.map(roleValue => (
                         <option key={roleValue} value={roleValue}>
@@ -426,17 +471,33 @@ export default function DashboardLayout({
                 </div>
             </div>
         )}
-         {isLoadingRoles && availableRoles.length <= 1 && (
+         {/* Hide loading text when collapsed */} 
+         {!isSidebarCollapsed && isLoadingRoles && availableRoles.length <= 1 && (
            <div className="text-xs text-gray-400">Loading roles...</div> // Placeholder while loading
          )}
 
-        {/* Logout Button */}
+        {/* Logout Button */} 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg group transition-colors duration-200" // Use Red colors
+          title="Logout" // Add title for tooltip
+          className={`w-full flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg group transition-colors duration-200 ${isSidebarCollapsed ? 'justify-center' : ''}`}
         >
-          <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3 text-red-600 group-hover:text-red-700" /> {/* Use Red colors */}
-          Logout
+          <ArrowRightOnRectangleIcon className={`h-5 w-5 text-red-600 group-hover:text-red-700 ${isSidebarCollapsed ? 'mr-0' : 'mr-3'}`} /> {/* Use Red colors */}
+          {/* Hide text when collapsed */} 
+          {!isSidebarCollapsed && <span>Logout</span>}
+        </button>
+        
+        {/* --- Collapse Sidebar Button --- */} 
+        <button
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} 
+          className={`w-full flex items-center text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg group transition-colors duration-200 ${isSidebarCollapsed ? 'justify-center py-2.5' : 'px-4 py-2'}`}
+        >
+           <ChevronDoubleLeftIcon 
+             className={`h-5 w-5 text-gray-500 group-hover:text-gray-700 transition-transform duration-300 ${isSidebarCollapsed ? 'mr-0 rotate-180' : 'mr-3'}`} 
+           />
+           {/* Hide text when collapsed */} 
+          {!isSidebarCollapsed && <span>Collapse</span>}
         </button>
       </div>
     </div>
@@ -483,7 +544,8 @@ export default function DashboardLayout({
       {/* Sidebar and Main Content */}
       <div className="flex pt-16">
         {/* Desktop Sidebar (Fixed) - Hidden below lg */}
-        <aside className="fixed hidden lg:flex lg:flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-sm border-r border-gray-200">
+        {/* Apply transition and conditional width */}
+        <aside className={`fixed hidden lg:flex lg:flex-col h-[calc(100vh-4rem)] bg-white shadow-sm border-r border-gray-200 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-20' : 'w-64'}`}>
           {SidebarContent}
         </aside>
 
@@ -502,9 +564,10 @@ export default function DashboardLayout({
            </>
          )}
 
-        {/* Main Content Area - Adjust margin based on desktop sidebar visibility */}
-        <main className={`flex-1 pt-8 px-4 sm:px-8 pb-8 lg:ml-64 transition-all duration-300 ease-in-out`}>
-            {children}
+        {/* Main Content Area */} 
+        {/* Apply transition and conditional margin */} 
+        <main className={`flex-1 px-0 py-6 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          <Fade>{children}</Fade>
         </main>
 
       </div>

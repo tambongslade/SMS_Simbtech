@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 
 // Types
@@ -70,6 +70,8 @@ interface TimetableContextType {
   timetables: TimetablesState;
   isLoading: boolean;
   isLoadingTimetable: boolean; // Added loading state for specific timetable fetch
+  isSavingAll: boolean; // Added state for bulk save
+  hasUnsavedChanges: boolean; // Added derived state
   fetchTimetableForSubclass: (subClassId: string) => Promise<void>; // Added function signature
   updateTimetableSlot: (
     subClassId: string,
@@ -79,6 +81,7 @@ interface TimetableContextType {
     teacherId: string | null  // Allow null
   ) => void;
   saveChanges: (subClassId: string) => Promise<void>; // Pass subClassId
+  saveAllTimetableChanges: () => Promise<void>; // Added function for bulk save
   getTeachersBySubject: (subjectId: string) => Teacher[];
   isTeacherAssignedElsewhere: (
     teacherId: string,
@@ -163,6 +166,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [originalTimetables, setOriginalTimetables] = useState<TimetablesState>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingTimetable, setIsLoadingTimetable] = useState(false);
+  const [isSavingAll, setIsSavingAll] = useState(false); // Added state
   const [error, setError] = useState<string | null>(null);
 
   // Fetch initial data (Classes, SubClasses, Periods, Subjects from API)
@@ -188,8 +192,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
             method: 'GET', 
             headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } 
           }),
-          // SubClasses
-          fetch(`${API_BASE_URL}/classes/sub-classes`, {
+          // SubClasses - Added limit=1000 to fetch all
+          fetch(`${API_BASE_URL}/classes/sub-classes?limit=1000`, {
              method: 'GET', 
              headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } 
           }),
@@ -241,6 +245,11 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         console.log("SubClasses API response:", subClassResult);
         const fetchedSubClasses = subClassResult.data?.map((sc: any) => ({ id: String(sc.id), name: sc.name, classId: String(sc.class?.id), className: sc.class?.name })) || [];
+        
+        // --- ADDED CONSOLE LOG ---
+        console.log("Processed SubClasses before setting state:", fetchedSubClasses);
+        // --- END ADDED CONSOLE LOG ---
+
         setSubClasses(fetchedSubClasses);
 
         console.log("Subjects API response:", subjectResult);
@@ -450,135 +459,220 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
   }, [setTimetables, subjects, teachers]);
 
-  // Function to save changes for a specific subclass to the backend
-  const saveChanges = useCallback(async (subClassId: string) => {
-      const currentTimetable = timetables[subClassId];
-      const originalTimetable = originalTimetables[subClassId]; // Get original state
+  // --- Check for Unsaved Changes --- 
+  const hasUnsavedChanges = useMemo(() => {
+    for (const subClassId in timetables) {
+        const currentSlots = timetables[subClassId]?.slots;
+        const originalSlots = originalTimetables[subClassId]?.slots;
 
-      if (!currentTimetable) {
-          toast.error("No timetable data loaded for this subclass to save.");
-          return;
-      }
-      if (!originalTimetable) {
-           console.error("Original timetable state missing for comparison.");
-           toast.error("Cannot determine changes to save.");
-           return;
+        // If either is missing, or lengths differ, assume changes (or loading state)
+        if (!currentSlots || !originalSlots || currentSlots.length !== originalSlots.length) {
+           // Check if original exists - if it does, length diff means change
+           if (originalTimetables[subClassId]) return true; 
+           continue; // Skip if original doesn't exist yet (still loading)
+        }
+
+        // Compare slots
+        for (let i = 0; i < currentSlots.length; i++) {
+            const current = currentSlots[i];
+            const original = originalSlots.find(o => o.day === current.day && o.period === current.period);
+            if (!original || 
+                current.subjectId !== original.subjectId || 
+                current.teacherId !== original.teacherId) {
+                return true; // Found a difference
+            }
+        }
+    }
+    return false; // No differences found across all loaded timetables
+  }, [timetables, originalTimetables]);
+
+  // --- Save Single Subclass Logic (Helper used by saveChanges and saveAllTimetableChanges) ---
+  const performSaveForSubclass = useCallback(async (subClassId: string): Promise<{ success: boolean, subClassId: string, error?: string }> => {
+      const currentTimetable = timetables[subClassId];
+      const originalTimetable = originalTimetables[subClassId];
+
+      if (!currentTimetable || !originalTimetable) {
+          return { success: false, subClassId, error: "Missing current or original timetable data." };
       }
 
       const currentSlots = currentTimetable.slots;
       const originalSlots = originalTimetable.slots;
-      
+
       // Find changed slots (excluding breaks)
       const changedSlotsPayload = currentSlots
           .filter(currentSlot => {
-              const periodInfo = allWeeklySlots.find(p => p.name === currentSlot.period);
+              const periodInfo = allWeeklySlots.find(p => p.dayOfWeek === currentSlot.day && p.name === currentSlot.period);
               if (periodInfo?.isBreak) return false;
-              
-              const originalSlot = originalSlots.find(origSlot => 
+
+              const originalSlot = originalSlots.find(origSlot =>
                   origSlot.day === currentSlot.day && origSlot.period === currentSlot.period
               );
-              
-              return !originalSlot || 
-                     currentSlot.subjectId !== originalSlot.subjectId || 
+
+              return !originalSlot ||
+                     currentSlot.subjectId !== originalSlot.subjectId ||
                      currentSlot.teacherId !== originalSlot.teacherId;
           })
-          .map(slot => { 
-              // ** CRUCIAL MAPPING **
-              // Find the specific weekly slot ID from allWeeklySlots based on day and period name
+          .map(slot => {
               const weeklySlot = allWeeklySlots.find(ws => ws.dayOfWeek === slot.day && ws.name === slot.period);
-              const specificPeriodId = weeklySlot ? weeklySlot.id : null; // Get the unique ID for this day/period combo
+              const specificPeriodId = weeklySlot ? weeklySlot.id : null;
               
-              // DIAGNOSTIC LOG:
-              console.log(`SAVE MAPPING: Day=${slot.day}, PeriodName=${slot.period}, FoundPeriodID=${specificPeriodId}, Slot=`, slot);
-              
+              if (!specificPeriodId) {
+                 console.error(`SAVE MAPPING FAILED: Day=${slot.day}, PeriodName=${slot.period}, Slot=`, slot);
+              }
+
               return {
-                  periodId: specificPeriodId ? Number(specificPeriodId) : null, 
+                  periodId: specificPeriodId ? Number(specificPeriodId) : null,
                   subjectId: slot.subjectId ? Number(slot.subjectId) : null,
                   teacherId: slot.teacherId ? Number(slot.teacherId) : null,
               }
           })
-          .filter(slot => slot.periodId !== null); // Filter out slots where period ID mapping failed
+          .filter(slot => slot.periodId !== null);
 
       if (changedSlotsPayload.length === 0) {
-          toast("No changes detected to save.");
-          return;
+          console.log(`No changes detected for ${subClassId}, skipping save.`);
+          return { success: true, subClassId }; // No changes is considered success
       }
-      
-      // Check if any slots failed the periodId lookup after filtering non-changes
-      const slotsWithMappingErrors = changedSlotsPayload.filter(slot => slot.periodId === null);
-      if (slotsWithMappingErrors.length > 0) {
-         console.error("Could not find period ID for one or more changed slots", slotsWithMappingErrors);
-         toast.error("Internal error: Could not map period names to IDs for saving.");
-         return;
-      } 
-      
+
       const payload = {
           subClassId: Number(subClassId),
-          slots: changedSlotsPayload, 
+          slots: changedSlotsPayload,
       };
 
-      console.log("Saving changed timetable slots:", payload);
-      setIsLoadingTimetable(true); 
-      setError(null);
+      console.log(`Saving changes for ${subClassId}:`, payload);
       const token = getAuthToken();
-      if (!token) { 
-          toast.error("Authentication token not found.");
-          setIsLoadingTimetable(false); 
-          return; 
+      if (!token) {
+          return { success: false, subClassId, error: "Authentication token not found." };
       }
 
       try {
-           const response = await fetch(`${API_BASE_URL}/timetables/bulk-update`, {
-               method: 'POST',
-               headers: {
-                   'Authorization': `Bearer ${token}`,
-                   'Content-Type': 'application/json',
-                   'Accept': 'application/json',
-               },
-               body: JSON.stringify(payload),
-           });
-           const result = await response.json();
+          const response = await fetch(`${API_BASE_URL}/timetables/bulk-update`, {
+              method: 'POST',
+              headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+              },
+              body: JSON.stringify(payload),
+          });
+          const result = await response.json();
 
-           if (!response.ok || !result.success) {
-              // Handle detailed errors structure first
-              if (result.data?.errors && Array.isArray(result.data.errors) && result.data.errors.length > 0) {
-                  const errorDetails = result.data.errors.map((e: any) => 
-                      `Day: ${e.day}, Period ID: ${e.periodId} - ${e.error}`
-                  ).join('; \n'); // Join errors for display
-                  // Show first few errors in toast, log all
-                  console.error("Detailed save errors:", result.data.errors);
-                  throw new Error(`Save failed. Errors: ${result.data.errors.slice(0, 2).map((e:any) => e.error).join('; ')}...`);
-              } 
-              // Handle potential conflict response structure
-              else if (result.conflicts && result.conflicts.length > 0) {
-                  const conflictMsg = result.conflicts.map((c: any) => 
-                      `${c.teacherName} has conflict on ${c.day} Period ${c.periodId} with ${c.conflictingSubclassName}`
-                  ).join('; ');
-                  throw new Error(`Save failed due to conflicts: ${conflictMsg}`);
-              } 
-              // Fallback to general error message
-              else {
-                  throw new Error(result.error || result.message || 'Failed to save timetable (Unknown error structure)');
-              }
-           }
+          if (!response.ok || !result.success) {
+             let errorMsg = `Save failed for ${subClassId}`; 
+             if (result.data?.errors && Array.isArray(result.data.errors) && result.data.errors.length > 0) {
+                 errorMsg = `${errorMsg}: ${result.data.errors.map((e: any) => e.error).join('; ')}`;
+             } else if (result.conflicts && result.conflicts.length > 0) {
+                 errorMsg = `${errorMsg}: Conflicts detected.`;
+             } else {
+                 errorMsg = `${errorMsg}: ${result.error || result.message || 'Unknown server error'}`;
+             }
+             console.error(errorMsg, result);
+             return { success: false, subClassId, error: result.error || result.message || 'Save failed' };
+         }
 
-           toast.success(result.message || 'Timetable saved successfully!');
-           
-           // IMPORTANT: Update original state on successful save
-           setOriginalTimetables(prev => ({
-               ...prev,
-               [subClassId]: { ...currentTimetable } // Set original to current working copy
-           }));
+         console.log(`Successfully saved ${subClassId}`);
+         return { success: true, subClassId };
 
-       } catch (err: any) {
-           const message = err instanceof Error ? err.message : 'An unknown error occurred';
-           console.error("Failed to save timetable:", err);
-           setError(message);
-           toast.error(`Save failed: ${message}`);
-       } finally {
-           setIsLoadingTimetable(false);
-       }
-  }, [timetables, originalTimetables, allWeeklySlots, setIsLoadingTimetable, setError, setOriginalTimetables]);
+      } catch (err: any) {
+          const message = err instanceof Error ? err.message : 'An unknown error occurred';
+          console.error(`Network or other error saving ${subClassId}:`, err);
+          return { success: false, subClassId, error: message };
+      }
+  }, [timetables, originalTimetables, allWeeklySlots]);
+
+  // --- Save Single Subclass (Existing Function - Uses Helper) ---
+  const saveChanges = useCallback(async (subClassId: string) => {
+      setIsLoadingTimetable(true); // Use specific loading state for single save
+      setError(null);
+      
+      const result = await performSaveForSubclass(subClassId);
+
+      if (result.success) {
+          toast.success(`Timetable for subclass ${subClassId} saved successfully!`);
+          // Update original state for this specific subclass on successful save
+          setOriginalTimetables(prev => ({
+              ...prev,
+              [subClassId]: { ...(timetables[subClassId] || {}) } 
+          }));
+      } else {
+          const errorMsg = `Save failed for ${subClassId}: ${result.error || 'Unknown error'}`;
+          setError(errorMsg);
+          toast.error(errorMsg);
+      }
+      setIsLoadingTimetable(false);
+  }, [performSaveForSubclass, setError, setOriginalTimetables, timetables]);
+
+  // --- SAVE ALL CHANGES --- 
+  const saveAllTimetableChanges = useCallback(async () => {
+    setIsSavingAll(true);
+    setError(null);
+    const savePromises: Promise<{ success: boolean, subClassId: string, error?: string }>[] = [];
+
+    console.log("Starting save all changes...");
+    console.log("Current Timetables:", timetables);
+    console.log("Original Timetables:", originalTimetables);
+
+    // Iterate through all timetables that have an original version to compare against
+    for (const subClassId in originalTimetables) {
+        if (timetables[subClassId]) { // Ensure current timetable exists
+            // Check if changed (can reuse part of hasUnsavedChanges logic or just call helper)
+            savePromises.push(performSaveForSubclass(subClassId));
+        } else {
+            console.warn(`Current timetable missing for ${subClassId} during save all, skipping.`);
+        }
+    }
+
+    if (savePromises.length === 0) {
+        toast("No timetables loaded or no changes detected to save.");
+        setIsSavingAll(false);
+        return;
+    }
+
+    toast.loading("Saving all timetable changes...", { id: 'save-all' });
+
+    try {
+        const results = await Promise.allSettled(savePromises);
+        
+        const successfulSaves: string[] = [];
+        const failedSaves: { subClassId: string, error: string }[] = [];
+        const updatedOriginals: TimetablesState = { ...originalTimetables };
+
+        results.forEach(result => {
+            if (result.status === 'fulfilled' && result.value.success) {
+                successfulSaves.push(result.value.subClassId);
+                // Update the original state for successfully saved items
+                updatedOriginals[result.value.subClassId] = { ...(timetables[result.value.subClassId] || {}) };
+            } else if (result.status === 'fulfilled' && !result.value.success) {
+                failedSaves.push({ subClassId: result.value.subClassId, error: result.value.error || 'Unknown save failure' });
+            } else if (result.status === 'rejected') {
+                // This shouldn't happen if performSaveForSubclass catches errors, but handle defensively
+                console.error("Save promise rejected unexpectedly:", result.reason);
+                // We don't know which subClassId failed here, log general error
+                failedSaves.push({ subClassId: 'Unknown', error: 'Unexpected error during save operation.' });
+            }
+        });
+
+        // Update the original timetables state *once* after all saves attempted
+        setOriginalTimetables(updatedOriginals); 
+
+        if (failedSaves.length > 0) {
+            const errorSummary = failedSaves.map(f => `Subclass ${f.subClassId}: ${f.error}`).join('; ');
+            setError(`Some saves failed: ${errorSummary}`);
+            toast.error(`Save complete with errors. ${failedSaves.length} failed. Check console for details.`, { id: 'save-all', duration: 5000 });
+            console.error("Failed saves details:", failedSaves);
+        } else {
+            toast.success("All timetable changes saved successfully!", { id: 'save-all' });
+        }
+
+    } catch (err) {
+        // Catch potential errors in Promise.allSettled itself (though unlikely)
+        const message = err instanceof Error ? err.message : 'An unknown error occurred during the save process';
+        console.error("Error during saveAllTimetableChanges:", err);
+        setError(message);
+        toast.error(`Error saving all changes: ${message}`, { id: 'save-all' });
+    } finally {
+        setIsSavingAll(false);
+    }
+  }, [originalTimetables, timetables, performSaveForSubclass, setError, setOriginalTimetables]);
 
   // Function to get teachers who can teach a specific subject - WRAP IN useCallback
   const getTeachersBySubject = useCallback((subjectId: string): Teacher[] => {
@@ -623,9 +717,12 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     timetables,
     isLoading,
     isLoadingTimetable,
+    isSavingAll, // Pass new state
+    hasUnsavedChanges, // Pass derived state
     fetchTimetableForSubclass,
     updateTimetableSlot,
     saveChanges,
+    saveAllTimetableChanges, // Pass new function
     getTeachersBySubject,
     isTeacherAssignedElsewhere,
     error,

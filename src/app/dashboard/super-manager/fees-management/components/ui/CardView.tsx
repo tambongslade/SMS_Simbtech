@@ -1,16 +1,15 @@
 "use client";
 
 import { Student } from '../../types';
+import Link from 'next/link';
 
 interface CardViewProps {
   students: Student[];
-  onRecordPayment: (student: Student) => void;
   onViewHistory: (student: Student) => void;
 }
 
 export const CardView: React.FC<CardViewProps> = ({
   students,
-  onRecordPayment,
   onViewHistory
 }) => {
   if (students.length === 0) {
@@ -27,7 +26,9 @@ export const CardView: React.FC<CardViewProps> = ({
         <div key={student.id} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-lg font-semibold">{student.name}</h3>
+              <Link href={`/dashboard/super-manager/student/${student.id}`} className="hover:underline">
+                <h3 className="text-lg font-semibold text-blue-700">{student.name}</h3>
+              </Link>
               <p className="text-sm text-gray-500">{student.admissionNumber}</p>
               <p className="text-xs text-gray-400">Class {student.class}</p>
             </div>
@@ -70,27 +71,29 @@ export const CardView: React.FC<CardViewProps> = ({
                 })}
               </span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Last Payment:</span>
-              <span>
-                {new Date(student.lastPaymentDate).toLocaleDateString()}
-              </span>
-            </div>
+            {student.lastPaymentDate && (
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-600">Last Payment:</span>
+                <span>
+                  {new Date(student.lastPaymentDate).toLocaleDateString()}
+                </span>
+              </div>
+            )}
           </div>
           
-          <div className="mt-4 flex gap-2">
-            <button
-              onClick={() => onRecordPayment(student)}
-              className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors"
-            >
-              Record Payment
-            </button>
+          <div className="mt-4 flex justify-end gap-2">
             <button
               onClick={() => onViewHistory(student)}
-              className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
+              className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
             >
-              History
+              View History
             </button>
+            <Link
+              href={`/dashboard/super-manager/student/${student.id}`}
+              className="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded text-sm hover:bg-indigo-200 transition-colors"
+            >
+              View Details
+            </Link>
           </div>
         </div>
       ))}

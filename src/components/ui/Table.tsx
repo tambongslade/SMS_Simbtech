@@ -8,6 +8,7 @@ interface Column<T> {
   header: string;
   sortable?: boolean;
   render?: (value: T[keyof T], item: T) => React.ReactNode;
+  className?: string;
 }
 
 interface TableProps<T> {
@@ -112,7 +113,7 @@ export function Table<T extends { id?: string | number }>({
               <th
                 key={String(column.key)}
                 scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${column.className || ''}`}
               >
                 {column.sortable ? (
                   <button
@@ -147,7 +148,7 @@ export function Table<T extends { id?: string | number }>({
               {columns.map((column) => (
                 <td
                   key={String(column.key)}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${column.className || ''}`}
                 >
                   {column.render
                     ? column.render(item[column.key], item)

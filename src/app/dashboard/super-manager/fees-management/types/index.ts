@@ -53,14 +53,19 @@ export interface Student {
     }[];
   }
   
+  export interface ParentContact {
+    name: string;
+    phone: string;
+    isWhatsapp?: boolean;
+  }
+  
   export interface NewStudent {
     name: string;
     class: string;
-    admissionNumber?: string;
-    email?: string;
-    parentName?: string;
-    parentPhone?: string;
-    dateOfBirth?: string;
+    admissionNumber: string;
+    email: string;
+    parents: ParentContact[];
+    dateOfBirth: string;
     gender?: string;
     placeOfBirth?: string;
     residence?: string;
