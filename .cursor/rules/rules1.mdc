@@ -34,7 +34,7 @@ alwaysApply: true
         *   Assigning/Updating: Use `POST /classes/sub-classes/{subclassId}/class-master` with `{ "userId": teacherId }` payload.
         *   Removing: Use `DELETE /classes/sub-classes/{subclassId}/class-master`.
         *   **Logic**: Subclass creation/update is a two-step process:
-            1.  Create/update the subclass name (`POST /classes/{classId}/subclasses` or `PUT /subclasses/{subclassId}`).
+            1.  Create/update the subclass name (`POST /classes/{classId}/sub-classes` or `PUT /sub-classes/{subclassId}`).
             2.  If the Class Master needs changing, make a separate `POST` or `DELETE` call to the `/class-master` endpoint.
     *   **Data Fetching (Verification Needed)**: The `GET /classes` endpoint should ideally return `classMasterId` and `classMasterName` (or nested `classMaster` object) within each subclass object for display. Verify the actual API response structure.
 

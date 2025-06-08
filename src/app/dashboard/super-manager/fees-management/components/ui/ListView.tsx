@@ -5,9 +5,10 @@ import { Student } from "../../types";
 interface ListViewProps {
   students: Student[];
   onRecordPayment: (student: Student) => void;
+  onViewTransactions: (student: Student) => void;
 }
 
-export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
+export const ListView = ({ students, onRecordPayment, onViewTransactions }: ListViewProps) => {
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <table className="min-w-full">
@@ -69,9 +70,9 @@ export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
               <td className="px-6 py-4 whitespace-nowrap">
                 <span
                   className={`px-2 py-1 text-xs font-semibold rounded-full 
-                    ${student.status === "Paid" ? "bg-green-100 text-green-800" : 
-                      student.status === "Partial" ? "bg-yellow-100 text-yellow-800" : 
-                      "bg-red-100 text-red-800"}`}
+                    ${student.status === "Paid" ? "bg-green-100 text-green-800" :
+                      student.status === "Partial" ? "bg-yellow-100 text-yellow-800" :
+                        "bg-red-100 text-red-800"}`}
                 >
                   {student.status}
                 </span>
@@ -79,9 +80,15 @@ export const ListView = ({ students, onRecordPayment }: ListViewProps) => {
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <button
                   onClick={() => onRecordPayment(student)}
-                  className="text-blue-600 hover:text-blue-900"
+                  className="text-blue-600 hover:text-blue-900 mr-2"
                 >
                   Record Payment
+                </button>
+                <button
+                  onClick={() => onViewTransactions(student)}
+                  className="text-indigo-600 hover:text-indigo-900"
+                >
+                  View Transactions
                 </button>
               </td>
             </tr>

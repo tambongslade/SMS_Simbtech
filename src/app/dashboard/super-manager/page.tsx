@@ -4,8 +4,9 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { UserGroupIcon, AcademicCapIcon, BuildingLibraryIcon, CurrencyDollarIcon, UsersIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
+import apiService from '../../../lib/apiService'; // Import apiService
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1'; // Removed
 
 // Interface for the expected summary data structure from the API
 interface DashboardSummary {
@@ -13,7 +14,7 @@ interface DashboardSummary {
     personnelCount?: number;
     studentCount?: number;
     classCount?: number;
-    totalFeesCollected?: number; 
+    totalFeesCollected?: number;
     // Add other relevant summary fields if the API provides them
 }
 
@@ -24,23 +25,24 @@ interface SummaryApiResponse {
 }
 
 export default function SuperManagerDashboard() {
-    const SUMMARY_API_ENDPOINT = `${API_BASE_URL}/dashboard/summary`;
+    const SUMMARY_API_ENDPOINT = '/users/me/dashboard'; // Relative path for apiService
 
-    // Fetch summary data using SWR
+    // Fetch summary data using SWR with apiService
     const {
         data: apiResult, // Raw API response, potentially { data: { ... } }
         error: fetchError,
         isLoading // Use SWR's loading state
-    } = useSWR<SummaryApiResponse>(SUMMARY_API_ENDPOINT);
+    } = useSWR<SummaryApiResponse>(SUMMARY_API_ENDPOINT, (url: string) => apiService.get(url));
 
     // Extract the actual summary data, defaulting to empty object
     const summaryData = useMemo(() => apiResult?.data || {}, [apiResult]);
 
-    // Handle fetch errors
+    // Error handling for UI (toast is handled by apiService)
     useEffect(() => {
-        if (fetchError) {
+        if (fetchError && fetchError.message !== 'Unauthorized') { // apiService handles Unauthorized redirect and toast
             console.error("SWR Fetch Error (Summary):", fetchError);
-            toast.error(`Failed to load dashboard summary: ${fetchError.message}`);
+            // Optionally, show a specific UI error element or a non-intrusive general error indicator
+            // toast.error(`Failed to load dashboard summary: ${fetchError.message}`); // Removed, apiService handles this
         }
     }, [fetchError]);
 
@@ -72,7 +74,7 @@ export default function SuperManagerDashboard() {
         },
         {
             title: 'Total Fees Collected',
-            value: isLoading ? '...' : `$${(summaryData.totalFeesCollected ?? 0).toLocaleString()}`,
+            value: isLoading ? '...' : `FCFA ${(summaryData.totalFeesCollected ?? 0).toLocaleString()}`,
             icon: CurrencyDollarIcon,
             color: 'success'
         },
@@ -85,8 +87,8 @@ export default function SuperManagerDashboard() {
                 <h1 className="text-2xl font-bold">Super Manager Dashboard</h1>
                 <p className="mb-6">Welcome to the Super Manager dashboard. Overview of key school metrics.</p>
 
-                {/* Display error message if fetch failed */}
-                {fetchError && !isLoading && (
+                {/* Display error message if fetch failed (and not an Unauthorized error, which causes redirect) */}
+                {fetchError && fetchError.message !== 'Unauthorized' && !isLoading && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                         <strong className="font-bold">Error!</strong>
                         <span className="block sm:inline"> Failed to load dashboard data. Please try again later.</span>

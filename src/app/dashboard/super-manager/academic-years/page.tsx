@@ -4,9 +4,10 @@ import useSWR, { useSWRConfig } from 'swr';
 import { AcademicYear, Term } from './types/academic-year';
 import { AcademicYearForm } from './components/AcademicYearForm';
 import { toast } from 'react-hot-toast';
+import apiService from '../../../../lib/apiService'; // Import apiService
 
-// API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
+// API Base URL - REMOVED
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
 // --- Helper Function for Date Formatting ---
 const formatDateDisplay = (dateString: string | undefined | null): string => {
@@ -30,7 +31,7 @@ const formatDateDisplay = (dateString: string | undefined | null): string => {
 
 // Interface for the API response structure
 interface AcademicYearsApiResponse {
-    data?: any[]; // Assuming API returns { data: [...] }
+  data?: any[]; // Assuming API returns { data: [...] }
 }
 
 export default function AcademicYearsPage() {
@@ -39,15 +40,15 @@ export default function AcademicYearsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false); // State for mutation loading
 
-  const API_ENDPOINT = `${API_BASE_URL}/academic-years`;
+  const API_ENDPOINT_RELATIVE = '/academic-years'; // Relative path for apiService
 
   // --- SWR Data Fetching ---
   const {
-      data: apiResult, 
-      error: fetchError,
-      isLoading: isLoadingData, // Use SWR loading state for data fetch
-      mutate // Function to trigger refetch
-  } = useSWR<AcademicYearsApiResponse>(API_ENDPOINT);
+    data: apiResult,
+    error: fetchError,
+    isLoading: isLoadingData, // Use SWR loading state for data fetch
+    mutate // Function to trigger refetch
+  } = useSWR<AcademicYearsApiResponse>(API_ENDPOINT_RELATIVE, (url) => apiService.get(url)); // Use apiService
 
   // --- Process SWR Data ---
   const academicYears = useMemo((): AcademicYear[] => {
@@ -60,61 +61,49 @@ export default function AcademicYearsPage() {
       startDate: String(year.start_date || year.startDate || ''),
       endDate: String(year.end_date || year.endDate || ''),
       terms: year.terms?.map((term: any): Term => ({
-          id: term.id,
-          name: term.name,
-          startDate: String(term.start_date || term.startDate || ''),
-          endDate: String(term.end_date || term.endDate || ''),
-          feeDeadline: String(term.fee_deadline || term.feeDeadline || ''),
+        id: term.id,
+        name: term.name,
+        startDate: String(term.start_date || term.startDate || ''),
+        endDate: String(term.end_date || term.endDate || ''),
+        feeDeadline: String(term.fee_deadline || term.feeDeadline || ''),
       })) || [],
     }));
   }, [apiResult]);
 
   // --- Handle SWR Fetch Errors --- 
   useEffect(() => {
-      if (fetchError) {
-          console.error("SWR Fetch Error (Academic Years):", fetchError);
-          toast.error(`Error fetching academic years: ${fetchError.message}`);
-      }
+    if (fetchError && fetchError.message !== 'Unauthorized') { // apiService handles Unauthorized redirect and toast
+      console.error("SWR Fetch Error (Academic Years):", fetchError);
+      // Toasting is handled by apiService, specific UI updates for fetch errors can go here
+    }
   }, [fetchError]);
 
-  // --- CRUD Handlers (Updated for SWR) ---
+  // --- CRUD Handlers (Updated for apiService) ---
   const handleCreate = async (data: Partial<AcademicYear>) => {
     setIsMutating(true); // Start mutation loading
     // Prepare data for API (ensure structure matches API expectations, e.g., snake_case?)
     const payload = {
-        name: data.name,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        terms: data.terms?.map(term => ({
-            name: term.name,
-            startDate: term.startDate,
-            endDate: term.endDate,
-            feeDeadline: term.feeDeadline
-        })) || []
+      name: data.name,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      terms: data.terms?.map(term => ({
+        name: term.name,
+        startDate: term.startDate,
+        endDate: term.endDate,
+        feeDeadline: term.feeDeadline
+      })) || []
     };
     console.log("Creating Academic Year Payload:", payload); // DEBUG
 
     try {
-        // Use standard fetch for mutation
-        const response = await fetch(API_ENDPOINT, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to create academic year');
-        }
-        toast.success('Academic year created successfully.');
-        setIsCreating(false);
-        mutate(); // Revalidate SWR cache for API_ENDPOINT
+      await apiService.post(API_ENDPOINT_RELATIVE, payload);
+      toast.success('Academic year created successfully.');
+      setIsCreating(false);
+      mutate(); // Revalidate SWR cache for API_ENDPOINT_RELATIVE
     } catch (error: any) {
-        toast.error(`Creation failed: ${error.message}`);
+      console.error("Creation failed:", error); // Keep console log for debugging
     } finally {
-        setIsMutating(false); // End mutation loading
+      setIsMutating(false); // End mutation loading
     }
   };
 
@@ -123,93 +112,63 @@ export default function AcademicYearsPage() {
     setIsMutating(true); // Start mutation loading
     // Prepare payload (only send fields that can be updated? Check API docs)
     const payload = {
-        name: data.name,
-        startDate: data.startDate,
-        endDate: data.endDate,
-        // Updating terms might require a separate endpoint or specific format
-        // terms: data.terms
+      name: data.name,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      // Updating terms might require a separate endpoint or specific format
+      // terms: data.terms
     };
     console.log(`Updating Academic Year ${id} Payload:`, payload); // DEBUG
     try {
-         // Use standard fetch for mutation
-         const response = await fetch(`${API_ENDPOINT}/${id}`, {
-            method: 'PUT', 
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(payload)
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Failed to update academic year');
-        }
-        toast.success('Academic year updated successfully.');
-        setEditingId(null);
-        mutate(); // Revalidate SWR cache
+      await apiService.put(`${API_ENDPOINT_RELATIVE}/${id}`, payload);
+      toast.success('Academic year updated successfully.');
+      setEditingId(null);
+      mutate(); // Revalidate SWR cache
     } catch (error: any) {
-        toast.error(`Update failed: ${error.message}`);
+      console.error("Update failed:", error);
     } finally {
-        setIsMutating(false); // End mutation loading
+      setIsMutating(false); // End mutation loading
     }
   };
 
   const handleDelete = async (id: string | undefined) => {
-     if (!id || !window.confirm('Are you sure you want to delete this academic year?')) return;
+    if (!id || !window.confirm('Are you sure you want to delete this academic year?')) return;
     setIsMutating(true); // Start mutation loading
     try {
-        // Use standard fetch for mutation
-        const response = await fetch(`${API_ENDPOINT}/${id}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            // Handle specific errors, e.g., cannot delete if active or has related data
-            throw new Error(errorData.message || 'Failed to delete academic year');
-        }
-        toast.success('Academic year deleted successfully.');
-        mutate(); // Revalidate SWR cache
+      await apiService.delete(`${API_ENDPOINT_RELATIVE}/${id}`);
+      toast.success('Academic year deleted successfully.');
+      mutate(); // Revalidate SWR cache
     } catch (error: any) {
-        toast.error(`Deletion failed: ${error.message}`);
+      console.error("Deletion failed:", error);
     } finally {
-        setIsMutating(false); // End mutation loading
+      setIsMutating(false); // End mutation loading
     }
   };
 
   // Toggle Active might need PUT/PATCH request instead of local state change
-  // Assuming API handles activation via PUT/PATCH on the academic year resource
+  // Assuming API supports PATCH or PUT with only `isActive` field or gracefully handles full object.
   const handleToggleActive = async (year: AcademicYear) => {
-      if (!year.id) return;
-      setIsMutating(true); // Start mutation loading
-      const newActiveState = !year.isActive;
-      const payload = { isActive: newActiveState }; // Payload to update active status
+    if (!year.id) return;
+    setIsMutating(true); // Start mutation loading
+    const newActiveState = !year.isActive;
+    const payload = { isActive: newActiveState }; // Payload to update active status
 
-      try {
-          // Use standard fetch for mutation
-          const response = await fetch(`${API_ENDPOINT}/${year.id}`, { 
-              method: 'PUT', 
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
-              body: JSON.stringify(payload)
-          });
-          if (!response.ok) {
-              const errorData = await response.json().catch(() => ({}));
-              throw new Error(errorData.message || 'Failed to update status');
-          }
-          toast.success(`Academic year ${newActiveState ? 'activated' : 'deactivated'} successfully.`);
-          mutate(); // Revalidate SWR cache
-      } catch (error: any) {
-          toast.error(`Status update failed: ${error.message}`);
-      } finally {
-          setIsMutating(false); // End mutation loading
-      }
+    try {
+      await apiService.put(`${API_ENDPOINT_RELATIVE}/${year.id}`, payload);
+      toast.success(`Academic year ${newActiveState ? 'activated' : 'deactivated'} successfully.`);
+      mutate(); // Revalidate SWR cache
+    } catch (error: any) {
+      console.error("Status update failed:", error);
+    } finally {
+      setIsMutating(false); // End mutation loading
+    }
   };
 
   // Consolidate loading state for UI disabling
   const isLoading = isLoadingData || isMutating;
+
+  // Make sure to pass editingYear correctly to AcademicYearForm if it depends on `academicYears.find(y => y.id === editingId)`
+  const editingYear = editingId ? academicYears.find(y => String(y.id) === editingId) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -229,11 +188,11 @@ export default function AcademicYearsPage() {
         </div>
 
         {/* Display Fetch Error */}
-        {fetchError && !isLoadingData && (
-             <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                 <strong className="font-bold">Error!</strong>
-                 <span className="block sm:inline"> Failed to load academic years. Please try refreshing.</span>
-            </div>
+        {fetchError && fetchError.message !== 'Unauthorized' && !isLoadingData && (
+          <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong className="font-bold">Error!</strong>
+            <span className="block sm:inline"> Failed to load academic years. Please try refreshing.</span>
+          </div>
         )}
 
         {isCreating && (
@@ -248,126 +207,93 @@ export default function AcademicYearsPage() {
 
         <div className="space-y-6">
           {isLoadingData && academicYears.length === 0 && <p className="text-center text-gray-500">Loading academic years...</p>}
-          {!isLoadingData && academicYears.length === 0 && <p className="text-center text-gray-500">No academic years found. Add one to get started.</p>}
+          {!isLoadingData && !fetchError && academicYears.length === 0 && !isCreating && (
+            <div className="text-center py-10 bg-white rounded-lg shadow-md">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No academic years</h3>
+              <p className="mt-1 text-sm text-gray-500">Get started by creating a new academic year.</p>
+            </div>
+          )}
           {academicYears.map((year) => (
-            <div
-              key={year.id}
-              className="bg-white rounded-lg shadow-md overflow-hidden"
-            >
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
-                      {year.name}
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                      {formatDateDisplay(year.startDate)} -{' '}
-                      {formatDateDisplay(year.endDate)}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <span
-                      className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        year.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {year.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                    <div className="flex items-center space-x-1">
+            editingId === String(year.id) ? (
+              <div key={year.id} className="mb-6 bg-white rounded-lg shadow-md p-4">
+                <AcademicYearForm
+                  initialData={year}
+                  onSubmit={(data) => handleUpdate(String(year.id), data)}
+                  onCancel={() => setEditingId(null)}
+                  isLoading={isMutating}
+                />
+              </div>
+            ) : (
+              <div key={year.id} className="bg-white rounded-lg shadow-md overflow-hidden">
+                <div className={`p-4 ${year.isActive ? 'border-l-4 border-green-500' : 'border-l-4 border-gray-300'}`}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-800">{year.name}</h2>
+                      <p className="text-sm text-gray-600">
+                        {formatDateDisplay(year.startDate)} - {formatDateDisplay(year.endDate)}
+                      </p>
+                      <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${year.isActive ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        {year.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2 rtl:space-x-reverse">
+                      <button
+                        onClick={() => setEditingId(String(year.id))}
+                        disabled={isLoading}
+                        className="text-blue-600 hover:text-blue-800 disabled:opacity-50 p-1 rounded-md hover:bg-blue-100 transition-colors"
+                        title="Edit Academic Year"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(String(year.id))}
+                        disabled={isLoading || year.isActive} // Example: Disable delete if active
+                        className="text-red-600 hover:text-red-800 disabled:opacity-50 p-1 rounded-md hover:bg-red-100 transition-colors"
+                        title={year.isActive ? "Cannot delete active year" : "Delete Academic Year"}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
                       <button
                         onClick={() => handleToggleActive(year)}
                         disabled={isLoading}
-                        title={year.isActive ? 'Deactivate' : 'Activate'}
-                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                        className={`p-1 rounded-md transition-colors ${year.isActive ? 'text-yellow-600 hover:text-yellow-800 hover:bg-yellow-100' : 'text-green-600 hover:text-green-800 hover:bg-green-100'} disabled:opacity-50`}
+                        title={year.isActive ? 'Set as Inactive' : 'Set as Active'}
                       >
-                         {year.isActive ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                            </svg>
-                         ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                         )}
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsCreating(false);
-                          if (year.id) {
-                              setEditingId(year.id);
-                          } else {
-                              toast.error('Cannot edit year without ID.');
-                          }
-                        }}
-                        disabled={isLoading || editingId === year.id}
-                        title="Edit"
-                        className="p-2 text-gray-400 hover:text-blue-600 disabled:opacity-50"
-                      >
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(year.id)}
-                        disabled={isLoading}
-                        title="Delete"
-                        className="p-2 text-gray-400 hover:text-red-600 disabled:opacity-50"
-                      >
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        {year.isActive ? (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                          </svg>
+                        ) : (
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        )}
                       </button>
                     </div>
                   </div>
                 </div>
-
-                {editingId === year.id ? (
-                  <div className="p-6 border-t border-gray-200">
-                  <AcademicYearForm
-                    initialData={year}
-                    onSubmit={(data) => handleUpdate(year.id, data)}
-                    onCancel={() => setEditingId(null)}
-                        isLoading={isMutating}
-                  />
+                {year.terms && year.terms.length > 0 && (
+                  <div className="border-t border-gray-200 px-4 py-3">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-2">Terms:</h3>
+                    <ul className="space-y-1 text-sm text-gray-600">
+                      {year.terms.map(term => (
+                        <li key={term.id} className="flex justify-between">
+                          <span>{term.name}: {formatDateDisplay(term.startDate)} - {formatDateDisplay(term.endDate)}</span>
+                          {term.feeDeadline && <span> (Fee Deadline: {formatDateDisplay(term.feeDeadline)})</span>}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                ) : (
-                   <div className="px-6 pb-6 border-t border-gray-200 pt-4">
-                    <h3 className="text-md font-semibold text-gray-700 mb-3">
-                      Terms
-                        </h3>
-                     {year.terms && year.terms.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          {year.terms.map((term: Term, index: number) => (
-                            <div key={term.id || index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                              <h4 className="font-medium text-gray-800 mb-2 truncate" title={term.name}>
-                                {term.name}
-                              </h4>
-                              <dl className="text-sm space-y-1">
-                                <div className="flex justify-between">
-                                  <dt className="text-gray-500">Start:</dt>
-                                  <dd className="text-gray-700">{formatDateDisplay(term.startDate)}</dd>
-                                </div>
-                                <div className="flex justify-between">
-                                  <dt className="text-gray-500">End:</dt>
-                                  <dd className="text-gray-700">{formatDateDisplay(term.endDate)}</dd>
-                                </div>
-                                 <div className="flex justify-between">
-                                  <dt className="text-gray-500">Fee Deadline:</dt>
-                                  <dd className="text-gray-700">{formatDateDisplay(term.feeDeadline)}</dd>
-                                </div>
-                              </dl>
-                            </div>
-                          ))}
-                        </div>
-                     ) : (
-                         <p className="text-sm text-gray-500 italic">No terms defined for this academic year.</p>
-                     )}
-                    </div>
                 )}
               </div>
-            </div>
+            )
           ))}
         </div>
       </div>

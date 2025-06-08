@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR, { useSWRConfig } from 'swr';
-import { Class, SubClass } from '../types/class'; // Adjust import path as needed
+import { Class, SubClass } from '../types/class';
+import apiService from '../../../../../lib/apiService'; // Import apiService
 
 // Define Teacher type locally for selection
 type Teacher = {
@@ -11,13 +12,14 @@ type Teacher = {
     name: string;
 };
 
-// API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
-const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null; // Still need for mutations
+// API Configuration - REMOVED
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
+// const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 
 // Interface for API responses (adjust based on actual structure)
 interface ApiResponse<T> {
-    data?: T[];
+    data?: T[]; // Assuming SWR fetcher expects this structure
+    // If apiService returns T directly, then use SWR<T> and adjust access in useMemo
 }
 
 export const useClassManagement = () => {
@@ -28,39 +30,38 @@ export const useClassManagement = () => {
     const [isSubClassModalOpen, setIsSubClassModalOpen] = useState(false);
     const [classForSubclass, setClassForSubclass] = useState<{ id: string | number; name: string } | null>(null);
     const [editingSubclass, setEditingSubclass] = useState<SubClass | null>(null);
-    const [classToDelete, setClassToDelete] = useState<Class | null>(null); // For delete confirmation
-    const [subClassToDelete, setSubClassToDelete] = useState<SubClass | null>(null); // For delete confirmation
+    const [classToDelete, setClassToDelete] = useState<Class | null>(null);
+    const [subClassToDelete, setSubClassToDelete] = useState<SubClass | null>(null);
     const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
 
     // --- SWR Data Fetching --- 
-    const CLASSES_ENDPOINT = `${API_BASE_URL}/classes`;
-    const TEACHERS_ENDPOINT = `${API_BASE_URL}/users?role=TEACHER`;
+    const CLASSES_ENDPOINT = '/classes'; // Relative path
+    const TEACHERS_ENDPOINT = '/users?role=TEACHER'; // Relative path
 
-    const { 
-        data: classesApiResult, 
-        error: classesError, 
-        isLoading: isLoadingClassesData, 
-        mutate: mutateClasses 
-    } = useSWR<ApiResponse<any>>(CLASSES_ENDPOINT);
+    const {
+        data: classesApiResult,
+        error: classesError,
+        isLoading: isLoadingClassesData,
+        mutate: mutateClasses
+    } = useSWR<ApiResponse<any>>(CLASSES_ENDPOINT, (url: string) => apiService.get(url));
 
-    const { 
-        data: teachersApiResult, 
-        error: teachersError, 
-        isLoading: isLoadingTeachersData 
-        // No need for mutateTeachers here unless we modify teachers via this hook
-    } = useSWR<ApiResponse<any>>(TEACHERS_ENDPOINT);
+    const {
+        data: teachersApiResult,
+        error: teachersError,
+        isLoading: isLoadingTeachersData
+    } = useSWR<ApiResponse<any>>(TEACHERS_ENDPOINT, (url: string) => apiService.get(url));
 
     // --- Process SWR Data --- 
     const classes = useMemo((): Class[] => {
+        // Assuming apiService.get returns { data: [...] } structure matching ApiResponse
         if (!classesApiResult?.data) return [];
-        // Use existing mapping logic
         return classesApiResult.data.map((cls: any): Class => ({
             id: cls.id,
             name: cls.name,
             level: cls.level,
             firstTermFee: cls.first_term_fee ?? cls.firstTermFee ?? cls.first_installment ?? cls.firstInstallment ?? cls.base_fee ?? cls.baseFee ?? 0,
             secondTermFee: cls.second_term_fee ?? cls.secondTermFee ?? cls.second_installment ?? cls.secondInstallment ?? 0,
-            thirdTermFee: cls.third_term_fee ?? cls.thirdTermFee ?? cls.third_installment ?? cls.thirdInstallment, 
+            thirdTermFee: cls.third_term_fee ?? cls.thirdTermFee ?? cls.third_installment ?? cls.thirdInstallment,
             newStudentAddFee: cls.new_student_add_fee ?? cls.newStudentAddFee ?? 0,
             oldStudentAddFee: cls.old_student_add_fee ?? cls.oldStudentAddFee ?? 0,
             miscellaneousFee: cls.miscellaneous_fee ?? cls.miscellaneousFee ?? 0,
@@ -84,30 +85,32 @@ export const useClassManagement = () => {
     // --- Consolidated Loading & Error --- 
     const isLoading = isLoadingClassesData || isLoadingTeachersData;
     const error = useMemo(() => {
-        if (classesError) return `Failed to load classes: ${classesError.message}`;
-        if (teachersError) return `Failed to load teachers: ${teachersError.message}`;
+        // apiService handles toasts for errors, this is for UI display if needed
+        if (classesError && classesError.message !== 'Unauthorized') return `Failed to load classes: ${classesError.message}`;
+        if (teachersError && teachersError.message !== 'Unauthorized') return `Failed to load teachers: ${teachersError.message}`;
         return null;
     }, [classesError, teachersError]);
 
     useEffect(() => {
+        // Toasting is handled by apiService. This effect is for potential UI changes based on error.
         if (error) {
-            toast.error(error);
+            console.error("Data fetching error:", error);
         }
     }, [error]);
 
-    // --- Modal Handlers --- 
+    // --- Modal Handlers (remain largely the same) --- 
     const openAddClassModal = () => {
         setEditingClass(null);
         setIsClassModalOpen(true);
     };
-    
+
     const openEditClassModal = (cls: Class) => {
         setEditingClass(cls);
         setIsClassModalOpen(true);
     };
-    
+
     const openAddSubclassModal = (cls: Class) => {
-        if(!cls.id) {
+        if (!cls.id) {
             toast.error("Cannot add subclass to a class without an ID.");
             return;
         }
@@ -115,7 +118,7 @@ export const useClassManagement = () => {
         setClassForSubclass({ id: cls.id, name: cls.name });
         setIsSubClassModalOpen(true);
     };
-    
+
     const openEditSubclassModal = (subClass: SubClass, parentClassName: string) => {
         if (!subClass.classId) {
             toast.error("Subclass is missing parent class information.");
@@ -125,7 +128,7 @@ export const useClassManagement = () => {
         setClassForSubclass({ id: subClass.classId, name: parentClassName });
         setIsSubClassModalOpen(true);
     };
-    
+
     const closeModals = () => {
         setIsClassModalOpen(false);
         setIsSubClassModalOpen(false);
@@ -136,12 +139,12 @@ export const useClassManagement = () => {
         setClassToDelete(null);
         setSubClassToDelete(null);
     };
-    
+
     const openDeleteConfirmation = (item: Class | SubClass) => {
-        if ('subClasses' in item) { // Check if it's a Class object
+        if ('subClasses' in item) {
             setClassToDelete(item);
             setSubClassToDelete(null);
-        } else { // It's a SubClass object
+        } else {
             setSubClassToDelete(item);
             setClassToDelete(null);
         }
@@ -151,20 +154,24 @@ export const useClassManagement = () => {
     // --- CRUD Handlers --- 
     const handleCreateClass = async (formData: Omit<Class, 'id' | 'subClasses' | 'studentCount'>) => {
         setIsLoadingMutation(true);
-        const token = getAuthToken();
-        const payload = { /* ... map formData to snake_case if needed ... */ };
+        // Ensure formData keys match API expectations (e.g., snake_case or camelCase)
+        const payload = {
+            name: formData.name,
+            level: formData.level,
+            first_term_fee: formData.firstTermFee,
+            second_term_fee: formData.secondTermFee,
+            third_term_fee: formData.thirdTermFee,
+            new_student_add_fee: formData.newStudentAddFee,
+            old_student_add_fee: formData.oldStudentAddFee,
+            miscellaneous_fee: formData.miscellaneousFee
+        };
         try {
-            const response = await fetch(CLASSES_ENDPOINT, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-                body: JSON.stringify(payload) 
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to create');
+            await apiService.post(CLASSES_ENDPOINT, payload);
             toast.success('Class created successfully.');
             closeModals();
-            mutateClasses(); // Revalidate classes list
+            mutateClasses();
         } catch (error: any) {
-            toast.error(`Creation failed: ${error.message}`);
+            console.error("Class creation failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
@@ -173,204 +180,149 @@ export const useClassManagement = () => {
     const handleUpdateClass = async (formData: Omit<Class, 'id' | 'subClasses' | 'studentCount'>) => {
         if (!editingClass?.id) return;
         setIsLoadingMutation(true);
-        const token = getAuthToken();
-        const payload = { /* ... map formData ... */ };
+        const payload = {
+            name: formData.name,
+            level: formData.level,
+            first_term_fee: formData.firstTermFee,
+            second_term_fee: formData.secondTermFee,
+            third_term_fee: formData.thirdTermFee,
+            new_student_add_fee: formData.newStudentAddFee,
+            old_student_add_fee: formData.oldStudentAddFee,
+            miscellaneous_fee: formData.miscellaneousFee
+        };
         try {
-            const response = await fetch(`${CLASSES_ENDPOINT}/${editingClass.id}`, { 
-                method: 'PUT', 
-                headers: { /* ... */ 'Authorization': `Bearer ${token}` }, 
-                body: JSON.stringify(payload) 
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to update');
+            await apiService.put(`${CLASSES_ENDPOINT}/${editingClass.id}`, payload);
             toast.success('Class updated successfully.');
             closeModals();
-            mutateClasses(); // Revalidate
+            mutateClasses();
         } catch (error: any) {
-            toast.error(`Update failed: ${error.message}`);
+            console.error("Class update failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
     };
-    
+
     const executeDeleteClass = async (id: string | number) => {
         setIsLoadingMutation(true);
-        const token = getAuthToken();
         try {
-            const response = await fetch(`${CLASSES_ENDPOINT}/${id}`, { 
-                method: 'DELETE', 
-                headers: { 'Authorization': `Bearer ${token}` } 
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to delete');
+            await apiService.delete(`${CLASSES_ENDPOINT}/${id}`);
             toast.success('Class deleted successfully.');
-            closeModals(); // Close confirmation modal too
-            mutateClasses(); // Revalidate
+            closeModals();
+            mutateClasses();
         } catch (error: any) {
-            toast.error(`Deletion failed: ${error.message}`);
+            console.error("Class deletion failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
     };
 
     // --- Subclass Handlers --- 
+    const assignClassMaster = async (subclassId: number | string, teacherId: number) => {
+        // This is a helper, not directly called by UI, so it can throw for the caller to handle
+        await apiService.post(`/classes/sub-classes/${subclassId}/class-master`, { userId: teacherId });
+        toast.success('Class master assigned.');
+    };
+
+    const removeClassMaster = async (subclassId: number | string) => {
+        // This is a helper
+        await apiService.delete(`/classes/sub-classes/${subclassId}/class-master`);
+        toast.success('Class master removed.');
+    };
+
     const handleCreateSubclass = async (formData: { name: string; classMasterId: number | null }) => {
         if (!classForSubclass?.id) return;
         setIsLoadingMutation(true);
-        const token = getAuthToken();
-        const payload = { name: formData.name }; // Initial create only sets name
+        const payload = { name: formData.name };
         let newSubclassId: number | null = null;
 
         try {
-             // 1. Create Subclass (POST /classes/{classId}/subclasses)
-            const response = await fetch(`${API_BASE_URL}/classes/${classForSubclass.id}/subclasses`, { 
-                method: 'POST', 
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-                body: JSON.stringify(payload) 
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to create subclass');
-            const newSubclass = await response.json();
-            newSubclassId = newSubclass?.data?.id;
+            const createResponse = await apiService.post<{ data?: { id: number } }>(`/classes/${classForSubclass.id}/sub-classes`, payload);
+            newSubclassId = createResponse?.data?.id ?? null;
+            if (!newSubclassId) throw new Error("Subclass created but ID not returned.");
             toast.success('Subclass created.');
 
-             // 2. Assign Class Master if selected and ID exists
             if (formData.classMasterId && newSubclassId) {
-                await assignClassMaster(newSubclassId, formData.classMasterId, token);
+                await assignClassMaster(newSubclassId, formData.classMasterId);
             }
-
             closeModals();
-            mutateClasses(); // Revalidate the main classes list
+            mutateClasses();
         } catch (error: any) {
-            toast.error(`Subclass creation failed: ${error.message}`);
+            console.error("Subclass creation failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
     };
 
     const handleUpdateSubclass = async (formData: { name: string; classMasterId: number | null }) => {
-        if (!editingSubclass?.id) return;
+        if (!editingSubclass?.id || !editingSubclass.classId) return;
         setIsLoadingMutation(true);
-        const token = getAuthToken();
-        let nameUpdateError: string | null = null;
-        let masterUpdateError: string | null = null;
+        const payload = { name: formData.name };
+        const subId = editingSubclass.id;
+        const currentMasterId = editingSubclass.classMasterId;
+        const newMasterId = formData.classMasterId;
 
         try {
-            // Logic: Update name first, then handle master change separately
-            // 1. Update Name (if changed)
+            // 1. Update Subclass Name (if changed)
             if (formData.name !== editingSubclass.name) {
-                 const namePayload = { name: formData.name };
-                 const nameResponse = await fetch(`${API_BASE_URL}/subclasses/${editingSubclass.id}`, { 
-                    method: 'PUT', 
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, 
-                    body: JSON.stringify(namePayload) 
-                });
-                if (!nameResponse.ok) {
-                    nameUpdateError = (await nameResponse.json()).message || 'Failed to update subclass name';
-                }
+                await apiService.put(`/classes/${editingSubclass.classId}/sub-classes/${subId}`, payload);
+                toast.success('Subclass name updated.');
             }
 
-             // 2. Update Class Master (if changed)
-            const currentMasterId = editingSubclass.classMasterId;
-            const newMasterId = formData.classMasterId;
+            // 2. Update Class Master (if changed)
             if (newMasterId !== currentMasterId) {
-                if (newMasterId) { // Assign or change master
-                    await assignClassMaster(editingSubclass.id, newMasterId, token);
-                } else { // Remove master
-                    await removeClassMaster(editingSubclass.id, token);
+                if (newMasterId) {
+                    await assignClassMaster(subId, newMasterId);
+                } else if (currentMasterId) { // Only remove if there was one
+                    await removeClassMaster(subId);
                 }
             }
-
-            // Combine results
-            if (nameUpdateError || masterUpdateError) {
-                throw new Error([nameUpdateError, masterUpdateError].filter(Boolean).join('; '));
-            }
-            
-            toast.success('Subclass updated successfully.');
             closeModals();
-            mutateClasses(); // Revalidate the main classes list
+            mutateClasses();
         } catch (error: any) {
-             // If master update fails, assignClassMaster/removeClassMaster should toast
-            if (!masterUpdateError) { // Avoid double toast if master failed
-                 toast.error(`Subclass update failed: ${error.message}`);
-            }
+            console.error("Subclass update failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
     };
 
     const executeDeleteSubclass = async (subClass: SubClass) => {
-        if (!subClass?.id) return;
+        if (!subClass?.id || !subClass.classId) return;
         setIsLoadingMutation(true);
-        const token = getAuthToken();
         try {
-            const response = await fetch(`${API_BASE_URL}/subclasses/${subClass.id}`, { 
-                method: 'DELETE', 
-                headers: { 'Authorization': `Bearer ${token}` } 
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to delete subclass');
+            await apiService.delete(`/classes/${subClass.classId}/sub-classes/${subClass.id}`);
             toast.success('Subclass deleted successfully.');
-            closeModals(); // Close confirmation modal too
-            mutateClasses(); // Revalidate
+            closeModals();
+            mutateClasses();
         } catch (error: any) {
-            toast.error(`Subclass deletion failed: ${error.message}`);
+            console.error("Subclass deletion failed:", error);
         } finally {
             setIsLoadingMutation(false);
         }
     };
 
-    // Helper for assigning class master
-    const assignClassMaster = async (subclassId: number | string, teacherId: number, token: string | null) => {
-         try {
-            const response = await fetch(`${API_BASE_URL}/classes/sub-classes/${subclassId}/class-master`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ userId: teacherId })
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to assign class master');
-            toast.success('Class Master assigned.');
-         } catch (error: any) {
-             toast.error(`Assign Master failed: ${error.message}`);
-             throw error; // Re-throw to indicate failure in calling function
-         }
-    };
-
-    // Helper for removing class master
-    const removeClassMaster = async (subclassId: number | string, token: string | null) => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/classes/sub-classes/${subclassId}/class-master`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!response.ok) throw new Error((await response.json()).message || 'Failed to remove class master');
-            toast.success('Class Master removed.');
-        } catch (error: any) {
-            toast.error(`Remove Master failed: ${error.message}`);
-            throw error; // Re-throw to indicate failure in calling function
-        }
-    };
-
-    const confirmAndDelete = () => {
-        if (classToDelete) {
-            executeDeleteClass(classToDelete.id!);
-        } else if (subClassToDelete) {
+    // Combined delete handler for modal
+    const handleDeleteClassOrSubclass = () => {
+        if (classToDelete && classToDelete.id) {
+            executeDeleteClass(classToDelete.id);
+        } else if (subClassToDelete && subClassToDelete.id) {
             executeDeleteSubclass(subClassToDelete);
         }
     };
 
-    // --- Return Values --- 
     return {
         classes,
         teachers,
-        isLoading, // Combined SWR loading state
-        isLoadingMutation, // Separate mutation loading state
-        error, // Combined SWR error state
+        isLoading: isLoading || isLoadingMutation, // Combined loading state for UI
+        isLoadingMutation, // Specific mutation loading for finer control if needed
+        error,
         editingClass,
         isClassModalOpen,
         isSubClassModalOpen,
         classForSubclass,
         editingSubclass,
+        isConfirmDeleteModalOpen,
         classToDelete,
         subClassToDelete,
-        isConfirmDeleteModalOpen,
-        // Handlers
         openAddClassModal,
         openEditClassModal,
         openAddSubclassModal,
@@ -379,9 +331,10 @@ export const useClassManagement = () => {
         openDeleteConfirmation,
         handleCreateClass,
         handleUpdateClass,
-        handleDeleteClass: confirmAndDelete,
+        // Pass the combined delete handler to the page
+        handleDeleteClass: handleDeleteClassOrSubclass, // Renamed for clarity in page.tsx
         handleCreateSubclass,
         handleUpdateSubclass,
-        handleDeleteSubclass: confirmAndDelete, // Renamed for clarity
+        handleDeleteSubclass: handleDeleteClassOrSubclass, // Can be the same if context is clear or rename if needed
     };
 }; 

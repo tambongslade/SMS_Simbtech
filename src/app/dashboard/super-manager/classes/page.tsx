@@ -213,7 +213,7 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.Re
         <p className="mb-6 text-gray-600">Are you sure you want to delete '{(classToDelete?.name || subClassToDelete?.name)}'? This action cannot be undone.</p>
         <div className="flex justify-end space-x-3">
           <button onClick={closeModals} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" disabled={isLoadingMutation}>Cancel</button>
-          <button onClick={handleDeleteClass} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700" disabled={isLoadingMutation}>{isLoadingMutation ? 'Deleting...' : 'Confirm Delete'}</button>
+          <button onClick={classToDelete ? handleDeleteClass : handleDeleteSubclass} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700" disabled={isLoadingMutation}>{isLoadingMutation ? 'Deleting...' : 'Confirm Delete'}</button>
         </div>
       </Modal>
     </div>

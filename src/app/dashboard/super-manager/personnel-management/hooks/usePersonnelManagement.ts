@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR, { useSWRConfig } from 'swr';
+import apiService from '../../../../../lib/apiService';
 
 // Define types locally or import them
 const roles = [
@@ -16,24 +17,31 @@ const roles = [
   { value: 'PARENT', label: 'Parent' },
 ];
 
-type Personnel = {
+export type Personnel = {
   id: number;
   name: string;
   roles: string[];
-  username?: string;
-  password?: string; // Only used for creation form
   email: string;
   phone?: string;
+  matricule?: string;
   status: 'active' | 'inactive';
   avatar?: string;
   department?: string;
   dateJoined?: string;
+  gender: string;
+  date_of_birth: string;
+  address: string;
 };
 
 // Define form data type explicitly
-type PersonnelFormData = Partial<Personnel & { gender: string; date_of_birth: string; address: string }>;
+export type PersonnelFormData = Partial<Personnel & { gender: string; date_of_birth: string; address: string }>;
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
+// Define StudentLinkInfo type for fetching students list
+export type StudentLinkInfo = {
+  id: number;
+  name: string;
+  matricule?: string;
+};
 
 export const usePersonnelManagement = () => {
   const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
@@ -47,8 +55,6 @@ export const usePersonnelManagement = () => {
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
   const [formData, setFormData] = useState<PersonnelFormData>({
     name: '',
-    username: '',
-    password: '',
     email: '',
     phone: '',
     status: 'active',
@@ -59,14 +65,16 @@ export const usePersonnelManagement = () => {
     address: '',
   });
 
-  const API_ENDPOINT = `${API_BASE_URL}/users`;
+  const [isMutating, setIsMutating] = useState(false);
 
-  const { 
+  const API_ENDPOINT = `/users`;
+
+  const {
     data: apiResult,
     error: fetchError,
-    isLoading,
+    isLoading: isSWRLoading,
     mutate
-  } = useSWR(API_ENDPOINT);
+  } = useSWR(API_ENDPOINT, (url) => apiService.get(url));
 
   const personnel = useMemo((): Personnel[] => {
     if (!apiResult?.data) {
@@ -77,23 +85,26 @@ export const usePersonnelManagement = () => {
       name: user.name,
       email: user.email,
       roles: user.userRoles?.map((roleObj: any) => roleObj.role) || [],
-      username: user.username,
       phone: user.phone,
-      status: user.status === 'active' ? 'active' : 'inactive',
+      matricule: user.matricule,
+      status: typeof user.status === 'string' && user.status.toLowerCase() === 'active' ? 'active' : 'inactive',
       department: user.department,
       dateJoined: typeof user.date_joined === 'string' ? user.date_joined :
-                  user.createdAt ? (
-                      typeof user.createdAt === 'string' ?
-                          user.createdAt.split('T')[0] :
-                          (() => {
-                              try {
-                                  const date = new Date(user.createdAt);
-                                  return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : undefined;
-                              } catch (e) {
-                                  return undefined;
-                              }
-                          })()
-                  ) : undefined,
+        user.createdAt ? (
+          typeof user.createdAt === 'string' ?
+            user.createdAt.split('T')[0] :
+            (() => {
+              try {
+                const date = new Date(user.createdAt);
+                return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : undefined;
+              } catch (e) {
+                return undefined;
+              }
+            })()
+        ) : undefined,
+      gender: user.gender,
+      date_of_birth: user.date_of_birth,
+      address: user.address,
     }));
   }, [apiResult]);
 
@@ -108,8 +119,6 @@ export const usePersonnelManagement = () => {
     setEditingPersonnel(null);
     setFormData({
       name: '',
-      username: '',
-      password: '',
       email: '',
       phone: '',
       status: 'active',
@@ -125,11 +134,10 @@ export const usePersonnelManagement = () => {
   const openEditModal = (person: Personnel) => {
     setEditingPersonnel(person);
     setFormData({
-       ...person,
-       password: '',
-       gender: (person as any).gender || '',
-       date_of_birth: (person as any).date_of_birth || '',
-       address: (person as any).address || '',
+      ...person,
+      gender: (person as any).gender || '',
+      date_of_birth: (person as any).date_of_birth || '',
+      address: (person as any).address || '',
     });
     setIsAddEditModalOpen(true);
   };
@@ -157,55 +165,38 @@ export const usePersonnelManagement = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.name || !formData.email || !formData.password || !formData.gender || !formData.date_of_birth) {
-       toast.error("Name, Email, Password, Gender, and Date of Birth are required.");
-       return;
+    if (!formData.name || !formData.email || !formData.gender || !formData.date_of_birth) {
+      toast.error("Name, Email, Gender, and Date of Birth are required.");
+      return;
     }
-    setIsLoading(true);
+    setIsMutating(true);
 
     const userData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone || null,
-        username: formData.username || null,
-        gender: formData.gender,
-        date_of_birth: formData.date_of_birth,
-        address: formData.address || null,
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone || undefined,
+      matricule: formData.matricule || undefined,
+      gender: formData.gender,
+      date_of_birth: formData.date_of_birth,
+      address: formData.address || undefined,
     };
 
-    console.log("Creating user:", userData);
+    console.log("Creating user via /auth/register:", userData);
 
     try {
-       const response = await fetch(`${API_BASE_URL}/auth/register`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(userData),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.message || 'Failed to create user');
-        }
-
-        const newUser = result.data;
-        console.log("User created:", newUser);
-
-        toast.success("User created successfully! Now assign roles.");
-        mutate();
-        setIsAddEditModalOpen(false);
-        setUserForRoleAssignment({ id: newUser.id, name: newUser.name });
-        setSelectedRoles([]);
-        setIsRoleModalOpen(true);
-
+      const result = await apiService.post<any>(`/auth/register`, userData);
+      const newUser = result.data;
+      console.log("User created via register endpoint:", newUser);
+      toast.success("User created successfully! Now assign roles.");
+      mutate();
+      setIsAddEditModalOpen(false);
+      setUserForRoleAssignment({ id: newUser.id, name: newUser.name });
+      setSelectedRoles(newUser.userRoles?.map((r: any) => r.role) || []);
+      setIsRoleModalOpen(true);
     } catch (error: any) {
-        console.error("User creation failed:", error);
-        toast.error(`User creation failed: ${error.message}`);
+      console.error("User creation via /auth/register failed:", error);
     } finally {
-        setIsLoading(false);
+      setIsMutating(false);
     }
   };
 
@@ -214,106 +205,66 @@ export const usePersonnelManagement = () => {
       toast.error("Please select at least one role.");
       return;
     }
-    setIsLoading(true);
+    setIsMutating(true);
     const userId = userForRoleAssignment.id;
     const rolesToAssign = selectedRoles;
 
     console.log(`Setting roles [${rolesToAssign.join(', ')}] for user ID ${userId} for the current academic year`);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${userId}/roles/academic-year`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ roles: rolesToAssign }),
-      });
-
-      if (!response.ok) {
-         const errorData = await response.json().catch(() => ({ message: response.statusText }));
-         throw new Error(errorData.message || `Failed to set roles (${response.status})`);
-      }
-
+      await apiService.put(`/users/${userId}/roles/academic-year`, { roles: rolesToAssign });
       toast.success(`Roles updated successfully for ${userForRoleAssignment.name}!`);
       closeModal();
       mutate();
-
     } catch (error: any) {
       console.error("Role assignment failed:", error);
-      toast.error(`Role assignment failed: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   };
 
   const handleUpdatePersonnel = async () => {
     if (!editingPersonnel) return;
-    setIsLoading(true);
+    setIsMutating(true);
 
     const userId = editingPersonnel.id;
     const updateData: Partial<PersonnelFormData> = {
       name: formData.name,
       email: formData.email,
-      phone: formData.phone || null,
-      username: formData.username || null,
+      phone: formData.phone || undefined,
+      matricule: formData.matricule || undefined,
       status: formData.status,
     };
 
     console.log(`Updating personnel ID ${userId}:`, updateData);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/users/${userId}`, { 
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(updateData),
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: response.statusText }));
-            throw new Error(errorData.message || `Failed to update personnel (${response.status})`);
-        }
-
-        toast.success("Personnel updated successfully!");
-        closeModal();
-        mutate();
+      await apiService.put(`/users/${userId}`, updateData);
+      toast.success("Personnel updated successfully!");
+      closeModal();
+      mutate();
     } catch (error: any) {
-        console.error("Update failed:", error);
-        toast.error(`Update failed: ${error.message}`);
+      console.error("Update failed:", error);
     } finally {
-        setIsLoading(false);
+      setIsMutating(false);
     }
   };
 
   const confirmAndDeletePersonnel = async () => {
     if (!personnelToDelete) return;
-    setIsLoading(true);
+    setIsMutating(true);
     const { id, name } = personnelToDelete;
     console.log("Attempting to delete personnel with ID:", id);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/users/${id}`, {
-            method: 'DELETE',
-        });
-
-        if (!response.ok) {
-            let errorMessage = `Failed to delete ${name} (${response.status})`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorData.message || errorMessage;
-            } catch (e) {}
-            throw new Error(errorMessage);
-        }
-
-        toast.success(`Personnel '${name}' deleted successfully!`);
-        closeModal();
-        mutate();
+      await apiService.delete(`/users/${id}`);
+      toast.success(`Personnel '${name}' deleted successfully!`);
+      closeModal();
+      mutate();
     } catch (error: any) {
-        console.error("Failed to delete personnel:", error);
-        toast.error(`Failed to delete personnel: ${error.message}`);
+      console.error("Failed to delete personnel:", error);
     } finally {
-        setIsLoading(false);
+      setIsMutating(false);
     }
   };
 
@@ -328,41 +279,43 @@ export const usePersonnelManagement = () => {
   const filteredPersonnel = personnel.filter((person) => {
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = person.name.toLowerCase().includes(searchLower) ||
-                         person.email.toLowerCase().includes(searchLower) ||
-                         (person.username && person.username.toLowerCase().includes(searchLower));
+      person.email.toLowerCase().includes(searchLower);
     const matchesRole = selectedRoleFilter === 'all' || person.roles.includes(selectedRoleFilter);
     return matchesSearch && matchesRole;
   });
 
+  // Ensure all state and functions used by the page are returned here
   return {
     personnel,
-    filteredPersonnel,
-    isLoading,
+    isLoading: isSWRLoading, // Use SWR's loading state for main data
+    isMutating, // For create/update/delete operations
     fetchError,
-    isAddEditModalOpen,
-    isRoleModalOpen,
-    isConfirmDeleteModalOpen,
-    editingPersonnel,
-    userForRoleAssignment,
-    selectedRoles,
-    personnelToDelete,
     searchTerm,
-    selectedRoleFilter,
-    formData,
-    roles,
     setSearchTerm,
+    selectedRoleFilter,
     setSelectedRoleFilter,
+    roles, // The hardcoded roles array for filter/modal options
+    isAddEditModalOpen,
+    editingPersonnel,
+    formData,
     setFormData,
-    setSelectedRoles,
     openAddModal,
     openEditModal,
-    openRoleAssignmentModal,
-    closeModal,
-    openDeleteConfirmationModal,
     handleCreateUser,
-    handleAssignRoles,
     handleUpdatePersonnel,
+    isRoleModalOpen,
+    userForRoleAssignment,
+    selectedRoles,
+    setSelectedRoles, // Make sure this is returned
+    openRoleAssignmentModal,
+    handleAssignRoles,
+    handleRoleSelectionChange, // Make sure this is returned if used by ManageUserRolesModal
+    isConfirmDeleteModalOpen,
+    personnelToDelete,
+    openDeleteConfirmationModal,
     confirmAndDeletePersonnel,
-    handleRoleSelectionChange,
+    // General
+    closeModal,
+    mutate, // SWR mutate function if needed by the page directly
   };
-}; 
+};

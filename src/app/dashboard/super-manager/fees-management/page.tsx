@@ -7,6 +7,7 @@ import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
 import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
+import { TransactionsModal } from "./components/ui/PaymentModal";
 import { Student, NewStudent } from './types';
 import { toast } from "react-hot-toast";
 
@@ -44,13 +45,20 @@ export default function FeeManagementPage() {
         handleExportExcel,
         isLoading,
         isLoadingClasses,
-        error,
+        fetchError,
         newStudent,
         setNewStudent,
         resetPaymentForm,
         resetStudentForm,
         classesList,
         termsList,
+        showTransactionsModal,
+        setShowTransactionsModal,
+        selectedTransactionsStudent,
+        setSelectedTransactionsStudent,
+        transactions,
+        isLoadingTransactions,
+        fetchFeeTransactions,
     } = useFeeManagement();
 
     const handleRecordPaymentClick = (student: Student) => {
@@ -65,8 +73,8 @@ export default function FeeManagementPage() {
             await handleAddStudent(studentData);
             console.log("Attempted to add student:", studentData);
 
-            const addedStudent = students.find(s => 
-                s.name === studentData.name 
+            const addedStudent = students.find(s =>
+                s.name === studentData.name
             );
 
             if (addedStudent && amount > 0) {
@@ -97,6 +105,12 @@ export default function FeeManagementPage() {
         console.log('View history for:', student.name);
     };
 
+    const handleViewTransactions = (student: Student) => {
+        setSelectedTransactionsStudent(student);
+        if (student.feeId) fetchFeeTransactions(student.feeId);
+        setShowTransactionsModal(true);
+    };
+
     return (
         <div className="p-4 md:p-6 space-y-6">
             <Header
@@ -121,7 +135,7 @@ export default function FeeManagementPage() {
                 isLoadingClasses={isLoadingClasses}
             />
 
-            {error && <div className="text-red-600 text-center p-2">Error: {error}</div>}
+            {fetchError && <div className="text-red-600 text-center p-2">Error: {fetchError}</div>}
 
             {isLoading ? (
                 <div className="flex justify-center items-center h-64">
@@ -131,12 +145,14 @@ export default function FeeManagementPage() {
                 <ListView
                     students={getFilteredStudents()}
                     onRecordPayment={handleRecordPaymentClick}
+                    onViewTransactions={handleViewTransactions}
                 />
             ) : (
                 <CardView
                     students={getFilteredStudents()}
                     onRecordPayment={handleRecordPaymentClick}
                     onViewHistory={handleViewHistory}
+                    onViewTransactions={handleViewTransactions}
                 />
             )}
 
@@ -172,6 +188,13 @@ export default function FeeManagementPage() {
                 setNewStudent={setNewStudent}
                 handleAddStudent={handleAddStudent}
                 isLoading={isLoading}
+            />
+            <TransactionsModal
+                isOpen={showTransactionsModal}
+                onClose={() => setShowTransactionsModal(false)}
+                transactions={transactions}
+                isLoading={isLoadingTransactions}
+                studentName={selectedTransactionsStudent?.name}
             />
         </div>
     );

@@ -1,243 +1,195 @@
 'use client'
-import Image from 'next/image';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
-import { usePersonnelManagement } from './hooks/usePersonnelManagement';
+import React from 'react'; // Removed useState, useEffect as they are in the hook
+import { toast } from 'react-hot-toast';
+import { UserPlusIcon, PencilSquareIcon, TrashIcon, KeyIcon, UserGroupIcon } from '@heroicons/react/24/outline';
+// import apiService from '../../../../lib/apiService'; // Now handled by the hook
+// import Image from 'next/image'; // Not used in the target structure
+// import { ExclamationTriangleIcon } from '@heroicons/react/24/outline'; // Not used in target structure
 
-// Import the new table component
-import { PersonnelTable } from './components/PersonnelTable'; 
+import { usePersonnelManagement, Personnel } from './hooks/usePersonnelManagement';
+import { PersonnelTable } from './components/PersonnelTable';
 import { PersonnelFilters } from './components/PersonnelFilters';
-// TODO: Import modal components once created
-// import { AddEditPersonnelModal } from './components/AddEditPersonnelModal';
-// import { AssignRoleModal } from './components/AssignRoleModal';
-// import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { AddEditPersonnelModal } from './components/AddEditPersonnelModal';
+import { ManageUserRolesModal } from './components/ManageUserRolesModal';
+import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+// import { LinkStudentToParentModal } from './components/LinkStudentToParentModal'; // REMOVED
 
+// Types are now primarily managed within the hook or its imported types
+// interface Personnel { ... } // Defined in hook
+// interface RoleAssignment { ... } // Not directly used here
+
+// RoleManagementCard component is removed as per refactoring goal
+
+// Main Page Component for Personnel Management
 export default function PersonnelManagement() {
   const {
-    filteredPersonnel,
+    personnel,
     isLoading,
-    isAddEditModalOpen,
-    isRoleModalOpen,
-    isConfirmDeleteModalOpen,
-    editingPersonnel,
-    userForRoleAssignment,
-    selectedRoles,
-    personnelToDelete,
+    isMutating,
+    fetchError,
     searchTerm,
-    selectedRoleFilter,
-    formData,
-    roles,
     setSearchTerm,
+    selectedRoleFilter,
     setSelectedRoleFilter,
+    roles, // Available roles from the hook
+    // Add/Edit Modal
+    isAddEditModalOpen,
+    editingPersonnel,
+    formData,
     setFormData,
-    setSelectedRoles,
     openAddModal,
     openEditModal,
-    closeModal,
-    openDeleteConfirmationModal,
     handleCreateUser,
-    handleAssignRoles,
     handleUpdatePersonnel,
-    confirmAndDeletePersonnel,
-    handleRoleSelectionChange,
+    // Role Modal
+    isRoleModalOpen,
+    userForRoleAssignment,
+    selectedRoles,
+    setSelectedRoles,
     openRoleAssignmentModal,
+    handleAssignRoles,
+    // Delete Modal
+    isConfirmDeleteModalOpen,
+    personnelToDelete,
+    openDeleteConfirmationModal,
+    confirmAndDeletePersonnel,
+    // Link Student Modal related items REMOVED from destructuring
+    // isLinkStudentModalOpen,
+    // linkingParentUser,
+    // allStudents,
+    // selectedStudentToLink,
+    // setSelectedStudentToLink,
+    // openLinkStudentModal,
+    // handleLinkToStudent,
+    // fetchAllStudentsForLinking,
+    closeModal // General close modal function
   } = usePersonnelManagement();
 
+  const filteredPersonnel = personnel.filter(p => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch = !term ||
+      p.name.toLowerCase().includes(term) ||
+      (p.email && p.email.toLowerCase().includes(term)) ||
+      (p.username && p.username.toLowerCase().includes(term));
+    const matchesRole = selectedRoleFilter === 'all' || (p.roles && p.roles.includes(selectedRoleFilter));
+    return matchesSearch && matchesRole;
+  });
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-100 p-6">
+      <div className="max-w-full mx-auto">
+        {/* Page Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Personnel Management</h1>
-              <p className="text-gray-600 mt-1">Manage staff, assign roles, and handle user credentials</p>
+              <p className="text-gray-600 mt-1">Oversee all staff members and their roles.</p>
             </div>
             <button
-              onClick={openAddModal}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              disabled={isLoading}
+              onClick={openAddModal} // Use hook's function
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+              disabled={isLoading || isMutating}
             >
-              {isLoading ? 'Processing...' : 'Add New Personnel'}
+              <UserPlusIcon className="h-5 w-5 mr-2" /> Add New Personnel
             </button>
           </div>
         </div>
 
+        {/* Filters Section */}
         <PersonnelFilters
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           selectedRoleFilter={selectedRoleFilter}
           setSelectedRoleFilter={setSelectedRoleFilter}
-          roles={roles}
+          roles={roles} // Pass available roles for the filter dropdown
           isLoading={isLoading}
           resultCount={filteredPersonnel.length}
         />
 
+        {/* Error Display */}
+        {fetchError && (
+          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-4 rounded-md shadow-md" role="alert">
+            <p className="font-bold">Error</p>
+            <p>Failed to load personnel data: {fetchError.message || 'Unknown error'}. Please try refreshing the page.</p>
+          </div>
+        )}
+
+        {/* Personnel Table */}
         <PersonnelTable
           personnel={filteredPersonnel}
           isLoading={isLoading}
-          roles={roles}
-          onEdit={openEditModal}
-          onManageRoles={openRoleAssignmentModal}
-          onDelete={openDeleteConfirmationModal}
+          roles={roles} // Pass the roles array from the hook
+          onEdit={(user) => openEditModal(user)} // Pass hook's function
+          onDelete={(user) => openDeleteConfirmationModal({ id: user.id, name: user.name })} // Pass hook's function
+          onManageRoles={(user) => openRoleAssignmentModal({ id: user.id, name: user.name, roles: user.roles || [] })} // Pass hook's function
+        // onLinkToStudent prop removed
         />
-        </div>
-
-      {isAddEditModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <h3 className="text-lg font-medium leading-6 text-gray-900 mb-6">
-              {editingPersonnel ? 'Edit Personnel' : 'Add New Personnel (Step 1/2)'}
-            </h3>
-            <form onSubmit={(e) => { e.preventDefault(); editingPersonnel ? handleUpdatePersonnel() : handleCreateUser(); }} className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="md:col-span-2">
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name *</label>
-                <input type="text" id="name" value={formData.name || ''} onChange={(e) => setFormData({...formData, name: e.target.value})} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-              </div>
-                  <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email *</label>
-                <input type="email" id="email" value={formData.email || ''} onChange={(e) => setFormData({...formData, email: e.target.value})} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-                  <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">Phone</label>
-                <input type="tel" id="phone" value={formData.phone || ''} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-                  <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">Username</label>
-                <input type="text" id="username" value={formData.username || ''} onChange={(e) => setFormData({...formData, username: e.target.value})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-              {!editingPersonnel && (
-                  <div>
-                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password *</label>
-                    <input type="password" id="password" value={formData.password || ''} onChange={(e) => setFormData({...formData, password: e.target.value})} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-              )}
-               {!editingPersonnel && (
-                  <div>
-                  <label htmlFor="gender" className="block text-sm font-medium text-gray-700">Gender *</label>
-                  <select id="gender" value={formData.gender || ''} onChange={(e) => setFormData({...formData, gender: e.target.value})} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                      <option value="" disabled>Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                  </select>
-                  </div>
-               )}
-               {!editingPersonnel && (
-                  <div>
-                      <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700">Date of Birth *</label>
-                      <input type="date" id="date_of_birth" value={formData.date_of_birth || ''} onChange={(e) => setFormData({...formData, date_of_birth: e.target.value})} required className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-               )}
-                {!editingPersonnel && (
-                  <div className="md:col-span-2">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
-                    <textarea id="address" value={formData.address || ''} onChange={(e) => setFormData({...formData, address: e.target.value})} rows={3} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"/>
-                  </div>
-                )}
-                  <div>
-                  <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-                  <select id="status" value={formData.status || 'active'} onChange={(e) => setFormData({...formData, status: e.target.value as 'active' | 'inactive'})} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                </div>
-
-              <div className="md:col-span-2 flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={closeModal} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors" disabled={isLoading}>
-                    Cancel
-                  </button>
-                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50" disabled={isLoading}>
-                  {isLoading ? 'Saving...' : (editingPersonnel ? 'Update Personnel' : 'Create User & Proceed to Roles')}
-                  </button>
-              </div>
-            </form>
-            </div>
-          </div>
-        )}
-
-       {isRoleModalOpen && userForRoleAssignment && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative mx-auto p-8 border w-full max-w-lg shadow-lg rounded-md bg-white">
-                 <h3 className="text-lg font-medium leading-6 text-gray-900 mb-2">
-                    Assign Roles to {userForRoleAssignment.name} (Step 2/2)
-                 </h3>
-                 <p className="text-sm text-gray-600 mb-6">Select one or more roles for this user.</p>
-
-                 <div className="space-y-3 mb-6 max-h-60 overflow-y-auto pr-2">
-                    {roles.map((role) => (
-                        <div key={role.value} className="flex items-center">
-                            <input
-                                id={`role-${role.value}`}
-                                type="checkbox"
-                                value={role.value}
-                                checked={selectedRoles.includes(role.value)}
-                                onChange={() => handleRoleSelectionChange(role.value)}
-                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                            />
-                            <label htmlFor={`role-${role.value}`} className="ml-3 block text-sm font-medium text-gray-700">
-                                {role.label}
-                            </label>
-          </div>
-                    ))}
-            </div>
-
-                 <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-                    <button type="button" onClick={closeModal} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors" disabled={isLoading}>
-                        Cancel
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleAssignRoles}
-                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                        disabled={isLoading || selectedRoles.length === 0}
-                    >
-                        {isLoading ? 'Assigning...' : 'Save Roles'}
-                    </button>
-            </div>
-          </div>
-        </div>
-       )}
-
-       {isConfirmDeleteModalOpen && personnelToDelete && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
-                    <div className="sm:flex sm:items-start">
-                        <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                            <ExclamationTriangleIcon className="h-6 w-6 text-red-600" aria-hidden="true" />
-                        </div>
-                        <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
-                            <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                                Delete Personnel Member
-                            </h3>
-                            <div className="mt-2">
-                                <p className="text-sm text-gray-500">
-                                    Are you sure you want to delete <strong className="font-semibold">{personnelToDelete.name}</strong>?
-                                    This action cannot be undone.
-                                </p>
-            </div>
-                        </div>
-                    </div>
-                    <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse sm:px-4">
-                        <button
-                            type="button"
-                            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50"
-                            onClick={confirmAndDeletePersonnel}
-                            disabled={isLoading}
-                        >
-                            {isLoading ? 'Deleting...' : 'Confirm Delete'}
-                        </button>
-                        <button
-                            type="button"
-                            className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
-                            onClick={closeModal}
-                            disabled={isLoading}
-                        >
-                            Cancel
-                        </button>
-          </div>
-        </div>
       </div>
-        )}
 
+      {/* Add/Edit Personnel Modal */}
+      {isAddEditModalOpen && (
+        <AddEditPersonnelModal
+          isOpen={isAddEditModalOpen}
+          onClose={closeModal}
+          onSubmit={editingPersonnel ? handleUpdatePersonnel : handleCreateUser}
+          initialData={editingPersonnel}
+          formData={formData} // Pass formData from hook
+          setFormData={setFormData} // Pass setFormData from hook
+          isLoading={isMutating || isLoading} // Consider combined loading
+          allRoles={roles} // Pass all available roles for selection in modal
+        />
+      )}
+
+      {/* Manage User Roles Modal */}
+      {isRoleModalOpen && userForRoleAssignment && (
+        <ManageUserRolesModal
+          isOpen={isRoleModalOpen}
+          onClose={closeModal}
+          userName={userForRoleAssignment.name}
+          availableRoles={roles} // All system roles
+          currentRoles={selectedRoles}
+          onSelectedRolesChange={setSelectedRoles}
+          onAssignRoles={handleAssignRoles}
+          isLoading={isMutating || isLoading} // Consider combined loading
+        />
+      )}
+
+      {/* Confirm Delete Modal */}
+      {isConfirmDeleteModalOpen && personnelToDelete && (
+        <ConfirmDeleteModal
+          isOpen={isConfirmDeleteModalOpen}
+          onClose={closeModal}
+          onConfirm={confirmAndDeletePersonnel}
+          itemName={personnelToDelete.name}
+          isLoading={isMutating || isLoading} // Consider combined loading
+        />
+      )}
+
+      {/* Link Student to Parent Modal REMOVED */}
+      {/* {isLinkStudentModalOpen && linkingParentUser && ( ... )} */}
+
+      {/* Global styles can be in a separate file if preferred */}
+      <style jsx global>{`
+              .input-field {
+                  border: 1px solid #d1d5db; /* border-gray-300 */
+                  border-radius: 0.375rem; /* rounded-md */
+                  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
+                  padding: 0.5rem 0.75rem; /* py-2 px-3 */
+                  width: 100%;
+              }
+              .input-field:focus {
+                  outline: none;
+                  box-shadow: 0 0 0 2px #3b82f6; /* focus:ring-2 focus:ring-blue-500 */
+                  border-color: #3b82f6; /* focus:border-blue-500 */
+              }
+              .select-field {
+                  border: 1px solid #d1d5db;
+                  border-radius: 0.375rem;
+                  padding: 0.5rem 0.75rem;
+                  width: 100%;
+                  background-color: white;
+              }
+            `}</style>
     </div>
   );
 }

@@ -3,10 +3,10 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { 
-  HomeIcon, 
-  UserGroupIcon, 
-  BellIcon, 
+import {
+  HomeIcon,
+  UserGroupIcon,
+  BellIcon,
   DocumentChartBarIcon,
   BookOpenIcon,
   CurrencyDollarIcon,
@@ -25,7 +25,8 @@ import {
   UsersIcon,
   MegaphoneIcon,
   ChevronUpDownIcon,
-  ClockIcon
+  ClockIcon,
+  BanknotesIcon
 } from '@heroicons/react/24/outline';
 import { Fade } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
@@ -92,14 +93,25 @@ const menuItems: MenuItemsStructure = {
   ],
   'super-manager': [
     { label: 'Dashboard', href: '/dashboard/super-manager', icon: HomeIcon },
-    { label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, subItems: [
-      { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon},
-      { label: 'Vice Principals', href: '/dashboard/super-manager/vice-principal-management', icon: ChevronRightIcon },
-      { label: 'Discipline Masters', href: '/dashboard/super-manager/discipline-master-management', icon: ChevronRightIcon },
-      { label: 'Teachers', href: '/dashboard/super-manager/teacher-management', icon: ChevronRightIcon },
-      { label: 'Bursars', href: '/dashboard/super-manager/bursar-management', icon: ChevronRightIcon },
-      { label: 'Guidance Counselors', href: '/dashboard/super-manager/guidance-counselor-management', icon: ChevronRightIcon },
-    ]},
+    {
+      label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, subItems: [
+        { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon },
+        { label: 'Vice Principals', href: '/dashboard/super-manager/vice-principal-management', icon: ChevronRightIcon },
+        { label: 'Discipline Masters', href: '/dashboard/super-manager/discipline-master-management', icon: ChevronRightIcon },
+        { label: 'Teachers', href: '/dashboard/super-manager/teacher-management', icon: ChevronRightIcon },
+        { label: 'Parents', href: '/dashboard/super-manager/parents-management', icon: ChevronRightIcon },
+        { label: 'Bursars', href: '/dashboard/super-manager/bursar-management', icon: ChevronRightIcon },
+        { label: 'Guidance Counselors', href: '/dashboard/super-manager/guidance-counselor-management', icon: ChevronRightIcon },
+      ]
+    },
+    {
+      label: 'Parent', href: '/dashboard/super-manager/parent', icon: UserGroupIcon, subItems: [
+        { label: 'Dashboard', href: '/dashboard/super-manager/parent', icon: HomeIcon },
+        { label: 'Child Stats', href: '/dashboard/super-manager/parent/child-stats', icon: UsersIcon },
+        { label: 'School Fees', href: '/dashboard/super-manager/parent/school-fees', icon: CurrencyDollarIcon },
+        { label: 'Quiz', href: '/dashboard/super-manager/parent/quiz', icon: ClipboardDocumentListIcon },
+      ]
+    },
     { label: 'Classes & Subclasses', href: '/dashboard/super-manager/classes', icon: BuildingLibraryIcon },
     { label: 'Student Management', href: '/dashboard/super-manager/student-management', icon: UsersIcon },
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
@@ -168,7 +180,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  
+
   // State to manage open submenus { [href]: boolean }
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({});
 
@@ -181,21 +193,21 @@ export default function DashboardLayout({
   // --- Get Role from URL Path ---
   // Use useMemo to avoid recalculating on every render unless pathname changes
   const roleFromPath = useMemo(() => {
-      const pathSegments = pathname.split('/');
-      return pathSegments.length > 2 ? pathSegments[2] : null;
+    const pathSegments = pathname.split('/');
+    return pathSegments.length > 2 ? pathSegments[2] : null;
   }, [pathname]);
 
   // --- Effect to load roles from localStorage and validate initial path ---
   useEffect(() => {
     const storedRole = localStorage.getItem('userRole'); // e.g., "SUPER_MANAGER"
     const storedRolesList = localStorage.getItem('userRolesList'); // e.g., '["SUPER_MANAGER", "TEACHER"]'
-    
+
     if (!storedRole) {
       toast.error("Not authenticated. Redirecting to login.");
       router.push('/'); // Redirect to login if no primary role found
       return;
     }
-    
+
     setUserRoleFromStorage(storedRole);
     setSelectedRole(storedRole); // Initialize dropdown selection
 
@@ -212,8 +224,8 @@ export default function DashboardLayout({
         parsedRoles = [storedRole]; // Fallback on JSON parse error
       }
     } else {
-        parsedRoles = [storedRole]; // Fallback if list doesn't exist
-        console.warn('userRolesList not found in localStorage. Only showing primary role.');
+      parsedRoles = [storedRole]; // Fallback if list doesn't exist
+      console.warn('userRolesList not found in localStorage. Only showing primary role.');
     }
     setAvailableRoles(parsedRoles);
     setIsLoadingRoles(false);
@@ -221,8 +233,8 @@ export default function DashboardLayout({
     // Validate initial path against the stored primary role (run only once after roles loaded)
     const formattedStoredRole = formatRoleForURL(storedRole);
     if (roleFromPath && roleFromPath !== formattedStoredRole && !pathname.startsWith(`/dashboard/${formattedStoredRole}`)) {
-        console.warn(`Initial path ${pathname} doesn't match stored role ${formattedStoredRole}. Redirecting.`);
-        router.push(`/dashboard/${formattedStoredRole}`);
+      console.warn(`Initial path ${pathname} doesn't match stored role ${formattedStoredRole}. Redirecting.`);
+      router.push(`/dashboard/${formattedStoredRole}`);
     }
 
   }, [router]); // Run once on mount
@@ -233,9 +245,9 @@ export default function DashboardLayout({
     setIsMobileSidebarOpen(false);
 
     // Determine current menu based on role from URL path
-    const currentMenuItems = roleFromPath && menuItems[roleFromPath as keyof typeof menuItems] 
-                           ? menuItems[roleFromPath as keyof typeof menuItems] 
-                           : [];
+    const currentMenuItems = roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]
+      ? menuItems[roleFromPath as keyof typeof menuItems]
+      : [];
 
     // Pre-open submenu if the current path is within it
     const initiallyOpen: { [key: string]: boolean } = {};
@@ -250,9 +262,9 @@ export default function DashboardLayout({
 
   // --- Get Menu Items based on Role from Path ---
   const currentMenuItems = useMemo(() => {
-      return roleFromPath && menuItems[roleFromPath as keyof typeof menuItems] 
-             ? menuItems[roleFromPath as keyof typeof menuItems] 
-             : [];
+    return roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]
+      ? menuItems[roleFromPath as keyof typeof menuItems]
+      : [];
   }, [roleFromPath]);
 
   // Map role keys (like 'discipline-master') to display titles
@@ -277,10 +289,10 @@ export default function DashboardLayout({
   const handleRoleChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     const newRole = event.target.value; // e.g., "TEACHER"
     if (newRole && newRole !== selectedRole) {
-        setSelectedRole(newRole);
-        localStorage.setItem('userRole', newRole); // Update active role in storage
-        const formattedNewRole = formatRoleForURL(newRole);
-        router.push(`/dashboard/${formattedNewRole}`); // Navigate to new role's dashboard
+      setSelectedRole(newRole);
+      localStorage.setItem('userRole', newRole); // Update active role in storage
+      const formattedNewRole = formatRoleForURL(newRole);
+      router.push(`/dashboard/${formattedNewRole}`); // Navigate to new role's dashboard
     }
   };
 
@@ -288,21 +300,21 @@ export default function DashboardLayout({
   const handleLogout = () => {
     console.log("Logout button clicked. Attempting logout..."); // Log start
     try {
-        // Clear relevant local storage items
-        localStorage.removeItem('token');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userRolesList');
-        localStorage.removeItem('userData'); // Assuming user data is stored
-        console.log("Local storage cleared."); // Log after clearing
-        
-        toast.success('Logged out successfully.');
-        
-        console.log("Attempting redirect to /"); // Log before push
-        router.push('/'); // Redirect to login page
-        console.log("Redirect command issued."); // Log after push
+      // Clear relevant local storage items
+      localStorage.removeItem('token');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userRolesList');
+      localStorage.removeItem('userData'); // Assuming user data is stored
+      console.log("Local storage cleared."); // Log after clearing
+
+      toast.success('Logged out successfully.');
+
+      console.log("Attempting redirect to /"); // Log before push
+      router.push('/'); // Redirect to login page
+      console.log("Redirect command issued."); // Log after push
     } catch (error) {
-        console.error("Error during logout:", error);
-        toast.error("An error occurred during logout.");
+      console.error("Error during logout:", error);
+      toast.error("An error occurred during logout.");
     }
   };
 
@@ -321,7 +333,7 @@ export default function DashboardLayout({
           const hasSubItems = item.subItems && item.subItems.length > 0;
           const isSubmenuOpen = openSubmenus[item.href] || false;
           const isParentActive = pathname === item.href || (hasSubItems && item.subItems?.some(sub => pathname.startsWith(sub.href)));
-          
+
           return (
             <div key={item.href}>
               {hasSubItems ? (
@@ -337,16 +349,16 @@ export default function DashboardLayout({
                   `}
                 >
                   <span className="flex items-center">
-                    <item.icon 
-                      className={`h-5 w-5 mr-3 flex-shrink-0 ${isParentActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
+                    <item.icon
+                      className={`h-5 w-5 mr-3 flex-shrink-0 ${isParentActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`}
                     />
                     <span className="truncate">{item.label}</span>
                   </span>
                   {isSubmenuOpen ? (
-                      <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-                    ) : (
-                      <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                    )}
+                    <ChevronDownIcon className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <ChevronRightIcon className="h-4 w-4 text-gray-400" />
+                  )}
                 </button>
               ) : (
                 <Link
@@ -361,19 +373,19 @@ export default function DashboardLayout({
                   `}
                   onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
                 >
-                  <item.icon 
-                    className={`h-5 w-5 mr-3 flex-shrink-0 ${pathname === item.href ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`} 
+                  <item.icon
+                    className={`h-5 w-5 mr-3 flex-shrink-0 ${pathname === item.href ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`}
                   />
                   <span className="truncate">{item.label}</span>
                 </Link>
               )}
 
-              {/* Render Submenu Items if open */} 
+              {/* Render Submenu Items if open */}
               {hasSubItems && isSubmenuOpen && (
-                 <div className="mt-1 ml-5 pl-4 border-l border-gray-200 space-y-1">
+                <div className="mt-1 ml-5 pl-4 border-l border-gray-200 space-y-1">
                   {item.subItems?.map((subItem) => {
                     const isSubItemActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/'); // Active if path matches exactly or starts with it
-                     return (
+                    return (
                       <Link
                         key={subItem.href}
                         href={subItem.href}
@@ -385,50 +397,50 @@ export default function DashboardLayout({
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' // Inactive style for sub-item
                           }
                         `}
-                         onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
+                        onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
                       >
-                         {/* Optional: Add icon for sub-items if needed, or just text */}
-                         {/* <subItem.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${isSubItemActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}`} /> */} 
-                         <span className="truncate">{subItem.label}</span>
+                        {/* Optional: Add icon for sub-items if needed, or just text */}
+                        {/* <subItem.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${isSubItemActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}`} /> */}
+                        <span className="truncate">{subItem.label}</span>
                       </Link>
-                     );
+                    );
                   })}
-                 </div>
+                </div>
               )}
             </div>
           );
         })}
       </nav>
-      
+
       {/* Role Switcher and Logout Section */}
       <div className="p-4 mt-auto border-t border-gray-200 space-y-4">
         {/* Role Switcher */}
         {availableRoles.length > 1 && !isLoadingRoles && (
-            <div className="relative">
-                <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
-                    Switch Role
-                </label>
-                <select
-                    id="role-switcher"
-                    value={selectedRole}
-                    onChange={handleRoleChange}
-                    className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none" // Changed focus ring to blue-500
-                >
-                    {availableRoles.map(roleValue => (
-                        <option key={roleValue} value={roleValue}>
-                            {formatRoleName(roleValue)} 
-                        </option>
-                    ))}
-                </select>
-                {/* Custom dropdown arrow */}
-                <div className="pointer-events-none absolute inset-y-0 right-0 top-6 flex items-center px-2 text-gray-700"> 
-                    <ChevronUpDownIcon className="h-5 w-5" aria-hidden="true" />
-                </div>
+          <div className="relative">
+            <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
+              Switch Role
+            </label>
+            <select
+              id="role-switcher"
+              value={selectedRole}
+              onChange={handleRoleChange}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none" // Changed focus ring to blue-500
+            >
+              {availableRoles.map(roleValue => (
+                <option key={roleValue} value={roleValue}>
+                  {formatRoleName(roleValue)}
+                </option>
+              ))}
+            </select>
+            {/* Custom dropdown arrow */}
+            <div className="pointer-events-none absolute inset-y-0 right-0 top-6 flex items-center px-2 text-gray-700">
+              <ChevronUpDownIcon className="h-5 w-5" aria-hidden="true" />
             </div>
+          </div>
         )}
-         {isLoadingRoles && availableRoles.length <= 1 && (
-           <div className="text-xs text-gray-400">Loading roles...</div> // Placeholder while loading
-         )}
+        {isLoadingRoles && availableRoles.length <= 1 && (
+          <div className="text-xs text-gray-400">Loading roles...</div> // Placeholder while loading
+        )}
 
         {/* Logout Button */}
         <button
@@ -453,26 +465,26 @@ export default function DashboardLayout({
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
-               {/* Hamburger Menu Button - Visible on smaller screens (e.g., below lg) */}
-               <button
-                 onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-                 className="mr-2 p-2 text-gray-500 hover:text-gray-700 lg:hidden" // Hidden on lg screens and up
-               >
-                 {isMobileSidebarOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
-               </button>
+              {/* Hamburger Menu Button - Visible on smaller screens (e.g., below lg) */}
+              <button
+                onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+                className="mr-2 p-2 text-gray-500 hover:text-gray-700 lg:hidden" // Hidden on lg screens and up
+              >
+                {isMobileSidebarOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
+              </button>
               {/* Logo and School Name */}
               <div className="flex items-center flex-shrink-0">
-                 {/* Assume logo is in /public/logo.png or similar */}
-                 <Image
-                    src="/logo.png" // Adjust path if needed
-                    alt="SSIC Logo"
-                    width={40} // Adjust width as needed
-                    height={40} // Adjust height as needed
-                    className="h-10 w-auto" // Tailwind class for height
-                  />
-                 <span className="ml-3 text-xl font-semibold text-blue-900"> {/* Dark blue text */}
-                    St Stephens International College
-                 </span>
+                {/* Assume logo is in /public/logo.png or similar */}
+                <Image
+                  src="/logo.png" // Adjust path if needed
+                  alt="SSIC Logo"
+                  width={40} // Adjust width as needed
+                  height={40} // Adjust height as needed
+                  className="h-10 w-auto" // Tailwind class for height
+                />
+                <span className="ml-3 text-xl font-semibold text-blue-900"> {/* Dark blue text */}
+                  St Stephens International College
+                </span>
               </div>
             </div>
             {/* Removed settings/logout icons from top bar */}
@@ -488,26 +500,26 @@ export default function DashboardLayout({
         </aside>
 
         {/* Mobile Sidebar (Slide-in) - Conditional rendering */}
-         {isMobileSidebarOpen && (
-           <>
-             {/* Overlay for mobile */}
-             <div
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-              />
-             {/* Mobile Sidebar Content */}
-             <aside className="fixed flex flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}">
-                {SidebarContent}
-              </aside>
-           </>
-         )}
+        {isMobileSidebarOpen && (
+          <>
+            {/* Overlay for mobile */}
+            <div
+              onClick={() => setIsMobileSidebarOpen(false)}
+              className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            />
+            {/* Mobile Sidebar Content */}
+            <aside className="fixed flex flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}">
+              {SidebarContent}
+            </aside>
+          </>
+        )}
 
         {/* Main Content Area - Adjust margin based on desktop sidebar visibility */}
         <main className={`flex-1 pt-8 px-4 sm:px-8 pb-8 lg:ml-64 transition-all duration-300 ease-in-out`}>
-            {children}
+          {children}
         </main>
 
       </div>
     </div>
   );
-} 
+}

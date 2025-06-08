@@ -49,12 +49,12 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
             <button
               key={role}
               onClick={() => setSelectedRole(role)}
-              className={`w-full text-left p-3 border rounded-lg flex items-center justify-between transition-colors ${ selectedRole === role ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-300 hover:bg-gray-100'}
+              className={`w-full text-left p-3 border rounded-lg flex items-center justify-between transition-colors ${selectedRole === role ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-300 hover:bg-gray-100'}
               `}
             >
               <span className={`font-medium ${selectedRole === role ? 'text-blue-700' : 'text-gray-800'}`}>
-                 {formatRoleName(role)} {/* Format role name for display */}
-               </span>
+                {formatRoleName(role)} {/* Format role name for display */}
+              </span>
               {selectedRole === role && <CheckCircleIcon className="h-5 w-5 text-blue-600" />}
             </button>
           ))}
@@ -113,48 +113,46 @@ export default function LoginPage() {
     }
 
     try {
-        // Store the token and user data in localStorage
-        localStorage.setItem('token', loginResponseData.data.token);
-        // Ensure user data structure is handled correctly
-        const userDataToStore = loginResponseData.data.user || {};
-        localStorage.setItem('userData', JSON.stringify(userDataToStore));
-        localStorage.setItem('userRole', selectedRole);
+      // Store the token and user data in localStorage
+      localStorage.setItem('token', loginResponseData.data.token);
+      // Ensure user data structure is handled correctly
+      const userDataToStore = loginResponseData.data.user || {};
+      localStorage.setItem('userData', JSON.stringify(userDataToStore));
+      localStorage.setItem('userRole', selectedRole);
 
-        // Show success message
-        toast.success('Login successful!');
+      // Show success message
+      toast.success('Login successful!');
 
-        // Redirect to the appropriate dashboard
-        const formattedRole = selectedRole.toLowerCase().replace('_', '-');
-        router.push(`/dashboard/${formattedRole}`);
+      // Redirect to the appropriate dashboard
+      const formattedRole = selectedRole.toLowerCase().replace('_', '-');
+      router.push(`/dashboard/${formattedRole}`);
 
-        setIsRoleModalOpen(false); // Close modal after selection and redirect
-        setLoginResponseData(null); // Clear temporary data
+      setIsRoleModalOpen(false); // Close modal after selection and redirect
+      setLoginResponseData(null); // Clear temporary data
 
     } catch (e) {
-        console.error("Error processing role selection or redirecting:", e);
-        toast.error("An error occurred after selecting the role. Please try again.");
-        setIsRoleModalOpen(false);
-        setLoginResponseData(null);
+      console.error("Error processing role selection or redirecting:", e);
+      toast.error("An error occurred after selecting the role. Please try again.");
+      setIsRoleModalOpen(false);
+      setLoginResponseData(null);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setLoginResponseData(null); // Clear previous login attempt data
+    setLoginResponseData(null);
 
     try {
-      // Construct URL using environment variable
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/login`; 
-      // Added a fallback for safety, but .env.local is preferred
-      
-      const response = await fetch(apiUrl, { // Use the constructed apiUrl
+      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/login`;
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           email: formData.email,
+          matricule: formData.email,
           password: formData.password,
         }),
       });
@@ -193,12 +191,12 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Login error:', error);
       toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
-       setLoginResponseData(null); // Clear data on error
+      setLoginResponseData(null); // Clear data on error
     } finally {
       // Only set isLoading to false if modal is NOT opened
       // If modal is open, loading state remains until role is selected/modal closed
       if (!isRoleModalOpen) {
-         setIsLoading(false);
+        setIsLoading(false);
       }
       // Correction:isLoading should be set false even if modal opens, modal can have its own internal loading state if needed.
       setIsLoading(false);
@@ -225,34 +223,34 @@ export default function LoginPage() {
       </div>
 
       {/* Main Content Container */}
-      <div className="relative min-h-screen flex items-center justify-center p-4"> 
+      <div className="relative min-h-screen flex items-center justify-center p-4">
         {/* Removed gradient background, added relative positioning */}
         <Fade>
-          <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl"> 
+          <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl">
             {/* Optional: added slight transparency and blur to card */}
-             {/* Logo */}
-             <div className="flex justify-center pt-8 mb-4"> 
-                 <Image
-                     src="/logo.png" // Path to the logo in /public
-                     alt="SSIC Logo"
-                     width={80} // Adjust size as needed
-                     height={80}
-                     priority // Prioritize logo loading
-                 />
-             </div>
+            {/* Logo */}
+            <div className="flex justify-center pt-8 mb-4">
+              <Image
+                src="/logo.png" // Path to the logo in /public
+                alt="SSIC Logo"
+                width={80} // Adjust size as needed
+                height={80}
+                priority // Prioritize logo loading
+              />
+            </div>
 
-            <CardHeader className="text-center pb-6 pt-0"> 
+            <CardHeader className="text-center pb-6 pt-0">
               {/* Removed CardTitle and description, relying on logo/form */}
-               <p className="mt-2 text-sm text-gray-700"> {/* Adjusted text color for better contrast */}
-                 Sign in to access your dashboard
-               </p>
+              <p className="mt-2 text-sm text-gray-700"> {/* Adjusted text color for better contrast */}
+                Sign in to access your dashboard
+              </p>
             </CardHeader>
             <CardBody>
               <form onSubmit={handleSubmit} className="space-y-6">
                 <Input
-                  label="Email"
-                  type="email"
-                  placeholder="Enter your Email"
+                  label="Email or Matricule"
+                  type="text"
+                  placeholder="Enter your Email or Matricule"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   leftIcon={<UserIcon className="h-5 w-5 text-gray-400" />}
@@ -269,15 +267,15 @@ export default function LoginPage() {
                   required
                   disabled={isLoading}
                 />
-                 <Button
-                   type="submit"
-                   isFullWidth
-                   size="lg"
-                   className="mt-6 bg-blue-700 hover:bg-blue-800 text-white" // Use brand color for button
-                   disabled={!formData.email || !formData.password || isLoading}
-                 >
-                   {isLoading ? 'Signing in...' : 'Sign In'}
-                 </Button>
+                <Button
+                  type="submit"
+                  isFullWidth
+                  size="lg"
+                  className="mt-6 bg-blue-700 hover:bg-blue-800 text-white" // Use brand color for button
+                  disabled={!formData.email || !formData.password || isLoading}
+                >
+                  {isLoading ? 'Signing in...' : 'Sign In'}
+                </Button>
               </form>
 
               <div className="mt-6 text-center">
@@ -297,9 +295,9 @@ export default function LoginPage() {
       <RoleSelectionModal
         isOpen={isRoleModalOpen}
         onClose={() => {
-            setIsRoleModalOpen(false);
-            setIsLoading(false); // Ensure loading is stopped if modal is closed without selection
-            setLoginResponseData(null); // Clear temp data if modal closed
+          setIsRoleModalOpen(false);
+          setIsLoading(false); // Ensure loading is stopped if modal is closed without selection
+          setLoginResponseData(null); // Clear temp data if modal closed
         }}
         roles={rolesForSelection}
         onRoleSelect={handleRoleSelected}
