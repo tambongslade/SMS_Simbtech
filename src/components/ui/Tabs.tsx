@@ -1,3 +1,6 @@
+'use client';
+import React from 'react';
+
 interface Tab {
   id: string;
   label: string;
@@ -90,10 +93,9 @@ export function Tabs({
               relative
               ${variants[variant].tab.base}
               ${sizes[size]}
-              ${
-                activeIndex === index
-                  ? variants[variant].tab.active
-                  : variants[variant].tab.inactive
+              ${activeIndex === index
+                ? variants[variant].tab.active
+                : variants[variant].tab.inactive
               }
               ${tab.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
               transition-colors duration-200

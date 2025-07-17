@@ -14,7 +14,9 @@ export const AcademicYearProvider = ({ children }: { children: React.ReactNode }
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
 
   const addAcademicYear = (year: AcademicYear) => {
-    setAcademicYears([...academicYears, { ...year, id: Date.now() }]);
+    // Use crypto.randomUUID or a counter to avoid hydration mismatch
+    const newId = academicYears.length > 0 ? Math.max(...academicYears.map(y => y.id)) + 1 : 1;
+    setAcademicYears([...academicYears, { ...year, id: newId }]);
   };
 
   const updateAcademicYear = (id: number, updatedYear: AcademicYear) => {

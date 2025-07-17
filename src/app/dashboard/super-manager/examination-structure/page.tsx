@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { SequenceForm } from './components/SequenceForm';
-import apiService from '../../../../lib/apiService'; // Import apiService
+import apiService from '../../../../lib/apiService';
 
 // --- Types --- 
 type AcademicYear = {
@@ -29,12 +29,14 @@ type Sequence = {
     term_id: number;
     start_date?: string;
     end_date?: string;
+    status?: 'OPEN' | 'CLOSED' | 'FINALIZED' | 'REPORTS_GENERATING' | 'REPORTS_AVAILABLE' | 'REPORTS_FAILED';
+};
+
+type SequenceStatusUpdate = {
+    status: 'OPEN' | 'CLOSED' | 'FINALIZED' | 'REPORTS_GENERATING' | 'REPORTS_AVAILABLE' | 'REPORTS_FAILED';
 };
 
 // --- API Configuration ---
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1'; // REMOVED
-// const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null; // REMOVED
-
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.ReactNode }> = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
     return (
@@ -47,17 +49,143 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.Re
     );
 };
 
+// Status Update Modal Component
+const StatusUpdateModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    sequence: Sequence | null;
+    onUpdateStatus: (sequenceId: number, status: SequenceStatusUpdate['status']) => Promise<void>;
+    isLoading: boolean;
+}> = ({ isOpen, onClose, sequence, onUpdateStatus, isLoading }) => {
+    const [selectedStatus, setSelectedStatus] = useState<SequenceStatusUpdate['status']>('OPEN');
+
+    useEffect(() => {
+        if (sequence) {
+            setSelectedStatus(sequence.status || 'OPEN');
+        }
+    }, [sequence]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!sequence) return;
+
+        try {
+            await onUpdateStatus(sequence.id, selectedStatus);
+            onClose();
+        } catch (error) {
+            // Error is handled in the parent component
+        }
+    };
+
+    const statusOptions = [
+        { value: 'OPEN', label: 'Open', description: 'Sequence is open for submissions and marking' },
+        { value: 'CLOSED', label: 'Closed', description: 'Sequence is closed, no more submissions allowed' },
+        { value: 'FINALIZED', label: 'Finalized', description: 'All marks are finalized and locked' },
+        { value: 'REPORTS_GENERATING', label: 'Reports Generating', description: 'Report cards are being generated' },
+        { value: 'REPORTS_AVAILABLE', label: 'Reports Available', description: 'Report cards are ready and available' },
+        { value: 'REPORTS_FAILED', label: 'Reports Failed', description: 'Report generation failed, needs attention' }
+    ] as const;
+
+    if (!sequence) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                    Update Status - Sequence {sequence.sequence_number}
+                </h3>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Select Status
+                        </label>
+                        <div className="space-y-2">
+                            {statusOptions.map((option) => (
+                                <label key={option.value} className="flex items-start">
+                                    <input
+                                        type="radio"
+                                        name="status"
+                                        value={option.value}
+                                        checked={selectedStatus === option.value}
+                                        onChange={(e) => setSelectedStatus(e.target.value as SequenceStatusUpdate['status'])}
+                                        className="mt-1 mr-3"
+                                        disabled={isLoading}
+                                    />
+                                    <div>
+                                        <div className="font-medium text-gray-900">{option.label}</div>
+                                        <div className="text-sm text-gray-500">{option.description}</div>
+                                    </div>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {isLoading ? 'Updating...' : 'Update Status'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </Modal>
+    );
+};
+
+// Status Badge Component
+const StatusBadge: React.FC<{ status?: string }> = ({ status = 'OPEN' }) => {
+    const getStatusStyles = (status: string) => {
+        switch (status) {
+            case 'OPEN':
+                return 'bg-green-100 text-green-800 border-green-200';
+            case 'CLOSED':
+                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            case 'FINALIZED':
+                return 'bg-blue-100 text-blue-800 border-blue-200';
+            case 'REPORTS_GENERATING':
+                return 'bg-purple-100 text-purple-800 border-purple-200';
+            case 'REPORTS_AVAILABLE':
+                return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+            case 'REPORTS_FAILED':
+                return 'bg-red-100 text-red-800 border-red-200';
+            default:
+                return 'bg-gray-100 text-gray-800 border-gray-200';
+        }
+    };
+
+    return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusStyles(status)}`}>
+            {status}
+        </span>
+    );
+};
+
 export default function ExaminationStructurePage() {
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [selectedYearId, setSelectedYearId] = useState<number | ''>('');
     const [terms, setTerms] = useState<Term[]>([]);
-    const [isLoading, setIsLoading] = useState(false); // General loading for initial data like years
-    const [isLoadingTerms, setIsLoadingTerms] = useState(false); // Specific loading for terms/sequences
+    const [isLoading, setIsLoading] = useState(false);
+    const [isLoadingTerms, setIsLoadingTerms] = useState(false);
     const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
     const [termForSequence, setTermForSequence] = useState<Term | null>(null);
+    const [sequenceForStatusUpdate, setSequenceForStatusUpdate] = useState<Sequence | null>(null);
+    const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
     const ACADEMIC_YEARS_ENDPOINT = '/academic-years';
-    const EXAMS_ENDPOINT = '/exams'; // Base endpoint for exams/sequences
+    const EXAMS_ENDPOINT = '/exams';
 
     const fetchAcademicYears = async () => {
         setIsLoading(true);
@@ -69,9 +197,8 @@ export default function ExaminationStructurePage() {
                 setSelectedYearId(activeYear.id);
             }
         } catch (error: any) {
-            console.error("Error fetching academic years:", error); // Keep console for debugging
+            console.error("Error fetching academic years:", error);
             setAcademicYears([]);
-            // apiService handles toast
         } finally {
             setIsLoading(false);
         }
@@ -99,6 +226,7 @@ export default function ExaminationStructurePage() {
                 term_id: seq.term_id || seq.termId,
                 start_date: seq.start_date || seq.startDate,
                 end_date: seq.end_date || seq.endDate,
+                status: seq.status || 'OPEN',
             }));
 
             const sequencesByTermId = allSequences.reduce((acc, seq) => {
@@ -120,9 +248,27 @@ export default function ExaminationStructurePage() {
         } catch (error: any) {
             console.error(`Error fetching terms/sequences for year ${yearId}:`, error);
             setTerms([]);
-            // apiService handles toast
         } finally {
             setIsLoadingTerms(false);
+        }
+    };
+
+    const handleUpdateSequenceStatus = async (sequenceId: number, status: SequenceStatusUpdate['status']) => {
+        setIsUpdatingStatus(true);
+        try {
+            await apiService.patch(`${EXAMS_ENDPOINT}/${sequenceId}/status`, { status });
+            toast.success('Sequence status updated successfully!');
+
+            // Refresh the data to show updated status
+            if (selectedYearId) {
+                await fetchTermsAndSequences(selectedYearId);
+            }
+        } catch (error: any) {
+            console.error("Status update failed:", error);
+            toast.error('Failed to update sequence status');
+            throw error; // Re-throw to be handled by the modal
+        } finally {
+            setIsUpdatingStatus(false);
         }
     };
 
@@ -150,12 +296,21 @@ export default function ExaminationStructurePage() {
         setTermForSequence(null);
     };
 
+    const openStatusModal = (sequence: Sequence) => {
+        setSequenceForStatusUpdate(sequence);
+        setIsStatusModalOpen(true);
+    };
+
+    const closeStatusModal = () => {
+        setIsStatusModalOpen(false);
+        setSequenceForStatusUpdate(null);
+    };
+
     const handleCreateSequence = async (formData: { sequence_number: number }) => {
         if (!termForSequence || !selectedYearId) {
             toast.error('Cannot create sequence without term or academic year context.');
             return;
         }
-        // Use general isLoading or a specific one like isSubmittingSequence
         setIsLoading(true);
         const payload = {
             sequence_number: formData.sequence_number,
@@ -169,7 +324,6 @@ export default function ExaminationStructurePage() {
             if (selectedYearId) fetchTermsAndSequences(selectedYearId);
         } catch (error: any) {
             console.error("Sequence creation failed:", error);
-            // apiService handles toast
         } finally {
             setIsLoading(false);
         }
@@ -207,7 +361,6 @@ export default function ExaminationStructurePage() {
                 )}
                 {!isLoadingTerms && selectedYearId !== '' && terms.length === 0 && (
                     <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">No terms found for the selected academic year.</p>
-                    // TODO: Add button to create first term?
                 )}
 
                 {/* Terms and Sequences Display */}
@@ -218,7 +371,6 @@ export default function ExaminationStructurePage() {
                                 {/* Term Header */}
                                 <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
                                     <h2 className="text-lg font-semibold text-gray-800">{term.name}</h2>
-                                    {/* Connect button to open sequence modal */}
                                     <button
                                         onClick={() => openSequenceModal(term)}
                                         className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center"
@@ -233,14 +385,46 @@ export default function ExaminationStructurePage() {
                                 {/* Sequences List */}
                                 <div className="p-4">
                                     {term.sequences && term.sequences.length > 0 ? (
-                                        <ul className="space-y-2">
+                                        <ul className="space-y-3">
                                             {term.sequences.map(seq => (
-                                                <li key={seq.id} className="p-3 border rounded-md flex justify-between items-center bg-gray-50">
-                                                    <span className="font-medium text-gray-700">Sequence {seq.sequence_number}</span>
-                                                    {/* TODO: Add Edit/Delete Sequence buttons */}
-                                                    <div className="space-x-2">
-                                                        <button className="text-xs text-blue-600 hover:underline disabled:opacity-50" disabled={isLoading}>Edit</button>
-                                                        <button className="text-xs text-red-600 hover:underline disabled:opacity-50" disabled={isLoading}>Delete</button>
+                                                <li key={seq.id} className="p-4 border rounded-md bg-gray-50">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center space-x-3 mb-2">
+                                                                <span className="font-medium text-gray-700">
+                                                                    Sequence {seq.sequence_number}
+                                                                </span>
+                                                                <StatusBadge status={seq.status} />
+                                                            </div>
+                                                            {(seq.start_date || seq.end_date) && (
+                                                                <div className="text-sm text-gray-500">
+                                                                    {seq.start_date && `Start: ${new Date(seq.start_date).toLocaleDateString()}`}
+                                                                    {seq.start_date && seq.end_date && ' | '}
+                                                                    {seq.end_date && `End: ${new Date(seq.end_date).toLocaleDateString()}`}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex space-x-2 ml-4">
+                                                            <button
+                                                                onClick={() => openStatusModal(seq)}
+                                                                className="text-xs text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 px-2 py-1 border border-purple-200 rounded hover:bg-purple-50"
+                                                                disabled={isLoading || isUpdatingStatus}
+                                                            >
+                                                                Update Status
+                                                            </button>
+                                                            <button
+                                                                className="text-xs text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 px-2 py-1 border border-blue-200 rounded hover:bg-blue-50"
+                                                                disabled={isLoading}
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 px-2 py-1 border border-red-200 rounded hover:bg-red-50"
+                                                                disabled={isLoading}
+                                                            >
+                                                                Delete
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 </li>
                                             ))}
@@ -249,12 +433,13 @@ export default function ExaminationStructurePage() {
                                         <p className="text-sm text-gray-500 italic pl-2">No sequences defined for this term yet.</p>
                                     )}
                                 </div>
-                                {/* TODO: Add Edit/Delete Term actions here? */}
                             </div>
                         ))}
-                        {/* TODO: Add button to Add New Term to the selected year */}
+                        {/* Add New Term Button */}
                         <div className="text-center mt-4">
-                            <button className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50 border border-green-300 px-4 py-2 rounded-md hover:bg-green-50" disabled={isLoading}>+ Add New Term</button>
+                            <button className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50 border border-green-300 px-4 py-2 rounded-md hover:bg-green-50" disabled={isLoading}>
+                                + Add New Term
+                            </button>
                         </div>
                     </div>
                 )}
@@ -273,7 +458,14 @@ export default function ExaminationStructurePage() {
                 )}
             </Modal>
 
-            {/* TODO: Add Modals for Term CRUD and Sequence CRUD */}
+            {/* Status Update Modal */}
+            <StatusUpdateModal
+                isOpen={isStatusModalOpen}
+                onClose={closeStatusModal}
+                sequence={sequenceForStatusUpdate}
+                onUpdateStatus={handleUpdateSequenceStatus}
+                isLoading={isUpdatingStatus}
+            />
         </div>
     );
 } 

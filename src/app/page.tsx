@@ -4,10 +4,12 @@ import { useState, Fragment, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardBody, Input, Button, Fade } from '@/components/ui';
-import { UserIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { UserIcon, LockClosedIcon, CheckCircleIcon, AtSymbolIcon, IdentificationIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '@/components/context/AuthContext';
+import AcademicYearSelector from '@/components/auth/AcademicYearSelector';
 import { toast } from 'react-hot-toast';
 
-// --- Role Selection Modal Component Definition ---
+// --- Role Selection Modal Component ---
 interface RoleSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,6 +19,7 @@ interface RoleSelectionModalProps {
 
 const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose, roles, onRoleSelect }) => {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const { isLoading } = useAuth();
 
   if (!isOpen) return null;
 
@@ -26,54 +29,95 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
     }
   };
 
-  // Function to format role names for display (e.g., SUPER_MANAGER -> Super Manager)
+  // Function to format role names for display
   const formatRoleName = (role: string): string => {
     if (!role) return '';
     return role
       .toLowerCase()
       .replace(/_/g, ' ')
-      .replace(/\b\w/g, char => char.toUpperCase()); // Capitalize each word
+      .replace(/\b\w/g, char => char.toUpperCase());
+  };
+
+  // Function to get role description
+  const getRoleDescription = (role: string): string => {
+    const descriptions: Record<string, string> = {
+      'SUPER_MANAGER': 'Full administrative access to all school operations',
+      'PRINCIPAL': 'Overall school leadership and management',
+      'VICE_PRINCIPAL': 'Support principal in administrative duties',
+      'TEACHER': 'Teaching and student assessment responsibilities',
+      'HOD': 'Head of Department - subject area management',
+      'BURSAR': 'Financial management and fee collection',
+      'DISCIPLINE_MASTER': 'Student discipline and behavior management',
+      'GUIDANCE_COUNSELOR': 'Student guidance and counseling services',
+      'PARENT': 'View child(ren) information and progress',
+      'STUDENT': 'Access your academic information and results',
+      'MANAGER': 'General management and operational oversight'
+    };
+    return descriptions[role] || 'Access to role-specific features';
   };
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
-        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
-          Select Your Role
-        </h3>
-        <p className="text-sm text-gray-600 mb-6">
-          You have multiple roles associated with your account. Please choose the role you want to use for this session.
-        </p>
-        <div className="space-y-3 mb-6">
+      <div className="relative mx-auto p-6 border w-full max-w-lg shadow-lg rounded-lg bg-white">
+        <div className="text-center mb-6">
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            Select Your Role
+          </h3>
+          <p className="text-sm text-gray-600">
+            You have multiple roles associated with your account. Please choose the role you want to use for this session.
+          </p>
+        </div>
+
+        <div className="space-y-3 mb-6 max-h-96 overflow-y-auto">
           {roles.map((role) => (
             <button
               key={role}
               onClick={() => setSelectedRole(role)}
-              className={`w-full text-left p-3 border rounded-lg flex items-center justify-between transition-colors ${selectedRole === role ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-300 hover:bg-gray-100'}
-              `}
+              className={`w-full text-left p-4 border rounded-lg transition-all duration-200 ${selectedRole === role
+                ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
             >
-              <span className={`font-medium ${selectedRole === role ? 'text-blue-700' : 'text-gray-800'}`}>
-                {formatRoleName(role)} {/* Format role name for display */}
-              </span>
-              {selectedRole === role && <CheckCircleIcon className="h-5 w-5 text-blue-600" />}
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`font-medium ${selectedRole === role ? 'text-blue-700' : 'text-gray-800'
+                      }`}>
+                      {formatRoleName(role)}
+                    </span>
+                    {selectedRole === role && (
+                      <CheckCircleIcon className="h-5 w-5 text-blue-600" />
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    {getRoleDescription(role)}
+                  </p>
+                </div>
+              </div>
             </button>
           ))}
         </div>
+
         <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-          {/* Optional: Add a Cancel button if needed: <button onClick={onClose}>Cancel</button> */}
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={handleConfirm}
-            disabled={!selectedRole}
-            className="min-w-[100px]"
+            disabled={!selectedRole || isLoading}
+            className="min-w-[120px]"
           >
-            Confirm Role
+            {isLoading ? 'Loading...' : 'Continue'}
           </Button>
         </div>
       </div>
     </div>
   );
 };
-// --- End of Role Selection Modal Component ---
 
 // --- Array of background image paths ---
 const backgroundImages = [
@@ -85,123 +129,153 @@ const backgroundImages = [
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const {
+    login,
+    selectRole,
+    user,
+    availableRoles,
+    availableAcademicYears,
+    selectedRole,
+    requiresAcademicYear,
+    isLoading,
+    isAuthenticated,
+    selectAcademicYear,
+    selectedAcademicYear
+  } = useAuth();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
+  const [loginType, setLoginType] = useState<'email' | 'matricule'>('email');
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [rolesForSelection, setRolesForSelection] = useState<string[]>([]);
-  const [loginResponseData, setLoginResponseData] = useState<any>(null);
 
-  // --- State and Effect for Background Image Cycling ---
+  // Background image cycling
   const [bgIndex, setBgIndex] = useState(0);
 
   useEffect(() => {
     const intervalId = setInterval(() => {
       setBgIndex((prevIndex) => (prevIndex + 1) % backgroundImages.length);
-    }, 5000); // Change image every 5 seconds
+    }, 5000);
 
-    return () => clearInterval(intervalId); // Cleanup interval on component unmount
-  }, []); // Run only once on mount
+    return () => clearInterval(intervalId);
+  }, []);
 
-  const handleRoleSelected = (selectedRole: string) => {
-    if (!loginResponseData) {
-      toast.error("Login data is missing. Please try logging in again.");
-      setIsRoleModalOpen(false);
+  // Handle authentication flow and redirection
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (availableRoles.length > 1 && !selectedRole) {
+        setIsRoleModalOpen(true);
+      } else if (availableRoles.length === 1 && !selectedRole) {
+        // Auto-select single role
+        handleRoleSelect(availableRoles[0]);
+      }
+      // No direct redirection here, the new useEffect below will handle it
+    }
+  }, [isAuthenticated, user, availableRoles, selectedRole]);
+
+  // New useEffect for handling redirection after role/academic year selection
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const DASHBOARD_ROUTES: Record<string, string> = {
+        'SUPER_MANAGER': '/dashboard/super-manager',
+        'PRINCIPAL': '/dashboard/principal',
+        'VICE_PRINCIPAL': '/dashboard/vice-principal',
+        'TEACHER': '/dashboard/teacher',
+        'HOD': '/dashboard/hod',
+        'BURSAR': '/dashboard/bursar',
+        'DISCIPLINE_MASTER': '/dashboard/discipline-master',
+        'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
+        'PARENT': '/dashboard/parent-student',
+        'STUDENT': '/dashboard/parent-student',
+        'MANAGER': '/dashboard/manager'
+      };
+
+      // Scenario 1: Role selected, and it requires academic year, and academic year is also selected
+      if (selectedRole && requiresAcademicYear(selectedRole) && selectedAcademicYear) {
+        router.push(DASHBOARD_ROUTES[selectedRole] || '/dashboard');
+      }
+      // Scenario 2: Role selected, and it does NOT require academic year
+      else if (selectedRole && !requiresAcademicYear(selectedRole)) {
+        router.push(DASHBOARD_ROUTES[selectedRole] || '/dashboard');
+      }
+    }
+  }, [isAuthenticated, user, selectedRole, selectedAcademicYear, requiresAcademicYear, router]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.email || !formData.password) {
+      toast.error('Please fill in all fields');
       return;
     }
 
     try {
-      // Store the token and user data in localStorage
-      localStorage.setItem('token', loginResponseData.data.token);
-      // Ensure user data structure is handled correctly
-      const userDataToStore = loginResponseData.data.user || {};
-      localStorage.setItem('userData', JSON.stringify(userDataToStore));
-      localStorage.setItem('userRole', selectedRole);
-
-      // Show success message
-      toast.success('Login successful!');
-
-      // Redirect to the appropriate dashboard
-      const formattedRole = selectedRole.toLowerCase().replace('_', '-');
-      router.push(`/dashboard/${formattedRole}`);
-
-      setIsRoleModalOpen(false); // Close modal after selection and redirect
-      setLoginResponseData(null); // Clear temporary data
-
-    } catch (e) {
-      console.error("Error processing role selection or redirecting:", e);
-      toast.error("An error occurred after selecting the role. Please try again.");
-      setIsRoleModalOpen(false);
-      setLoginResponseData(null);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setLoginResponseData(null);
-
-    try {
-      const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'}/auth/login`;
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          matricule: formData.email,
-          password: formData.password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
-      }
-
-      // Store response data temporarily
-      setLoginResponseData(data);
-
-      // Extract roles from userRoles array
-      // Ensure the path to roles is correct based on actual API response
-      const userRolesData = data.data?.user?.userRoles;
-      const roles = Array.isArray(userRolesData) ? userRolesData.map((roleObj: any) => roleObj.role) : [];
-
-      if (roles.length === 0) {
-        throw new Error('No roles found for the user');
-      }
-
-      if (roles.length > 1) {
-        // Multiple roles: Open the modal
-        console.log("Multiple roles found, opening modal:", roles); // DEBUG
-        setRolesForSelection(roles);
-        setIsRoleModalOpen(true);
-        // Don't proceed further here, wait for modal selection
-        // setIsLoading(false); // Keep loading indicator until role is chosen or modal closed
-      } else {
-        // Single role: Proceed directly
-        const selectedRole = roles[0];
-        handleRoleSelected(selectedRole); // Use the handler to store data and redirect
-      }
-
+      await login(formData.email, formData.password);
+      // The useEffect will handle the rest of the flow, no direct redirection here
     } catch (error) {
+      // Error is already handled by the auth context
       console.error('Login error:', error);
-      toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
-      setLoginResponseData(null); // Clear data on error
-    } finally {
-      // Only set isLoading to false if modal is NOT opened
-      // If modal is open, loading state remains until role is selected/modal closed
-      if (!isRoleModalOpen) {
-        setIsLoading(false);
-      }
-      // Correction:isLoading should be set false even if modal opens, modal can have its own internal loading state if needed.
-      setIsLoading(false);
     }
   };
+
+  const handleRoleSelect = async (role: string) => {
+    try {
+      await selectRole(role);
+      setIsRoleModalOpen(false);
+      // The AuthContext will now manage academic year display if required
+    } catch (error) {
+      console.error('Role selection error:', error);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const toggleLoginType = () => {
+    setLoginType(prev => prev === 'email' ? 'matricule' : 'email');
+    setFormData({ ...formData, email: '' }); // Clear the input when switching
+  };
+
+  // Conditionally render AcademicYearSelector
+  console.log('--- AcademicYearSelector Conditions ---');
+  console.log('isAuthenticated:', isAuthenticated);
+  console.log('selectedRole:', selectedRole);
+  console.log('requiresAcademicYear(selectedRole):', selectedRole ? requiresAcademicYear(selectedRole) : 'N/A');
+  console.log('!selectedAcademicYear:', !selectedAcademicYear);
+  console.log('availableAcademicYears.length:', availableAcademicYears.length);
+  console.log('------------------------------------');
+
+  if (isAuthenticated && selectedRole && requiresAcademicYear(selectedRole) && !selectedAcademicYear && availableAcademicYears.length > 0) {
+    return (
+      <AcademicYearSelector
+        availableAcademicYears={availableAcademicYears}
+        onSelectAcademicYear={async (academicYear) => {
+          await selectAcademicYear(academicYear);
+        }}
+        onClose={() => {
+          // User cancelled academic year selection
+          // You might want to log out, or go back to role selection
+          // For now, let's clear the selected role to force re-selection
+          toast.error('Academic year selection cancelled. Please re-select your role.');
+          selectRole(''); // This will effectively clear selected role and available years
+        }}
+      />
+    );
+  }
+
+  // Render Role Selection Modal if needed
+  if (isRoleModalOpen && availableRoles.length > 1) {
+    return (
+      <RoleSelectionModal
+        isOpen={isRoleModalOpen}
+        onClose={() => setIsRoleModalOpen(false)}
+        roles={availableRoles}
+        onRoleSelect={handleRoleSelect}
+      />
+    );
+  }
 
   return (
     <Fragment>
@@ -212,10 +286,11 @@ export default function LoginPage() {
             key={imgSrc}
             src={imgSrc}
             alt={`Background ${index + 1}`}
-            fill // Use fill instead of layout="fill"
-            style={{ objectFit: 'cover' }} // Use style for objectFit
-            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === bgIndex ? 'opacity-100' : 'opacity-0'}`}
-            priority={index === 0} // Prioritize loading the first image
+            fill
+            style={{ objectFit: 'cover' }}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${index === bgIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            priority={index === 0}
           />
         ))}
         {/* Dark overlay for contrast */}
@@ -224,54 +299,93 @@ export default function LoginPage() {
 
       {/* Main Content Container */}
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        {/* Removed gradient background, added relative positioning */}
         <Fade>
           <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl">
-            {/* Optional: added slight transparency and blur to card */}
             {/* Logo */}
             <div className="flex justify-center pt-8 mb-4">
               <Image
-                src="/logo.png" // Path to the logo in /public
+                src="/logo.png"
                 alt="SSIC Logo"
-                width={80} // Adjust size as needed
+                width={80}
                 height={80}
-                priority // Prioritize logo loading
+                priority
               />
             </div>
 
             <CardHeader className="text-center pb-6 pt-0">
-              {/* Removed CardTitle and description, relying on logo/form */}
-              <p className="mt-2 text-sm text-gray-700"> {/* Adjusted text color for better contrast */}
+              <CardTitle className="text-2xl font-bold text-gray-900">
+                Welcome Back
+              </CardTitle>
+              <p className="mt-2 text-sm text-gray-700">
                 Sign in to access your dashboard
               </p>
             </CardHeader>
+
             <CardBody>
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Login Type Toggle */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className="flex bg-gray-100 rounded-lg p-1">
+                    <button
+                      type="button"
+                      onClick={toggleLoginType}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${loginType === 'email'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                    >
+                      <AtSymbolIcon className="h-4 w-4 inline mr-1" />
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleLoginType}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${loginType === 'matricule'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-800'
+                        }`}
+                    >
+                      <IdentificationIcon className="h-4 w-4 inline mr-1" />
+                      Matricule
+                    </button>
+                  </div>
+                </div>
+
                 <Input
-                  label="Email or Matricule"
-                  type="text"
-                  placeholder="Enter your Email or Matricule"
+                  label={loginType === 'email' ? 'Email Address' : 'Matricule Number'}
+                  name="email"
+                  type={loginType === 'email' ? 'email' : 'text'}
+                  placeholder={loginType === 'email' ? 'Enter your email address' : 'Enter your matricule number'}
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  leftIcon={<UserIcon className="h-5 w-5 text-gray-400" />}
+                  onChange={handleInputChange}
+                  leftIcon={
+                    loginType === 'email'
+                      ? <AtSymbolIcon className="h-5 w-5 text-gray-400" />
+                      : <IdentificationIcon className="h-5 w-5 text-gray-400" />
+                  }
                   required
                   disabled={isLoading}
                 />
+
                 <Input
                   label="Password"
+                  name="password"
                   type="password"
                   placeholder="Enter your password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={handleInputChange}
                   leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
                   required
                   disabled={isLoading}
                 />
+
                 <Button
                   type="submit"
                   isFullWidth
                   size="lg"
-                  className="mt-6 bg-blue-700 hover:bg-blue-800 text-white" // Use brand color for button
+                  variant="solid" // Explicitly set variant
+                  color="primary" // Explicitly set color
+                  className="mt-6 bg-blue-700 hover:bg-blue-800 text-white"
                   disabled={!formData.email || !formData.password || isLoading}
                 >
                   {isLoading ? 'Signing in...' : 'Sign In'}
@@ -291,17 +405,8 @@ export default function LoginPage() {
         </Fade>
       </div>
 
-      {/* Role Selection Modal Render */}
-      <RoleSelectionModal
-        isOpen={isRoleModalOpen}
-        onClose={() => {
-          setIsRoleModalOpen(false);
-          setIsLoading(false); // Ensure loading is stopped if modal is closed without selection
-          setLoginResponseData(null); // Clear temp data if modal closed
-        }}
-        roles={rolesForSelection}
-        onRoleSelect={handleRoleSelected}
-      />
+      {/* Role Selection Modal */}
+      {/* This component is now rendered conditionally based on isRoleModalOpen */}
     </Fragment>
   );
 }

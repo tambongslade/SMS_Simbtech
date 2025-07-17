@@ -40,6 +40,12 @@ export default function TeacherMarksPage() {
     const [examSequences, setExamSequences] = useState<ExamSequence[]>([]);
     const [selectedSubject, setSelectedSubject] = useState<string>('');
     const [selectedSequence, setSelectedSequence] = useState<string>('');
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Ensure client-side only rendering for dynamic content
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Fetch teacher's subjects and active exam sequences
     useEffect(() => {
@@ -47,14 +53,18 @@ export default function TeacherMarksPage() {
             setIsLoading(true);
             try {
                 const [subjectsRes, sequencesRes] = await Promise.all([
-                    apiService.get('/subjects?assigned=true'), // Get subjects assigned to the teacher
-                    apiService.get('/exams?status=active') // Get active exam sequences
+                    apiService.get('/teachers/me/subjects'), // Use teacher-specific endpoint
+                    apiService.get('/exams?status=ACTIVE') // Updated status to match API docs
                 ]);
                 setSubjects(subjectsRes.data || []);
                 setExamSequences(sequencesRes.data || []);
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error fetching initial data:', error);
-                toast.error('Failed to load subjects or exam sequences');
+                if (error?.status === 403) {
+                    toast.error('Access denied: Unable to load your assigned subjects');
+                } else {
+                    toast.error('Failed to load subjects or exam sequences');
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -69,14 +79,14 @@ export default function TeacherMarksPage() {
 
             setIsLoading(true);
             try {
-                // Get students for the selected subject's subclass
+                // Get students for the selected subject's subclass - use teacher-specific endpoint
                 const subject = subjects.find(s => s.id === Number(selectedSubject));
                 if (!subject) return;
 
-                const studentsRes = await apiService.get(`/students?subClassId=${subject.subClassId}`);
+                const studentsRes = await apiService.get(`/teachers/me/students?subClassId=${subject.subClassId}&subjectId=${selectedSubject}`);
                 setStudents(studentsRes.data || []);
 
-                // Get existing marks
+                // Get existing marks using the correct API endpoint structure
                 const marksRes = await apiService.get(`/marks?subjectId=${selectedSubject}&examSequenceId=${selectedSequence}`);
                 const marksData = marksRes.data || [];
 
@@ -109,14 +119,24 @@ export default function TeacherMarksPage() {
 
         setIsSaving(true);
         try {
-            const marksToSave = Object.entries(marks).map(([studentId, mark]) => ({
-                studentId: Number(studentId),
-                mark,
-                examSequenceId: Number(selectedSequence),
-                subjectId: Number(selectedSubject)
-            }));
+            // Create individual mark entries for each student as per API documentation
+            const markPromises = Object.entries(marks).map(async ([studentId, mark]) => {
+                const markData = {
+                    examId: Number(selectedSequence), // Use examId instead of examSequenceId based on API docs
+                    studentId: Number(studentId),
+                    subjectId: Number(selectedSubject),
+                    mark: Number(mark)
+                };
 
-            await apiService.post('/marks', marksToSave);
+                // Check if mark already exists for this student
+                const existingMark = students.find(s => s.id === Number(studentId));
+                if (existingMark && marks[Number(studentId)] !== undefined) {
+                    // Update existing mark (PUT endpoint if available) or create new one
+                    return await apiService.post('/marks', markData);
+                }
+            });
+
+            await Promise.all(markPromises.filter(p => p !== undefined));
             toast.success('Marks saved successfully');
         } catch (error) {
             console.error('Error saving marks:', error);
@@ -126,9 +146,36 @@ export default function TeacherMarksPage() {
         }
     };
 
+    // Prevent hydration mismatch by not rendering interactive content until mounted
+    if (!isMounted) {
+        return (
+            <div className="p-6 space-y-6">
+                {/* Header */}
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-3xl font-bold">Marks Management</h1>
+                        <p className="text-gray-600">Enter and manage student marks for exams</p>
+                    </div>
+                </div>
+
+                {/* Loading State */}
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="p-6 space-y-6">
-            <h1 className="text-3xl font-bold">Marks Management</h1>
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-3xl font-bold">Marks Management</h1>
+                    <p className="text-gray-600">Enter and manage student marks for exams</p>
+                </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
@@ -136,15 +183,18 @@ export default function TeacherMarksPage() {
                         <CardTitle>Select Subject</CardTitle>
                     </CardHeader>
                     <CardBody>
-                        <Select
+                        <select
                             value={selectedSubject}
                             onChange={(e) => setSelectedSubject(e.target.value)}
-                            options={subjects.map(subject => ({
-                                value: subject.id.toString(),
-                                label: `${subject.name} (${subject.subClassName})`
-                            }))}
-                            placeholder="Select a subject..."
-                        />
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">Select a subject...</option>
+                            {subjects.map(subject => (
+                                <option key={subject.id} value={subject.id.toString()}>
+                                    {subject.name} ({subject.subClassName})
+                                </option>
+                            ))}
+                        </select>
                     </CardBody>
                 </Card>
 
@@ -153,15 +203,18 @@ export default function TeacherMarksPage() {
                         <CardTitle>Select Exam Sequence</CardTitle>
                     </CardHeader>
                     <CardBody>
-                        <Select
+                        <select
                             value={selectedSequence}
                             onChange={(e) => setSelectedSequence(e.target.value)}
-                            options={examSequences.map(sequence => ({
-                                value: sequence.id.toString(),
-                                label: sequence.name
-                            }))}
-                            placeholder="Select an exam sequence..."
-                        />
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                            <option value="">Select an exam sequence...</option>
+                            {examSequences.map(sequence => (
+                                <option key={sequence.id} value={sequence.id.toString()}>
+                                    {sequence.name}
+                                </option>
+                            ))}
+                        </select>
                     </CardBody>
                 </Card>
             </div>

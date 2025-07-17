@@ -3,24 +3,26 @@
 import { useState } from "react";
 // Assuming Class and Term types are available or imported
 import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/class"; // Assuming SubClass is exported here
-import { Term } from "@/app/dashboard/super-manager/academic-years/types/academic-year";
-import { DocumentArrowDownIcon, TableCellsIcon } from '@heroicons/react/24/outline'; // Import icons
+import { AcademicYear, ExamSequence } from "@/app/dashboard/super-manager/academic-years/types/academic-year";
+import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon } from '@heroicons/react/24/outline'; // Import icons
 
 interface FiltersProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedClass: string; // Should hold the selected SubClass ID or 'all'
   setSelectedClass: (classId: string) => void;
-  selectedTerm: string; // Should hold the selected Term ID or 'all'
-  setSelectedTerm: (termId: string) => void;
+  selectedAcademicYear: string; // Should hold the selected Academic Year ID or 'active'
+  setSelectedAcademicYear: (yearId: string) => void;
   selectedPaymentStatus: string; // Add status prop
   setSelectedPaymentStatus: (status: string) => void; // Add status setter prop
   handleExportPDF: () => void; // Add PDF handler prop
   handleExportExcel: () => void; // Add Excel handler prop
+  handleExportEnhanced?: (format: 'csv' | 'pdf' | 'docx') => void; // Enhanced export handler
+  onShowSubclassSummary?: (subClassId: string) => void; // Subclass summary handler
   viewMode: "list" | "cards";
   setViewMode: (mode: "list" | "cards") => void;
   classes: Class[]; // Receive the list of classes (with subclasses)
-  terms: Term[]; // Receive the list of terms
+  academicYears: AcademicYear[]; // Receive the list of academic years
   isLoadingClasses: boolean; // Receive loading state for classes
 }
 
@@ -29,18 +31,22 @@ export const Filters = ({
   setSearchQuery,
   selectedClass,
   setSelectedClass,
-  selectedTerm,
-  setSelectedTerm,
+  selectedAcademicYear,
+  setSelectedAcademicYear,
   selectedPaymentStatus, // Destructure status prop
   setSelectedPaymentStatus, // Destructure status setter prop
   handleExportPDF, // Destructure PDF handler
   handleExportExcel, // Destructure Excel handler
+  handleExportEnhanced, // Enhanced export handler
+  onShowSubclassSummary, // Subclass summary handler
   viewMode,
   setViewMode,
   classes,
-  terms,
+  academicYears,
   isLoadingClasses,
 }: FiltersProps) => {
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+
   // Flatten classes to get a list of all subclasses for the dropdown
   const allSubClasses: SubClass[] = classes.reduce((acc: SubClass[], currentClass) => {
     if (currentClass.subClasses && currentClass.subClasses.length > 0) {
@@ -49,10 +55,36 @@ export const Filters = ({
     return acc;
   }, []);
 
+  const handleSubclassSummary = () => {
+    if (selectedClass && selectedClass !== 'all' && onShowSubclassSummary) {
+      onShowSubclassSummary(selectedClass);
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Filter Row */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Filter Row 1 - Academic Year and Sequence */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Academic Year Filter */}
+        <select
+          value={selectedAcademicYear}
+          onChange={(e) => setSelectedAcademicYear(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="active">Current Academic Year</option>
+          {academicYears.map((year) => (
+            <option key={year.id} value={year.id}>
+              {year.name} {year.isCurrent ? '(Current)' : ''}
+            </option>
+          ))}
+        </select>
+
+        {/* Sequence Filter */}
+        {/* Removed Sequence Filter */}
+      </div>
+
+      {/* Filter Row 2 - Class, Status, Search, and View Mode */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* Search Input */}
         <input
           type="text"
@@ -74,26 +106,11 @@ export const Filters = ({
             <option value="" disabled>Loading classes...</option>
           ) : (
             allSubClasses.map((subClass) => (
-              <option key={subClass.id} value={subClass.id}> {/* Use SubClass ID as value */}
+              <option key={subClass.id} value={subClass.id}>
                 {subClass.name}
               </option>
             ))
           )}
-        </select>
-
-        {/* Term Filter - Populated from fetched data */}
-        <select
-          value={selectedTerm} // Expects Term ID
-          onChange={(e) => setSelectedTerm(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          // Assuming terms load quickly with academic year, not disabling yet
-        >
-          <option value="all">All Terms</option>
-          {terms && terms.map((term) => (
-            <option key={term.id} value={term.id!}> {/* Use Term ID as value, assert non-null if confident */}
-              {term.name}
-            </option>
-          ))}
         </select>
 
         {/* Payment Status Filter */}
@@ -103,54 +120,88 @@ export const Filters = ({
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
           <option value="all">All Statuses</option>
-          <option value="Paid">Paid</option>
-          <option value="Partial">Partial</option>
-          <option value="Unpaid">Unpaid</option>
+          <option value="paid">Paid</option>
+          <option value="partial">Partial</option>
+          <option value="unpaid">Unpaid</option>
         </select>
 
         {/* View Mode Toggle */}
         <div className="flex gap-2">
           <button
             onClick={() => setViewMode("list")}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === "list"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
+            className={`px-4 py-2 rounded-lg ${viewMode === "list"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-600"
+              }`}
           >
             List View
           </button>
           <button
             onClick={() => setViewMode("cards")}
-            className={`px-4 py-2 rounded-lg ${
-              viewMode === "cards"
-                ? "bg-blue-600 text-white"
-                : "bg-gray-100 text-gray-600"
-            }`}
+            className={`px-4 py-2 rounded-lg ${viewMode === "cards"
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-600"
+              }`}
           >
             Card View
           </button>
         </div>
       </div>
-      
-      {/* Export Buttons Row */}
-      <div className="flex justify-end gap-3">
-        <button
-          onClick={handleExportExcel}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-          // Add disabled state if needed, e.g., based on if data is loaded
-        >
-          <TableCellsIcon className="h-5 w-5" />
-          Export Excel
-        </button>
-        <button
-          onClick={handleExportPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
-           // Add disabled state if needed
-        >
-          <DocumentArrowDownIcon className="h-5 w-5" />
-          Export PDF
-        </button>
+
+      {/* Actions Row */}
+      <div className="flex justify-between items-center">
+        {/* Left side - Subclass Summary */}
+        <div>
+          {selectedClass && selectedClass !== 'all' && (
+            <button
+              onClick={handleSubclassSummary}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <ChartBarIcon className="h-5 w-5" />
+              Subclass Summary
+            </button>
+          )}
+        </div>
+
+        {/* Right side - Export Options */}
+        <div className="flex gap-3">
+
+          {/* Legacy Export Buttons */}
+          <button
+            // onClick={handleExportExcel}
+            onClick={() => {
+              handleExportEnhanced?.('docx');
+              setShowExportDropdown(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            <DocumentTextIcon className="h-5 w-5" />
+            Export Word
+          </button>
+          {/* Legacy Export Buttons */}
+          <button
+            // onClick={handleExportExcel}
+            onClick={() => {
+              handleExportEnhanced?.('csv');
+              setShowExportDropdown(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            <TableCellsIcon className="h-5 w-5" />
+            Export Excel
+          </button>
+          <button
+            // onClick={handleExportPDF}
+            onClick={() => {
+              handleExportEnhanced?.('pdf');
+              setShowExportDropdown(false);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+          >
+            <DocumentArrowDownIcon className="h-5 w-5" />
+            Export PDF
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -182,7 +182,7 @@ export default function RemarksPage() {
     }
     
     const newRemarkObj: Remark = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       studentId: newRemark.studentId,
       studentName: student.name,
       date: new Date().toISOString().split('T')[0],

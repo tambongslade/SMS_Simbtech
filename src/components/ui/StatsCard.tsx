@@ -7,10 +7,11 @@ interface StatsCardProps {
   value: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   trend?: {
-    value: number;
+    value?: number;
     isUpward: boolean;
   };
-  color: 'primary' | 'secondary' | 'success' | 'danger' | 'warning';
+  color: 'primary' | 'secondary' | 'success' | 'danger' | 'warning' | 'neutral';
+  className?: string;
 }
 
 export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardProps) {
@@ -20,6 +21,7 @@ export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardP
     success: 'bg-green-50 text-green-600',
     danger: 'bg-red-50 text-red-600',
     warning: 'bg-yellow-50 text-yellow-600',
+    neutral: 'bg-gray-50 text-gray-600',
   };
 
   return (
@@ -29,10 +31,9 @@ export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardP
           <Icon className="w-6 h-6" />
         </div>
         {trend && (
-          <div className={`flex items-center space-x-1 text-sm ${
-            trend.isUpward ? 'text-green-600' : 'text-red-600'
-          }`}>
-            <span>{trend.value}%</span>
+          <div className={`flex items-center space-x-1 text-sm ${trend.isUpward ? 'text-green-600' : 'text-red-600'
+            }`}>
+            <span>{trend.value ? `${trend.value}%` : ''}</span>
             <svg
               className={`w-4 h-4 ${trend.isUpward ? 'rotate-0' : 'rotate-180'}`}
               fill="none"

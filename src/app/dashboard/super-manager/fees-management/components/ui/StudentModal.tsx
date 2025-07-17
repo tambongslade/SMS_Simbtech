@@ -8,7 +8,7 @@ interface StudentModalProps {
   onClose: () => void;
   newStudent: NewStudent;
   setNewStudent: (student: NewStudent) => void;
-  handleAddStudent: (e: React.FormEvent) => Promise<void>;
+  handleAddStudent: (student: NewStudent) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -29,8 +29,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-bold">Add New Student</h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
             disabled={isLoading}
           >
@@ -38,7 +38,10 @@ export const StudentModal: React.FC<StudentModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleAddStudent} className="space-y-4">
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          handleAddStudent(newStudent);
+        }} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -47,7 +50,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               <input
                 type="text"
                 value={newStudent.name}
-                onChange={(e) => setNewStudent({...newStudent, name: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
                 disabled={isLoading}
@@ -60,7 +63,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               </label>
               <select
                 value={newStudent.class}
-                onChange={(e) => setNewStudent({...newStudent, class: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, class: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
                 disabled={isLoading}
@@ -79,7 +82,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               <input
                 type="text"
                 value={newStudent.admissionNumber}
-                onChange={(e) => setNewStudent({...newStudent, admissionNumber: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, admissionNumber: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
                 disabled={isLoading}
@@ -93,7 +96,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               <input
                 type="email"
                 value={newStudent.email}
-                onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 disabled={isLoading}
               />
@@ -106,7 +109,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               <input
                 type="text"
                 value={newStudent.parentName}
-                onChange={(e) => setNewStudent({...newStudent, parentName: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, parentName: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
                 disabled={isLoading}
@@ -120,7 +123,7 @@ export const StudentModal: React.FC<StudentModalProps> = ({
               <input
                 type="tel"
                 value={newStudent.parentPhone}
-                onChange={(e) => setNewStudent({...newStudent, parentPhone: e.target.value})}
+                onChange={(e) => setNewStudent({ ...newStudent, parentPhone: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
                 disabled={isLoading}

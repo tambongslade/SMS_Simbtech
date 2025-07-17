@@ -7,14 +7,17 @@ import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
 import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
+import { TransactionsModal } from "./components/ui/PaymentModal";
+import { SubclassSummaryModal } from "./components/ui/SubclassSummaryModal";
 import { Student, NewStudent } from './types';
+import { toast } from "react-hot-toast";
 
 export default function FeeManagementPage() {
   const {
     selectedClass,
     setSelectedClass,
-    selectedTerm,
-    setSelectedTerm,
+    selectedPaymentStatus,
+    setSelectedPaymentStatus,
     showPaymentModal,
     setShowPaymentModal,
     showStudentModal,
@@ -37,88 +40,130 @@ export default function FeeManagementPage() {
     getFilteredStudents,
     handlePayment,
     handleAddStudent,
+    handleExportPDF,
+    handleExportExcel,
     isLoading,
-    error,
+    isLoadingClasses,
+    fetchError,
     newStudent,
     setNewStudent,
     resetPaymentForm,
     resetStudentForm,
+    classesList,
+    showTransactionsModal,
+    setShowTransactionsModal,
+    selectedTransactionsStudent,
+    setSelectedTransactionsStudent,
+    transactions,
+    isLoadingTransactions,
+    fetchFeeTransactions,
+    handleExportEnhanced,
+    subclassSummary,
+    isLoadingSubclassSummary,
+    fetchSubclassSummary,
+    showSubclassSummaryModal,
+    setShowSubclassSummaryModal,
   } = useFeeManagement();
 
-  // Handler function to select student and open payment modal
   const handleRecordPaymentClick = (student: Student) => {
     setSelectedStudent(student);
     setShowPaymentModal(true);
   };
 
-  // Handler for adding a new student with payment in one step
   const handleAddStudentWithPayment = async (newStudentWithPayment: NewStudent) => {
-    // Extract payment info from the newStudentWithPayment object
-    const { paymentAmount, paymentMethod, paymentDescription, ...studentData } = newStudentWithPayment as any;
-    
-    // Set payment data
-    setPaymentAmount(paymentAmount);
-    setPaymentMethod(paymentMethod);
-    setPaymentDescription(paymentDescription || '');
-    
-    // Set student data
-    setNewStudent(studentData);
-    
-    // Call the handleAddStudent function first and then handlePayment
-    await handleAddStudent(new Event('submit') as any);
-    // After adding the student, the payment can be made (this flow may need adjustment)
-    // handlePayment will need to be called with the newly created student
+    console.warn("handleAddStudentWithPayment called - ensure hook logic is correct");
+    const { paymentAmount: amount, paymentMethod: method, paymentDescription: description, ...studentData } = newStudentWithPayment as any;
+    try {
+      await handleAddStudent(studentData);
+      console.log("Attempted to add student:", studentData);
+
+      const addedStudent = students.find(s =>
+        s.name === studentData.name
+      );
+
+      if (addedStudent && amount > 0) {
+        console.log(`Student found (ID: ${addedStudent.id}), attempting payment...`);
+        setSelectedStudent(addedStudent);
+        setPaymentAmount(amount);
+        setPaymentMethod(method);
+        setPaymentDescription(description || '');
+        await handlePayment();
+        resetPaymentForm();
+        setShowStudentModal(false);
+        resetStudentForm();
+      } else if (addedStudent) {
+        console.log(`Student found (ID: ${addedStudent.id}), no initial payment.`);
+        setShowStudentModal(false);
+        resetStudentForm();
+      } else {
+        console.error("Failed to find newly added student. Cannot proceed with payment.");
+        toast.error("Student added, but failed to find details for payment.");
+      }
+    } catch (err) {
+      console.error("Error in handleAddStudentWithPayment flow:", err);
+      toast.error(`Failed to add student: ${err instanceof Error ? err.message : String(err)}`);
+    }
   };
 
-  // Placeholder handler for viewing payment history
   const handleViewHistory = (student: Student) => {
-    console.log('View history for:', student.name); // Replace with actual logic later
-    // Example: setSelectedStudent(student); setShowHistoryModal(true);
+    console.log('View history for:', student.name);
+  };
+
+  const handleViewTransactions = (student: Student) => {
+    setSelectedTransactionsStudent(student);
+    if (student.feeId) fetchFeeTransactions(student.feeId);
+    setShowTransactionsModal(true);
+  };
+
+  const handleShowSubclassSummary = (subClassId: string) => {
+    fetchSubclassSummary(subClassId);
+    setShowSubclassSummaryModal(true);
   };
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
       <Header
         setShowStudentModal={setShowStudentModal}
         setShowPaymentModal={setShowPaymentModal}
       />
-
-      {/* Filters */}
       <Filters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         selectedClass={selectedClass}
         setSelectedClass={setSelectedClass}
-        selectedTerm={selectedTerm}
-        setSelectedTerm={setSelectedTerm}
+        selectedPaymentStatus={selectedPaymentStatus}
+        setSelectedPaymentStatus={setSelectedPaymentStatus}
+        handleExportPDF={handleExportPDF}
+        handleExportExcel={handleExportExcel}
+        handleExportEnhanced={handleExportEnhanced}
+        onShowSubclassSummary={handleShowSubclassSummary}
         viewMode={viewMode}
         setViewMode={setViewMode}
+        classes={classesList}
+        isLoadingClasses={isLoadingClasses}
       />
 
-      {/* Content */}
+      {fetchError && <div className="text-red-600 text-center p-2">Error: {fetchError}</div>}
+
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      ) : error ? (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-red-600">{error}</p>
+          <p className="text-gray-600">Loading Students...</p>
         </div>
       ) : viewMode === "list" ? (
         <ListView
           students={getFilteredStudents()}
           onRecordPayment={handleRecordPaymentClick}
+          onViewTransactions={handleViewTransactions}
         />
       ) : (
         <CardView
           students={getFilteredStudents()}
           onRecordPayment={handleRecordPaymentClick}
           onViewHistory={handleViewHistory}
+          onViewTransactions={handleViewTransactions}
         />
       )}
 
-      {/* Modals */}
       {showPaymentModal && (
         <PaymentModal
           isOpen={showPaymentModal}
@@ -141,15 +186,30 @@ export default function FeeManagementPage() {
           students={students}
         />
       )}
-
       <StudentModal
         isOpen={showStudentModal}
-        onClose={() => setShowStudentModal(false)}
+        onClose={() => {
+          setShowStudentModal(false);
+          resetStudentForm();
+        }}
         newStudent={newStudent}
         setNewStudent={setNewStudent}
         handleAddStudent={handleAddStudent}
         isLoading={isLoading}
       />
+      <TransactionsModal
+        isOpen={showTransactionsModal}
+        onClose={() => setShowTransactionsModal(false)}
+        transactions={transactions}
+        isLoading={isLoadingTransactions}
+        studentName={selectedTransactionsStudent?.name}
+      />
+      <SubclassSummaryModal
+        isOpen={showSubclassSummaryModal}
+        onClose={() => setShowSubclassSummaryModal(false)}
+        summary={subclassSummary}
+        isLoading={isLoadingSubclassSummary}
+      />
     </div>
   );
-}
+} 

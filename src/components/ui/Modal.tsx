@@ -43,20 +43,22 @@ export function Modal({
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
       onClick={handleOverlayClick}
     >
-      <div className={`relative w-full ${sizeClasses[size]} bg-white rounded-lg shadow-xl`}>
+      <div className={`relative w-full ${sizeClasses[size]} bg-white rounded-lg shadow-xl max-h-[90vh] flex flex-col`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          {title && <h2 className="text-lg font-semibold text-gray-900">{title}</h2>}
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-500 focus:outline-none"
-          >
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
+        {title && (
+          <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+            <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+            <button
+              onClick={onClose}
+              className="p-1 text-gray-400 hover:text-gray-500 focus:outline-none"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         {/* Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

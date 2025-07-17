@@ -1,16 +1,31 @@
-export interface Term {
-    id?: string;
+export interface ExamSequence {
+    id: number;
+    sequenceNumber: number;
+    academicYearId: number;
+    termId: number;
+    status: "OPEN" | "CLOSED" | "FINALIZED";
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  export interface Term {
+    id: number;
     name: string;
     startDate: string;
     endDate: string;
     feeDeadline: string;
+    academicYearId: number;
   }
   
   export interface AcademicYear {
-    id?: string;
+    id: number;
     name: string;
     startDate: string;
     endDate: string;
-    isActive: boolean;
+    isCurrent: boolean;
+    reportDeadline: string;
+    createdAt: string;
+    updatedAt: string;
     terms: Term[];
+    examSequences: ExamSequence[];
   }

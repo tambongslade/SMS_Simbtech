@@ -1,134 +1,188 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Student, Payment, NewStudent } from '../types';
 import { toast } from 'react-hot-toast';
+import { AcademicYear, Term, ExamSequence } from '@/app/dashboard/super-manager/academic-years/types/academic-year';
+import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
+import useSWR from 'swr';
+import apiService from '../../../../../lib/apiService'; // Import apiService
+import { useAuth } from '@/components/context/AuthContext';
 
-// Helper to get auth token (ensure this exists or implement it)
-const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'; // Ensure consistent base URL
+// API Configuration - REMOVED
+// const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
+
+// SWR fetcher using apiService with error handling
+const fetcher = async (url: string) => {
+  try {
+    return await apiService.get(url);
+  } catch (error: any) {
+    // If it's an unauthorized error, don't retry
+    if (error.message === 'Unauthorized') {
+      throw error;
+    }
+    throw error;
+  }
+};
 
 export const useFeeManagement = () => {
+  const { selectedAcademicYear: bursarAcademicYear } = useAuth();
+  // --- UI State & Filters --- 
   const [selectedClass, setSelectedClass] = useState('all');
-  const [selectedTerm, setSelectedTerm] = useState('2023-2024-2');
+  const [selectedTerm, setSelectedTerm] = useState('all');
+  const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [showFeeHistoryModal, setShowFeeHistoryModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  // Payment Form State
   const [selectedPaymentType, setSelectedPaymentType] = useState('full');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentDescription, setPaymentDescription] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [students, setStudents] = useState<Student[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // --- Re-added State for Adding Students ---
+  // Add Student Form State
   const [newStudent, setNewStudent] = useState<NewStudent>({
     name: '',
-    class: '', // Note: POST /students might not take class directly
-    admissionNumber: '', // Map to 'matricule' if needed by API
-    email: '', 
-    parentName: '', // API might expect parent linkage separately
-    parentPhone: '', // API might expect parent linkage separately
-    // Add other fields required by POST /students (gender, dob, etc.)
-    gender: '', 
-    date_of_birth: '', 
-    place_of_birth: '', 
-    residence: '', 
-    former_school: '', 
-    phone: '' // Assuming student phone
+    class: '', // Note: POST /students might not take class directly, handled via enrollment
+    admissionNumber: '',
+    email: '',
+    parentName: '',
+    parentPhone: '',
+    // Fields matching the updated NewStudent type
+    gender: '',
+    dateOfBirth: '',
+    placeOfBirth: '',
+    residence: '',
+    former_school: '',
+    phone: ''
   });
+  // Generic loading for mutations (add/pay)
+  const [isMutating, setIsMutating] = useState(false);
+  const [mutationError, setMutationError] = useState<string | null>(null); // Separate state for mutation errors
+  // --- Payment Transactions State and Fetcher ---
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  // --- Transactions Modal State ---
+  const [showTransactionsModal, setShowTransactionsModal] = useState(false);
+  const [selectedTransactionsStudent, setSelectedTransactionsStudent] = useState<Student | null>(null);
+  // --- Subclass Fees Summary State ---
+  const [subclassSummary, setSubclassSummary] = useState<any>(null);
+  const [isLoadingSubclassSummary, setIsLoadingSubclassSummary] = useState(false);
+  const [showSubclassSummaryModal, setShowSubclassSummaryModal] = useState(false);
 
-  // Fetch REAL students (Fee Records)
+  // --- SWR Data Fetching --- 
+
+  // 1. Fetch Active Academic Year
+  const activeAcademicYear = useMemo(() => {
+    return bursarAcademicYear || null;
+  }, [bursarAcademicYear]);
+
+  // 2. Determine current academic year for filtering
+  const currentAcademicYear = useMemo(() => {
+    return activeAcademicYear;
+  }, [activeAcademicYear]);
+
+  // 3. Fetch Classes 
+  const { data: classesResult, error: classesErrorSWR, isLoading: isLoadingClassesSWR } = useSWR<{ data: Class[] }>('/classes?includeSubClasses=true', fetcher);
+  const classesList = useMemo(() => classesResult?.data || [], [classesResult]);
+
+  // 4. Fetch Fee Records (Dependent on Current Academic Year and Filters) - Updated to use improved API
+  const feeRecordsKey = currentAcademicYear
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=100${selectedClass !== 'all' ? `&subClassId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
+    : null;
+
+  const {
+    data: feeRecordsResult,
+    error: feeRecordsErrorSWR,
+    isLoading: isLoadingFeeRecordsSWR,
+    mutate: mutateFeeRecords
+  } = useSWR<{ data: { data: any[], meta?: any } }>(feeRecordsKey, fetcher);
+
+  // Helper to find subclass name (needed for mapping)
+  const findSubClassNameById = useCallback((subClassId: number | string | undefined): string | undefined => {
+    if (!subClassId || !classesList) return undefined;
+    for (const cls of classesList) {
+      const subClass = cls.subClasses?.find(sc => sc.id === Number(subClassId));
+      if (subClass) return subClass.name;
+    }
+    return undefined;
+  }, [classesList]);
+
+  // Process Fee Records Data
+  const students = useMemo((): Student[] => {
+    // Fix: API returns { success: true, data: { data: [...], meta: {...} } }
+    // So we need to access the nested data.data property
+    const records = feeRecordsResult?.data?.data;
+    if (!Array.isArray(records)) return [];
+
+    return records.map((feeRecord: any): Student => {
+      const studentData = feeRecord.enrollment?.student;
+      const subClassId = feeRecord.enrollment?.subClassId;
+      const subClassName = findSubClassNameById(subClassId);
+      return {
+        id: studentData?.id?.toString() || feeRecord.id.toString(),
+        name: studentData?.name || 'Unknown Student',
+        admissionNumber: studentData?.matricule || 'N/A',
+        class: subClassName || 'N/A',
+        expectedFees: feeRecord.amountExpected || 0,
+        paidFees: feeRecord.amountPaid || 0,
+        balance: (feeRecord.amountExpected || 0) - (feeRecord.amountPaid || 0),
+        status: (feeRecord.amountPaid || 0) >= (feeRecord.amountExpected || 0) ? 'Paid' : (feeRecord.amountPaid || 0) > 0 ? 'Partial' : 'Unpaid',
+        lastPaymentDate: feeRecord.paymentTransactions?.length > 0
+          ? feeRecord.paymentTransactions.reduce((latest: string, tx: any) =>
+            tx.paymentDate > latest ? tx.paymentDate : latest,
+            feeRecord.paymentTransactions[0].paymentDate)
+          : undefined,
+        email: studentData?.email || '',
+        parentName: studentData?.parent?.name || '',
+        parentPhone: studentData?.parent?.phone || '',
+        parentContacts: studentData?.parentContacts || [],
+        feeId: feeRecord.id,
+      };
+    });
+  }, [feeRecordsResult, findSubClassNameById]);
+
+  // --- Consolidated Loading and Error State --- 
+  const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || !currentAcademicYear;
+  const fetchError = useMemo(() => {
+    if (!bursarAcademicYear) return `No academic year selected for Bursar.`;
+    if (classesErrorSWR) return `Failed to load classes: ${classesErrorSWR.message}`;
+    if (feeRecordsErrorSWR) return `Failed to load fee records: ${feeRecordsErrorSWR.message}`;
+    return null;
+  }, [bursarAcademicYear, classesErrorSWR, feeRecordsErrorSWR]);
+
   useEffect(() => {
-    const loadFeeRecords = async () => {
-      setIsLoading(true);
-      setError(null);
-      const token = getAuthToken();
-      if (!token) {
-        setError("Authentication required.");
-        toast.error("Authentication required.");
-        setIsLoading(false);
-        return;
+    if (fetchError) {
+      // apiService will handle 401, SWR will handle other errors. Toast general error here.
+      if (!fetchError.includes('Unauthorized')) { // Avoid double toast for 401
+        toast.error(fetchError);
       }
+    }
+  }, [fetchError]);
 
-      try {
-        // Construct API URL - Adapt query params as needed (pagination, current year/term filter)
-        const currentAcademicYearId = 4; // TODO: Get current/active academic year ID dynamically
-        const url = `${API_BASE_URL}/fees?academicYearId=${currentAcademicYearId}&include=enrollment.student`;
-        
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch fee records: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        
-        // **IMPORTANT MAPPING STEP:**
-        // The API returns FeeRecord[]. We need to map this to the Student[] type the frontend expects.
-        // This mapping depends heavily on the actual structure of the FeeRecord and the required fields in the Student type.
-        // Placeholder mapping - ADJUST THIS CAREFULLY based on actual API response and Student type!
-        const mappedStudents: Student[] = (result.data || []).map((feeRecord: any) => ({
-          // Assuming FeeRecord has enrollment.student nested
-          id: feeRecord.enrollment?.student?.id?.toString() || feeRecord.id.toString(), // Use student ID if available, fallback to fee ID?
-          name: feeRecord.enrollment?.student?.name || 'Unknown Student',
-          admissionNumber: feeRecord.enrollment?.student?.matricule || 'N/A',
-          // Assuming FeeRecord has class info somewhere or student has current class
-          class: feeRecord.enrollment?.subClass?.name || 'N/A', 
-          expectedFees: feeRecord.amountExpected || 0,
-          paidFees: feeRecord.amountPaid || 0,
-          balance: (feeRecord.amountExpected || 0) - (feeRecord.amountPaid || 0),
-          // Calculate status based on amounts
-          status: (feeRecord.amountPaid || 0) >= (feeRecord.amountExpected || 0) ? 'Paid' : (feeRecord.amountPaid || 0) > 0 ? 'Partial' : 'Unpaid',
-          // Get latest payment date if available (assuming payments are nested in fee record)
-          lastPaymentDate: feeRecord.paymentTransactions?.sort((a:any, b:any) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())[0]?.paymentDate || new Date(0).toISOString(), // Default if no payments
-          // These fields might not be directly available in FeeRecord, adjust Student type or mapping
-          email: feeRecord.enrollment?.student?.email || '', 
-          parentName: feeRecord.enrollment?.student?.parentName || '', // Assuming parent info is nested in student
-          parentPhone: feeRecord.enrollment?.student?.parentPhone || '', 
-          parentContacts: feeRecord.enrollment?.student?.parentContacts || [],
-          // *** Add the feeId to the mapped object! ***
-          feeId: feeRecord.id 
-        }));
-
-        setStudents(mappedStudents);
-
-      } catch (error: any) {
-        console.error('Error fetching fee records:', error);
-        setError(error.message || 'Failed to load fee data.');
-        toast.error(error.message || 'Failed to load fee data.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadFeeRecords();
-  }, []); // Add dependencies if filters (like academicYearId) change
-
+  // --- Filtering (Client-side) --- 
   const getFilteredStudents = useCallback(() => {
-    let filtered = [...students];
-
+    let filtered = [...students]; // Filter the memoized students state
+    // Existing search query filter
     if (searchQuery) {
       filtered = filtered.filter(student =>
         student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-
+    // Client-side class filter (might be redundant if API filters perfectly)
     if (selectedClass !== 'all') {
-      filtered = filtered.filter(student => student.class === selectedClass);
+      const selectedSubClassName = findSubClassNameById(selectedClass);
+      if (selectedSubClassName) { filtered = filtered.filter(student => student.class === selectedSubClassName); }
     }
-
+    // Payment status filter
+    if (selectedPaymentStatus !== 'all') { filtered = filtered.filter(student => student.status === selectedPaymentStatus); }
+    // Sorting
     filtered.sort((a, b) => {
       const aValue = a[sortBy as keyof Student];
       const bValue = b[sortBy as keyof Student];
@@ -143,167 +197,205 @@ export const useFeeManagement = () => {
         ? (aValue as number) - (bValue as number)
         : (bValue as number) - (aValue as number);
     });
-
     return filtered;
-  }, [students, searchQuery, selectedClass, sortBy, sortOrder]);
+  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus, findSubClassNameById]);
+
+  // --- Placeholder Export Handlers --- (Keep as is for now)
+  const handleExport = async (format: 'pdf' | 'excel') => {
+    const filteredData = getFilteredStudents();
+    console.log(`Exporting data as ${format.toUpperCase()}:`, JSON.stringify(filteredData, null, 2));
+
+    const params = new URLSearchParams({
+      format: format,
+      academicYearId: activeAcademicYear?.id?.toString() || '',
+      subClassId: selectedClass === 'all' ? '' : selectedClass,
+      termId: selectedTerm === 'all' ? '' : selectedTerm,
+      status: selectedPaymentStatus === 'all' ? '' : selectedPaymentStatus,
+      search: searchQuery,
+    });
+    const exportUrl = `/fees/export?${params.toString()}`;
+
+    try {
+      toast.loading(`Preparing ${format.toUpperCase()} export...`, { id: 'export-toast' });
+      // Assuming the export endpoint initiates a download and returns a success/error message or a blob
+      const response = await apiService.get(exportUrl, {}, 'blob');
+
+      const downloadUrl = window.URL.createObjectURL(response); // response is already a Blob
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const filename = `fees_export_${new Date().toISOString().split('T')[0]}.${format}`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-toast' });
+
+    } catch (error: any) {
+      console.error(`Export failed for ${format}:`, error);
+      toast.error(`Export failed: ${error.message || 'Please try again.'}`, { id: 'export-toast' });
+    }
+  };
+
+  const handleExportPDF = () => handleExport('pdf');
+  const handleExportExcel = () => handleExport('excel');
+
+  // --- Mutation Handlers (Update to use mutateFeeRecords) --- 
 
   const handlePayment = async () => {
-    if (!selectedStudent || !paymentAmount) return;
-
-    setIsLoading(true);
-    
-    const amount = parseFloat(paymentAmount);
-    
-    // Get the feeId from the selected student (assuming it was added during mapping)
-    const feeId = selectedStudent.feeId; 
-    if (!feeId) {
-        toast.error("Fee ID not found for the selected student.");
-        setError("Fee ID missing, cannot record payment.");
-        setIsLoading(false);
-        return;
+    if (!selectedStudent || !currentAcademicYear) {
+      toast.error("No student selected or academic year not determined.");
+      return;
     }
 
-    // Map frontend paymentMethod to API expected values (example)
-    const apiPaymentMethod = paymentMethod.toUpperCase(); // e.g., 'cash' -> 'CASH'
-
-    const paymentPayload = {
-        amount: amount,
-        paymentDate: new Date().toISOString(), // Use current date/time
-        paymentMethod: apiPaymentMethod,
-        description: paymentDescription || null, // Ensure null if empty
-        // receiptNumber is likely generated by the backend, omit from request
+    setIsMutating(true);
+    setMutationError(null);
+    const paymentData = {
+      feeId: selectedStudent.feeId,
+      amount: parseFloat(paymentAmount),
+      paymentMethod,
+      paymentType: selectedPaymentType,
+      description: paymentDescription,
+      academicYearId: currentAcademicYear.id,
     };
 
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error("Authentication required.");
-
-      const url = `${API_BASE_URL}/fees/${feeId}/payments`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(paymentPayload),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({})); // Try to parse error
-        throw new Error(errorData.error || `Failed to record payment: ${response.statusText}`);
-      }
-      
-      // Successful payment - refetch data instead of updating locally
+      const response = await apiService.post('/payments', paymentData);
       toast.success("Payment recorded successfully!");
+      mutateFeeRecords(); // Revalidate fee records after payment
       resetPaymentForm();
       setShowPaymentModal(false);
-      setError(null);
-      
-      // Trigger a re-fetch of the fee records to show updated data
-      // This assumes loadFeeRecords is accessible or we wrap the fetch logic in a callable function
-      // For simplicity here, we might reload the page or refactor fetch logic for better UX
-      window.location.reload(); // Simple reload - consider refactoring fetch logic for better UX
-
     } catch (error: any) {
       console.error('Error recording payment:', error);
-      setError(`Failed to record payment: ${error.message}`);
-      toast.error(`Failed to record payment: ${error.message}`);
+      setMutationError(error.message || "Failed to record payment.");
+      toast.error(error.message || "Failed to record payment.");
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
     }
   };
 
   const resetPaymentForm = () => {
+    setSelectedPaymentType('full');
     setPaymentAmount('');
     setPaymentMethod('cash');
     setPaymentDescription('');
-    setSelectedPaymentType('full');
   };
 
-  // --- Re-added Student Form Reset ---
   const resetStudentForm = () => {
     setNewStudent({
       name: '',
       class: '',
       admissionNumber: '',
-      email: '', 
+      email: '',
       parentName: '',
       parentPhone: '',
-      gender: '', 
-      date_of_birth: '', 
-      place_of_birth: '', 
-      residence: '', 
-      former_school: '', 
+      gender: '',
+      dateOfBirth: '',
+      placeOfBirth: '',
+      residence: '',
+      former_school: '',
       phone: ''
     });
   };
 
-  // --- Re-implemented Add Student Handler ---
-  const handleAddStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    // ** WARNING: API-DOCUMENTATION.md states Bursar cannot POST /students **
-    // ** This will likely fail unless backend permissions are updated. **
-
-    // Map frontend state (NewStudent type) to the payload expected by POST /students
-    // Adjust fields based on the exact API requirements (e.g., admissionNumber -> matricule?)
-    const studentPayload = {
-        name: newStudent.name,
-        email: newStudent.email || null,
-        phone: newStudent.phone || null, 
-        matricule: newStudent.admissionNumber || null,
-        gender: newStudent.gender || null,
-        date_of_birth: newStudent.date_of_birth || null,
-        place_of_birth: newStudent.place_of_birth || null,
-        residence: newStudent.residence || null,
-        former_school: newStudent.former_school || null,
-        // Note: Class, Parent info likely handled by separate API calls (e.g., POST /students/:id/enroll, POST /students/:id/parents)
-    };
-
+  const handleAddStudent = async (studentFormData: NewStudent) => {
+    setIsMutating(true);
+    setMutationError(null);
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error("Authentication required.");
-
-      const url = `${API_BASE_URL}/students`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(studentPayload),
+      const studentResponse = await apiService.post('/students', {
+        name: studentFormData.name,
+        email: studentFormData.email,
+        admissionNumber: studentFormData.admissionNumber,
+        gender: studentFormData.gender,
+        dateOfBirth: studentFormData.dateOfBirth,
+        placeOfBirth: studentFormData.placeOfBirth,
+        residence: studentFormData.residence,
+        former_school: studentFormData.former_school,
+        phone: studentFormData.phone,
+        // Parent details are handled separately by the backend upon student creation
+        parent: {
+          name: studentFormData.parentName,
+          phone: studentFormData.parentPhone,
+        }
       });
 
-      if (!response.ok) {
-        // Attempt to parse error message from backend
-        let errorMsg = `Failed to add student: ${response.statusText}`;
-        try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorData.message || errorMsg;
-        } catch (_) { /* Ignore parsing error */ }
-        // Provide specific feedback for permission errors if possible
-        if (response.status === 403) {
-            errorMsg = "Permission denied. Bursars may not be allowed to create students.";
-        }
-        throw new Error(errorMsg);
+      const newStudentId = studentResponse.data.id; // Assuming API returns the new student's ID
+      toast.success("Student added successfully!");
+
+      // Attempt to enroll student if class is provided
+      if (studentFormData.class && newStudentId && currentAcademicYear) {
+        await apiService.post(`/students/${newStudentId}/enroll`, {
+          subClassId: studentFormData.class, // This should be the subClassId
+          academicYearId: currentAcademicYear.id, // Use the current academic year
+        });
+        toast.success("Student enrolled successfully!");
       }
-
-      // If successful (assuming permissions are granted)
-      toast.success("Student created successfully! Enrollment and fee setup may be required separately.");
-      setShowStudentModal(false); // Close modal
-      resetStudentForm(); // Reset form
-      
-      // Refresh data - simple reload for now
-      window.location.reload(); 
-
+      mutateFeeRecords(); // Revalidate fee records
+      setShowStudentModal(false);
+      resetStudentForm();
     } catch (error: any) {
       console.error('Error adding student:', error);
-      setError(error.message);
-      toast.error(error.message);
+      setMutationError(error.message || "Failed to add student.");
+      toast.error(error.message || "Failed to add student.");
     } finally {
-      setIsLoading(false);
+      setIsMutating(false);
+    }
+  };
+
+  const fetchFeeTransactions = async (feeId: number | string) => {
+    setIsLoadingTransactions(true);
+    try {
+      const response = await apiService.get(`/fees/${feeId}/transactions`);
+      setTransactions(response.data);
+    } catch (error: any) {
+      console.error("Error fetching transactions:", error);
+      toast.error("Failed to fetch transactions.");
+    } finally {
+      setIsLoadingTransactions(false);
+    }
+  };
+
+  const fetchSubclassSummary = async (subClassId: number | string) => {
+    setIsLoadingSubclassSummary(true);
+    try {
+      const response = await apiService.get(`/fees/summary/sub-class/${subClassId}`);
+      setSubclassSummary(response.data);
+    } catch (error: any) {
+      console.error("Error fetching subclass summary:", error);
+      toast.error("Failed to fetch subclass summary.");
+    } finally {
+      setIsLoadingSubclassSummary(false);
+    }
+  };
+
+  const handleExportEnhanced = async (format: 'csv' | 'pdf' | 'docx' = 'csv') => {
+    const params = new URLSearchParams({
+      format: format,
+      academicYearId: activeAcademicYear?.id?.toString() || '',
+      subClassId: selectedClass === 'all' ? '' : selectedClass,
+      termId: selectedTerm === 'all' ? '' : selectedTerm,
+      status: selectedPaymentStatus === 'all' ? '' : selectedPaymentStatus,
+      search: searchQuery,
+    });
+    const exportUrl = `/fees/export-enhanced?${params.toString()}`;
+
+    try {
+      toast.loading(`Preparing ${format.toUpperCase()} export...`, { id: 'export-enhanced-toast' });
+      const response = await apiService.get(exportUrl, {}, 'blob');
+
+      const downloadUrl = window.URL.createObjectURL(response);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      const filename = `fees_export_enhanced_${new Date().toISOString().split('T')[0]}.${format}`;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-enhanced-toast' });
+    } catch (error: any) {
+      console.error(`Enhanced export failed for ${format}:`, error);
+      toast.error(`Enhanced export failed: ${error.message || 'Please try again.'}`, { id: 'export-enhanced-toast' });
     }
   };
 
@@ -312,6 +404,8 @@ export const useFeeManagement = () => {
     setSelectedClass,
     selectedTerm,
     setSelectedTerm,
+    selectedPaymentStatus,
+    setSelectedPaymentStatus,
     showPaymentModal,
     setShowPaymentModal,
     showStudentModal,
@@ -340,11 +434,30 @@ export const useFeeManagement = () => {
     getFilteredStudents,
     handlePayment,
     handleAddStudent,
+    handleExportPDF,
+    handleExportExcel,
     isLoading,
-    error,
+    fetchError,
     newStudent,
     setNewStudent,
     resetPaymentForm,
-    resetStudentForm
+    resetStudentForm,
+    classesList,
+    isLoadingClasses: isLoadingClassesSWR,
+    showTransactionsModal,
+    setShowTransactionsModal,
+    selectedTransactionsStudent,
+    setSelectedTransactionsStudent,
+    transactions,
+    isLoadingTransactions,
+    fetchFeeTransactions,
+    handleExportEnhanced,
+    subclassSummary,
+    isLoadingSubclassSummary,
+    fetchSubclassSummary,
+    showSubclassSummaryModal,
+    setShowSubclassSummaryModal,
+    activeAcademicYear,
+    currentAcademicYear,
   };
 };

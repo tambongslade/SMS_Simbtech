@@ -8,6 +8,7 @@ import { CardView } from "./components/ui/CardView";
 import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
 import { TransactionsModal } from "./components/ui/PaymentModal";
+import { SubclassSummaryModal } from "./components/ui/SubclassSummaryModal";
 import { Student, NewStudent } from './types';
 import { toast } from "react-hot-toast";
 
@@ -15,8 +16,6 @@ export default function FeeManagementPage() {
     const {
         selectedClass,
         setSelectedClass,
-        selectedTerm,
-        setSelectedTerm,
         selectedPaymentStatus,
         setSelectedPaymentStatus,
         showPaymentModal,
@@ -51,7 +50,6 @@ export default function FeeManagementPage() {
         resetPaymentForm,
         resetStudentForm,
         classesList,
-        termsList,
         showTransactionsModal,
         setShowTransactionsModal,
         selectedTransactionsStudent,
@@ -59,6 +57,15 @@ export default function FeeManagementPage() {
         transactions,
         isLoadingTransactions,
         fetchFeeTransactions,
+        handleExportEnhanced,
+        subclassSummary,
+        isLoadingSubclassSummary,
+        fetchSubclassSummary,
+        showSubclassSummaryModal,
+        setShowSubclassSummaryModal,
+        selectedAcademicYear,
+        setSelectedAcademicYear,
+        allAcademicYears,
     } = useFeeManagement();
 
     const handleRecordPaymentClick = (student: Student) => {
@@ -111,6 +118,11 @@ export default function FeeManagementPage() {
         setShowTransactionsModal(true);
     };
 
+    const handleShowSubclassSummary = (subClassId: string) => {
+        fetchSubclassSummary(subClassId);
+        setShowSubclassSummaryModal(true);
+    };
+
     return (
         <div className="p-4 md:p-6 space-y-6">
             <Header
@@ -122,16 +134,18 @@ export default function FeeManagementPage() {
                 setSearchQuery={setSearchQuery}
                 selectedClass={selectedClass}
                 setSelectedClass={setSelectedClass}
-                selectedTerm={selectedTerm}
-                setSelectedTerm={setSelectedTerm}
+                selectedAcademicYear={selectedAcademicYear}
+                setSelectedAcademicYear={setSelectedAcademicYear}
                 selectedPaymentStatus={selectedPaymentStatus}
                 setSelectedPaymentStatus={setSelectedPaymentStatus}
                 handleExportPDF={handleExportPDF}
                 handleExportExcel={handleExportExcel}
+                handleExportEnhanced={handleExportEnhanced}
+                onShowSubclassSummary={handleShowSubclassSummary}
                 viewMode={viewMode}
                 setViewMode={setViewMode}
                 classes={classesList}
-                terms={termsList}
+                academicYears={allAcademicYears}
                 isLoadingClasses={isLoadingClasses}
             />
 
@@ -195,6 +209,12 @@ export default function FeeManagementPage() {
                 transactions={transactions}
                 isLoading={isLoadingTransactions}
                 studentName={selectedTransactionsStudent?.name}
+            />
+            <SubclassSummaryModal
+                isOpen={showSubclassSummaryModal}
+                onClose={() => setShowSubclassSummaryModal(false)}
+                summary={subclassSummary}
+                isLoading={isLoadingSubclassSummary}
             />
         </div>
     );

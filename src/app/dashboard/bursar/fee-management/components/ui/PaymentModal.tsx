@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Student, NewStudent } from '../../types';
+import apiService from '../../../../../../lib/apiService';
 
 interface PaymentModalProps {
   student: Student | null;
@@ -40,7 +41,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   students
 }) => {
   if (!isOpen) return null;
-  
+
   const [isNewStudent, setIsNewStudent] = useState<boolean | null>(null);
   const [newStudent, setNewStudent] = useState<NewStudent>({
     name: '',
@@ -50,11 +51,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     parentName: '',
     parentPhone: '',
     dateOfBirth: '',
-    sex: '',
-    previousSchool: '',
-    parentContact2: '',
-    paymentBank: '',
-    datePaid: new Date().toISOString().split('T')[0]
+    gender: '',
+    placeOfBirth: '',
+    residence: '',
+    former_school: '',
+    phone: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Student[]>([]);
@@ -62,6 +63,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [classError, setClassError] = useState<string | null>(null);
+  const [studentType, setStudentType] = useState<'new' | 'old'>('old');
+  const [oldStudentFee, setOldStudentFee] = useState('');
 
   // Fetch classes from the API
   useEffect(() => {
@@ -71,26 +74,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       try {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
           throw new Error('Authentication required');
         }
-        
+
         const response = await fetch(`${API_BASE_URL}/classes`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch classes');
         }
-        
+
         const data = await response.json();
         if (data && data.data) {
-          setClasses(data.data.map((c: any) => ({ 
-            id: c.id, 
-            name: c.name 
+          setClasses(data.data.map((c: any) => ({
+            id: c.id,
+            name: c.name
           })));
         }
       } catch (error) {
@@ -100,7 +103,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         setLoadingClasses(false);
       }
     };
-    
+
     if (isOpen && isNewStudent) {
       fetchClasses();
     }
@@ -109,8 +112,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   // Handle search for existing student
   useEffect(() => {
     if (searchTerm.length > 2) {
-      const filteredStudents = students.filter(s => 
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      const filteredStudents = students.filter(s =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.admissionNumber.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setSearchResults(filteredStudents);
@@ -119,9 +122,33 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, [searchTerm, students]);
 
+  // Fetch subclasses and academic years on open
+  useEffect(() => {
+    const fetchSubClasses = async () => {
+      try {
+        const result = await apiService.get('/classes/sub-classes');
+        setSubClasses(result.data || []);
+      } catch (error) {
+        setSubClasses([]);
+      }
+    };
+    const fetchAcademicYears = async () => {
+      try {
+        const result = await apiService.get('/academic-years');
+        setAcademicYears(result.data || []);
+      } catch (error) {
+        setAcademicYears([]);
+      }
+    };
+    if (isOpen && isNewStudent) {
+      fetchSubClasses();
+      fetchAcademicYears();
+    }
+  }, [isOpen, isNewStudent]);
+
   const handleStudentTypeSelection = (isNew: boolean | null) => {
     setIsNewStudent(isNew);
-    // Reset forms when switching between new and existing student
+    // Reset forms when switching between new and existing
     if (isNew === true) {
       setSelectedExistingStudent(null);
     } else if (isNew === false) {
@@ -133,11 +160,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         parentName: '',
         parentPhone: '',
         dateOfBirth: '',
-        sex: '',
-        previousSchool: '',
-        parentContact2: '',
-        paymentBank: '',
-        datePaid: new Date().toISOString().split('T')[0]
+        gender: '',
+        placeOfBirth: '',
+        residence: '',
+        former_school: '',
+        phone: '',
       });
     }
   };
@@ -152,25 +179,58 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     setSearchTerm('');
   };
 
-  const handleSubmitNewStudent = (e: React.FormEvent) => {
+  // --- Add these states at the top of your component ---
+  const [subClassId, setSubClassId] = useState('');
+  const [academicYearId, setAcademicYearId] = useState('');
+  const [repeater, setRepeater] = useState(false);
+  const [photo, setPhoto] = useState('');
+  const [subClasses, setSubClasses] = useState<{ id: number; name: string }[]>([]);
+  const [academicYears, setAcademicYears] = useState<{ id: number; name: string }[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmitNewStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (handleAddStudentWithPayment) {
-      // Pass payment info to the new student record
-      const studentWithPayment = {
-        ...newStudent,
-        paymentAmount,
-        paymentMethod,
-        paymentDescription
-      };
-      handleAddStudentWithPayment(studentWithPayment as NewStudent);
+    setIsProcessing(true);
+    try {
+      // 1. Create student
+      const studentPayload = { ...newStudent };
+      const createRes = await apiService.post('/students', studentPayload);
+      const studentId = createRes.data?.id;
+      if (!studentId) throw new Error('Failed to create student');
+      // 2. Enroll student
+      const enrollRes = await apiService.post(`/students/${studentId}/enroll`, {
+        sub_class_id: subClassId,
+        academic_year_id: academicYearId,
+        repeater,
+        photo: photo || null,
+      });
+      const enrollment = enrollRes.data;
+      if (!enrollment || !enrollment.id) throw new Error('Failed to enroll student');
+      // 3. Record payment
+      await apiService.post(`/fees/${enrollment.feeId}/payments`, {
+        studentId,
+        amount: parseFloat(paymentAmount),
+        paymentDate: new Date().toISOString(),
+        paymentMethod: paymentMethod.toUpperCase(),
+      });
+      // Optionally show a success toast here
+      onClose();
+    } catch (err) {
+      // Optionally show an error toast here
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleSubmitExistingPayment = (e: React.FormEvent) => {
+  const handleSubmitExistingPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedExistingStudent) {
-      // Set the selected student and trigger payment
-      handlePayment();
+    setIsProcessing(true);
+    try {
+      if (selectedExistingStudent) {
+        await handlePayment();
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -186,471 +246,260 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const banks = ['Express Union', 'CCA', '3DC'];
 
-  // If student selection type hasn't been made yet (new or existing)
-  if (isNewStudent === null) {
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-          <div className="flex justify-between items-start mb-6">
-            <h2 className="text-xl font-bold">Record Payment</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            <p className="text-center text-gray-700">Is this a payment for a new or existing student?</p>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => handleStudentTypeSelection(true)}
-                className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-medium py-4 px-4 rounded-lg border border-blue-200"
-              >
-                New Student
-              </button>
-              
-              <button
-                onClick={() => handleStudentTypeSelection(false)}
-                className="bg-green-100 hover:bg-green-200 text-green-800 font-medium py-4 px-4 rounded-lg border border-green-200"
-              >
-                Existing Student
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Styled student type selector as button group
+  const studentTypeSelector = (
+    <div className="mb-6 flex justify-center gap-4">
+      <button
+        type="button"
+        onClick={() => { handleStudentTypeSelection(true); setStudentType('new'); }}
+        className={`px-4 py-2 rounded-md border ${studentType === 'new' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'} font-medium`}
+      >
+        New Student
+      </button>
+      <button
+        type="button"
+        onClick={() => { handleStudentTypeSelection(false); setStudentType('old'); }}
+        className={`px-4 py-2 rounded-md border ${studentType === 'old' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'} font-medium`}
+      >
+        Existing Student
+      </button>
+    </div>
+  );
 
-  // For new student form
-  if (isNewStudent) {
-    return (
-      <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full">
-          <div className="flex justify-between items-start mb-4">
-            <h2 className="text-xl font-bold">New Student Payment</h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-              <XMarkIcon className="w-6 h-6" />
-            </button>
-          </div>
+  // Modal wrapper
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto">
+        {/* Close Button */}
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <XMarkIcon className="w-6 h-6" />
+        </button>
+        <h2 className="text-2xl font-bold mb-6 text-center">Record Payment</h2>
+        {studentTypeSelector}
 
-          <form onSubmit={handleSubmitNewStudent} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Student Details */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={newStudent.name}
-                  onChange={(e) => handleNewStudentChange('name', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date of Birth
-                </label>
-                <input
-                  type="text"
-                  value={newStudent.dateOfBirth}
-                  onChange={(e) => handleNewStudentChange('dateOfBirth', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="DD/MM/YYYY"
-                  required
-                  disabled={isLoading}
-                />
-                <p className="text-xs text-gray-500 mt-1">Format: DD/MM/YYYY (e.g., 15/05/2010)</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sex
-                </label>
-                <select
-                  value={newStudent.sex}
-                  onChange={(e) => handleNewStudentChange('sex', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                  disabled={isLoading}
-                >
-                  <option value="">Select Sex</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Previous School (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={newStudent.previousSchool}
-                  onChange={(e) => handleNewStudentChange('previousSchool', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Class
-                </label>
-                <select
-                  value={newStudent.class}
-                  onChange={(e) => handleNewStudentChange('class', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                  disabled={isLoading || loadingClasses}
-                >
-                  <option value="">Select Class</option>
-                  {loadingClasses ? (
-                    <option value="" disabled>Loading classes...</option>
-                  ) : classError ? (
-                    <option value="" disabled>Error: {classError}</option>
-                  ) : (
-                    classes.map(cls => (
-                      <option key={cls.id} value={cls.id.toString()}>
-                        {cls.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-                {loadingClasses && (
-                  <p className="text-xs text-blue-500 mt-1">Loading available classes...</p>
-                )}
-                {classError && (
-                  <p className="text-xs text-red-500 mt-1">{classError}</p>
-                )}
-              </div>
-
-              {/* Parent Contact Details */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent/Guardian Contact 1
-                </label>
-                <input
-                  type="tel"
-                  value={newStudent.parentPhone}
-                  onChange={(e) => handleNewStudentChange('parentPhone', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                  disabled={isLoading}
-                  placeholder="Parent's phone number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent/Guardian Contact 2 (Optional)
-                </label>
-                <input
-                  type="tel"
-                  value={newStudent.parentContact2}
-                  onChange={(e) => handleNewStudentChange('parentContact2', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={isLoading}
-                  placeholder="Second contact number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Parent/Guardian Name
-                </label>
-                <input
-                  type="text"
-                  value={newStudent.parentName}
-                  onChange={(e) => handleNewStudentChange('parentName', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  required
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            {/* Payment Details Section */}
-            <div className="mt-6 border-t pt-4">
-              <h3 className="text-lg font-semibold mb-3">Payment Details</h3>
+        {/* New Student Form */}
+        {studentType === 'new' && (
+          <form onSubmit={handleSubmitNewStudent} className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Student Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount (XAF)
-                  </label>
-                  <input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Enter amount"
-                    required
-                    min="1"
-                    disabled={isLoading}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                  <input type="text" value={newStudent.name} onChange={e => handleNewStudentChange('name', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Payment Bank
-                  </label>
-                  <select
-                    value={newStudent.paymentBank}
-                    onChange={(e) => handleNewStudentChange('paymentBank', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    disabled={isLoading}
-                    required
-                  >
-                    <option value="">Select Bank</option>
-                    {banks.map(bank => (
-                      <option key={bank} value={bank}>{bank}</option>
-                    ))}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Matricule</label>
+                  <input type="text" value={newStudent.admissionNumber} onChange={e => handleNewStudentChange('admissionNumber', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input type="date" value={newStudent.dateOfBirth} onChange={e => handleNewStudentChange('dateOfBirth', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Place of Birth</label>
+                  <input type="text" value={newStudent.placeOfBirth} onChange={e => handleNewStudentChange('placeOfBirth', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <select value={newStudent.gender} onChange={e => handleNewStudentChange('gender', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date Paid
-                  </label>
-                  <input
-                    type="date"
-                    value={newStudent.datePaid}
-                    onChange={(e) => handleNewStudentChange('datePaid', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    required
-                    disabled={isLoading}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Residence</label>
+                  <input type="text" value={newStudent.residence} onChange={e => handleNewStudentChange('residence', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentDescription}
-                    onChange={(e) => setPaymentDescription(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                    placeholder="Add payment details..."
-                    disabled={isLoading}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Former School</label>
+                  <input type="text" value={newStudent.former_school} onChange={e => handleNewStudentChange('former_school', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button
-                type="button"
-                onClick={() => handleStudentTypeSelection(null)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                disabled={isLoading}
-              >
-                Back
-              </button>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Enrollment</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Subclass</label>
+                  <select value={subClassId} onChange={e => setSubClassId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Select Subclass</option>
+                    {subClasses.map(sub => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+                  <select value={academicYearId} onChange={e => setAcademicYearId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Select Academic Year</option>
+                    {academicYears.map(year => <option key={year.id} value={year.id}>{year.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 md:col-span-2">
+                  <input type="checkbox" checked={repeater} onChange={e => setRepeater(e.target.checked)} id="repeater" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                  <label htmlFor="repeater" className="text-sm font-medium text-gray-700">Is Repeater?</label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo URL (optional)</label>
+                  <input type="text" value={photo} onChange={e => setPhoto(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Payment Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
+                  <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Select Bank</option>
+                    <option value="Express Union">Express Union</option>
+                    <option value="CCA">CCA</option>
+                    <option value="3DC">3DC</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end">
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-                disabled={isLoading || !paymentAmount || !newStudent.name}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={isLoading || !newStudent.name || !subClassId || !academicYearId || !paymentAmount || isProcessing}
               >
-                {isLoading ? 'Processing...' : 'Record Payment'}
+                {isProcessing ? 'Processing...' : 'Create, Enroll & Record Payment'}
               </button>
             </div>
           </form>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  // For existing student form
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-xl font-bold">Record Payment for Existing Student</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <XMarkIcon className="w-6 h-6" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmitExistingPayment} className="space-y-4">
-          {/* Student Search */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search Student (by name or matricule)
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="Type at least 3 characters..."
-              disabled={isLoading || !!selectedExistingStudent}
-            />
-            
-            {/* Search Results */}
-            {searchResults.length > 0 && !selectedExistingStudent && (
-              <div className="mt-2 border border-gray-200 rounded-md max-h-40 overflow-y-auto">
-                {searchResults.map(s => (
-                  <div 
-                    key={s.id}
-                    className="p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                    onClick={() => handleExistingStudentSelect(s)}
-                  >
-                    <p className="font-medium">{s.name}</p>
-                    <p className="text-sm text-gray-500">{s.admissionNumber} - Class {s.class}</p>
+        {/* Existing Student Form */}
+        {studentType === 'old' && (
+          <form onSubmit={handleSubmitExistingPayment} className="space-y-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Find Student</h3>
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Search Student (by name or matricule)</label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Type at least 3 characters..."
+                  disabled={isLoading || !!selectedExistingStudent}
+                />
+                {/* Search Results */}
+                {searchResults.length > 0 && !selectedExistingStudent && (
+                  <div className="mt-2 border border-gray-200 rounded-md max-h-40 overflow-y-auto">
+                    {searchResults.map(s => (
+                      <div
+                        key={s.id}
+                        className="p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                        onClick={() => handleExistingStudentSelect(s)}
+                      >
+                        {s.name} ({s.admissionNumber})
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-            
-            {searchTerm.length > 2 && searchResults.length === 0 && (
-              <p className="text-sm text-red-500 mt-1">No students found</p>
-            )}
-          </div>
-
-          {/* Selected Student Info */}
-          {selectedExistingStudent && (
-            <div className="mb-4 p-3 bg-gray-50 rounded-md">
-              <div className="flex justify-between items-start">
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Payment Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <p className="font-medium">{selectedExistingStudent.name}</p>
-                  <p className="text-sm text-gray-500">{selectedExistingStudent.admissionNumber}</p>
-                  <p className="text-sm text-gray-600">Class: {selectedExistingStudent.class}</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Amount</label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={e => setPaymentAmount(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Payment Amount"
+                    required
+                  />
                 </div>
-                <button 
-                  type="button"
-                  onClick={() => setSelectedExistingStudent(null)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Change
-                </button>
-              </div>
-              
-              <div className="mt-2">
-                <div className="flex justify-between text-sm">
-                  <span>Expected Fees:</span>
-                  <span>{selectedExistingStudent.expectedFees.toLocaleString('en-US', {
-                    style: 'currency',
-                    currency: 'XAF',
-                    minimumFractionDigits: 0,
-                  })}</span>
-                </div>
-                <div className="flex justify-between text-sm mt-1">
-                  <span>Paid to Date:</span>
-                  <span>{selectedExistingStudent.paidFees.toLocaleString('en-US', {
-                    style: 'currency',
-                    currency: 'XAF',
-                    minimumFractionDigits: 0,
-                  })}</span>
-                </div>
-                <div className="flex justify-between text-sm mt-1 font-medium">
-                  <span>Outstanding Balance:</span>
-                  <span>{selectedExistingStudent.balance.toLocaleString('en-US', {
-                    style: 'currency',
-                    currency: 'XAF',
-                    minimumFractionDigits: 0,
-                  })}</span>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                  <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Select Bank</option>
+                    <option value="Express Union">Express Union</option>
+                    <option value="CCA">CCA</option>
+                    <option value="3DC">3DC</option>
+                  </select>
                 </div>
               </div>
             </div>
-          )}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={isLoading || !selectedExistingStudent || !paymentAmount || isProcessing}
+              >
+                {isProcessing ? 'Processing...' : 'Record Payment'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
 
-          {/* Payment Details - Only show when a student is selected */}
-          {selectedExistingStudent && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Type
-                </label>
-                <select
-                  value={selectedPaymentType}
-                  onChange={(e) => handlePaymentTypeChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={isLoading}
-                >
-                  <option value="full">Full Payment</option>
-                  <option value="partial">Partial Payment</option>
-                </select>
-              </div>
+// --- TransactionsModal ---
+import React from 'react';
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Amount (XAF)
-                </label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  placeholder="Enter amount"
-                  required
-                  min="1"
-                  max={selectedExistingStudent.balance.toString()}
-                  disabled={isLoading || selectedPaymentType === 'full'}
-                />
-                {selectedPaymentType === 'partial' && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Enter an amount less than or equal to the outstanding balance.
-                  </p>
-                )}
-              </div>
+interface TransactionsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  transactions: any[];
+  isLoading: boolean;
+  studentName?: string;
+}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Payment Bank
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  disabled={isLoading}
-                  required
-                >
-                  <option value="">Select Bank</option>
-                  {banks.map(bank => (
-                    <option key={bank} value={bank}>{bank}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
-                <textarea
-                  value={paymentDescription}
-                  onChange={(e) => setPaymentDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                  rows={3}
-                  placeholder="Add payment details..."
-                  disabled={isLoading}
-                />
-              </div>
-            </>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={() => handleStudentTypeSelection(null)}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-              disabled={isLoading}
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-blue-300"
-              disabled={isLoading || !paymentAmount || !selectedExistingStudent}
-            >
-              {isLoading ? 'Processing...' : 'Record Payment'}
-            </button>
+export const TransactionsModal: React.FC<TransactionsModalProps> = ({
+  isOpen,
+  onClose,
+  transactions,
+  isLoading,
+  studentName
+}) => {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+        <h2 className="text-2xl font-bold mb-6 text-center">{studentName ? `Transactions for ${studentName}` : 'Transactions'}</h2>
+        {isLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading transactions...</div>
+        ) : transactions.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No transactions found.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {transactions.map((tx) => (
+                  <tr key={tx.id}>
+                    <td className="px-4 py-2 text-sm text-gray-700">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentMethod || '-'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{tx.receiptNumber || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

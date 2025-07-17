@@ -225,7 +225,7 @@ export default function BehaviorPage() {
     }
     
     const newBehaviorRecord: BehaviorRecord = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       studentId: newRecord.studentId,
       studentName: student.name,
       date: new Date().toISOString().split('T')[0],

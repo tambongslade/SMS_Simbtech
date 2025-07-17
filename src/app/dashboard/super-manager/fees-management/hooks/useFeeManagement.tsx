@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Student, Payment, NewStudent } from '../types';
 import { toast } from 'react-hot-toast';
-import { AcademicYear, Term } from '@/app/dashboard/super-manager/academic-years/types/academic-year';
+import { AcademicYear, Term, ExamSequence } from '@/app/dashboard/super-manager/academic-years/types/academic-year';
 import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
 import useSWR from 'swr';
 import apiService from '../../../../../lib/apiService'; // Import apiService
@@ -12,13 +12,24 @@ import apiService from '../../../../../lib/apiService'; // Import apiService
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
-// SWR fetcher using apiService
-const fetcher = (url: string) => apiService.get(url);
+// SWR fetcher using apiService with error handling
+const fetcher = async (url: string) => {
+  try {
+    return await apiService.get(url);
+  } catch (error: any) {
+    // If it's an unauthorized error, don't retry
+    if (error.message === 'Unauthorized') {
+      throw error;
+    }
+    throw error;
+  }
+};
 
 export const useFeeManagement = () => {
   // --- UI State & Filters --- 
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedTerm, setSelectedTerm] = useState('all');
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('active');
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState('all');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStudentModal, setShowStudentModal] = useState(false);
@@ -58,21 +69,38 @@ export const useFeeManagement = () => {
   // --- Transactions Modal State ---
   const [showTransactionsModal, setShowTransactionsModal] = useState(false);
   const [selectedTransactionsStudent, setSelectedTransactionsStudent] = useState<Student | null>(null);
+  // --- Subclass Fees Summary State ---
+  const [subclassSummary, setSubclassSummary] = useState<any>(null);
+  const [isLoadingSubclassSummary, setIsLoadingSubclassSummary] = useState(false);
+  const [showSubclassSummaryModal, setShowSubclassSummaryModal] = useState(false);
 
   // --- SWR Data Fetching --- 
 
-  // 1. Fetch Active Academic Year
-  const { data: activeYearResult, error: activeYearErrorSWR } = useSWR<{ data: AcademicYear[] }>('/academic-years?isActive=true', fetcher);
-  const activeAcademicYear = useMemo(() => activeYearResult?.data?.[0] || null, [activeYearResult]);
-  const termsList: Term[] = useMemo(() => activeAcademicYear?.terms || [], [activeAcademicYear]);
+  // 1. Fetch All Academic Years (for dropdown)
+  const { data: allYearsResult, error: allYearsErrorSWR } = useSWR<{ data: AcademicYear[] }>('/academic-years', fetcher);
+  const allAcademicYears = useMemo(() => allYearsResult?.data || [], [allYearsResult]);
 
-  // 2. Fetch Classes 
+  // 2. Fetch Active Academic Year  
+  const activeAcademicYear = useMemo(() => {
+    return allAcademicYears.find(year => year.isCurrent) || null;
+  }, [allAcademicYears]);
+
+  // 3. Determine current academic year for filtering
+  const currentAcademicYear = useMemo(() => {
+    if (selectedAcademicYear === 'active') {
+      return activeAcademicYear;
+    } else {
+      return allAcademicYears.find(year => year.id === Number(selectedAcademicYear)) || activeAcademicYear;
+    }
+  }, [selectedAcademicYear, activeAcademicYear, allAcademicYears]);
+
+  // 5. Fetch Classes 
   const { data: classesResult, error: classesErrorSWR, isLoading: isLoadingClassesSWR } = useSWR<{ data: Class[] }>('/classes?includeSubClasses=true', fetcher);
   const classesList = useMemo(() => classesResult?.data || [], [classesResult]);
 
-  // 3. Fetch Fee Records (Dependent on Active Year and Filters)
-  const feeRecordsKey = activeAcademicYear
-    ? `/fees?academicYearId=${activeAcademicYear.id}&include=enrollment.student,enrollment.subClass,paymentTransactions${selectedClass !== 'all' ? `&subClassId=${selectedClass}` : ''}${selectedTerm !== 'all' ? `&termId=${selectedTerm}` : ''}`
+  // 5. Fetch Fee Records (Dependent on Current Academic Year and Filters) - Updated to use improved API
+  const feeRecordsKey = currentAcademicYear
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=100${selectedClass !== 'all' ? `&subClassId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
     : null;
 
   const {
@@ -80,7 +108,7 @@ export const useFeeManagement = () => {
     error: feeRecordsErrorSWR,
     isLoading: isLoadingFeeRecordsSWR,
     mutate: mutateFeeRecords
-  } = useSWR<{ data: any[] }>(feeRecordsKey, fetcher);
+  } = useSWR<{ data: { data: any[], meta?: any } }>(feeRecordsKey, fetcher);
 
   // Helper to find subclass name (needed for mapping)
   const findSubClassNameById = useCallback((subClassId: number | string | undefined): string | undefined => {
@@ -94,8 +122,12 @@ export const useFeeManagement = () => {
 
   // Process Fee Records Data
   const students = useMemo((): Student[] => {
-    if (!feeRecordsResult?.data) return [];
-    return feeRecordsResult.data.map((feeRecord: any): Student => {
+    // Fix: API returns { success: true, data: { data: [...], meta: {...} } }
+    // So we need to access the nested data.data property
+    const records = feeRecordsResult?.data?.data;
+    if (!Array.isArray(records)) return [];
+
+    return records.map((feeRecord: any): Student => {
       const studentData = feeRecord.enrollment?.student;
       const subClassId = feeRecord.enrollment?.subClassId;
       const subClassName = findSubClassNameById(subClassId);
@@ -123,13 +155,13 @@ export const useFeeManagement = () => {
   }, [feeRecordsResult, findSubClassNameById]);
 
   // --- Consolidated Loading and Error State --- 
-  const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || (!activeAcademicYear && !activeYearErrorSWR);
+  const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || (!currentAcademicYear && !allYearsErrorSWR);
   const fetchError = useMemo(() => {
-    if (activeYearErrorSWR) return `Failed to load active year: ${activeYearErrorSWR.message}`;
+    if (allYearsErrorSWR) return `Failed to load academic years: ${allYearsErrorSWR.message}`;
     if (classesErrorSWR) return `Failed to load classes: ${classesErrorSWR.message}`;
     if (feeRecordsErrorSWR) return `Failed to load fee records: ${feeRecordsErrorSWR.message}`;
     return null;
-  }, [activeYearErrorSWR, classesErrorSWR, feeRecordsErrorSWR]);
+  }, [allYearsErrorSWR, classesErrorSWR, feeRecordsErrorSWR]);
 
   useEffect(() => {
     if (fetchError) {
@@ -331,11 +363,76 @@ export const useFeeManagement = () => {
     }
   };
 
+  // Fetch Subclass Fees Summary
+  const fetchSubclassSummary = async (subClassId: number | string) => {
+    if (!currentAcademicYear) {
+      toast.error('No academic year selected');
+      return;
+    }
+
+    setIsLoadingSubclassSummary(true);
+    try {
+      const result = await apiService.get(`/fees/subclass/${subClassId}/summary?academicYearId=${currentAcademicYear.id}`);
+      setSubclassSummary(result.data || null);
+    } catch (error: any) {
+      toast.error('Failed to load subclass summary');
+      setSubclassSummary(null);
+    } finally {
+      setIsLoadingSubclassSummary(false);
+    }
+  };
+
+  // Enhanced Export Handler with new formats
+  const handleExportEnhanced = async (format: 'csv' | 'pdf' | 'docx' = 'csv') => {
+    if (!currentAcademicYear) {
+      toast.error('No academic year selected');
+      return;
+    }
+
+    const params = new URLSearchParams({
+      format: format,
+      academicYearId: currentAcademicYear.id?.toString() || '',
+    });
+
+    // Add optional filters
+    if (selectedClass !== 'all') params.append('subClassId', selectedClass);
+    if (selectedPaymentStatus !== 'all') params.append('paymentStatus', selectedPaymentStatus.toLowerCase());
+    if (searchQuery) params.append('studentIdentifier', searchQuery);
+
+    const exportUrl = `/fees/export?${params.toString()}`;
+
+    try {
+      toast.loading(`Preparing ${format.toUpperCase()} export...`, { id: 'export-toast' });
+
+      const response = await apiService.get(exportUrl, {}, 'blob');
+
+      const downloadUrl = window.URL.createObjectURL(response);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+
+      const fileExtension = format === 'docx' ? 'docx' : format;
+      const filename = `fee_report_${currentAcademicYear.id || 'unknown'}_${new Date().toISOString().split('T')[0]}.${fileExtension}`;
+
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      toast.success(`${format.toUpperCase()} export downloaded successfully.`, { id: 'export-toast' });
+    } catch (error: any) {
+      console.error(`Export failed for ${format}:`, error);
+      toast.error(`Export failed: ${error.message || 'Please try again.'}`, { id: 'export-toast' });
+    }
+  };
+
   return {
     selectedClass,
     setSelectedClass,
     selectedTerm,
     setSelectedTerm,
+    selectedAcademicYear,
+    setSelectedAcademicYear,
     selectedPaymentStatus,
     setSelectedPaymentStatus,
     showPaymentModal,
@@ -368,12 +465,14 @@ export const useFeeManagement = () => {
     handleAddStudent,
     handleExportPDF,
     handleExportExcel,
+    handleExportEnhanced,
     isLoading,
     fetchError,
     classesList,
     isLoadingClasses: isLoadingClassesSWR,
-    termsList,
+    allAcademicYears,
     activeAcademicYear,
+    currentAcademicYear,
     newStudent,
     setNewStudent,
     resetPaymentForm,
@@ -387,5 +486,10 @@ export const useFeeManagement = () => {
     setShowTransactionsModal,
     selectedTransactionsStudent,
     setSelectedTransactionsStudent,
+    subclassSummary,
+    isLoadingSubclassSummary,
+    fetchSubclassSummary,
+    showSubclassSummaryModal,
+    setShowSubclassSummaryModal,
   };
 };

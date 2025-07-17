@@ -2,11 +2,9 @@
 import { useMemo, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
-import { UserGroupIcon, AcademicCapIcon, BuildingLibraryIcon, CurrencyDollarIcon, UsersIcon, IdentificationIcon } from '@heroicons/react/24/outline';
+import { UserGroupIcon, AcademicCapIcon, BuildingLibraryIcon, UsersIcon, IdentificationIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
-import apiService from '../../../lib/apiService'; // Import apiService
-
-// const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1'; // Removed
+import apiService from '../../../lib/apiService';
 
 // Interface for the expected summary data structure from the API
 interface DashboardSummary {
@@ -15,36 +13,37 @@ interface DashboardSummary {
     studentCount?: number;
     classCount?: number;
     totalFeesCollected?: number;
-    // Add other relevant summary fields if the API provides them
+    subClassCount?: number;
 }
 
 // Interface for the expected API response structure
 interface SummaryApiResponse {
+    success: boolean;
     data?: DashboardSummary;
-    // Include other potential top-level keys from the API response if necessary
+    message?: string;
 }
 
 export default function SuperManagerDashboard() {
-    const SUMMARY_API_ENDPOINT = '/users/me/dashboard'; // Relative path for apiService
-
-    // Fetch summary data using SWR with apiService
+    // Fetch dashboard data with role parameter as specified in API docs
     const {
-        data: apiResult, // Raw API response, potentially { data: { ... } }
-        error: fetchError,
-        isLoading // Use SWR's loading state
-    } = useSWR<SummaryApiResponse>(SUMMARY_API_ENDPOINT, (url: string) => apiService.get(url));
+        data: dashboardData,
+        error: dashboardError,
+        isLoading
+    } = useSWR<SummaryApiResponse>(
+        '/users/me/dashboard?role=SUPER_MANAGER',
+        (url: string) => apiService.get(url)
+    );
 
     // Extract the actual summary data, defaulting to empty object
-    const summaryData = useMemo(() => apiResult?.data || {}, [apiResult]);
+    const summaryData = useMemo(() => dashboardData?.data || {}, [dashboardData]);
 
-    // Error handling for UI (toast is handled by apiService)
+    // Error handling for UI
     useEffect(() => {
-        if (fetchError && fetchError.message !== 'Unauthorized') { // apiService handles Unauthorized redirect and toast
-            console.error("SWR Fetch Error (Summary):", fetchError);
-            // Optionally, show a specific UI error element or a non-intrusive general error indicator
-            // toast.error(`Failed to load dashboard summary: ${fetchError.message}`); // Removed, apiService handles this
+        if (dashboardError && dashboardError.message !== 'Unauthorized') {
+            console.error("Dashboard Fetch Error:", dashboardError);
+            toast.error('Failed to load dashboard data');
         }
-    }, [fetchError]);
+    }, [dashboardError]);
 
     // Define stats based on fetched summaryData
     const stats = [
@@ -52,79 +51,140 @@ export default function SuperManagerDashboard() {
             title: 'Academic Years',
             value: isLoading ? '...' : String(summaryData.academicYearCount ?? 0),
             icon: AcademicCapIcon,
-            color: 'primary'
+            color: 'primary' as const
         },
         {
             title: 'Personnel',
             value: isLoading ? '...' : String(summaryData.personnelCount ?? 0),
             icon: UsersIcon,
-            color: 'secondary'
+            color: 'secondary' as const
         },
         {
             title: 'Students',
             value: isLoading ? '...' : String(summaryData.studentCount ?? 0),
             icon: IdentificationIcon,
-            color: 'info'
+            color: 'warning' as const
         },
         {
             title: 'Classes',
             value: isLoading ? '...' : String(summaryData.classCount ?? 0),
             icon: BuildingLibraryIcon,
-            color: 'warning'
+            color: 'warning' as const
+        },
+        {
+            title: 'Sub Classes',
+            value: isLoading ? '...' : String(summaryData.subClassCount ?? 0),
+            icon: BuildingLibraryIcon,
+            color: 'secondary' as const
         },
         {
             title: 'Total Fees Collected',
             value: isLoading ? '...' : `FCFA ${(summaryData.totalFeesCollected ?? 0).toLocaleString()}`,
             icon: CurrencyDollarIcon,
-            color: 'success'
+            color: 'success' as const
         },
-    ];
+    ] as const;
+
+    const hasErrors = dashboardError;
 
     return (
         <div className="flex">
             {/* Main Content */}
             <div className="flex-1 p-4">
-                <h1 className="text-2xl font-bold">Super Manager Dashboard</h1>
-                <p className="mb-6">Welcome to the Super Manager dashboard. Overview of key school metrics.</p>
+                {/* Header */}
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold">Super Manager Dashboard</h1>
+                    <p className="text-gray-600">
+                        Welcome to the Super Manager dashboard. Overview of key school metrics.
+                    </p>
+                </div>
 
-                {/* Display error message if fetch failed (and not an Unauthorized error, which causes redirect) */}
-                {fetchError && fetchError.message !== 'Unauthorized' && !isLoading && (
+                {/* Display error message if fetch failed */}
+                {dashboardError && dashboardError.message !== 'Unauthorized' && !isLoading && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
                         <strong className="font-bold">Error!</strong>
-                        <span className="block sm:inline"> Failed to load dashboard data. Please try again later.</span>
+                        <span className="block sm:inline"> Failed to load dashboard data. Please check your connection and try again.</span>
                     </div>
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {stats.map((stat, index) => (
                         <StatsCard key={index} {...stat} />
                     ))}
                 </div>
 
-                {/* Remove static descriptive text sections if overview cards are sufficient */}
-                {/* 
-                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Quick Actions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Card>
                         <CardHeader>
-                           <CardTitle>Quick Actions</CardTitle>
+                            <CardTitle>Quick Actions</CardTitle>
                         </CardHeader>
                         <CardBody className="space-y-2">
-                            <Button variant="link" className="p-0 h-auto">Go to Academic Year Management</Button>
-                            <Button variant="link" className="p-0 h-auto">Go to Fee Management</Button>
-                            <Button variant="link" className="p-0 h-auto">Go to Personnel Management</Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start p-0 h-auto text-left"
+                                onClick={() => window.location.href = '/dashboard/super-manager/academic-years'}
+                            >
+                                🗓️ Manage Academic Years
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start p-0 h-auto text-left"
+                                onClick={() => window.location.href = '/dashboard/super-manager/personnel-management'}
+                            >
+                                👥 Manage Personnel
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start p-0 h-auto text-left"
+                                onClick={() => window.location.href = '/dashboard/super-manager/student-management'}
+                            >
+                                🎓 Manage Students
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start p-0 h-auto text-left"
+                                onClick={() => window.location.href = '/dashboard/super-manager/classes'}
+                            >
+                                🏫 Manage Classes
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start p-0 h-auto text-left"
+                                onClick={() => window.location.href = '/dashboard/super-manager/fees-management'}
+                            >
+                                💰 Fee Management
+                            </Button>
                         </CardBody>
                     </Card>
-                     <Card>
+
+                    <Card>
                         <CardHeader>
-                           <CardTitle>Recent Activity</CardTitle>
+                            <CardTitle>System Status</CardTitle>
                         </CardHeader>
                         <CardBody>
-                            <p className="text-gray-500 italic">(Recent activity feed placeholder)</p>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">API Status</span>
+                                    <span className={`text-sm font-medium ${dashboardError ? 'text-red-600' : 'text-green-600'}`}>
+                                        {dashboardError ? '⚠️ Issues Detected' : '✅ Operational'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Last Updated</span>
+                                    <span className="text-sm text-gray-900">
+                                        {new Date().toLocaleTimeString()}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-600">Your Role</span>
+                                    <span className="text-sm font-medium text-blue-600">Super Manager</span>
+                                </div>
+                            </div>
                         </CardBody>
                     </Card>
                 </div>
-                 */}
             </div>
         </div>
     );

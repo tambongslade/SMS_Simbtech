@@ -28,10 +28,21 @@ export const CardView: React.FC<CardViewProps> = ({
       {students.map((student) => (
         <div key={student.id} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
           <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-lg font-semibold">{student.name}</h3>
-              <p className="text-sm text-gray-500">{student.admissionNumber}</p>
-              <p className="text-xs text-gray-400">Class {student.class}</p>
+            <div className="flex items-center space-x-3">
+              <StudentPhoto
+                studentId={parseInt(student.id)}
+                photo={student.photo}
+                size="sm"
+                studentName={student.name}
+                fetchPhoto={!student.photo}
+                showUploadButton={true}
+                canUpload={true}
+              />
+              <div>
+                <h3 className="text-lg font-semibold">{student.name}</h3>
+                <p className="text-sm text-gray-500">{student.admissionNumber}</p>
+                <p className="text-xs text-gray-400">Class {student.class}</p>
+              </div>
             </div>
             <span className={`px-2 py-1 text-xs font-semibold rounded-full 
               ${student.status === 'Paid' ? 'bg-green-100 text-green-800' :

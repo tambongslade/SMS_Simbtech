@@ -22,6 +22,8 @@ const clearAuthData = () => {
 interface RequestOptions extends RequestInit {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     body?: any; // Allow any body type for flexibility, will be stringified if object
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    params?: any; // Allow params object for query parameters
 }
 
 type ExpectedResponseType = 'json' | 'blob' | 'text' | 'arrayBuffer'; // Add more as needed
@@ -53,6 +55,13 @@ async function request<T = any>(
         headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // Extract and format query parameters
+    let url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+    if (options.params) {
+        const queryString = new URLSearchParams(options.params).toString();
+        url = `${url}?${queryString}`;
+    }
+
     // Stringify body if it's an object and Content-Type is not already set to something else
     let body = options.body;
     if (typeof body === 'object' && body !== null && !(body instanceof FormData) && !(headers['Content-Type'] || headers['content-type'])) {
@@ -60,8 +69,6 @@ async function request<T = any>(
         body = JSON.stringify(body);
     }
 
-
-    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
 
     try {
         const response = await fetch(url, {

@@ -6,12 +6,14 @@ interface CardViewProps {
   students: Student[];
   onRecordPayment: (student: Student) => void;
   onViewHistory: (student: Student) => void;
+  onViewTransactions: (student: Student) => void;
 }
 
 export const CardView: React.FC<CardViewProps> = ({
   students,
   onRecordPayment,
-  onViewHistory
+  onViewHistory,
+  onViewTransactions
 }) => {
   if (students.length === 0) {
     return (
@@ -26,19 +28,30 @@ export const CardView: React.FC<CardViewProps> = ({
       {students.map((student) => (
         <div key={student.id} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
           <div className="flex justify-between items-start">
-            <div>
-              <h3 className="text-lg font-semibold">{student.name}</h3>
-              <p className="text-sm text-gray-500">{student.admissionNumber}</p>
-              <p className="text-xs text-gray-400">Class {student.class}</p>
+            <div className="flex items-center space-x-3">
+              <StudentPhoto
+                studentId={parseInt(student.id)}
+                photo={student.photo}
+                size="sm"
+                studentName={student.name}
+                fetchPhoto={!student.photo}
+                showUploadButton={true}
+                canUpload={true}
+              />
+              <div>
+                <h3 className="text-lg font-semibold">{student.name}</h3>
+                <p className="text-sm text-gray-500">{student.admissionNumber}</p>
+                <p className="text-xs text-gray-400">Class {student.class}</p>
+              </div>
             </div>
             <span className={`px-2 py-1 text-xs font-semibold rounded-full 
-              ${student.status === 'Paid' ? 'bg-green-100 text-green-800' : 
-                student.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' : 
-                'bg-red-100 text-red-800'}`}>
+              ${student.status === 'Paid' ? 'bg-green-100 text-green-800' :
+                student.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-red-100 text-red-800'}`}>
               {student.status}
             </span>
           </div>
-          
+
           <div className="mt-4 space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-600">Expected Fees:</span>
@@ -77,7 +90,7 @@ export const CardView: React.FC<CardViewProps> = ({
               </span>
             </div>
           </div>
-          
+
           <div className="mt-4 flex gap-2">
             <button
               onClick={() => onRecordPayment(student)}
@@ -90,6 +103,12 @@ export const CardView: React.FC<CardViewProps> = ({
               className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
             >
               History
+            </button>
+            <button
+              onClick={() => onViewTransactions(student)}
+              className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 transition-colors"
+            >
+              View Transactions
             </button>
           </div>
         </div>

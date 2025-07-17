@@ -4,21 +4,22 @@ export interface Student {
     class: string;
     expectedFees: number;
     paidFees: number;
-    lastPaymentDate: string;
+    lastPaymentDate?: string;
     status: 'Paid' | 'Partial' | 'Unpaid';
-    email: string;
-    parentName: string;
-    parentPhone: string;
+    email?: string;
+    parentName?: string;
+    parentPhone?: string;
     admissionNumber: string;
     balance: number;
     dateOfBirth?: string;
     placeOfBirth?: string;
     photo?: string;
-    parentContacts: {
+    parentContacts?: {
       name: string;
       phone: string;
       email?: string;
     }[];
+    feeId: string;
   }
   
   export interface Payment {
@@ -55,14 +56,14 @@ export interface Student {
   export interface NewStudent {
     name: string;
     class: string;
-    admissionNumber: string;
-    email: string;
-    parentName: string;
-    parentPhone: string;
-    dateOfBirth: string;
-    sex: string;
-    previousSchool: string;
-    parentContact2: string;
-    paymentBank: string;
-    datePaid: string;
+    admissionNumber?: string;
+    email?: string;
+    parentName?: string;
+    parentPhone?: string;
+    dateOfBirth?: string;
+    gender?: string;
+    placeOfBirth?: string;
+    residence?: string;
+    former_school?: string;
+    phone?: string;
   }

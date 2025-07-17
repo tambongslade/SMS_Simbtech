@@ -6,4 +6,7 @@ export { Card, CardHeader, CardTitle, CardDescription, CardBody, CardFooter } fr
 export { StatsCard } from './StatsCard';
 export { Table } from './Table';
 export { Tabs, TabPanel, TabList, Tab } from './Tabs';
-export { Fade, Slide, Scale, AnimatedList, LoadingSpinner } from './Animation'; 
+export { Fade, Slide, Scale, AnimatedList, LoadingSpinner } from './Animation';
+export { default as StudentPhoto } from './StudentPhoto';
+export { default as PhotoUploadModal } from './PhotoUploadModal';
+export { BulkPhotoUploadModal } from './BulkPhotoUploadModal'; 

@@ -1,514 +1,519 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { PlusIcon, PencilIcon, TrashIcon, EyeIcon, DocumentDuplicateIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
-import { ExclamationCircleIcon } from '@heroicons/react/24/solid';
+import {
+    PlusIcon,
+    MagnifyingGlassIcon,
+    EyeIcon,
+    ClipboardDocumentListIcon,
+    DocumentIcon
+} from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+import useSWR from 'swr';
+import apiService from '@/lib/apiService';
+import { useRouter } from 'next/navigation';
+
+interface ExamPaper {
+    id: number;
+    name: string;
+    subjectId: number;
+    examDate: string;
+    duration: number;
+    subject: {
+        id: number;
+        name: string;
+        category: string;
+    };
+    questions?: Question[];
+    createdAt: string;
+}
+
+interface Question {
+    id: number;
+    questionText: string;
+    questionType: 'multiple_choice' | 'essay' | 'short_answer' | 'true_false' | 'fill_in_blank';
+    marks: number;
+    options?: string[];
+    correctAnswer?: string;
+    createdAt: string;
+}
+
+interface Subject {
+    id: number;
+    name: string;
+    category: string;
+    subClasses: {
+        id: number;
+        name: string;
+        className: string;
+    }[];
+}
 
 export default function QuestionManagement() {
-  // State management
-  const [questions, setQuestions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    subject: '',
-    type: '',
-    category: '',
-    searchTerm: ''
-  });
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+    const router = useRouter();
+    const [selectedSubject, setSelectedSubject] = useState<string>('');
+    const [selectedExamPaper, setSelectedExamPaper] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showViewModal, setShowViewModal] = useState(false);
+    const [selectedQuestion, setSelectedQuestion] = useState<Question | null>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
-  // Mock data for subjects
-  const subjects = [
-    'Mathematics', 'Physics', 'Chemistry', 'Biology', 
-    'English', 'French', 'History', 'Geography'
-  ];
+    // Ensure client-side only rendering
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
-  // Mock question data
-  const mockQuestions = [
-    {
-      id: 1,
-      text: "What is the formula for the area of a circle?",
-      type: "MCQ",
-      subject: "Mathematics",
-      category: "School Questions",
-      options: [
-        { id: 'a', text: "πr²", isCorrect: true },
-        { id: 'b', text: "2πr", isCorrect: false },
-        { id: 'c', text: "πd", isCorrect: false },
-        { id: 'd', text: "r²/π", isCorrect: false }
-      ],
-      difficulty: "Easy",
-      lastModified: "2025-01-15"
-    },
-    {
-      id: 2,
-      text: "Explain Newton's Second Law of Motion and provide an example.",
-      type: "Structural",
-      subject: "Physics",
-      category: "GCE Questions",
-      answer: "Newton's Second Law states that the acceleration of an object is directly proportional to the net force acting on it and inversely proportional to its mass. Example: When you push a shopping cart, the acceleration is greater with more force and less with a heavier cart.",
-      difficulty: "Medium",
-      lastModified: "2025-01-20"
-    },
-    {
-      id: 3,
-      text: "Which of the following is not a primary color in the RGB color model?",
-      type: "MCQ",
-      subject: "Physics",
-      category: "School Questions",
-      options: [
-        { id: 'a', text: "Red", isCorrect: false },
-        { id: 'b', text: "Green", isCorrect: false },
-        { id: 'c', text: "Yellow", isCorrect: true },
-        { id: 'd', text: "Blue", isCorrect: false }
-      ],
-      difficulty: "Easy",
-      lastModified: "2025-01-25"
-    },
-    {
-      id: 4,
-      text: "Solve the quadratic equation: 2x² + 5x - 3 = 0",
-      type: "Structural",
-      subject: "Mathematics",
-      category: "GCE Questions",
-      answer: "Using the quadratic formula: x = (-5 ± √(25 + 24))/4 = (-5 ± √49)/4 = (-5 ± 7)/4\nThus, x = 1/2 or x = -3",
-      difficulty: "Medium",
-      lastModified: "2025-02-01"
-    },
-    {
-      id: 5,
-      text: "What is the main function of mitochondria in a cell?",
-      type: "MCQ",
-      subject: "Biology",
-      category: "School Questions",
-      options: [
-        { id: 'a', text: "Protein synthesis", isCorrect: false },
-        { id: 'b', text: "Energy production", isCorrect: true },
-        { id: 'c', text: "Cell division", isCorrect: false },
-        { id: 'd', text: "Storage", isCorrect: false }
-      ],
-      difficulty: "Medium",
-      lastModified: "2025-02-05"
-    }
-  ];
+    // Fetch teacher's assigned subjects
+    const {
+        data: subjectsData,
+        error: subjectsError,
+        isLoading: subjectsLoading
+    } = useSWR<{ success: boolean; data: Subject[] }>(
+        '/teachers/me/subjects',
+        (url: string) => apiService.get(url)
+    );
 
-  // Fetch questions (simulated)
-  useEffect(() => {
-    const fetchQuestions = async () => {
-      setIsLoading(true);
-      try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        setQuestions(mockQuestions);
-      } catch (err) {
-        console.error('Error fetching questions:', err);
-        setError('Failed to load questions. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
+    // Fetch exam papers for selected subject
+    const {
+        data: examPapersData,
+        error: examPapersError,
+        isLoading: examPapersLoading
+    } = useSWR<{ success: boolean; data: ExamPaper[] }>(
+        selectedSubject ? `/exams/papers?subjectId=${selectedSubject}&includeSubject=true` : null,
+        (url: string) => apiService.get(url)
+    );
+
+    // Fetch questions for selected exam paper
+    const {
+        data: examPaperData,
+        error: questionsError,
+        isLoading: questionsLoading
+    } = useSWR<{ success: boolean; data: ExamPaper }>(
+        selectedExamPaper ? `/exams/papers/${selectedExamPaper}/with-questions` : null,
+        (url: string) => apiService.get(url)
+    );
+
+    const subjects = subjectsData?.data || [];
+    const examPapers = examPapersData?.data || [];
+    const questions = examPaperData?.data?.questions || [];
+
+    // Enhanced error handling with access control awareness
+    useEffect(() => {
+        if (subjectsError) {
+            console.error("Subjects Fetch Error:", subjectsError);
+            if (subjectsError.status === 403) {
+                toast.error('Access denied: Unable to load your assigned subjects');
+            } else {
+                toast.error('Failed to load subjects');
+            }
+        }
+        if (examPapersError) {
+            console.error("Exam Papers Fetch Error:", examPapersError);
+            if (examPapersError.status === 403) {
+                toast.error('Access denied: Unable to load exam papers');
+            } else {
+                toast.error('Failed to load exam papers');
+            }
+        }
+        if (questionsError) {
+            console.error("Questions Fetch Error:", questionsError);
+            toast.error('Failed to load questions');
+        }
+    }, [subjectsError, examPapersError, questionsError]);
+
+    // Filter questions based on search
+    const filteredQuestions = questions.filter(question => {
+        const matchesSearch = question.questionText.toLowerCase().includes(searchTerm.toLowerCase());
+        return matchesSearch;
+    });
+
+    const questionTypes = [
+        { value: 'multiple_choice', label: 'Multiple Choice' },
+        { value: 'essay', label: 'Essay' },
+        { value: 'short_answer', label: 'Short Answer' },
+        { value: 'true_false', label: 'True/False' },
+        { value: 'fill_in_blank', label: 'Fill in the Blank' }
+    ];
+
+    const handleViewQuestion = (question: Question) => {
+        setSelectedQuestion(question);
+        setShowViewModal(true);
     };
 
-    fetchQuestions();
-  }, []);
-
-  // Handle filter changes
-  const handleFilterChange = (field, value) => {
-    setFilters(prev => ({ ...prev, [field]: value }));
-  };
-
-  // Filter questions based on criteria
-  const filteredQuestions = questions.filter(question => {
-    const matchesSubject = !filters.subject || question.subject === filters.subject;
-    const matchesType = !filters.type || question.type === filters.type;
-    const matchesCategory = !filters.category || question.category === filters.category;
-    const matchesSearch = !filters.searchTerm || 
-      question.text.toLowerCase().includes(filters.searchTerm.toLowerCase());
-    
-    return matchesSubject && matchesType && matchesCategory && matchesSearch;
-  });
-
-  // Handle question actions
-  const handleEdit = (question) => {
-    setSelectedQuestion(question);
-    setIsEditMode(true);
-    setShowAddModal(true);
-  };
-
-  const handleDelete = (question) => {
-    setSelectedQuestion(question);
-    setShowConfirmDelete(true);
-  };
-
-  const confirmDelete = () => {
-    // API call
-    setQuestions(prev => prev.filter(q => q.id !== selectedQuestion.id));
-    setShowConfirmDelete(false);
-  };
-
-  const handleDuplicate = (question) => {
-    const newQuestion = {
-      ...question,
-      id: Math.max(...questions.map(q => q.id)) + 1,
-      text: `Copy of ${question.text}`,
-      lastModified: new Date().toISOString().split('T')[0]
+    const formatQuestionType = (type: string) => {
+        return questionTypes.find(qt => qt.value === type)?.label || type;
     };
-    setQuestions(prev => [...prev, newQuestion]);
-  };
 
-  // Mock function to add/edit a question
-  const handleSaveQuestion = (formData) => {
-    //  API call in a real app
-    if (isEditMode) {
-      setQuestions(prev => prev.map(q => 
-        q.id === selectedQuestion.id ? { ...formData, id: q.id } : q
-      ));
-    } else {
-      const newQuestion = {
-        ...formData,
-        id: Math.max(...questions.map(q => q.id), 0) + 1,
-        lastModified: new Date().toISOString().split('T')[0]
-      };
-      setQuestions(prev => [...prev, newQuestion]);
-    }
-    setShowAddModal(false);
-  };
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-GB');
+    };
 
-  // Question form modal component
-  const QuestionFormModal = () => (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-        <h2 className="text-xl font-bold mb-4">
-          {isEditMode ? 'Edit Question' : 'Add New Question'}
-        </h2>
-        
-        {/* This would be a form in the real implementation */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
-            <select className="w-full p-2 border rounded-lg">
-              <option>MCQ</option>
-              <option>Structural</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-            <select className="w-full p-2 border rounded-lg">
-              {subjects.map(subject => (
-                <option key={subject}>{subject}</option>
-              ))}
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select className="w-full p-2 border rounded-lg">
-              <option>School Questions</option>
-              <option>GCE Questions</option>
-            </select>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-            <textarea 
-              className="w-full p-2 border rounded-lg"
-              rows={4}
-              defaultValue={selectedQuestion?.text || ''}
-            />
-          </div>
-          
-          {/* Conditionally show options for MCQ or answer field for structural */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {isEditMode && selectedQuestion?.type === 'MCQ' ? 'Options' : 'Answer/Options'}
-            </label>
-            {isEditMode && selectedQuestion?.type === 'MCQ' ? (
-              <div className="space-y-2">
-                {selectedQuestion.options.map((option, index) => (
-                  <div key={index} className="flex items-center">
-                    <input 
-                      type="radio" 
-                      checked={option.isCorrect}
-                      className="mr-2"
-                      readOnly 
-                    />
-                    <input
-                      type="text"
-                      className="flex-1 p-2 border rounded-lg"
-                      defaultValue={option.text}
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <textarea 
-                className="w-full p-2 border rounded-lg"
-                rows={4}
-                defaultValue={selectedQuestion?.answer || ''}
-              />
-            )}
-          </div>
-        </div>
-        
-        <div className="flex justify-end space-x-2 mt-6">
-          <button 
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
-            onClick={() => {
-              setShowAddModal(false);
-              setIsEditMode(false);
-            }}
-          >
-            Cancel
-          </button>
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            onClick={() => handleSaveQuestion(selectedQuestion || {})}
-          >
-            Save Question
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    const navigateToExamManagement = () => {
+        router.push('/dashboard/teacher/exams');
+    };
 
-  // Confirmation modal component
-  const ConfirmDeleteModal = () => (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-        <div className="flex items-center mb-4">
-          <ExclamationCircleIcon className="w-6 h-6 text-red-600 mr-2" />
-          <h2 className="text-xl font-bold">Delete Question</h2>
-        </div>
-        
-        <p className="mb-4">Are you sure you want to delete this question? This action cannot be undone.</p>
-        
-        <div className="flex justify-end space-x-2">
-          <button 
-            className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
-            onClick={() => setShowConfirmDelete(false)}
-          >
-            Cancel
-          </button>
-          <button 
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-            onClick={confirmDelete}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    // Prevent hydration mismatch
+    if (!isMounted) {
+        return (
+            <div className="p-6 space-y-6">
+                <div className="flex justify-between items-center">
+                    <div>
+                        <h1 className="text-2xl font-bold">Question Management</h1>
+                        <p className="text-gray-600">Loading...</p>
+                    </div>
+                </div>
 
-  return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Question Management</h1>
-        <button 
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          onClick={() => {
-            setSelectedQuestion(null);
-            setIsEditMode(false);
-            setShowAddModal(true);
-          }}
-        >
-          <PlusIcon className="w-5 h-5 mr-2" />
-          Add New Question
-        </button>
-      </div>
-
-      {/* Statistics cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Total Questions</h3>
-          <p className="text-2xl font-bold">{questions.length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">MCQ Questions</h3>
-          <p className="text-2xl font-bold">{questions.filter(q => q.type === 'MCQ').length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Structural Questions</h3>
-          <p className="text-2xl font-bold">{questions.filter(q => q.type === 'Structural').length}</p>
-        </div>
-        <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">GCE Questions</h3>
-          <p className="text-2xl font-bold">{questions.filter(q => q.category === 'GCE Questions').length}</p>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <div className="relative">
-          <input
-            type="text"
-            placeholder="Search questions..."
-            className="w-full p-2 pl-8 border rounded-lg"
-            value={filters.searchTerm}
-            onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
-          />
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            className="h-5 w-5 absolute left-2 top-2.5 text-gray-400" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-            />
-          </svg>
-        </div>
-
-        <select 
-          className="p-2 border rounded-lg"
-          value={filters.subject}
-          onChange={(e) => handleFilterChange('subject', e.target.value)}
-        >
-          <option value="">All Subjects</option>
-          {subjects.map(subject => (
-            <option key={subject} value={subject}>{subject}</option>
-          ))}
-        </select>
-         
-        <select 
-          className="p-2 border rounded-lg"
-          value={filters.type}
-          onChange={(e) => handleFilterChange('type', e.target.value)}
-        >
-          <option value="">All Question Types</option>
-          <option value="MCQ">MCQ</option>
-          <option value="Structural">Structural</option>
-        </select>
-         
-        <select 
-          className="p-2 border rounded-lg"
-          value={filters.category}
-          onChange={(e) => handleFilterChange('category', e.target.value)}
-        >
-          <option value="">All Categories</option>
-          <option value="GCE Questions">GCE Questions</option>
-          <option value="School Questions">School Questions</option>
-        </select>
-      </div>
-
-      {/* Question table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        {isLoading ? (
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-700"></div>
-          </div>
-        ) : error ? (
-          <div className="text-center p-8 text-red-600">{error}</div>
-        ) : filteredQuestions.length === 0 ? (
-          <div className="text-center p-8 text-gray-500">
-            {filters.subject || filters.type || filters.category || filters.searchTerm
-              ? 'No questions match your filters.'
-              : 'No questions available. Add your first question!'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Last Modified</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredQuestions.map((question) => (
-                  <tr key={question.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">
-                        {question.text.length > 100 
-                          ? `${question.text.substring(0, 100)}...` 
-                          : question.text}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        question.type === 'MCQ' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {question.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.subject}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.lastModified}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
-                        <button
-                          className="text-indigo-600 hover:text-indigo-900"
-                          onClick={() => handleEdit(question)}
-                          title="Edit"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View"
-                        >
-                          <EyeIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          className="text-green-600 hover:text-green-900"
-                          onClick={() => handleDuplicate(question)}
-                          title="Duplicate"
-                        >
-                          <DocumentDuplicateIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          className="text-red-600 hover:text-red-900"
-                          onClick={() => handleDelete(question)}
-                          title="Delete"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {!isLoading && !error && filteredQuestions.length > 0 && (
-          <div className="px-6 py-3 bg-gray-50 text-sm text-gray-500 flex justify-between items-center">
-            <div>
-              Showing {filteredQuestions.length} out of {questions.length} questions
+                <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                    <p className="mt-2 text-gray-600">Loading questions...</p>
+                </div>
             </div>
-            <button 
-              className="flex items-center text-blue-600 hover:text-blue-800"
-              onClick={() => {/* Would refresh data */}}
-            >
-              <ArrowPathIcon className="w-4 h-4 mr-1" />
-              Refresh
-            </button>
-          </div>
-        )}
-      </div>
+        );
+    }
 
-      {/* Modals */}
-      {showAddModal && <QuestionFormModal />}
-      {showConfirmDelete && <ConfirmDeleteModal />}
-    </div>
-  );
-}
+    return (
+        <div className="p-6 space-y-6">
+            {/* Header */}
+            <div className="flex justify-between items-center">
+                <div>
+                    <h1 className="text-2xl font-bold">Question Management</h1>
+                    <p className="text-gray-600">
+                        View and manage questions through your exam papers
+                    </p>
+                </div>
+                <button
+                    onClick={navigateToExamManagement}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+                >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Manage Exam Papers
+                </button>
+            </div>
+
+            {/* Info Card */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start">
+                    <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600 mr-3 mt-1" />
+                    <div>
+                        <h3 className="text-lg font-medium text-blue-900">Questions are managed through Exam Papers</h3>
+                        <p className="text-blue-700 mt-1">
+                            To create and manage questions, you need to first create an exam paper. 
+                            Questions are directly associated with specific exam papers and cannot exist independently.
+                        </p>
+                        <button
+                            onClick={navigateToExamManagement}
+                            className="mt-3 inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                            Go to Exam Papers Management →
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Subject
+                        </label>
+                        <select
+                            value={selectedSubject}
+                            onChange={(e) => {
+                                setSelectedSubject(e.target.value);
+                                setSelectedExamPaper(''); // Reset exam paper when subject changes
+                            }}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            disabled={subjectsLoading}
+                        >
+                            <option value="">Select a subject...</option>
+                            {subjects.map(subject => (
+                                <option key={subject.id} value={subject.id.toString()}>
+                                    {subject.name} ({subject.subClasses.length} classes)
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Exam Paper
+                        </label>
+                        <select
+                            value={selectedExamPaper}
+                            onChange={(e) => setSelectedExamPaper(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            disabled={!selectedSubject || examPapersLoading}
+                        >
+                            <option value="">Select an exam paper...</option>
+                            {examPapers.map(paper => (
+                                <option key={paper.id} value={paper.id.toString()}>
+                                    {paper.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Search Questions
+                        </label>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                placeholder="Search by question text..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                disabled={!selectedExamPaper}
+                            />
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex justify-end mt-4">
+                    <button
+                        onClick={() => {
+                            setSelectedSubject('');
+                            setSelectedExamPaper('');
+                            setSearchTerm('');
+                        }}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                        Clear Filters
+                    </button>
+                </div>
+            </div>
+
+            {/* Statistics */}
+            {selectedExamPaper && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <div className="flex items-center">
+                            <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600 mr-3" />
+                            <div>
+                                <p className="text-sm text-gray-600">Total Questions</p>
+                                <p className="text-2xl font-bold">{questionsLoading ? '...' : questions.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <div className="flex items-center">
+                            <ClipboardDocumentListIcon className="h-8 w-8 text-green-600 mr-3" />
+                            <div>
+                                <p className="text-sm text-gray-600">Multiple Choice</p>
+                                <p className="text-2xl font-bold">
+                                    {questionsLoading ? '...' : questions.filter(q => q.questionType === 'multiple_choice').length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <div className="flex items-center">
+                            <ClipboardDocumentListIcon className="h-8 w-8 text-purple-600 mr-3" />
+                            <div>
+                                <p className="text-sm text-gray-600">Essay Questions</p>
+                                <p className="text-2xl font-bold">
+                                    {questionsLoading ? '...' : questions.filter(q => q.questionType === 'essay').length}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <div className="flex items-center">
+                            <ClipboardDocumentListIcon className="h-8 w-8 text-orange-600 mr-3" />
+                            <div>
+                                <p className="text-sm text-gray-600">Total Marks</p>
+                                <p className="text-2xl font-bold">
+                                    {questionsLoading ? '...' : questions.reduce((sum, q) => sum + q.marks, 0)}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Questions List */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-200">
+                    <h2 className="text-lg font-semibold">
+                        Questions {selectedExamPaper && examPapers.find(p => p.id.toString() === selectedExamPaper) && 
+                            `for "${examPapers.find(p => p.id.toString() === selectedExamPaper)?.name}"`}
+                    </h2>
+                </div>
+
+                {questionsLoading ? (
+                    <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                        <p className="mt-2 text-gray-600">Loading questions...</p>
+                    </div>
+                ) : !selectedSubject ? (
+                    <div className="text-center py-8">
+                        <ClipboardDocumentListIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-600">Please select a subject to view exam papers</p>
+                    </div>
+                ) : !selectedExamPaper ? (
+                    <div className="text-center py-8">
+                        <DocumentIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-600">Please select an exam paper to view questions</p>
+                        {examPapers.length === 0 && selectedSubject && (
+                            <div className="mt-4">
+                                <p className="text-sm text-gray-500">No exam papers found for this subject</p>
+                                <button
+                                    onClick={navigateToExamManagement}
+                                    className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                >
+                                    Create your first exam paper →
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                ) : filteredQuestions.length === 0 ? (
+                    <div className="text-center py-8">
+                        <ClipboardDocumentListIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                        <p className="text-gray-600">No questions found</p>
+                        <p className="text-sm text-gray-500">Add questions to this exam paper in the Exam Papers Management page</p>
+                        <button
+                            onClick={navigateToExamManagement}
+                            className="mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                            Add questions to this exam paper →
+                        </button>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Question
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Type
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Marks
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Created
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {filteredQuestions.map((question, index) => (
+                                    <tr key={question.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4">
+                                            <div className="text-sm font-medium text-gray-900 max-w-xs">
+                                                <span className="text-gray-500 mr-2">Q{index + 1}.</span>
+                                                {question.questionText.length > 100 
+                                                    ? `${question.questionText.substring(0, 100)}...`
+                                                    : question.questionText
+                                                }
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                {formatQuestionType(question.questionType)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">{question.marks}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">{formatDate(question.createdAt)}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                            <div className="flex space-x-2">
+                                                <button
+                                                    onClick={() => handleViewQuestion(question)}
+                                                    className="text-blue-600 hover:text-blue-900"
+                                                    title="View Details"
+                                                >
+                                                    <EyeIcon className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* View Question Modal */}
+            {showViewModal && selectedQuestion && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">Question Details</h2>
+                            <button
+                                onClick={() => setShowViewModal(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Question Text</label>
+                                <p className="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded">{selectedQuestion.questionText}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Type</label>
+                                    <p className="mt-1 text-sm text-gray-900">{formatQuestionType(selectedQuestion.questionType)}</p>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Marks</label>
+                                    <p className="mt-1 text-sm text-gray-900">{selectedQuestion.marks}</p>
+                                </div>
+                            </div>
+
+                            {selectedQuestion.options && selectedQuestion.options.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Options</label>
+                                    <ul className="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded">
+                                        {selectedQuestion.options.map((option, index) => (
+                                            <li key={index} className={`${option === selectedQuestion.correctAnswer ? 'font-bold text-green-600' : ''}`}>
+                                                {String.fromCharCode(65 + index)}. {option}
+                                                {option === selectedQuestion.correctAnswer && ' (Correct)'}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {selectedQuestion.correctAnswer && selectedQuestion.questionType !== 'multiple_choice' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700">Correct Answer</label>
+                                    <p className="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded">{selectedQuestion.correctAnswer}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-between mt-6">
+                            <button
+                                onClick={navigateToExamManagement}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                            >
+                                Edit in Exam Papers
+                            </button>
+                            <button
+                                onClick={() => setShowViewModal(false)}
+                                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+} 
