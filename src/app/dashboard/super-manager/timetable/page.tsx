@@ -45,6 +45,14 @@ const TimetableContent = () => {
     }
   }, [selectedAcademicYearId, fetchFullSchoolTimetable]);
 
+  // Auto-select first subclass when timetables are loaded
+  useEffect(() => {
+    if (viewMode === 'class' && !selectedSubClassId && subClasses.length > 0 && Object.keys(timetables).length > 0) {
+      console.log("Auto-selecting first subclass:", subClasses[0].id);
+      setSelectedSubClassId(subClasses[0].id);
+    }
+  }, [viewMode, selectedSubClassId, subClasses, timetables]);
+
   // Handle academic year change
   const handleAcademicYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newAcademicYearId = e.target.value;
@@ -152,7 +160,10 @@ const TimetableContent = () => {
             {selectedSubClassId ? (
               <Card className={`${isLoadingTimetable ? 'opacity-50' : ''}`}>
                 <CardBody className="pt-6">
-                  <TimetableGrid selectedSubClassId={selectedSubClassId} />
+                  <TimetableGrid 
+                    key={`${selectedSubClassId}-${hasTimetableData ? 'loaded' : 'empty'}`}
+                    selectedSubClassId={selectedSubClassId} 
+                  />
                 </CardBody>
               </Card>
             ) : (

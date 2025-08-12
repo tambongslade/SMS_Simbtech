@@ -13,6 +13,16 @@ export const Header = ({ setShowStudentModal, setShowPaymentModal }: HeaderProps
       <div>
         <h1 className="text-2xl font-bold text-gray-800">Fee Management</h1>
         <p className="text-gray-600">Manage student fees and payments</p>
+        <div className="flex items-center gap-4 text-xs mt-2">
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+            <span className="text-gray-500">Fully Enrolled (Class - Subclass)</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+            <span className="text-orange-500">Class Only (Pending Enrollment)</span>
+          </div>
+        </div>
       </div>
       <div className="flex gap-2">
         {/* Record Payment Button */}

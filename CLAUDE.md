@@ -9,6 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Production server**: `npm start`
 - **Linting**: `npm run lint`
 
+## Testing and Quality
+- Run linting after significant changes: `npm run lint`
+- The project uses TypeScript strict mode - ensure type safety in all code
+- Currently no automated test suite configured
+
 ## Project Architecture
 
 This is a **Next.js 15 School Management System** with role-based dashboards and comprehensive administrative features.
@@ -21,6 +26,9 @@ This is a **Next.js 15 School Management System** with role-based dashboards and
 - **SWR** for data fetching and state management
 - **Heroicons** for consistent iconography
 - **React Hot Toast** for notifications
+- **jsPDF** for PDF generation and reports
+- **Lucide React** for additional icons
+- **Motion** for animations
 
 ### Key Architectural Patterns
 
@@ -88,9 +96,12 @@ Use the correct icon names from @heroicons/react/24/outline:
 ### Key Files and Directories
 
 - `src/lib/apiService.ts` - Centralized API client with auth handling
-- `src/components/context/` - Global context providers
+- `src/components/context/` - Global context providers (AuthContext, AcademicYearContext)
 - `src/app/dashboard/layout.tsx` - Dashboard layout with role-based navigation
 - `src/app/globals.css` - Global styles and Tailwind configuration
+- `src/components/ui/` - Reusable UI components (Button, Modal, Table, etc.)
+- `src/components/class-management/` - Class and subclass management components
+- `src/components/messaging/` - Communication and notification components
 - `.cursor/rules/most-follow-rules.mdc` - Development guidelines and best practices
 
 ### Academic Structure
@@ -104,3 +115,33 @@ The system models a hierarchical academic structure:
 - Behavior monitoring and guidance counseling
 
 This structure is consistent across all dashboard roles and should be maintained when adding new features.
+
+### Environment Configuration
+
+- **API Base URL**: Configured via `NEXT_PUBLIC_API_BASE_URL` environment variable
+- **Development default**: `http://localhost:4000/api/v1`
+- All API endpoints should follow RESTful conventions under `/api/v1/`
+
+### Development Best Practices
+
+#### From Cursor Rules (.cursor/rules/most-follow-rules.mdc):
+
+1. **Type Safety**: Define explicit interfaces, avoid `any` except in apiService, use optional chaining (`?.`) and nullish coalescing (`??`)
+
+2. **State Management**: Initialize useState with proper defaults, manage useEffect dependencies carefully, handle async operations properly
+
+3. **Routing**: Use kebab-case for URLs, protect routes with authentication checks, ensure consistent path formatting
+
+4. **API Integration**: Use centralized apiService, implement robust error handling with try-catch, provide user feedback via toasts
+
+5. **Data Structures**: Use consistent naming conventions, standardize role formatting (lowercase-kebab-case)
+
+6. **Local Storage**: Centralize localStorage keys as constants, clear data on logout, parse JSON safely with try-catch
+
+#### Component Development Guidelines
+
+- Create reusable UI components for consistency
+- Follow existing component patterns and naming conventions
+- Use semantic HTML and ARIA attributes for accessibility
+- Maintain consistent Tailwind CSS styling patterns
+- Implement proper loading states and error boundaries

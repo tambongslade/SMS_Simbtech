@@ -21,13 +21,67 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     subjects,
     teachers,
     timetables,
+    originalTimetables,
     isLoadingTimetable,
     updateTimetableSlot,
+    saveChanges,
     getTeachersBySubject,
     isTeacherAssignedElsewhere
   } = useTimetable();
 
   const [showConflictsOnly, setShowConflictsOnly] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+
+  // Function to detect changed subclasses
+  const getModifiedSubclasses = useMemo(() => {
+    const modifiedIds: string[] = [];
+    
+    Object.keys(timetables).forEach(subClassId => {
+      const current = timetables[subClassId];
+      const original = originalTimetables[subClassId];
+      
+      if (!original || !current) return;
+      
+      // Check if any slots have changed
+      const hasChanges = current.slots.some(currentSlot => {
+        const originalSlot = original.slots.find(origSlot => 
+          origSlot.day === currentSlot.day && origSlot.period === currentSlot.period
+        );
+        return !originalSlot || 
+          currentSlot.subjectId !== originalSlot.subjectId ||
+          currentSlot.teacherId !== originalSlot.teacherId;
+      });
+      
+      if (hasChanges) {
+        modifiedIds.push(subClassId);
+      }
+    });
+    
+    return modifiedIds;
+  }, [timetables, originalTimetables]);
+
+  // Function to save all changes
+  const handleSaveAllChanges = async () => {
+    if (getModifiedSubclasses.length === 0) {
+      toast("No changes detected to save.");
+      return;
+    }
+
+    setIsSaving(true);
+    
+    try {
+      // Save changes for each modified subclass sequentially
+      for (const subClassId of getModifiedSubclasses) {
+        await saveChanges(subClassId);
+      }
+      toast.success(`Successfully saved changes for ${getModifiedSubclasses.length} classes!`);
+    } catch (error) {
+      console.error("Error saving changes:", error);
+      toast.error("Failed to save some changes. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Modal state for assignment
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -255,7 +309,7 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">School-Wide Timetable View</h2>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-4">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -265,6 +319,32 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             />
             <span className="text-sm font-medium text-gray-700">Show classes with conflicts only</span>
           </label>
+          
+          {getModifiedSubclasses.length > 0 && (
+            <Button
+              onClick={handleSaveAllChanges}
+              disabled={isSaving || isLoadingTimetable}
+              color="primary"
+              className="flex items-center space-x-2"
+            >
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <span>Save Changes</span>
+                  <span className="bg-white bg-opacity-20 text-xs px-2 py-1 rounded-full">
+                    {getModifiedSubclasses.length}
+                  </span>
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -298,23 +378,33 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
                       <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-20">
                         Time
                       </th>
-                      {filteredSubClasses.map((subClass) => (
-                        <th
-                          key={subClass.id}
-                          className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r cursor-pointer hover:bg-gray-100"
-                          title={`View timetable for ${subClass.name}`}
-                          onClick={() => onClassSelect?.(subClass.id)}
-                          style={{
-                            minWidth: '100px',
-                            width: '150px',
-                            maxWidth: '150px'
-                          }}
-                        >
-                          <div className="truncate">
-                            {subClass.name}
-                          </div>
-                        </th>
-                      ))}
+                      {filteredSubClasses.map((subClass) => {
+                        const hasChanges = getModifiedSubclasses.includes(subClass.id);
+                        return (
+                          <th
+                            key={subClass.id}
+                            className={`px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r cursor-pointer hover:bg-gray-100 ${
+                              hasChanges 
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200' 
+                                : 'text-gray-500'
+                            }`}
+                            title={`${hasChanges ? '[MODIFIED] ' : ''}View timetable for ${subClass.name}`}
+                            onClick={() => onClassSelect?.(subClass.id)}
+                            style={{
+                              minWidth: '100px',
+                              width: '150px',
+                              maxWidth: '150px'
+                            }}
+                          >
+                            <div className="truncate flex items-center space-x-1">
+                              <span>{subClass.name}</span>
+                              {hasChanges && (
+                                <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" title="Has unsaved changes"></span>
+                              )}
+                            </div>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -394,7 +484,7 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             {selectedTeacher && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
                 <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> Changes will be saved locally. Use the "Save Changes" button in the class view to persist to the server.
+                  <strong>Note:</strong> Changes will be saved locally. Use the "Save Changes" button at the top to persist all changes to the server.
                 </p>
               </div>
             )}

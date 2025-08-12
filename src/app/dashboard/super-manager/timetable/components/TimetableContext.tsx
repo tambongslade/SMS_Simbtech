@@ -44,6 +44,7 @@ interface PeriodInfo {
 interface TimetableSlot {
   day: string;
   period: string;
+  periodId?: string; // Persist specific weekly slot ID for reliable saves
   subjectId?: string | null; // Allow null for clearing
   teacherId?: string | null; // Allow null for clearing
   isBreak?: boolean;
@@ -76,6 +77,7 @@ interface TimetableContextType {
   uniquePeriodNames: string[]; // Added
   daysOfWeek: string[]; // Added
   timetables: TimetablesState;
+  originalTimetables: TimetablesState; // Added for change detection
   isLoading: boolean;
   isLoadingTimetable: boolean; // Added loading state for specific timetable fetch
   fetchTimetableForSubclass: (subClassId: string) => Promise<void>; // Added function signature
@@ -136,6 +138,7 @@ const createInitialTimetableStructure = (subClassId: string, weeklySlots: Period
   const slots: TimetableSlot[] = weeklySlots.map(ws => ({
     day: ws.dayOfWeek || '', // Assuming dayOfWeek field from example
     period: ws.name,
+    periodId: String(ws.id),
     subjectId: undefined,
     teacherId: undefined,
     isBreak: ws.isBreak,
@@ -473,14 +476,22 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       const newTimetablesState: TimetablesState = {};
 
-      // Group slots by subClassId to fit the TimetablesState structure
+      // FIRST: Initialize base structure for ALL subclasses
+      subClasses.forEach(subClass => {
+        newTimetablesState[subClass.id] = createInitialTimetableStructure(subClass.id, allWeeklySlots);
+      });
+
+      // SECOND: Apply assigned slots from API response
       fullTimetableSlots.forEach(apiSlot => {
         const subClassId = String(apiSlot.subClassId);
+        
+        // Ensure we have a base structure (in case API has subclass not in our subClasses list)
         if (!newTimetablesState[subClassId]) {
-          // Initialize the base structure using allWeeklySlots for consistency
           newTimetablesState[subClassId] = createInitialTimetableStructure(subClassId, allWeeklySlots);
-          newTimetablesState[subClassId].classId = String(apiSlot.classId); // Ensure classId is set
         }
+        
+        // Set classId from API data
+        newTimetablesState[subClassId].classId = String(apiSlot.classId);
 
         const targetSlotIndex = newTimetablesState[subClassId].slots.findIndex(baseSlot =>
           baseSlot.day === apiSlot.day && baseSlot.period === apiSlot.periodName
@@ -496,11 +507,14 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
             subjectName: subject?.name || null,
             teacherName: teacher?.name || null,
           };
+        } else {
+          console.warn(`Could not find slot for ${apiSlot.day} - ${apiSlot.periodName} in subclass ${subClassId}`);
         }
       });
 
+      console.log("Final timetables state:", newTimetablesState);
       setTimetables(newTimetablesState);
-      setOriginalTimetables(newTimetablesState);
+      setOriginalTimetables({ ...newTimetablesState }); // Deep copy for original state
 
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
@@ -510,7 +524,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoadingTimetable(false);
     }
-  }, [allWeeklySlots, subjects, teachers, selectedAcademicYearId, setIsLoadingTimetable, setError, setTimetables, setOriginalTimetables]);
+  }, [allWeeklySlots, subjects, teachers, selectedAcademicYearId, subClasses]);
 
   // Function to update a single timetable slot locally
   const updateTimetableSlot = useCallback((
@@ -520,36 +534,50 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     subjectId: string | null,
     teacherId: string | null
   ) => {
+    console.log(`Updating slot: ${subClassId} - ${day} ${period} - Subject: ${subjectId}, Teacher: ${teacherId}`);
+    
     setTimetables(prev => {
       const classTimetable = prev[subClassId];
-      if (!classTimetable) return prev;
+      if (!classTimetable) {
+        console.warn(`No timetable found for subClassId: ${subClassId}`);
+        return prev;
+      }
 
       // Find names for display
-      const subjectName = subjects.find(s => String(s.id) === subjectId)?.name || null;
-      const teacherName = teachers.find(t => String(t.id) === teacherId)?.name || null;
+      const subjectName = subjectId ? subjects.find(s => String(s.id) === String(subjectId))?.name || null : null;
+      const teacherName = teacherId ? teachers.find(t => String(t.id) === String(teacherId))?.name || null : null;
+
+      console.log(`Resolved names - Subject: ${subjectName}, Teacher: ${teacherName}`);
 
       const updatedSlots = classTimetable.slots.map(slot => {
         if (slot.day === day && slot.period === period) {
-          return {
+          const weeklySlot = allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === period);
+          const updatedSlot = {
             ...slot,
             subjectId,
             teacherId,
+            periodId: weeklySlot ? String(weeklySlot.id) : slot.periodId,
             subjectName, // Update derived name
             teacherName, // Update derived name
           };
+          console.log(`Updated slot:`, updatedSlot);
+          return updatedSlot;
         }
         return slot;
       });
 
-      return {
+      const newState = {
         ...prev,
         [subClassId]: {
           ...classTimetable,
           slots: updatedSlots,
         },
       };
+      
+      console.log(`New timetable state for ${subClassId}:`, newState[subClassId]);
+      return newState;
     });
-  }, [setTimetables, subjects, teachers]);
+  }, [subjects, teachers, allWeeklySlots]);
 
   // Function to save changes for a specific subclass to the backend
   const saveChanges = useCallback(async (subClassId: string) => {
@@ -572,33 +600,24 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     // Find changed slots (excluding breaks)
     const changedSlotsPayload = currentSlots
       .filter(currentSlot => {
-        const periodInfo = allWeeklySlots.find(p => p.name === currentSlot.period);
-        if (periodInfo?.isBreak) return false;
-
+        if (currentSlot.isBreak) return false;
         const originalSlot = originalSlots.find(origSlot =>
           origSlot.day === currentSlot.day && origSlot.period === currentSlot.period
         );
-
         return !originalSlot ||
           currentSlot.subjectId !== originalSlot.subjectId ||
           currentSlot.teacherId !== originalSlot.teacherId;
       })
       .map(slot => {
-        // ** CRUCIAL MAPPING **
-        // Find the specific weekly slot ID from allWeeklySlots based on day and period name
-        const weeklySlot = allWeeklySlots.find(ws => ws.dayOfWeek === slot.day && ws.name === slot.period);
-        const specificPeriodId = weeklySlot ? weeklySlot.id : null; // Get the unique ID for this day/period combo
-
-        // DIAGNOSTIC LOG:
+        const specificPeriodId = slot.periodId || allWeeklySlots.find(ws => ws.dayOfWeek === slot.day && ws.name === slot.period)?.id || null;
         console.log(`SAVE MAPPING: Day=${slot.day}, PeriodName=${slot.period}, FoundPeriodID=${specificPeriodId}, Slot=`, slot);
-
         return {
           periodId: specificPeriodId ? Number(specificPeriodId) : null,
           subjectId: slot.subjectId ? Number(slot.subjectId) : null,
           teacherId: slot.teacherId ? Number(slot.teacherId) : null,
         }
       })
-      .filter(slot => slot.periodId !== null); // Filter out slots where period ID mapping failed
+      .filter(slot => slot.periodId !== null);
 
     if (changedSlotsPayload.length === 0) {
       toast("No changes detected to save.");
@@ -664,10 +683,13 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       // Log successful counts for debugging/confirmation
       console.log(`Timetable save summary: Updated ${result.data?.updated || 0}, Created ${result.data?.created || 0}, Deleted ${result.data?.deleted || 0}`);
 
-      // IMPORTANT: Update original state on successful save
+      // IMPORTANT: Refetch the full school timetable to ensure UI is synchronized with server
+      await fetchFullSchoolTimetable();
+
+      // Update original state to match refreshed data - use a state updater function
       setOriginalTimetables(prev => ({
         ...prev,
-        [subClassId]: { ...currentTimetable } // Set original to current working copy
+        [subClassId]: { ...currentTimetable } // Keep current changes as the new baseline
       }));
 
     } catch (err: any) {
@@ -745,6 +767,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       uniquePeriodNames,
       daysOfWeek,
       timetables,
+      originalTimetables,
       isLoading,
       isLoadingTimetable,
       fetchTimetableForSubclass,

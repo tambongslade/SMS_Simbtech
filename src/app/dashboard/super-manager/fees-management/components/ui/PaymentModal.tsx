@@ -21,6 +21,7 @@ interface PaymentModalProps {
   handleAddStudentWithPayment?: (newStudent: NewStudent) => Promise<void>;
   isLoading: boolean;
   students: Student[];
+  setSelectedStudent: (student: Student | null) => void;
 }
 
 export const PaymentModal: React.FC<PaymentModalProps> = ({
@@ -38,7 +39,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   handlePayment,
   handleAddStudentWithPayment,
   isLoading,
-  students
+  students,
+  setSelectedStudent
 }) => {
   if (!isOpen) return null;
 
@@ -175,6 +177,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleExistingStudentSelect = (student: Student) => {
     setSelectedExistingStudent(student);
+    setSelectedStudent(student);
     setSearchResults([]);
     setSearchTerm('');
   };
@@ -244,7 +247,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const banks = ['Express Union', 'CCA', '3DC'];
+  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC'];
 
   // Styled student type selector as button group
   const studentTypeSelector = (
@@ -352,12 +355,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <input type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    <option value="">Select Bank</option>
-                    <option value="Express Union">Express Union</option>
+                    <option value="">Select Method</option>
+                    <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
-                    <option value="3DC">3DC</option>
+                    <option value="F3DC">F3DC</option>
                   </select>
                 </div>
               </div>
@@ -389,6 +392,18 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   placeholder="Type at least 3 characters..."
                   disabled={isLoading || !!selectedExistingStudent}
                 />
+                {selectedExistingStudent && (
+                  <div className="flex items-center justify-between p-2 border rounded bg-gray-50">
+                    <span className="text-sm text-gray-700">Selected: {selectedExistingStudent.name} ({selectedExistingStudent.admissionNumber})</span>
+                    <button
+                      type="button"
+                      className="text-blue-600 text-sm"
+                      onClick={() => { setSelectedExistingStudent(null); setSelectedStudent(null); }}
+                    >
+                      Change
+                    </button>
+                  </div>
+                )}
                 {/* Search Results */}
                 {searchResults.length > 0 && !selectedExistingStudent && (
                   <div className="mt-2 border border-gray-200 rounded-md max-h-40 overflow-y-auto">
@@ -420,12 +435,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
-                    <option value="">Select Bank</option>
-                    <option value="Express Union">Express Union</option>
+                    <option value="">Select Method</option>
+                    <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
-                    <option value="3DC">3DC</option>
+                    <option value="F3DC">F3DC</option>
                   </select>
                 </div>
               </div>

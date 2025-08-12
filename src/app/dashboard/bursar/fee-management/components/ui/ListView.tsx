@@ -2,6 +2,28 @@
 
 import { Student } from "../../types";
 
+// Helper function to format class/subclass display
+const formatClassDisplay = (student: Student): string => {
+  if (student.subclass) {
+    // Student is enrolled in a subclass
+    return `${student.class} - ${student.subclass}`;
+  } else if (student.class) {
+    // Student has class but no subclass (not fully enrolled)
+    return `${student.class} (Class Only)`;
+  }
+  return 'N/A';
+};
+
+// Helper function to get styling for enrollment status
+const getEnrollmentStatusStyle = (student: Student): string => {
+  if (student.subclass) {
+    return 'text-gray-500'; // Fully enrolled - normal style
+  } else if (student.class) {
+    return 'text-orange-500 font-medium'; // Class only - warning style
+  }
+  return 'text-gray-500'; // No class info
+};
+
 interface ListViewProps {
   students: Student[];
   onRecordPayment: (student: Student) => void;
@@ -18,7 +40,7 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
               Name
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Class
+              Class / Subclass
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Expected Fees
@@ -43,8 +65,8 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                 {student.name}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {student.class}
+              <td className={`px-6 py-4 whitespace-nowrap text-sm ${getEnrollmentStatusStyle(student)}`}>
+                {formatClassDisplay(student)}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                 {student.expectedFees.toLocaleString("en-US", {

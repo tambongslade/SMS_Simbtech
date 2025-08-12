@@ -5,11 +5,13 @@ import { useStudentFees } from '../hooks/useStudentFees';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
 import { CurrencyDollarIcon, CalendarIcon, CheckCircleIcon, ExclamationTriangleIcon, ClockIcon } from '@heroicons/react/24/outline';
 
-interface ParentStudentFeesPageProps {
-    studentId: number;
-}
-
-const ParentStudentFeesPage: FC<ParentStudentFeesPageProps> = ({ studentId }) => {
+const ParentStudentFeesPage: FC = () => {
+    // In a real implementation, you would get studentId from:
+    // 1. URL parameters (useParams)
+    // 2. User context/auth
+    // 3. Local storage
+    // For now, using a default value
+    const studentId = 1; // This should be dynamically determined
     const { data, isLoading, error } = useStudentFees(studentId);
 
     if (isLoading) {

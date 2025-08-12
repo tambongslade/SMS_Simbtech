@@ -2,6 +2,7 @@ export interface Student {
     id: string;
     name: string;
     class: string;
+    classId?: string; // Added: top-level class id for filtering
     expectedFees: number;
     paidFees: number;
     lastPaymentDate?: string;

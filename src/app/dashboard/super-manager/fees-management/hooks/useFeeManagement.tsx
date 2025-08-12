@@ -42,7 +42,7 @@ export const useFeeManagement = () => {
   // Payment Form State
   const [selectedPaymentType, setSelectedPaymentType] = useState('full');
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentDescription, setPaymentDescription] = useState('');
   // Add Student Form State
   const [newStudent, setNewStudent] = useState<NewStudent>({
@@ -98,9 +98,9 @@ export const useFeeManagement = () => {
   const { data: classesResult, error: classesErrorSWR, isLoading: isLoadingClassesSWR } = useSWR<{ data: Class[] }>('/classes?includeSubClasses=true', fetcher);
   const classesList = useMemo(() => classesResult?.data || [], [classesResult]);
 
-  // 5. Fetch Fee Records (Dependent on Current Academic Year and Filters) - Updated to use improved API
+  // 5. Fetch Fee Records (Dependent on Current Academic Year and Filters)
   const feeRecordsKey = currentAcademicYear
-    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=100${selectedClass !== 'all' ? `&subClassId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=100${selectedClass !== 'all' ? `&classId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
     : null;
 
   const {
@@ -110,14 +110,11 @@ export const useFeeManagement = () => {
     mutate: mutateFeeRecords
   } = useSWR<{ data: { data: any[], meta?: any } }>(feeRecordsKey, fetcher);
 
-  // Helper to find subclass name (needed for mapping)
-  const findSubClassNameById = useCallback((subClassId: number | string | undefined): string | undefined => {
-    if (!subClassId || !classesList) return undefined;
-    for (const cls of classesList) {
-      const subClass = cls.subClasses?.find(sc => sc.id === Number(subClassId));
-      if (subClass) return subClass.name;
-    }
-    return undefined;
+  // Helper to find class name by id (for display) if needed
+  const findClassNameById = useCallback((classId: number | string | undefined): string | undefined => {
+    if (!classId || !classesList) return undefined;
+    const found = classesList.find(c => c.id === Number(classId));
+    return found?.name;
   }, [classesList]);
 
   // Process Fee Records Data
@@ -129,13 +126,14 @@ export const useFeeManagement = () => {
 
     return records.map((feeRecord: any): Student => {
       const studentData = feeRecord.enrollment?.student;
-      const subClassId = feeRecord.enrollment?.subClassId;
-      const subClassName = findSubClassNameById(subClassId);
+      const classId = feeRecord.enrollment?.classId;
+      const className = feeRecord.enrollment?.class?.name || findClassNameById(classId) || 'N/A';
       return {
         id: studentData?.id?.toString() || feeRecord.id.toString(),
         name: studentData?.name || 'Unknown Student',
         admissionNumber: studentData?.matricule || 'N/A',
-        class: subClassName || 'N/A',
+        class: className,
+        classId: classId ? String(classId) : undefined,
         expectedFees: feeRecord.amountExpected || 0,
         paidFees: feeRecord.amountPaid || 0,
         balance: (feeRecord.amountExpected || 0) - (feeRecord.amountPaid || 0),
@@ -152,7 +150,7 @@ export const useFeeManagement = () => {
         feeId: feeRecord.id,
       };
     });
-  }, [feeRecordsResult, findSubClassNameById]);
+  }, [feeRecordsResult, findClassNameById]);
 
   // --- Consolidated Loading and Error State --- 
   const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || (!currentAcademicYear && !allYearsErrorSWR);
@@ -182,10 +180,9 @@ export const useFeeManagement = () => {
         student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    // Client-side class filter (might be redundant if API filters perfectly)
+    // Client-side class filter (by classId)
     if (selectedClass !== 'all') {
-      const selectedSubClassName = findSubClassNameById(selectedClass);
-      if (selectedSubClassName) { filtered = filtered.filter(student => student.class === selectedSubClassName); }
+      filtered = filtered.filter(student => student.classId === String(selectedClass));
     }
     // Payment status filter
     if (selectedPaymentStatus !== 'all') { filtered = filtered.filter(student => student.status === selectedPaymentStatus); }
@@ -205,7 +202,7 @@ export const useFeeManagement = () => {
         : (bValue as number) - (aValue as number);
     });
     return filtered;
-  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus, findSubClassNameById]);
+  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus]);
 
   // --- Placeholder Export Handlers --- (Keep as is for now)
   const handleExport = async (format: 'pdf' | 'excel') => {
@@ -215,7 +212,7 @@ export const useFeeManagement = () => {
     const params = new URLSearchParams({
       format: format,
       academicYearId: activeAcademicYear?.id?.toString() || '',
-      subClassId: selectedClass === 'all' ? '' : selectedClass,
+      classId: selectedClass === 'all' ? '' : selectedClass,
       termId: selectedTerm === 'all' ? '' : selectedTerm,
       status: selectedPaymentStatus === 'all' ? '' : selectedPaymentStatus,
       search: searchQuery,
@@ -288,7 +285,7 @@ export const useFeeManagement = () => {
 
   const resetPaymentForm = () => {
     setPaymentAmount('');
-    setPaymentMethod('cash');
+    setPaymentMethod('');
     setPaymentDescription('');
     setSelectedPaymentType('full');
   };
@@ -395,7 +392,7 @@ export const useFeeManagement = () => {
     });
 
     // Add optional filters
-    if (selectedClass !== 'all') params.append('subClassId', selectedClass);
+    if (selectedClass !== 'all') params.append('classId', selectedClass);
     if (selectedPaymentStatus !== 'all') params.append('paymentStatus', selectedPaymentStatus.toLowerCase());
     if (searchQuery) params.append('studentIdentifier', searchQuery);
 

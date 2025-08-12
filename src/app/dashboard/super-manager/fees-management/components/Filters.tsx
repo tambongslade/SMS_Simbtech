@@ -47,13 +47,8 @@ export const Filters = ({
 }: FiltersProps) => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
 
-  // Flatten classes to get a list of all subclasses for the dropdown
-  const allSubClasses: SubClass[] = classes.reduce((acc: SubClass[], currentClass) => {
-    if (currentClass.subClasses && currentClass.subClasses.length > 0) {
-      return acc.concat(currentClass.subClasses);
-    }
-    return acc;
-  }, []);
+  // Prepare class options (top-level classes only)
+  const allClasses = classes;
 
   const handleSubclassSummary = () => {
     if (selectedClass && selectedClass !== 'all' && onShowSubclassSummary) {
@@ -94,9 +89,9 @@ export const Filters = ({
           onChange={(e) => setSearchQuery(e.target.value)}
         />
 
-        {/* Class Filter - Populated from fetched data */}
+        {/* Class Filter - Top-level classes */}
         <select
-          value={selectedClass} // Expects SubClass ID
+          value={selectedClass} // Expects Class ID
           onChange={(e) => setSelectedClass(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           disabled={isLoadingClasses} // Disable while loading
@@ -105,9 +100,9 @@ export const Filters = ({
           {isLoadingClasses ? (
             <option value="" disabled>Loading classes...</option>
           ) : (
-            allSubClasses.map((subClass) => (
-              <option key={subClass.id} value={subClass.id}>
-                {subClass.name}
+            allClasses.map((cls) => (
+              <option key={cls.id} value={cls.id}>
+                {cls.name}
               </option>
             ))
           )}
@@ -150,15 +145,15 @@ export const Filters = ({
 
       {/* Actions Row */}
       <div className="flex justify-between items-center">
-        {/* Left side - Subclass Summary */}
+        {/* Left side - Class Summary (optional) */}
         <div>
-          {selectedClass && selectedClass !== 'all' && (
+          {selectedClass && selectedClass !== 'all' && onShowSubclassSummary && (
             <button
               onClick={handleSubclassSummary}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <ChartBarIcon className="h-5 w-5" />
-              Subclass Summary
+              Class Summary
             </button>
           )}
         </div>

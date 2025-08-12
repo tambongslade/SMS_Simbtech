@@ -66,8 +66,17 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   }, [allWeeklySlots]);
 
   // Get the current timetable for the selected class from full school data
-  const currentTimetable = timetables[selectedSubClassId];
-  const slots = currentTimetable?.slots || [];
+  const currentTimetable = useMemo(() => {
+    const timetable = timetables[selectedSubClassId];
+    console.log(`TimetableGrid - Current timetable for ${selectedSubClassId}:`, timetable);
+    return timetable;
+  }, [timetables, selectedSubClassId]);
+  
+  const slots = useMemo(() => {
+    const slotsArray = currentTimetable?.slots || [];
+    console.log(`TimetableGrid - Slots for ${selectedSubClassId}:`, slotsArray);
+    return slotsArray;
+  }, [currentTimetable, selectedSubClassId]);
 
   // Function to get a slot assignment for a specific day and period name
   const getSlotAssignment = (day: string, periodName: string) => {
@@ -157,6 +166,8 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
 
     const periodName = dayPeriod.name;
     const assignment = getSlotAssignment(day, periodName);
+
+    console.log(`Rendering cell for ${day} ${periodName}:`, { assignment, dayPeriod });
 
     // Determine background color based on assignment and conflicts
     const conflict = assignment?.teacherId ? isTeacherAssignedElsewhere(assignment.teacherId, day, periodName, selectedSubClassId) : null;

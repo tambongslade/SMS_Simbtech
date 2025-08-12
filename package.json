@@ -1,12 +1,24 @@
 {
   "name": "school-management-system",
   "version": "0.1.0",
+  "description": "A comprehensive school management system for managing students, teachers, fees, and academic activities",
+  "main": "electron/main.js",
+  "author": "SMS Simbtech",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "export": "next build",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3001 && electron .\"",
+    "electron-build": "npm run export && electron-builder",
+    "build-electron": "npm run export && electron-builder --publish=never",
+    "dist": "npm run export && electron-builder --publish=always",
+    "pack": "npm run export && electron-builder --dir",
+    "create-icons": "node scripts/create-icons.js",
+    "dev-desktop": "node scripts/dev-start.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.1",
@@ -26,10 +38,97 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^9.2.0",
+    "electron": "^37.2.6",
+    "electron-builder": "^26.0.12",
+    "electron-updater": "^6.6.2",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wait-on": "^8.0.4"
+  },
+  "build": {
+    "appId": "com.simbtech.sms",
+    "productName": "SMS Simbtech",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "extraFiles": [
+      {
+        "from": "public",
+        "to": "public",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "SMS Simbtech"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "category": "public.app-category.education"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Education"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "SMS Simbtech"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "simbtech",
+      "repo": "sms-desktop"
+    }
   }
 }

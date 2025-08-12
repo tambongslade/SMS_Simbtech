@@ -1,6 +1,29 @@
 "use client";
 
 import { Student } from '../../types';
+import { StudentPhoto } from '@/components/ui/StudentPhoto';
+
+// Helper function to format class/subclass display
+const formatClassDisplay = (student: Student): string => {
+  if (student.subclass) {
+    // Student is enrolled in a subclass
+    return `${student.class} - ${student.subclass}`;
+  } else if (student.class) {
+    // Student has class but no subclass (not fully enrolled)
+    return `${student.class} (Class Only)`;
+  }
+  return 'N/A';
+};
+
+// Helper function to get styling for enrollment status
+const getEnrollmentStatusStyle = (student: Student): string => {
+  if (student.subclass) {
+    return 'text-gray-400'; // Fully enrolled - normal style
+  } else if (student.class) {
+    return 'text-orange-500'; // Class only - warning style
+  }
+  return 'text-gray-400'; // No class info
+};
 
 interface CardViewProps {
   students: Student[];
@@ -41,7 +64,9 @@ export const CardView: React.FC<CardViewProps> = ({
               <div>
                 <h3 className="text-lg font-semibold">{student.name}</h3>
                 <p className="text-sm text-gray-500">{student.admissionNumber}</p>
-                <p className="text-xs text-gray-400">Class {student.class}</p>
+                <p className={`text-xs ${getEnrollmentStatusStyle(student)}`}>
+                  {formatClassDisplay(student)}
+                </p>
               </div>
             </div>
             <span className={`px-2 py-1 text-xs font-semibold rounded-full 

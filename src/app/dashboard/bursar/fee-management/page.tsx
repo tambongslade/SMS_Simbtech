@@ -172,6 +172,7 @@ export default function FeeManagementPage() {
             resetPaymentForm();
           }}
           student={selectedStudent}
+          setSelectedStudent={setSelectedStudent}
           selectedPaymentType={selectedPaymentType}
           setSelectedPaymentType={setSelectedPaymentType}
           paymentAmount={paymentAmount}
