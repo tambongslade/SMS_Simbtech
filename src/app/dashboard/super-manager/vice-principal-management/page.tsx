@@ -188,10 +188,12 @@ export default function VicePrincipalManagement() {
         setEditVpFormData({});
     };
 
-    const handleUpdateVp = async (vpId: number, updatedData: VicePrincipalEditableFields) => {
+    const handleUpdateVp = async () => {
+        if (!editingVp) return;
+
         setIsLoading(true);
         try {
-            await apiService.put(`/users/${vpId}`, updatedData);
+            await apiService.put(`/users/${editingVp.id}`, editVpFormData);
             toast.success(`Vice Principal updated successfully.`);
             closeEditVpModal();
             fetchData(); // Refresh data
@@ -365,9 +367,12 @@ export default function VicePrincipalManagement() {
                     isOpen={isEditVpModalOpen}
                     onClose={closeEditVpModal}
                     onSubmit={handleUpdateVp}
-                    vpData={editingVp}
-                    formData={editVpFormData}
-                    setFormData={setEditVpFormData}
+                    vicePrincipalData={editVpFormData}
+                    onInputChange={(e) => {
+                        const { name, value } = e.target;
+                        setEditVpFormData(prev => ({ ...prev, [name]: value }));
+                    }}
+                    editingVicePrincipalName={editingVp.name}
                     isLoading={isLoading}
                 />
             )}

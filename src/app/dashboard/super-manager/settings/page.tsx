@@ -181,7 +181,7 @@ export default function SettingsPage() {
                                                 <Button size="sm" onClick={() => handleAddEdit(year)}>
                                                     Edit
                                                 </Button>
-                                                <Button size="sm" variant="danger" onClick={() => handleDelete(year.id)}>
+                                                <Button size="sm" color="danger" onClick={() => handleDelete(year.id)}>
                                                     Delete
                                                 </Button>
                                             </td>
@@ -226,7 +226,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
-                    <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                    <Button color="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
                     <Button onClick={handleSubmit}>
                         {editingYear ? 'Update' : 'Add'} Academic Year
                     </Button>
