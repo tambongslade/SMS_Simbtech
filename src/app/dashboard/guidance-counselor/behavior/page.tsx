@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ExclamationCircleIcon, CheckCircleIcon, TrashIcon, PlusIcon, ShieldExclamationIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
@@ -94,7 +94,8 @@ const mockBehaviorRecords: BehaviorRecord[] = [
   },
 ];
 
-export default function BehaviorPage() {
+// Component that uses useSearchParams - needs to be wrapped in Suspense
+function BehaviorPageContent() {
   const searchParams = useSearchParams();
   const studentIdParam = searchParams.get('studentId');
   const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -729,4 +730,37 @@ export default function BehaviorPage() {
       </div>
     </div>
   );
-} 
+}
+
+// Loading component for Suspense fallback
+function BehaviorPageLoading() {
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <div className="animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2 mb-6"></div>
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="h-4 bg-gray-200 rounded w-1/6 mb-2"></div>
+          <div className="h-10 bg-gray-200 rounded mb-4"></div>
+        </div>
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="space-y-4">
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function BehaviorPage() {
+  return (
+    <Suspense fallback={<BehaviorPageLoading />}>
+      <BehaviorPageContent />
+    </Suspense>
+  );
+}
