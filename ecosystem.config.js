@@ -1,6 +1,6 @@
 module.exports = {
   apps: [{
-    name: 'sms-simbtech',
+    name: 'ssic-sms-ui',
     script: 'npm',
     args: 'start',
     cwd: '/var/www/SMS_Simbtech',
