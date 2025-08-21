@@ -347,7 +347,7 @@ export const useFeeManagement = () => {
   const fetchFeeTransactions = async (feeId: number | string) => {
     setIsLoadingTransactions(true);
     try {
-      const response = await apiService.get(`/fees/${feeId}/transactions`);
+      const response = await apiService.get(`/fees/${feeId}/payments`);
       setTransactions(response.data);
     } catch (error: any) {
       console.error("Error fetching transactions:", error);
