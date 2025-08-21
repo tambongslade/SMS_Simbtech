@@ -66,7 +66,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/principal/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/principal/messaging' },
     { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
-    { icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/principal/reports' },
+    // { icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/principal/reports' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
   ],
   bursar: [
