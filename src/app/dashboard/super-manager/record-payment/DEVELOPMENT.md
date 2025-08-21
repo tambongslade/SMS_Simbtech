@@ -167,16 +167,17 @@ Response: {
 
 ### 2. Payments Endpoint
 ```
-GET /api/v1/payments
-POST /api/v1/payments
+GET /api/v1/fees/:feeId/payments
+POST /api/v1/fees/:feeId/payments
 
 POST Body: {
-  student_id: number,
-  bank: string,
-  date_paid: string,
-  amount_paid: number,
-  payment_matricule: string,
-  payment_reference?: string
+  amount: number,
+  paymentDate: string,
+  receiptNumber: string,
+  paymentMethod: string,
+  studentId?: number,
+  academicYearId?: number,
+  enrollmentId?: number
 }
 ```
 

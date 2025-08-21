@@ -261,10 +261,12 @@ export const useFeeManagement = () => {
     }
 
     const paymentPayload = {
-      studentId: selectedStudent.id,
       amount: amount,
-      paymentDate: new Date().toISOString(),
+      paymentDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
       paymentMethod: paymentMethod.toUpperCase(),
+      studentId: selectedStudent.id,
+      academicYearId: currentAcademicYear?.id,
     };
 
     try {

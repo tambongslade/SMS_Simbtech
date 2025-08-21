@@ -253,16 +253,16 @@ export const useFeeManagement = () => {
     setIsMutating(true);
     setMutationError(null);
     const paymentData = {
-      feeId: selectedStudent.feeId,
       amount: parseFloat(paymentAmount),
+      paymentDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
       paymentMethod,
-      paymentType: selectedPaymentType,
-      description: paymentDescription,
+      studentId: selectedStudent.id,
       academicYearId: currentAcademicYear.id,
     };
 
     try {
-      const response = await apiService.post('/payments', paymentData);
+      const response = await apiService.post(`/fees/${selectedStudent.feeId}/payments`, paymentData);
       toast.success("Payment recorded successfully!");
       mutateFeeRecords(); // Revalidate fee records after payment
       resetPaymentForm();

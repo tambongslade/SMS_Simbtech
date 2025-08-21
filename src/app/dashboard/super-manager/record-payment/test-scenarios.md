@@ -112,19 +112,19 @@ GET /api/v1/students
 ### 2. Payments Endpoint
 ```bash
 # Test payments fetch
-GET /api/v1/payments
+GET /api/v1/fees/:feeId/payments
 
 # Test payment creation
-POST /api/v1/payments
+POST /api/v1/fees/:feeId/payments
 Content-Type: application/json
 
 {
-  "student_id": 1,
-  "bank": "express_union",
-  "date_paid": "2024-01-15",
-  "amount_paid": 50000,
-  "payment_matricule": "PAY123456789",
-  "payment_reference": "TXN123"
+  "amount": 50000,
+  "paymentDate": "2024-01-15",
+  "receiptNumber": "RCP123456789",
+  "paymentMethod": "CASH",
+  "studentId": 1,
+  "academicYearId": 2024
 }
 ```
 
