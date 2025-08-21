@@ -2,226 +2,275 @@
 
 import React, { useState, useMemo } from 'react';
 import { Button } from "@/components/ui";
+import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui";
+import { Select } from "@/components/ui";
 import { toast } from "react-hot-toast";
 import { useTimetable } from './TimetableContext';
 
-// Period times mapping (same as in TimetableGrid)
-const PERIOD_TIMES: { [key: string]: string } = {
-  'Period 1': '07:30-8:25',
-  'Period 2': '8:25-09:20',
-  'Period 3': '09:20-10:15',
-  'Period 4': '10:15-10:30', // Break
-  'Period 5': '10:30-11:25',
-  'Period 6': '11:25-12:20',
-  'Lunch': '12:20-12:50', // Break
-  'Period 7': '12:50-1:45',
-  'Period 8': '1:45-2:40',
-  'Period 9': '2:40-3:25',
-  'Period 10': '3:35-3:45', // Break
-  'Period 11': '3:45-4:45',
-  'Period 12': '4:45-5:30',
-};
-
-// Days of the week for the timetable
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+// Days of the week for the timetable (ordered)
+const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 
 interface SchoolTimetableViewProps {
-  onClassSelect?: (classId: string) => void;
+  onClassSelect?: (subClassId: string) => void;
 }
 
 const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect }) => {
-  const { 
-    classes, 
+  const {
+    allWeeklySlots,
+    subClasses,
     subjects,
     teachers,
-    timetables, 
+    timetables,
+    isLoadingTimetable,
+    updateTimetableSlot,
     getTeachersBySubject,
     isTeacherAssignedElsewhere
   } = useTimetable();
 
-  const [activeClass, setActiveClass] = useState<string | null>(null);
   const [showConflictsOnly, setShowConflictsOnly] = useState<boolean>(false);
-  const [compactView, setCompactView] = useState<boolean>(true);
 
-  // Get all periods from all timetables
-  const periods = useMemo(() => {
-    const allPeriods = new Set<string>();
-    
-    // Collect all unique periods from all timetables
-    Object.values(timetables).forEach(timetable => {
-      timetable.slots.forEach(slot => {
-        allPeriods.add(slot.period);
-      });
-    });
-    
-    // Sort periods
-    return Array.from(allPeriods).sort((a, b) => {
-      // Keep "Lunch" after Period 6
-      if (a === "Lunch") return b.startsWith("Period") && parseInt(b.replace("Period ", "")) <= 6 ? 1 : -1;
-      if (b === "Lunch") return a.startsWith("Period") && parseInt(a.replace("Period ", "")) <= 6 ? -1 : 1;
-      
-      // Standard period sorting - extract numbers for proper numeric sorting
-      const aNum = a.startsWith("Period") ? parseInt(a.replace("Period ", "")) : 999;
-      const bNum = b.startsWith("Period") ? parseInt(b.replace("Period ", "")) : 999;
-      return aNum - bNum;
-    });
-  }, [timetables]);
+  // Modal state for assignment
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingSubClassId, setEditingSubClassId] = useState('');
+  const [editingDay, setEditingDay] = useState('');
+  const [editingPeriod, setEditingPeriod] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [availableTeachers, setAvailableTeachers] = useState<{ id: string; name: string }[]>([]);
 
-  // Find teacher conflicts
+  // Organize periods by day and sort by time
+  const organizedPeriods = useMemo(() => {
+    const dayGroups: { [day: string]: any[] } = {};
+
+    DAYS_ORDER.forEach(day => {
+      dayGroups[day] = allWeeklySlots
+        .filter(slot => slot.dayOfWeek === day)
+        .sort((a, b) => {
+          // Sort by start time
+          if (!a.startTime && !b.startTime) return 0;
+          if (!a.startTime) return 1;
+          if (!b.startTime) return -1;
+          return a.startTime.localeCompare(b.startTime);
+        });
+    });
+
+    return dayGroups;
+  }, [allWeeklySlots]);
+
+  // Calculate teacher conflicts
   const teacherConflicts = useMemo(() => {
     const conflicts: { [day: string]: { [period: string]: { [teacherId: string]: string[] } } } = {};
-    
-    // Initialize the days and periods
-    DAYS.forEach(day => {
+
+    DAYS_ORDER.forEach(day => {
       conflicts[day] = {};
-      periods.forEach(period => {
-        conflicts[day][period] = {};
+      allWeeklySlots.forEach(slot => {
+        if (slot.dayOfWeek === day) {
+          conflicts[day][slot.name] = {};
+        }
       });
     });
-    
-    // Check each timetable for conflicts
-    Object.entries(timetables).forEach(([classId, timetable]) => {
+
+    Object.entries(timetables).forEach(([subClassId, timetable]) => {
+      if (!timetable || !timetable.slots) return;
       timetable.slots.forEach(slot => {
-        if (slot.teacherId && !slot.isBreak) {
-          // If this teacher is already assigned to this time slot in another class, add to conflicts
-          if (!conflicts[slot.day][slot.period][slot.teacherId]) {
-            conflicts[slot.day][slot.period][slot.teacherId] = [classId];
+        const slotDef = allWeeklySlots.find(ws => ws.dayOfWeek === slot.day && ws.name === slot.period);
+        if (slot.teacherId && !slotDef?.isBreak) {
+          const day = slot.day;
+          const period = slot.period;
+          if (!conflicts[day]?.[period]) {
+            return;
+          }
+          if (!conflicts[day][period][slot.teacherId]) {
+            conflicts[day][period][slot.teacherId] = [subClassId];
           } else {
-            conflicts[slot.day][slot.period][slot.teacherId].push(classId);
+            if (!conflicts[day][period][slot.teacherId].includes(subClassId)) {
+              conflicts[day][period][slot.teacherId].push(subClassId);
+            }
           }
         }
       });
     });
-    
+
     return conflicts;
-  }, [timetables, periods]);
-  
-  // Function to get the subject and teacher for a specific class, day, and period
-  const getSlotInfo = (classId: string, day: string, period: string) => {
-    const timetable = timetables[classId];
-    if (!timetable) return { subjectId: '', teacherId: '' };
-    
-    const slot = timetable.slots.find(s => s.day === day && s.period === period);
-    if (!slot) return { subjectId: '', teacherId: '' };
-    
-    return { 
-      subjectId: slot.subjectId || '', 
-      teacherId: slot.teacherId || '',
-      isBreak: slot.isBreak
-    };
+  }, [timetables, allWeeklySlots]);
+
+  const getSlotAssignmentInfo = (subClassId: string, day: string, periodName: string) => {
+    const timetable = timetables[subClassId];
+    if (!timetable || !timetable.slots) return { subjectId: null, teacherId: null, subjectName: null, teacherName: null };
+
+    const slot = timetable.slots.find(s => s.day === day && s.period === periodName);
+    return slot || { subjectId: null, teacherId: null, subjectName: null, teacherName: null };
   };
-  
-  // Function to get the subject name
-  const getSubjectName = (subjectId: string) => {
-    const subject = subjects.find(s => s.id === subjectId);
-    return subject ? subject.name : '';
-  };
-  
-  // Function to get the teacher name
-  const getTeacherName = (teacherId: string) => {
-    const teacher = teachers.find(t => t.id === teacherId);
-    return teacher ? teacher.name : '';
-  };
-  
-  // Function to check if a teacher has a conflict
-  const hasConflict = (day: string, period: string, teacherId: string) => {
+
+  const hasConflict = (day: string, period: string, teacherId: string | null) => {
+    if (!teacherId) return false;
     return teacherConflicts[day]?.[period]?.[teacherId]?.length > 1;
   };
 
-  // Filter classes based on conflicts if showConflictsOnly is true
-  const filteredClasses = useMemo(() => {
-    if (!showConflictsOnly) return classes;
-    
-    // Find classes that have conflicts for any teacher
-    return classes.filter(cls => {
-      for (const day of DAYS) {
-        for (const period of periods) {
-          const { teacherId } = getSlotInfo(cls.id, day, period);
-          if (teacherId && hasConflict(day, period, teacherId)) {
-            return true;
-          }
+  const filteredSubClasses = useMemo(() => {
+    if (!showConflictsOnly) return subClasses;
+
+    return subClasses.filter(subClass => {
+      const timetable = timetables[subClass.id];
+      if (!timetable || !timetable.slots) return false;
+
+      for (const slot of timetable.slots) {
+        if (slot.teacherId && hasConflict(slot.day, slot.period, slot.teacherId)) {
+          return true;
         }
       }
       return false;
     });
-  }, [classes, showConflictsOnly, teacherConflicts, periods, hasConflict, getSlotInfo]);
+  }, [subClasses, showConflictsOnly, teacherConflicts, timetables]);
 
-  // Render a compact cell for the school-wide grid
-  const renderCompactCell = (day: string, period: string, classId: string) => {
-    const { subjectId, teacherId, isBreak } = getSlotInfo(classId, day, period);
-    
-    if (isBreak) {
-      return <div className="bg-gray-200 w-full h-full"></div>;
+  // Function to open the edit modal for a slot
+  const handleEditSlot = (subClassId: string, day: string, periodName: string) => {
+    const assignment = getSlotAssignmentInfo(subClassId, day, periodName);
+    const slotDefinition = allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
+
+    // Cannot edit if definition not found or if it's a break
+    if (!slotDefinition || slotDefinition.isBreak) return;
+
+    setEditingSubClassId(subClassId);
+    setEditingDay(day);
+    setEditingPeriod(periodName);
+    // Use assignment data if it exists
+    setSelectedSubject(assignment?.subjectId || '');
+    setSelectedTeacher(assignment?.teacherId || '');
+
+    const initialSubjectId = assignment?.subjectId;
+    const initialTeachers = initialSubjectId ? getTeachersBySubject(initialSubjectId) : [];
+    setAvailableTeachers(initialTeachers.map(t => ({ id: t.id, name: t.name })));
+
+    setEditModalOpen(true);
+  };
+
+  // Function to handle subject change in the edit modal
+  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const subjectId = e.target.value;
+    setSelectedSubject(subjectId);
+    setSelectedTeacher('');
+
+    const teachersForSubject = getTeachersBySubject(subjectId);
+    setAvailableTeachers(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
+  };
+
+  // Function to save the edited slot
+  const handleSaveSlot = () => {
+    if (selectedTeacher) {
+      const conflictClass = isTeacherAssignedElsewhere(
+        selectedTeacher,
+        editingDay,
+        editingPeriod,
+        editingSubClassId
+      );
+
+      if (conflictClass) {
+        toast.error(`Teacher is already assigned to ${conflictClass} during this time`);
+        return;
+      }
     }
-    
-    if (!subjectId || !teacherId) {
-      return <div className="w-full h-full"></div>;
+
+    updateTimetableSlot(
+      editingSubClassId,
+      editingDay,
+      editingPeriod,
+      selectedSubject || null,
+      selectedTeacher || null
+    );
+
+    setEditModalOpen(false);
+    toast.success("Timetable slot updated locally. Remember to save changes.");
+  };
+
+  const renderCell = (day: string, periodName: string, subClassId: string, period: any) => {
+    const assignment = getSlotAssignmentInfo(subClassId, day, periodName);
+
+    if (period.isBreak) {
+      return (
+        <td key={`${subClassId}-${periodName}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r bg-gray-100 h-20">
+          <div className="truncate">Break</div>
+        </td>
+      );
     }
-    
-    const conflict = hasConflict(day, period, teacherId);
-    const bgColor = conflict ? 'bg-red-200' : 'bg-blue-100';
-    const subjectName = getSubjectName(subjectId);
-    const teacherName = getTeacherName(teacherId);
-    const title = `${subjectName} - ${teacherName}${conflict ? ' (CONFLICT)' : ''}`;
-    
+
+    if (!assignment.subjectId || !assignment.teacherId) {
+      return (
+        <td
+          key={`${subClassId}-${periodName}`}
+          className="px-2 py-2 border-r bg-white cursor-pointer hover:bg-blue-50 h-20"
+          onClick={() => handleEditSlot(subClassId, day, periodName)}
+        >
+          <div className="text-center text-gray-400 text-xs"></div>
+        </td>
+      );
+    }
+
+    const conflict = hasConflict(day, periodName, assignment.teacherId);
+    const bgColor = conflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
+    const subjectName = assignment.subjectName || subjects.find(s => s.id === assignment.subjectId)?.name || 'Unknown';
+    const teacherName = assignment.teacherName || teachers.find(t => t.id === assignment.teacherId)?.name || 'Unknown';
+    const title = `${subjectName} - ${teacherName}${conflict ? ' (CONFLICT!)' : ''}`;
+
     return (
-      <div 
-        className={`w-full h-full ${bgColor} cursor-pointer flex items-center justify-center text-xs`}
+      <td
+        key={`${subClassId}-${periodName}`}
+        className={`px-1 py-2 ${bgColor} cursor-pointer text-center text-xs border-r h-20`}
         title={title}
         onClick={() => {
-          if (conflict) {
-            // Get conflict classes for this teacher
-            const conflictClasses = teacherConflicts[day][period][teacherId]
-              .map(cId => classes.find(c => c.id === cId)?.name || cId)
+          if (conflict && assignment.teacherId) {
+            const conflictClasses = (teacherConflicts[day]?.[periodName]?.[assignment.teacherId] || [])
+              .map(cId => subClasses.find(sc => sc.id === cId)?.name || cId)
               .join(', ');
-              
+
             toast.error(
-              `Conflict: ${teacherName} (${subjectName}) is assigned to multiple classes: ${conflictClasses}`,
+              `Conflict: ${teacherName} (${subjectName}) in ${conflictClasses || 'multiple classes'}`,
               { duration: 5000 }
             );
-            
-            // Optionally select this class for editing
-            onClassSelect?.(classId);
+            // Also open edit modal
+            handleEditSlot(subClassId, day, periodName);
           } else {
-            toast.success(`${subjectName} taught by ${teacherName}`, { duration: 3000 });
+            // Open edit modal for assignment
+            handleEditSlot(subClassId, day, periodName);
           }
         }}
       >
-        {subjectId.substring(0, 3)}
-      </div>
+        <div className="space-y-1 flex flex-col justify-center h-full">
+          <div className="truncate text-xs font-semibold leading-tight px-1">{subjectName}</div>
+          <div className="truncate text-xs text-gray-500 leading-tight px-1">{teacherName}</div>
+        </div>
+      </td>
     );
   };
 
+  if (isLoadingTimetable && Object.keys(timetables).length === 0) {
+    return <div className="p-4 text-center text-gray-500">Loading school-wide timetable data...</div>;
+  }
+
+  if (allWeeklySlots.length === 0) {
+    return <div className="p-4 text-center text-gray-500">Timetable structure not available. Please ensure periods are defined.</div>;
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 w-full">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold">School-Wide Timetable View</h2>
         <div className="flex space-x-4">
           <label className="flex items-center space-x-2">
-            <input 
-              type="checkbox" 
-              checked={showConflictsOnly} 
+            <input
+              type="checkbox"
+              checked={showConflictsOnly}
               onChange={(e) => setShowConflictsOnly(e.target.checked)}
               className="rounded"
             />
             <span className="text-sm font-medium text-gray-700">Show classes with conflicts only</span>
           </label>
-          <label className="flex items-center space-x-2">
-            <input 
-              type="checkbox" 
-              checked={compactView} 
-              onChange={(e) => setCompactView(e.target.checked)}
-              className="rounded"
-            />
-            <span className="text-sm font-medium text-gray-700">Compact view</span>
-          </label>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow overflow-auto">
-        <div className="relative">
-          {/* Legend */}
-          <div className="flex justify-end mb-2 space-x-4">
+      <div className="bg-white rounded-lg shadow w-full">
+        <div className="p-4">
+          <div className="flex justify-end mb-4 space-x-4">
             <div className="flex items-center space-x-1">
               <div className="w-4 h-4 bg-blue-100"></div>
               <span className="text-xs">Assigned</span>
@@ -236,122 +285,142 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             </div>
           </div>
 
-          {compactView ? (
-            // Compact school-wide view (matches the image)
-            <div className="border rounded">
-              <table className="w-full border-collapse text-xs">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="p-1 border">Time</th>
-                    {filteredClasses.map(cls => (
-                      <th 
-                        key={cls.id} 
-                        className="p-1 border whitespace-nowrap cursor-pointer"
-                        onClick={() => onClassSelect?.(cls.id)}
-                      >
-                        {cls.name}
+          {/* Constrained table container */}
+          <div className="w-full border rounded-lg">
+            <div className="overflow-x-auto">
+              <div className="inline-block min-w-full">
+                <table className="min-w-full divide-y divide-gray-200 text-xs">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-12">
+                        Period
                       </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {periods.map(period => (
-                    <tr key={period} className="border-b">
-                      <th className="p-1 border bg-gray-50 text-left">
-                        <div className="font-semibold">{period}</div>
-                        <div className="text-gray-500">{PERIOD_TIMES[period]}</div>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-20">
+                        Time
                       </th>
-                      {filteredClasses.map(cls => (
-                        <td key={`${period}-${cls.id}`} className="p-0 border h-8">
-                          <div className="grid grid-cols-5 h-full">
-                            {DAYS.map(day => (
-                              <div key={`${period}-${cls.id}-${day}`} className="h-full">
-                                {renderCompactCell(day, period, cls.id)}
-                              </div>
-                            ))}
+                      {filteredSubClasses.map((subClass) => (
+                        <th
+                          key={subClass.id}
+                          className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r cursor-pointer hover:bg-gray-100"
+                          title={`View timetable for ${subClass.name}`}
+                          onClick={() => onClassSelect?.(subClass.id)}
+                          style={{
+                            minWidth: '100px',
+                            width: '150px',
+                            maxWidth: '150px'
+                          }}
+                        >
+                          <div className="truncate">
+                            {subClass.name}
                           </div>
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            // Detailed conflict overview
-            <div className="mt-8 space-y-2">
-              <h3 className="text-xl font-bold">Conflict Overview</h3>
-              <p className="text-sm text-gray-600">
-                Red cells indicate teacher scheduling conflicts.
-              </p>
-              
-              <div className="border rounded-lg overflow-hidden mt-4">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="p-2 border">Period / Day</th>
-                      {DAYS.map(day => (
-                        <th key={day} className="p-2 border">{day}</th>
+                        </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
-                    {periods.map(period => (
-                      <tr key={period} className="border-b">
-                        <th className="p-2 border bg-gray-50">
-                          <div>{period}</div>
-                          <div className="text-xs text-gray-500 font-normal">{PERIOD_TIMES[period] || ''}</div>
-                        </th>
-                        {DAYS.map(day => {
-                          // Count conflicts for this day and period
-                          const periodConflicts = teacherConflicts[day]?.[period] || {};
-                          const conflictCount = Object.values(periodConflicts)
-                            .filter(classIds => classIds.length > 1)
-                            .length;
-                          
-                          return (
-                            <td 
-                              key={`${day}-${period}`} 
-                              className={`p-1 border text-center ${
-                                conflictCount > 0 ? 'bg-red-100' : ''
-                              }`}
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {DAYS_ORDER.map(day => {
+                      const dayPeriods = organizedPeriods[day] || [];
+
+                      return (
+                        <React.Fragment key={day}>
+                          {/* Day Header */}
+                          <tr className="bg-blue-50">
+                            <td
+                              colSpan={2 + filteredSubClasses.length}
+                              className="px-4 py-3 text-center text-sm font-bold text-blue-900 border-b"
                             >
-                              {conflictCount > 0 ? (
-                                <div className="font-medium text-red-600">
-                                  {conflictCount} conflict{conflictCount > 1 ? 's' : ''}
-                                </div>
-                              ) : (
-                                <span className="text-gray-400">-</span>
-                              )}
+                              {day.charAt(0) + day.slice(1).toLowerCase()}
                             </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                          </tr>
+
+                          {/* Periods for this day */}
+                          {dayPeriods.map((period, index) => {
+                            const periodNumber = index + 1;
+                            const timeRange = `${period.startTime?.substring(0, 5) || ''} - ${period.endTime?.substring(0, 5) || ''}`;
+
+                            return (
+                              <tr key={`${day}-${period.id}`} className="hover:bg-gray-50">
+                                <td className="px-2 py-2 text-center text-xs font-medium border-r w-12">
+                                  {periodNumber}
+                                </td>
+                                <td className="px-2 py-2 text-center text-xs text-gray-600 border-r w-20">
+                                  <div className="truncate">
+                                    {timeRange}
+                                  </div>
+                                </td>
+                                {filteredSubClasses.map(subClass =>
+                                  renderCell(day, period.name, subClass.id, period)
+                                )}
+                              </tr>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Class Selector */}
-      <div className="mt-6">
-        <h3 className="text-lg font-semibold mb-2">Select Class to Edit</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-          {classes.map(cls => (
+      {/* Edit Slot Modal */}
+      {editModalOpen && (
+        <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} size="lg">
+          <ModalHeader>
+            Edit Assignment - {subClasses.find(sc => sc.id === editingSubClassId)?.name} ({editingDay} - {editingPeriod})
+          </ModalHeader>
+          <ModalBody>
+            <div>
+              <label htmlFor="subjectSelect" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+              <Select
+                id="subjectSelect"
+                value={selectedSubject}
+                onChange={handleSubjectChange}
+                options={[{ value: '', label: '-- Select Subject --' }, ...subjects.map(s => ({ value: s.id, label: s.name }))]}
+              />
+            </div>
+            <div>
+              <label htmlFor="teacherSelect" className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+              <Select
+                id="teacherSelect"
+                value={selectedTeacher}
+                onChange={(e) => setSelectedTeacher(e.target.value)}
+                options={[{ value: '', label: '-- Select Teacher --' }, ...availableTeachers.map(t => ({ value: t.id, label: t.name }))]}
+                disabled={!selectedSubject}
+              />
+            </div>
+            {selectedTeacher && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-sm text-yellow-800">
+                  <strong>Note:</strong> Changes will be saved locally. Use the "Save Changes" button in the class view to persist to the server.
+                </p>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
             <Button
-              key={cls.id}
-              onClick={() => onClassSelect?.(cls.id)}
-              variant={activeClass === cls.id ? 'solid' : 'outline'}
-              size="sm"
+              color="secondary"
+              onClick={() => {
+                setSelectedSubject('');
+                setSelectedTeacher('');
+                handleSaveSlot();
+              }}
             >
-              {cls.name}
+              Clear Assignment
             </Button>
-          ))}
-        </div>
-      </div>
+            <Button color="secondary" onClick={() => setEditModalOpen(false)}>Cancel</Button>
+            <Button
+              color="primary"
+              onClick={handleSaveSlot}
+              disabled={!selectedSubject || !selectedTeacher}
+            >
+              Update Slot
+            </Button>
+          </ModalFooter>
+        </Modal>
+      )}
     </div>
   );
 };
