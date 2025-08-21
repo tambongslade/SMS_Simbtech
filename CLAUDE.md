@@ -6,8 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **Development server**: `npm run dev` (uses Turbopack for faster development)
 - **Build**: `npm run build`
-- **Production server**: `npm start`
+- **Production server**: `npm start` (runs on port 3060 by default)
 - **Linting**: `npm run lint`
+
+### Electron Desktop App Commands
+- **Electron development**: `npm run electron-dev` (runs Next.js + Electron concurrently)
+- **Desktop development**: `npm run dev-desktop` (alternative desktop dev command)
+- **Build desktop app**: `npm run build-electron` (creates distributable desktop app)
+- **Package desktop**: `npm run pack` (packages app without publishing)
+- **Create app icons**: `npm run create-icons` (generates platform-specific icons)
 
 ## Testing and Quality
 - Run linting after significant changes: `npm run lint`
@@ -16,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a **Next.js 15 School Management System** with role-based dashboards and comprehensive administrative features.
+This is a **Next.js 15 School Management System** with role-based dashboards and comprehensive administrative features. The application supports both web deployment and **Electron desktop app** distribution across Windows, macOS, and Linux platforms.
 
 ### Core Technologies
 - **Next.js 15** with App Router and Turbopack
@@ -29,6 +36,7 @@ This is a **Next.js 15 School Management System** with role-based dashboards and
 - **jsPDF** for PDF generation and reports
 - **Lucide React** for additional icons
 - **Motion** for animations
+- **Electron** for cross-platform desktop app functionality
 
 ### Key Architectural Patterns
 
@@ -121,6 +129,15 @@ This structure is consistent across all dashboard roles and should be maintained
 - **API Base URL**: Configured via `NEXT_PUBLIC_API_BASE_URL` environment variable
 - **Development default**: `http://localhost:4000/api/v1`
 - All API endpoints should follow RESTful conventions under `/api/v1/`
+
+### Desktop App Configuration
+
+The project includes full **Electron desktop app** support with:
+- **Multi-platform builds**: Windows (NSIS installer + portable), macOS (DMG), Linux (AppImage + DEB)
+- **Auto-updater**: Configured for GitHub releases
+- **App metadata**: Configured as "SMS Simbtech" educational application
+- **Build output**: `dist/` directory for all platform distributables
+- **Icon resources**: Platform-specific icons in `build/` directory
 
 ### Development Best Practices
 

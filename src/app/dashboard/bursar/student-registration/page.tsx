@@ -439,7 +439,7 @@ export default function StudentManagement() {
                 formerSchool: formData.formerSchool,
                 classId: Number(formData.classId),
                 academicYearId: Number(formData.academicYearId),
-                isNewStudent: true,
+                isNewStudent: formData.isNewStudent || false,
                 parentName: formData.parentName,
                 parentPhone: formData.parentPhone,
                 parentWhatsapp: formData.parentWhatsapp,
@@ -1636,6 +1636,19 @@ export default function StudentManagement() {
                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
                                         </select>
+                                    </div>
+                                    <div className="flex items-end pb-1">
+                                        <div className="flex items-center h-full">
+                                            <input 
+                                                id="isNewStudent" 
+                                                name="isNewStudent" 
+                                                type="checkbox" 
+                                                checked={formData.isNewStudent || false} 
+                                                onChange={(e) => setFormData(prev => ({ ...prev, isNewStudent: e.target.checked }))} 
+                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                                            />
+                                            <label htmlFor="isNewStudent" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                                        </div>
                                     </div>
                                 </div>
                             </section>

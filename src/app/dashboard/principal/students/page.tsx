@@ -168,7 +168,6 @@ export default function StudentManagement() {
   const [isAddEnrollModalOpen, setIsAddEnrollModalOpen] = useState(false);
   const [addEnrollFormData, setAddEnrollFormData] = useState({
     name: '',
-    matricule: '',
     date_of_birth: '',
     place_of_birth: '',
     gender: '',
@@ -178,13 +177,13 @@ export default function StudentManagement() {
     academicYearId: '',
     repeater: false,
     photo: '',
+    is_new_student: true,
   });
 
   // --- State for Add & Assign Student Modal (class assignment flow) ---
   const [isAddAssignModalOpen, setIsAddAssignModalOpen] = useState(false);
   const [addAssignFormData, setAddAssignFormData] = useState({
     name: '',
-    matricule: '',
     date_of_birth: '',
     place_of_birth: '',
     gender: '',
@@ -194,6 +193,7 @@ export default function StudentManagement() {
     academicYearId: '',
     repeater: false,
     photo: '',
+    is_new_student: true,
   });
 
   // --- State for Assign Existing Student to Class Modal ---
@@ -1223,12 +1223,12 @@ export default function StudentManagement() {
               let studentName = addEnrollFormData.name;
               const studentPayload = {
                 name: addEnrollFormData.name,
-                matricule: addEnrollFormData.matricule || null,
                 date_of_birth: addEnrollFormData.date_of_birth || null,
                 place_of_birth: addEnrollFormData.place_of_birth || null,
                 gender: addEnrollFormData.gender || null,
                 residence: addEnrollFormData.residence || null,
                 former_school: addEnrollFormData.former_school || null,
+                is_new_student: addEnrollFormData.is_new_student || false,
               };
               try {
                 const createResult = await apiService.post<{ data?: { id: number, name: string } }>('/students', studentPayload);
@@ -1260,13 +1260,9 @@ export default function StudentManagement() {
               <section className="border-b pb-4 mb-4">
                 <h4 className="text-md font-semibold text-gray-700 mb-3">Student Details</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
+                  <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700">Full Name *</label>
                     <input type="text" id="name" name="name" value={addEnrollFormData.name} onChange={e => setAddEnrollFormData(prev => ({ ...prev, name: e.target.value }))} required className="mt-1 block w-full input-field" />
-                  </div>
-                  <div>
-                    <label htmlFor="matricule" className="block text-sm font-medium text-gray-700">Matricule</label>
-                    <input type="text" id="matricule" name="matricule" value={addEnrollFormData.matricule || ''} onChange={e => setAddEnrollFormData(prev => ({ ...prev, matricule: e.target.value }))} className="mt-1 block w-full input-field" />
                   </div>
                   <div>
                     <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700">Date of Birth</label>
@@ -1292,6 +1288,19 @@ export default function StudentManagement() {
                   <div>
                     <label htmlFor="former_school" className="block text-sm font-medium text-gray-700">Former School</label>
                     <input type="text" id="former_school" name="former_school" value={addEnrollFormData.former_school || ''} onChange={e => setAddEnrollFormData(prev => ({ ...prev, former_school: e.target.value }))} className="mt-1 block w-full input-field" />
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <div className="flex items-center h-full">
+                      <input 
+                        id="isNewStudentEnroll" 
+                        name="is_new_student" 
+                        type="checkbox" 
+                        checked={addEnrollFormData.is_new_student || false} 
+                        onChange={e => setAddEnrollFormData(prev => ({ ...prev, is_new_student: e.target.checked }))} 
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                      />
+                      <label htmlFor="isNewStudentEnroll" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                    </div>
                   </div>
                 </div>
               </section>
@@ -1361,12 +1370,12 @@ export default function StudentManagement() {
               let studentName = addAssignFormData.name;
               const studentPayload = {
                 name: addAssignFormData.name,
-                matricule: addAssignFormData.matricule || null,
                 date_of_birth: addAssignFormData.date_of_birth || null,
                 place_of_birth: addAssignFormData.place_of_birth || null,
                 gender: addAssignFormData.gender || null,
                 residence: addAssignFormData.residence || null,
                 former_school: addAssignFormData.former_school || null,
+                is_new_student: addAssignFormData.is_new_student || false,
               };
               try {
                 const createResult = await apiService.post<{ data?: { id: number, name: string } }>('/students', studentPayload);
@@ -1411,13 +1420,9 @@ export default function StudentManagement() {
               <section className="border-b pb-4 mb-4">
                 <h4 className="text-md font-semibold text-gray-700 mb-3">Student Details</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="md:col-span-2">
+                  <div>
                     <label htmlFor="assignName" className="block text-sm font-medium text-gray-700">Full Name *</label>
                     <input type="text" id="assignName" name="name" value={addAssignFormData.name} onChange={e => setAddAssignFormData(prev => ({ ...prev, name: e.target.value }))} required className="mt-1 block w-full input-field" />
-                  </div>
-                  <div>
-                    <label htmlFor="assignMatricule" className="block text-sm font-medium text-gray-700">Matricule</label>
-                    <input type="text" id="assignMatricule" name="matricule" value={addAssignFormData.matricule || ''} onChange={e => setAddAssignFormData(prev => ({ ...prev, matricule: e.target.value }))} className="mt-1 block w-full input-field" />
                   </div>
                   <div>
                     <label htmlFor="assignDateOfBirth" className="block text-sm font-medium text-gray-700">Date of Birth</label>
@@ -1443,6 +1448,19 @@ export default function StudentManagement() {
                   <div>
                     <label htmlFor="assignFormerSchool" className="block text-sm font-medium text-gray-700">Former School</label>
                     <input type="text" id="assignFormerSchool" name="former_school" value={addAssignFormData.former_school || ''} onChange={e => setAddAssignFormData(prev => ({ ...prev, former_school: e.target.value }))} className="mt-1 block w-full input-field" />
+                  </div>
+                  <div className="flex items-end pb-1">
+                    <div className="flex items-center h-full">
+                      <input 
+                        id="isNewStudentAssign" 
+                        name="is_new_student" 
+                        type="checkbox" 
+                        checked={addAssignFormData.is_new_student || false} 
+                        onChange={e => setAddAssignFormData(prev => ({ ...prev, is_new_student: e.target.checked }))} 
+                        className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" 
+                      />
+                      <label htmlFor="isNewStudentAssign" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                    </div>
                   </div>
                 </div>
               </section>
