@@ -35,6 +35,7 @@ type Student = {
     gender?: string;
     residence?: string;
     former_school?: string;
+    is_new_student?: boolean;
 };
 
 type SubClassInfo = {
@@ -87,6 +88,7 @@ type EditFormData = {
     gender?: string | null;
     residence?: string | null;
     former_school?: string | null;
+    is_new_student?: boolean;
 };
 
 // For Enrollment Modal
@@ -151,6 +153,7 @@ export default function StudentManagement() {
         gender: '',
         residence: '',
         former_school: '',
+        is_new_student: true,
     });
 
     // --- State for Enrollment Modal ---
@@ -483,6 +486,7 @@ export default function StudentManagement() {
             gender: student.gender || '',
             residence: student.residence || '',
             former_school: student.former_school || '',
+            is_new_student: student.is_new_student ?? true,
         });
         setIsEditModalOpen(true);
     };
@@ -514,6 +518,7 @@ export default function StudentManagement() {
             gender: editFormData.gender || null,
             residence: editFormData.residence || null,
             former_school: editFormData.former_school || null,
+            is_new_student: editFormData.is_new_student,
         };
         console.log(`Updating student ID ${editingStudent.id} with payload:`, payload);
 
@@ -1787,6 +1792,20 @@ export default function StudentManagement() {
                                     <div>
                                         <label htmlFor="edit-former_school" className="block text-sm font-medium text-gray-700">Former School</label>
                                         <input type="text" id="edit-former_school" name="former_school" value={editFormData.former_school || ''} onChange={handleEditInputChange} className="mt-1 block w-full input-field" />
+                                    </div>
+                                    {/* Is New Student */}
+                                    <div className="flex items-end pb-1">
+                                        <div className="flex items-center h-full">
+                                            <input 
+                                                id="edit-is_new_student" 
+                                                name="is_new_student" 
+                                                type="checkbox" 
+                                                checked={editFormData.is_new_student || false} 
+                                                onChange={(e) => setEditFormData(prev => ({ ...prev, is_new_student: e.target.checked }))} 
+                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                                            />
+                                            <label htmlFor="edit-is_new_student" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                                        </div>
                                     </div>
                                 </div>
                             </section>
