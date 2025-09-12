@@ -5,6 +5,7 @@ import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
 import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
+import { Pagination } from "./components/ui/Pagination";
 import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
 import { TransactionsModal } from "./components/ui/PaymentModal";
@@ -63,6 +64,13 @@ export default function FeeManagementPage() {
     fetchSubclassSummary,
     showSubclassSummaryModal,
     setShowSubclassSummaryModal,
+    // Pagination
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems,
+    itemsPerPage,
+    setItemsPerPage,
   } = useFeeManagement();
 
   const handleRecordPaymentClick = (student: Student) => {
@@ -149,19 +157,32 @@ export default function FeeManagementPage() {
         <div className="flex justify-center items-center h-64">
           <p className="text-gray-600">Loading Students...</p>
         </div>
-      ) : viewMode === "list" ? (
-        <ListView
-          students={getFilteredStudents()}
-          onRecordPayment={handleRecordPaymentClick}
-          onViewTransactions={handleViewTransactions}
-        />
       ) : (
-        <CardView
-          students={getFilteredStudents()}
-          onRecordPayment={handleRecordPaymentClick}
-          onViewHistory={handleViewHistory}
-          onViewTransactions={handleViewTransactions}
-        />
+        <>
+          {viewMode === "list" ? (
+            <ListView
+              students={getFilteredStudents()}
+              onRecordPayment={handleRecordPaymentClick}
+              onViewTransactions={handleViewTransactions}
+            />
+          ) : (
+            <CardView
+              students={getFilteredStudents()}
+              onRecordPayment={handleRecordPaymentClick}
+              onViewHistory={handleViewHistory}
+              onViewTransactions={handleViewTransactions}
+            />
+          )}
+          
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+          />
+        </>
       )}
 
       {showPaymentModal && (

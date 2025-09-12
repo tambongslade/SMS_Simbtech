@@ -34,7 +34,7 @@ export type Personnel = {
 };
 
 // Define form data type explicitly
-export type PersonnelFormData = Partial<Personnel & { gender: string; date_of_birth: string; address: string }>;
+export type PersonnelFormData = Partial<Personnel & { gender: string; date_of_birth: string; address: string; password?: string }>;
 
 // Define StudentLinkInfo type for fetching students list
 export type StudentLinkInfo = {
@@ -68,6 +68,7 @@ export const usePersonnelManagement = () => {
     name: '',
     email: '',
     phone: '',
+    password: '',
     status: 'active',
     department: '',
     dateJoined: '',
@@ -156,6 +157,7 @@ export const usePersonnelManagement = () => {
       name: '',
       email: '',
       phone: '',
+      password: '',
       status: 'active',
       department: '',
       dateJoined: '',
@@ -200,8 +202,8 @@ export const usePersonnelManagement = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.name || !formData.email || !formData.gender || !formData.date_of_birth) {
-      toast.error("Name, Email, Gender, and Date of Birth are required.");
+    if (!formData.name || !formData.email || !formData.gender || !formData.date_of_birth || !formData.password) {
+      toast.error("Name, Email, Gender, Date of Birth, and Password are required.");
       return;
     }
     setIsMutating(true);
@@ -214,6 +216,7 @@ export const usePersonnelManagement = () => {
       gender: formData.gender,
       date_of_birth: formData.date_of_birth,
       address: formData.address || undefined,
+      password: formData.password,
     };
 
     console.log("Creating user via /auth/register:", userData);

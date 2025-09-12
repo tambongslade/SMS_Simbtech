@@ -40,6 +40,9 @@ export const useFeeManagement = () => {
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   // Payment Form State
   const [selectedPaymentType, setSelectedPaymentType] = useState('full');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -93,7 +96,7 @@ export const useFeeManagement = () => {
 
   // 4. Fetch Fee Records (Dependent on Current Academic Year and Filters)
   const feeRecordsKey = currentAcademicYear
-    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=100${selectedClass !== 'all' ? `&classId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=${currentPage}&limit=${itemsPerPage}${selectedClass !== 'all' ? `&classId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
     : null;
 
   const {
@@ -110,14 +113,18 @@ export const useFeeManagement = () => {
     return found?.name;
   }, [classesList]);
 
-  // Process Fee Records Data
-  const students = useMemo((): Student[] => {
+  // Process Fee Records Data and Pagination Info
+  const { students, totalPages, totalItems } = useMemo(() => {
     // Fix: API returns { success: true, data: { data: [...], meta: {...} } }
     // So we need to access the nested data.data property
     const records = feeRecordsResult?.data?.data;
-    if (!Array.isArray(records)) return [];
+    const meta = feeRecordsResult?.data?.meta;
+    
+    if (!Array.isArray(records)) {
+      return { students: [], totalPages: 0, totalItems: 0 };
+    }
 
-    return records.map((feeRecord: any): Student => {
+    const studentsData = records.map((feeRecord: any): Student => {
       const studentData = feeRecord.enrollment?.student;
       const classId = feeRecord.enrollment?.classId;
       const className = feeRecord.enrollment?.class?.name || findClassNameById(classId) || 'N/A';
@@ -148,7 +155,16 @@ export const useFeeManagement = () => {
         feeId: feeRecord.id,
       };
     });
-  }, [feeRecordsResult, findClassNameById]);
+
+    const total = meta?.total || 0;
+    const calculatedTotalPages = Math.ceil(total / itemsPerPage);
+
+    return { 
+      students: studentsData, 
+      totalPages: calculatedTotalPages, 
+      totalItems: total 
+    };
+  }, [feeRecordsResult, findClassNameById, itemsPerPage]);
 
   // --- Consolidated Loading and Error State --- 
   const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || !currentAcademicYear;
@@ -168,23 +184,16 @@ export const useFeeManagement = () => {
     }
   }, [fetchError]);
 
-  // --- Filtering (Client-side) --- 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedClass, selectedPaymentStatus, searchQuery]);
+
+  // --- Filtering (Server-side via API, Client-side for sorting only) --- 
   const getFilteredStudents = useCallback(() => {
-    let filtered = [...students]; // Filter the memoized students state
-    // Existing search query filter
-    if (searchQuery) {
-      filtered = filtered.filter(student =>
-        student.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.admissionNumber.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-    // Client-side class filter by classId
-    if (selectedClass !== 'all') {
-      filtered = filtered.filter(student => student.classId === String(selectedClass));
-    }
-    // Payment status filter
-    if (selectedPaymentStatus !== 'all') { filtered = filtered.filter(student => student.status === selectedPaymentStatus); }
-    // Sorting
+    let filtered = [...students]; // Use the paginated students from server
+    
+    // Sorting (client-side)
     filtered.sort((a, b) => {
       const aValue = a[sortBy as keyof Student];
       const bValue = b[sortBy as keyof Student];
@@ -200,7 +209,7 @@ export const useFeeManagement = () => {
         : (bValue as number) - (aValue as number);
     });
     return filtered;
-  }, [students, searchQuery, selectedClass, sortBy, sortOrder, selectedPaymentStatus]);
+  }, [students, sortBy, sortOrder]);
 
   // --- Placeholder Export Handlers --- (Keep as is for now)
   const handleExport = async (format: 'pdf' | 'excel') => {
@@ -461,5 +470,12 @@ export const useFeeManagement = () => {
     setShowSubclassSummaryModal,
     activeAcademicYear,
     currentAcademicYear,
+    // Pagination
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems,
+    itemsPerPage,
+    setItemsPerPage,
   };
 };
