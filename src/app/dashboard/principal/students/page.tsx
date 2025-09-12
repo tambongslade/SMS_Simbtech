@@ -676,7 +676,7 @@ export default function StudentManagement() {
     }
   };
 
-  const handleExportSubclass = async (format: 'pdf' | 'excel' = 'pdf') => {
+  const handleExportSubclass = async (format: 'pdf' | 'docx' = 'pdf') => {
     if (subClassFilter === 'all') {
       toast.error("Please select a specific subclass to export.");
       return;

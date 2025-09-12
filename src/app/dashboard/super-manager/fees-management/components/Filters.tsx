@@ -177,13 +177,13 @@ export const Filters = ({
           <button
             // onClick={handleExportExcel}
             onClick={() => {
-              handleExportEnhanced?.('csv');
+              handleExportEnhanced?.('docx');
               setShowExportDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
-            <TableCellsIcon className="h-5 w-5" />
-            Export Excel
+            <DocumentTextIcon className="h-5 w-5" />
+            Export DOCX
           </button>
           <button
             // onClick={handleExportPDF}

@@ -214,7 +214,7 @@ const FinancialReportsPage = () => {
     }
   };
 
-  const handleExport = async (format: 'pdf' | 'excel' | 'csv') => {
+  const handleExport = async (format: 'pdf' | 'docx' | 'csv') => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
@@ -274,17 +274,17 @@ const FinancialReportsPage = () => {
             <span>Export PDF</span>
           </button>
           <button 
-            onClick={() => handleExport('excel')} 
+            onClick={() => handleExport('docx')} 
             disabled={isLoading}
-            className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700"
+            className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
           >
-            <TableCellsIcon className="w-4 h-4" />
-            <span>Export Excel</span>
+            <DocumentTextIcon className="w-4 h-4" />
+            <span>Export DOCX</span>
           </button>
           <button
             onClick={() => handleExport('csv')}
             disabled={isLoading}
-            className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
+            className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
             <span>Export CSV</span>
