@@ -14,12 +14,11 @@ export interface SubClass {
 export interface Class {
   id?: string | number; // Assuming ID can be string or number, optional for creation
   name: string;
-  level: number | string; // Level might be number or string - adjust based on API/needs
   firstTermFee: number;
   secondTermFee: number;
   thirdTermFee?: number; // Optional third term fee
-  newStudentFee: number; // Corresponds to Registration for new students
-  oldStudentFee: number; // Corresponds to Registration for old students
+  newStudentAddFee: number; // Corresponds to Registration for new students
+  oldStudentAddFee: number; // Corresponds to Registration for old students
   miscellaneousFee: number;
   studentCount?: number; // Optional student count from API
   subClasses?: SubClass[]; // Array of associated subclasses - make optional as it might not always be fetched/present

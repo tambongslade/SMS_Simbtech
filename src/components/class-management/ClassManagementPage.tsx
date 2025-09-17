@@ -92,16 +92,9 @@ export default function ClassManagementPage() {
 
       <div className="space-y-6">
         {classes.map((cls) => {
-          const totalFeeNew = (cls.newStudentFee || 0) +
-            (cls.firstTermFee || 0) +
-            (cls.secondTermFee || 0) +
-            (cls.thirdTermFee || 0) +
-            (cls.miscellaneousFee || 0);
-          const totalFeeOld = (cls.oldStudentFee || 0) +
-            (cls.firstTermFee || 0) +
-            (cls.secondTermFee || 0) +
-            (cls.thirdTermFee || 0) +
-            (cls.miscellaneousFee || 0);
+          const baseFee = (cls.firstTermFee || 0) + (cls.secondTermFee || 0) + (cls.thirdTermFee || 0);
+          const totalFeeNew = baseFee + (cls.newStudentAddFee || 0) + (cls.miscellaneousFee || 0);
+          const totalFeeOld = baseFee + (cls.oldStudentAddFee || 0) + (cls.miscellaneousFee || 0);
 
           return (
             <div key={cls.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
@@ -129,11 +122,11 @@ export default function ClassManagementPage() {
                   <dl className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-2 text-sm">
                     <div className="flex flex-col bg-gray-50 p-2 rounded">
                       <dt className="text-gray-500">Registration (New)</dt>
-                      <dd className="text-gray-900 font-medium">{formatCurrency(cls.newStudentFee)}</dd>
+                      <dd className="text-gray-900 font-medium">{formatCurrency(cls.newStudentAddFee)}</dd>
                     </div>
                     <div className="flex flex-col bg-gray-50 p-2 rounded">
                       <dt className="text-gray-500">Registration (Old)</dt>
-                      <dd className="text-gray-900 font-medium">{formatCurrency(cls.oldStudentFee)}</dd>
+                      <dd className="text-gray-900 font-medium">{formatCurrency(cls.oldStudentAddFee)}</dd>
                     </div>
                     <div className="flex flex-col bg-gray-50 p-2 rounded">
                       <dt className="text-gray-500">1st Term Fee</dt>

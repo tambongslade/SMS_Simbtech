@@ -93,12 +93,11 @@ export const useClassManagement = () => {
         return classesApiResult.data.map((cls: any): Class => ({
             id: cls.id,
             name: cls.name,
-            level: cls.level,
             firstTermFee: cls.first_term_fee ?? cls.firstTermFee ?? cls.first_installment ?? cls.firstInstallment ?? cls.base_fee ?? cls.baseFee ?? 0,
             secondTermFee: cls.second_term_fee ?? cls.secondTermFee ?? cls.second_installment ?? cls.secondInstallment ?? 0,
             thirdTermFee: cls.third_term_fee ?? cls.thirdTermFee ?? cls.third_installment ?? cls.thirdInstallment,
-            newStudentFee: cls.new_student_fee ?? cls.newStudentFee ?? 0,
-            oldStudentFee: cls.old_student_fee ?? cls.oldStudentFee ?? 0,
+            newStudentAddFee: cls.newStudentFee ?? cls.new_student_fee ?? cls.newStudentAddFee ?? 0,
+            oldStudentAddFee: cls.oldStudentFee ?? cls.old_student_fee ?? cls.oldStudentAddFee ?? 0,
             miscellaneousFee: cls.miscellaneous_fee ?? cls.miscellaneousFee ?? 0,
             studentCount: cls.student_count ?? cls.studentCount,
             subClasses: (cls.sub_classes || cls.subClasses)?.map((sub: any): SubClass => ({
@@ -287,12 +286,11 @@ export const useClassManagement = () => {
         // Ensure formData keys match API expectations (e.g., snake_case or camelCase)
         const payload = {
             name: formData.name,
-            level: formData.level,
             first_term_fee: formData.firstTermFee,
             second_term_fee: formData.secondTermFee,
             third_term_fee: formData.thirdTermFee,
-            new_student_fee: formData.newStudentFee,
-            old_student_fee: formData.oldStudentFee,
+            new_student_fee: formData.newStudentAddFee,
+            old_student_fee: formData.oldStudentAddFee,
             miscellaneous_fee: formData.miscellaneousFee
         };
         try {
@@ -312,12 +310,11 @@ export const useClassManagement = () => {
         setIsLoadingMutation(true);
         const payload = {
             name: formData.name,
-            level: formData.level,
             first_term_fee: formData.firstTermFee,
             second_term_fee: formData.secondTermFee,
             third_term_fee: formData.thirdTermFee,
-            new_student_fee: formData.newStudentFee,
-            old_student_fee: formData.oldStudentFee,
+            new_student_fee: formData.newStudentAddFee,
+            old_student_fee: formData.oldStudentAddFee,
             miscellaneous_fee: formData.miscellaneousFee
         };
         try {
