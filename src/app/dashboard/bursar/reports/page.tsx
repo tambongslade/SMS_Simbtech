@@ -29,32 +29,40 @@ interface TermInfo {
   feeDeadline?: string;
 }
 
-interface FeeRecord {
-  id: number;
-  amountExpected: number;
-  amountPaid: number;
-  dueDate: string;
-  enrollmentId: number;
-  academicYearId: number;
-  enrollment: {
-    id: number;
-    studentId: number;
-    subClassId: number;
-    student: { id: number; name: string; matricule: string; };
-    subClass: { id: number; name: string; classId: number; class: { id: number; name: string; }; };
-  };
-  paymentTransactions: Array<{ amount: number; paymentMethod: string; }>;
-}
 
 interface FeeSummaryByClass {
-  classId: number;
   className: string;
-  totalStudentsWithFees: number;
+  totalStudents: number;
   totalExpected: number;
   totalPaid: number;
+  totalOutstanding: number;
+  paymentPercentage: number;
+  studentsWithPayments: number;
+  studentsWithoutPayments: number;
+}
+
+interface StudentDetailedFee {
+  studentName: string;
+  studentMatricule: string;
+  className: string;
+  subClassName: string;
+  expectedAmount: number;
+  paidAmount: number;
   outstanding: number;
   paymentPercentage: number;
-  paymentsByMethod: { EXPRESS_UNION: number; CCA: number; F3DC: number;[key: string]: number; }; // Dynamic methods
+  dueDate: string;
+  paymentsCount: number;
+  lastPaymentDate?: string;
+  lastPaymentAmount?: number;
+}
+
+interface PaymentMethodAnalytics {
+  paymentMethod: string;
+  totalTransactions: number;
+  totalAmount: number;
+  averageAmount: number;
+  uniqueStudents: number;
+  marketShare: number;
 }
 
 const FinancialReportsPage = () => {
@@ -66,8 +74,9 @@ const FinancialReportsPage = () => {
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [academicYears, setAcademicYears] = useState<AcademicYearInfo[]>([]);
   const [terms, setTerms] = useState<TermInfo[]>([]); // Retain for future use
-  const [reportData, setReportData] = useState<FeeSummaryByClass[]>([]); // To store aggregated data
-  const [rawFeeRecords, setRawFeeRecords] = useState<FeeRecord[]>([]); // To store raw fee data for detailed view/export
+  const [reportData, setReportData] = useState<FeeSummaryByClass[]>([]); // To store class summary data
+  const [studentDetailedData, setStudentDetailedData] = useState<StudentDetailedFee[]>([]);
+  const [paymentAnalyticsData, setPaymentAnalyticsData] = useState<PaymentMethodAnalytics[]>([]);
 
   // Fetch filter options: classes, academic years
   useEffect(() => {
@@ -100,128 +109,76 @@ const FinancialReportsPage = () => {
     fetchFilterOptions();
   }, []);
 
-  // Aggregate raw fee data into summary by class (for 'class' report type)
-  const aggregateFeeData = (fees: FeeRecord[]): FeeSummaryByClass[] => {
-    const classMap = new Map<number, FeeSummaryByClass>();
-
-    fees.forEach(fee => {
-      const classId = fee.enrollment.subClass.class.id;
-      const className = fee.enrollment.subClass.class.name;
-
-      if (!classMap.has(classId)) {
-        classMap.set(classId, {
-          classId,
-          className,
-          totalStudentsWithFees: 0,
-          totalExpected: 0,
-          totalPaid: 0,
-          outstanding: 0,
-          paymentPercentage: 0,
-          paymentsByMethod: { EXPRESS_UNION: 0, CCA: 0, F3DC: 0 },
-        });
-      }
-
-      const classSummary = classMap.get(classId)!;
-      classSummary.totalStudentsWithFees += 1; // Assuming each fee record is for one student in a class
-      classSummary.totalExpected += fee.amountExpected;
-      classSummary.totalPaid += fee.amountPaid;
-      classSummary.outstanding += (fee.amountExpected - fee.amountPaid);
-
-      fee.paymentTransactions.forEach(transaction => {
-        if (classSummary.paymentsByMethod[transaction.paymentMethod] !== undefined) {
-          classSummary.paymentsByMethod[transaction.paymentMethod] += transaction.amount;
-        } else {
-          classSummary.paymentsByMethod[transaction.paymentMethod] = transaction.amount; // Handle new methods dynamically
-        }
-      });
-    });
-
-    // Calculate percentage and convert Map values to array
-    return Array.from(classMap.values()).map(summary => ({
-      ...summary,
-      paymentPercentage: summary.totalExpected > 0 ? (summary.totalPaid / summary.totalExpected) * 100 : 0,
-    }));
-  };
 
   const handleGenerateReport = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setReportData([]);
-    setRawFeeRecords([]);
+    setStudentDetailedData([]);
+    setPaymentAnalyticsData([]);
 
     try {
       const params = new URLSearchParams();
+
+      // Add the new reportType parameter
+      const reportTypeMapping = {
+        'class': 'summary',
+        'student': 'detailed',
+        'payment-method': 'analytics'
+      };
+      params.append('reportType', reportTypeMapping[reportType as keyof typeof reportTypeMapping] || 'detailed');
+
+      // Add filters
       if (academicYear) params.append('academicYearId', String(academicYear));
       if (selectedClass !== 'all') params.append('classId', String(selectedClass));
-      // Add other filters if API supports them (e.g., startDate, endDate, term)
-      // if (startDate) params.append('startDate', startDate);
-      // if (endDate) params.append('endDate', endDate);
-      // if (term !== 'all') params.append('termId', String(term)); // Assuming API accepts termId
 
-      let endpoint = '';
-      let toastMessage = '';
+      const response = await apiService.get<{ data: any; reportType?: string }>(`/fees?${params.toString()}`);
 
-      switch (reportType) {
-        case 'class':
-          endpoint = '/fees'; // Will fetch all fees and aggregate by class
-          toastMessage = 'Class financial report generated!';
-          break;
-        case 'student':
-          endpoint = '/fees'; // Will need to filter by student name/matricule (not implemented yet)
-          toastMessage = 'Student financial report generated!';
-          break;
-        case 'payment-method':
-          endpoint = '/bursar/collection-analytics';
-          toastMessage = 'Payment method report generated!';
-          break;
-        case 'date': // Use fees endpoint with date filters
-          endpoint = '/fees';
-          toastMessage = 'Date-wise financial report generated!';
-          break;
-        default:
-          toast.error("Invalid report type selected.");
-          setIsLoading(false);
-          return;
+      // Handle different response structures based on report type
+      const responseData = response.data;
+      const actualReportType = response.reportType || reportTypeMapping[reportType as keyof typeof reportTypeMapping];
+
+      if (actualReportType === 'summary') {
+        // Class summary data
+        setReportData(responseData || []);
+        toast.success('Class fee summary generated successfully!');
+      } else if (actualReportType === 'detailed') {
+        // Student detailed data
+        setStudentDetailedData(responseData || []);
+        toast.success('Detailed student fees generated successfully!');
+      } else if (actualReportType === 'analytics') {
+        // Payment method analytics data
+        setPaymentAnalyticsData(responseData || []);
+        toast.success('Payment method analytics generated successfully!');
       }
 
-      const response = await apiService.get<{ data: { data: FeeRecord[] } | any }>(`${endpoint}?${params.toString()}`);
-
-      if (reportType === 'class' || reportType === 'student' || reportType === 'date') {
-        const fetchedFees = response.data.data || [];
-        setRawFeeRecords(fetchedFees); // Store raw data for detailed view/export
-        const aggregatedData = aggregateFeeData(fetchedFees);
-        setReportData(aggregatedData);
-      } else if (reportType === 'payment-method') {
-        // For collection-analytics, the data structure is different
-        const paymentMethodData = response.data.paymentMethods || [];
-        // Need to transform this data to fit the table or create a new table for it
-        // For now, setting it as raw fees for simplicity in the table display
-        setReportData(paymentMethodData.map((pm: any) => ({ // Dummy mapping for now
-          classId: 0, className: pm.method, totalStudentsWithFees: pm.count, totalExpected: pm.totalAmount,
-          totalPaid: pm.totalAmount, outstanding: 0, paymentPercentage: 100,
-          paymentsByMethod: { [pm.method]: pm.totalAmount }
-        })));
-      }
-
-      toast.success(toastMessage);
     } catch (error: any) {
       console.error("Failed to generate report:", error);
       toast.error(`Failed to generate report: ${error.message}`);
       setReportData([]);
-      setRawFeeRecords([]);
+      setStudentDetailedData([]);
+      setPaymentAnalyticsData([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleExport = async (format: 'pdf' | 'docx' | 'csv') => {
+  const handleExport = async (format: 'pdf' | 'xlsx' | 'csv') => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
+
+      // Add the new reportType parameter based on current selection
+      const reportTypeMapping = {
+        'class': 'summary',
+        'student': 'detailed',
+        'payment-method': 'analytics'
+      };
+      params.append('reportType', reportTypeMapping[reportType as keyof typeof reportTypeMapping] || 'detailed');
+
+      // Add existing filters
       if (academicYear) params.append('academicYearId', String(academicYear));
       if (selectedClass !== 'all') params.append('classId', String(selectedClass));
-      // Add other relevant filters (startDate, endDate, paymentStatus etc. based on API)
-      // params.append('paymentStatus', 'all'); // Example
       params.append('format', format);
 
       const url = `/fees/export?${params.toString()}`;
@@ -240,14 +197,24 @@ const FinancialReportsPage = () => {
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      const filename = `financial_report_${academicYear}_${selectedClass === 'all' ? 'all_classes' : selectedClass}.${format}`;
+
+      // Enhanced filename with report type
+      const reportTypeNames = {
+        'class': 'Fee-Summary',
+        'student': 'Detailed-Fees',
+        'payment-method': 'Payment-Analytics'
+      };
+      const reportTypeName = reportTypeNames[reportType as keyof typeof reportTypeNames] || 'Financial-Report';
+      const classFilter = selectedClass === 'all' ? 'all-classes' : `class-${selectedClass}`;
+      const filename = `${reportTypeName}_${academicYear}_${classFilter}.${format}`;
+
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
-      toast.success(`Report exported as ${format.toUpperCase()}!`);
+      toast.success(`${reportTypeName.replace('-', ' ')} exported as ${format.toUpperCase()}!`);
     } catch (error: any) {
       console.error("Export failed:", error);
       toast.error(`Export failed: ${error.message}`);
@@ -256,7 +223,10 @@ const FinancialReportsPage = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | undefined | null) => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return 'FCFA 0';
+    }
     return `FCFA ${amount.toLocaleString('en-CM', { minimumFractionDigits: 0 })}`;
   };
 
@@ -265,30 +235,47 @@ const FinancialReportsPage = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Financial Reports</h1>
         <div className="flex space-x-2 mt-4 md:mt-0">
-          <button 
-            onClick={() => handleExport('pdf')} 
-            disabled={isLoading}
-            className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700"
-          >
-            <DocumentTextIcon className="w-4 h-4" />
-            <span>Export PDF</span>
-          </button>
-          <button 
-            onClick={() => handleExport('docx')} 
-            disabled={isLoading}
-            className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700"
-          >
-            <DocumentTextIcon className="w-4 h-4" />
-            <span>Export DOCX</span>
-          </button>
           <button
             onClick={() => handleExport('csv')}
             disabled={isLoading}
-            className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700"
+            className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
+          >
+            <DocumentTextIcon className="w-4 h-4" />
+            <span>Word</span>
+          </button>
+          <button
+            onClick={() => handleExport('xlsx')}
+            disabled={isLoading}
+            className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
+          >
+            <TableCellsIcon className="w-4 h-4" />
+            <span>Excel</span>
+          </button>
+          <button
+            onClick={() => handleExport('pdf')}
+            disabled={isLoading}
+            className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
-            <span>Export CSV</span>
+            <span>PDF</span>
           </button>
+        </div>
+      </div>
+
+      {/* Report Type Info */}
+      <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-blue-800">Current Report Type</h3>
+            <p className="text-blue-700">
+              {reportType === 'class' && '📊 By Class (Fee Summary) - Aggregated fee collection statistics grouped by class'}
+              {reportType === 'student' && '👥 By Student (Detailed Fees) - Individual student fee records with payment history'}
+              {reportType === 'payment-method' && '💳 By Payment Method (Analytics) - Payment method analysis and trends'}
+            </p>
+          </div>
+          <div className="text-xs text-blue-600 bg-white px-2 py-1 rounded border">
+            Export ready: {reportType === 'class' ? 'summary' : reportType === 'student' ? 'detailed' : 'analytics'}
+          </div>
         </div>
       </div>
 
@@ -394,41 +381,174 @@ const FinancialReportsPage = () => {
       {/* Report Table */}
       <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
         <h2 className="text-lg font-semibold mb-4">Report Data</h2>
-        {isLoading && reportData.length === 0 ? (
-          <p className="text-gray-500">Loading report data...</p>
-        ) : reportData.length > 0 ? (
-        <table className="w-full min-w-max">
-          <thead>
-            <tr className="bg-gray-50">
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Class Name</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Students with Fees</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Total Expected</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Total Collected</th>
-                <th className="text-left py-3 px-4 font-medium text-gray-700">Outstanding</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-700">Collection Rate</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-700">Express Union</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-700">CCA</th>
-              <th className="text-left py-3 px-4 font-medium text-gray-700">3DC</th>
-            </tr>
-          </thead>
-          <tbody>
-              {reportData.map((item, index) => (
-                <tr key={item.classId || `row-${index}`} className="border-b hover:bg-gray-50">
-                  <td className="py-3 px-4">{item.className}</td>
-                  <td className="py-3 px-4">{item.totalStudentsWithFees}</td>
-                  <td className="py-3 px-4">{formatCurrency(item.totalExpected)}</td>
-                  <td className="py-3 px-4">{formatCurrency(item.totalPaid)}</td>
-                  <td className="py-3 px-4">{formatCurrency(item.outstanding)}</td>
-                  <td className="py-3 px-4">{item.paymentPercentage.toFixed(2)}%</td>
-                  <td className="py-3 px-4">{formatCurrency(item.paymentsByMethod.EXPRESS_UNION || 0)}</td>
-                  <td className="py-3 px-4">{formatCurrency(item.paymentsByMethod.CCA || 0)}</td>
-                  <td className="py-3 px-4">{formatCurrency(item.paymentsByMethod.F3DC || 0)}</td>
-            </tr>
-              ))}
-          </tbody>
-        </table>
+        {isLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+            <p className="text-gray-500">Loading report data...</p>
+          </div>
         ) : (
-          <p className="text-gray-500">Generate a report to see data.</p>
+          <>
+            {/* Class Summary Report */}
+            {reportType === 'class' && reportData.length > 0 && (
+              <div>
+                <div className="flex items-center mb-4">
+                  <h3 className="text-md font-medium text-gray-700">📊 Class Fee Summary</h3>
+                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{reportData.length} classes</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-max">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">Class Name</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Total Students</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Expected Amount</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Paid Amount</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Outstanding</th>
+                        <th className="text-center py-3 px-4 font-medium text-gray-700">Payment Rate</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Students w/ Payments</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">Students w/o Payments</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportData.map((item, index) => (
+                        <tr key={item?.className || `row-${index}`} className="border-b hover:bg-gray-50">
+                          <td className="py-3 px-4 font-medium">{item?.className || 'N/A'}</td>
+                          <td className="py-3 px-4 text-right">{item?.totalStudents || 0}</td>
+                          <td className="py-3 px-4 text-right">{formatCurrency(item?.totalExpected)}</td>
+                          <td className="py-3 px-4 text-right text-green-600">{formatCurrency(item?.totalPaid)}</td>
+                          <td className="py-3 px-4 text-right text-red-600">{formatCurrency(item?.totalOutstanding)}</td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-2 py-1 rounded text-xs ${
+                              (item?.paymentPercentage || 0) >= 80 ? 'bg-green-100 text-green-800' :
+                              (item?.paymentPercentage || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-red-100 text-red-800'
+                            }`}>
+                              {(item?.paymentPercentage || 0).toFixed(2)}%
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right text-green-600">{item?.studentsWithPayments || 0}</td>
+                          <td className="py-3 px-4 text-right text-red-600">{item?.studentsWithoutPayments || 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Student Detailed Report */}
+            {reportType === 'student' && studentDetailedData.length > 0 && (
+              <div>
+                <div className="flex items-center mb-4">
+                  <h3 className="text-md font-medium text-gray-700">👥 Student Fee Details</h3>
+                  <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} students</span>
+                </div>
+                <table className="w-full min-w-max">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Student Name</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Matricule</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Class</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Subclass</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Expected</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Paid</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Outstanding</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Payments</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Last Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studentDetailedData.map((student, index) => (
+                      <tr key={`student-${index}`} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium">{student?.studentName || 'N/A'}</td>
+                        <td className="py-3 px-4 font-mono text-sm">{student?.studentMatricule || '-'}</td>
+                        <td className="py-3 px-4">{student?.className || 'N/A'}</td>
+                        <td className="py-3 px-4">{student?.subClassName || '-'}</td>
+                        <td className="py-3 px-4 text-right">{formatCurrency(student?.expectedAmount)}</td>
+                        <td className="py-3 px-4 text-right text-green-600">{formatCurrency(student?.paidAmount)}</td>
+                        <td className="py-3 px-4 text-right text-red-600">{formatCurrency(student?.outstanding)}</td>
+                        <td className="py-3 px-4 text-center">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            (student?.paymentPercentage || 0) >= 100 ? 'bg-green-100 text-green-800' :
+                            (student?.paymentPercentage || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {(student?.paymentPercentage || 0) >= 100 ? 'Paid' :
+                             (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : 'Unpaid'}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">{student?.paymentsCount || 0}</td>
+                        <td className="py-3 px-4 text-sm">
+                          {student?.lastPaymentDate ?
+                            <div>
+                              <div>{new Date(student.lastPaymentDate).toLocaleDateString()}</div>
+                              {student?.lastPaymentAmount &&
+                                <div className="text-xs text-gray-500">{formatCurrency(student.lastPaymentAmount)}</div>
+                              }
+                            </div>
+                            : '-'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Payment Method Analytics Report */}
+            {reportType === 'payment-method' && paymentAnalyticsData.length > 0 && (
+              <div>
+                <div className="flex items-center mb-4">
+                  <h3 className="text-md font-medium text-gray-700">💳 Payment Method Analytics</h3>
+                  <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} methods</span>
+                </div>
+                <table className="w-full min-w-max">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Payment Method</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Transactions</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Total Amount</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Avg Amount</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">Unique Students</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">Market Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentAnalyticsData.map((method, index) => (
+                      <tr key={method?.paymentMethod || `method-${index}`} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 font-medium">{method?.paymentMethod || 'N/A'}</td>
+                        <td className="py-3 px-4 text-right">{(method?.totalTransactions || 0).toLocaleString()}</td>
+                        <td className="py-3 px-4 text-right text-green-600">{formatCurrency(method?.totalAmount)}</td>
+                        <td className="py-3 px-4 text-right">{formatCurrency(method?.averageAmount)}</td>
+                        <td className="py-3 px-4 text-right">{method?.uniqueStudents || 0}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center">
+                            <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full"
+                                style={{ width: `${Math.min(method?.marketShare || 0, 100)}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm font-medium">{(method?.marketShare || 0).toFixed(2)}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* No Data State */}
+            {reportData.length === 0 && studentDetailedData.length === 0 && paymentAnalyticsData.length === 0 && (
+              <div className="text-center py-12">
+                <div className="text-gray-400 text-6xl mb-4">📊</div>
+                <p className="text-gray-500 text-lg">No report data available</p>
+                <p className="text-gray-400 text-sm">Generate a report using the form above to see data here</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

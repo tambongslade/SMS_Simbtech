@@ -72,6 +72,7 @@ const menuItems: MenuItemsStructure = {
   bursar: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/bursar' },
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/bursar/control-fee-management' },
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/bursar/announcements' },
@@ -131,6 +132,7 @@ const menuItems: MenuItemsStructure = {
     { label: 'Student Management', href: '/dashboard/super-manager/student-management', icon: UsersIcon },
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
+    { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
     { label: 'Examination Structure', href: '/dashboard/super-manager/examination-structure', icon: CalendarDaysIcon },
     { label: 'Marks Management', href: '/dashboard/super-manager/marks-management', icon: ClipboardDocumentCheckIcon },
     { label: 'Report Card Generation', href: '/dashboard/super-manager/report-card-generation', icon: DocumentChartBarIcon },

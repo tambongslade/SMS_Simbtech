@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { XMarkIcon } from '@heroicons/react/24/outline';
-import { Student, NewStudent } from '../../types';
+import { Student, NewStudent } from '../../../fee-management/types';
 import apiService from '../../../../../../lib/apiService';
 
 interface PaymentModalProps {
@@ -17,10 +17,11 @@ interface PaymentModalProps {
   setPaymentMethod: (method: string) => void;
   paymentDescription: string;
   setPaymentDescription: (description: string) => void;
-  handlePayment: () => Promise<void>;
+  handlePayment: (student: Student) => Promise<void>;
   handleAddStudentWithPayment?: (newStudent: NewStudent) => Promise<void>;
   isLoading: boolean;
-  students: Student[];
+  students: Student[]; // For search
+  controlFeeStudents?: Student[]; // For payment processing (control fee students only)
   setSelectedStudent: (student: Student | null) => void;
 }
 
@@ -40,6 +41,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   handleAddStudentWithPayment,
   isLoading,
   students,
+  controlFeeStudents,
   setSelectedStudent
 }) => {
   if (!isOpen) return null;
@@ -67,6 +69,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [classError, setClassError] = useState<string | null>(null);
   const [studentType, setStudentType] = useState<'new' | 'old'>('old');
   const [oldStudentFee, setOldStudentFee] = useState('');
+
 
   // Fetch classes from the API
   useEffect(() => {
@@ -176,8 +179,30 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   };
 
   const handleExistingStudentSelect = (student: Student) => {
-    setSelectedExistingStudent(student);
-    setSelectedStudent(student);
+    // If we have control fee students, try to find the corresponding student with fee data
+    if (controlFeeStudents && controlFeeStudents.length > 0) {
+      const controlFeeStudent = controlFeeStudents.find(cfs =>
+        cfs.id === student.id ||
+        cfs.matricule === student.matricule ||
+        cfs.admissionNumber === student.admissionNumber
+      );
+
+      if (controlFeeStudent) {
+        // Use the control fee student with actual balance and fee data
+        setSelectedExistingStudent(controlFeeStudent);
+        setSelectedStudent(controlFeeStudent);
+      } else {
+        // Student doesn't have control fees, use the search result but warn user
+        setSelectedExistingStudent(student);
+        setSelectedStudent(student);
+        // Note: This student may not have control fee data
+      }
+    } else {
+      // Fallback to original behavior
+      setSelectedExistingStudent(student);
+      setSelectedStudent(student);
+    }
+
     setSearchResults([]);
     setSearchTerm('');
   };
@@ -227,8 +252,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleSubmitExistingPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedExistingStudent) {
-      await handlePayment(selectedExistingStudent);
+    setIsProcessing(true);
+    try {
+      if (selectedExistingStudent) {
+        await handlePayment(selectedExistingStudent);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -389,7 +419,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 />
                 {selectedExistingStudent && (
                   <div className="flex items-center justify-between p-2 border rounded bg-gray-50">
-                    <span className="text-sm text-gray-700">Selected: {selectedExistingStudent.name} ({selectedExistingStudent.admissionNumber})</span>
+                    <span className="text-sm text-gray-700">Selected: {selectedExistingStudent.name} ({selectedExistingStudent.matricule || selectedExistingStudent.admissionNumber})</span>
                     <button
                       type="button"
                       className="text-blue-600 text-sm"
@@ -408,7 +438,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                         className="p-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
                         onClick={() => handleExistingStudentSelect(s)}
                       >
-                        {s.name} ({s.admissionNumber})
+                        {s.name} ({s.matricule || s.admissionNumber})
                       </div>
                     ))}
                   </div>
@@ -417,6 +447,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-2">Payment Details</h3>
+
 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -446,9 +477,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                disabled={isLoading || !selectedExistingStudent || !paymentAmount}
+                disabled={isLoading || !selectedExistingStudent || !paymentAmount || isProcessing}
               >
-Record Payment
+                {isProcessing ? 'Processing...' : 'Record Payment'}
               </button>
             </div>
           </form>

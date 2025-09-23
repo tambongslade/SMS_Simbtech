@@ -7,6 +7,7 @@ import { AcademicYear, Term, ExamSequence } from '@/app/dashboard/super-manager/
 import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
 import useSWR from 'swr';
 import apiService from '../../../../../lib/apiService'; // Import apiService
+import feeService, { UnifiedPaymentRequest } from '../../../../../lib/feeService';
 import { useAuth } from '@/components/context/AuthContext';
 
 // API Configuration - REMOVED
@@ -261,18 +262,28 @@ export const useFeeManagement = () => {
 
     setIsMutating(true);
     setMutationError(null);
-    const paymentData = {
+
+    // Prepare unified payment data
+    const unifiedPaymentData: UnifiedPaymentRequest = {
       amount: parseFloat(paymentAmount),
       paymentDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
-      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
       paymentMethod,
+      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
       studentId: selectedStudent.id,
       academicYearId: currentAcademicYear.id,
     };
 
     try {
-      const response = await apiService.post(`/fees/${selectedStudent.feeId}/payments`, paymentData);
-      toast.success("Payment recorded successfully!");
+      // Use unified primary payment endpoint (auto-creates fee if needed)
+      const response = await feeService.recordUnifiedPrimaryPayment(unifiedPaymentData);
+
+      // Show appropriate success message
+      if (response.data?.feeCreated) {
+        toast.success('Payment recorded and fee created successfully!');
+      } else {
+        toast.success('Payment recorded successfully!');
+      }
+
       mutateFeeRecords(); // Revalidate fee records after payment
       resetPaymentForm();
       setShowPaymentModal(false);
@@ -379,7 +390,7 @@ export const useFeeManagement = () => {
     }
   };
 
-  const handleExportEnhanced = async (format: 'csv' | 'pdf' | 'docx' = 'csv') => {
+  const handleExportEnhanced = async (format: 'csv' | 'pdf' | 'xlsx' = 'csv') => {
     const params = new URLSearchParams({
       format: format,
       academicYearId: activeAcademicYear?.id?.toString() || '',

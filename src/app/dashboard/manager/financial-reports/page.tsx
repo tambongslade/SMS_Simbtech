@@ -69,9 +69,11 @@ export default function ManagerFinancialReportsPage() {
     const [feeReports, setFeeReports] = useState<FeeReport[]>([]);
     const [selectedPeriod, setSelectedPeriod] = useState<string>('current-year');
     const [isLoading, setIsLoading] = useState(true);
+    const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
 
     useEffect(() => {
         fetchFinancialData();
+        fetchClasses();
     }, [selectedPeriod]);
 
     const fetchFinancialData = async () => {
@@ -148,11 +150,37 @@ export default function ManagerFinancialReportsPage() {
         setExpenseCategories(categories);
     };
 
+    const fetchClasses = async () => {
+        const token = getAuthToken();
+        if (!token) return;
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/classes`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setClasses(data.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching classes:', error);
+            // Use fallback mock data if API fails
+            setClasses([
+                { id: 1, name: 'Form 1' },
+                { id: 2, name: 'Form 2' },
+                { id: 3, name: 'Form 3' },
+                { id: 4, name: 'Form 4' },
+                { id: 5, name: 'Form 5' }
+            ]);
+        }
+    };
+
     const fetchFeeReports = async () => {
         // Mock fee collection data by class
-        const classes = ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5'];
+        const classNames = ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5'];
 
-        const mockData = classes.map(className => {
+        const mockData = classNames.map(className => {
             const totalStudents = Math.floor(Math.random() * 150) + 100;
             const totalExpected = totalStudents * 1500000; // 1.5M FCFA per student
             const totalCollected = Math.floor(totalExpected * (Math.random() * 0.3 + 0.7)); // 70-100%
@@ -191,19 +219,86 @@ export default function ManagerFinancialReportsPage() {
         return 'red';
     };
 
-    const generateReport = () => {
-        toast.success('Financial report exported successfully');
+    // Enhanced report generation with multiple report types
+    const [reportType, setReportType] = useState<'summary' | 'detailed' | 'analytics'>('detailed');
+    const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf'>('xlsx');
+    const [selectedClass, setSelectedClass] = useState<string>('all');
+    const [isExporting, setIsExporting] = useState(false);
+
+    const generateReport = async () => {
+        setIsExporting(true);
+        const token = getAuthToken();
+
+        if (!token) {
+            toast.error('Authentication required');
+            setIsExporting(false);
+            return;
+        }
+
+        try {
+            // Build export URL with new parameters
+            const params = new URLSearchParams({
+                reportType,
+                format: exportFormat,
+                period: selectedPeriod
+            });
+
+            // Add class filter if specific class is selected
+            if (selectedClass !== 'all') {
+                params.append('classId', selectedClass);
+            }
+
+            const exportUrl = `${API_BASE_URL}/fees/export?${params.toString()}`;
+
+            // Create and trigger download
+            const response = await fetch(exportUrl, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Export failed');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+
+            // Generate filename based on report type and format
+            const timestamp = new Date().toISOString().split('T')[0];
+            const reportTypeNames = {
+                summary: 'Fee-Summary',
+                detailed: 'Detailed-Fees',
+                analytics: 'Payment-Analytics'
+            };
+
+            link.download = `${reportTypeNames[reportType]}_${timestamp}.${exportFormat}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success(`${reportTypeNames[reportType]} report exported successfully as ${exportFormat.toUpperCase()}`);
+        } catch (error) {
+            console.error('Export error:', error);
+            toast.error('Failed to export report. Please try again.');
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     return (
         <div className="p-6 space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
                     <p className="text-gray-600">Comprehensive financial analysis and reporting</p>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex flex-col space-y-2">
+                    {/* Period Selector */}
                     <select
                         value={selectedPeriod}
                         onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -214,15 +309,134 @@ export default function ManagerFinancialReportsPage() {
                         <option value="current-month">Current Month</option>
                         <option value="last-quarter">Last Quarter</option>
                     </select>
-                    <Button
-                        onClick={generateReport}
-                        className="flex items-center"
-                    >
-                        <PrinterIcon className="h-4 w-4 mr-2" />
-                        Export Report
-                    </Button>
                 </div>
             </div>
+
+            {/* Export Controls Panel */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <PrinterIcon className="h-5 w-5 mr-2" />
+                        Export Financial Reports
+                    </CardTitle>
+                </CardHeader>
+                <CardBody>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Report Type Selection */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Report Type
+                            </label>
+                            <select
+                                value={reportType}
+                                onChange={(e) => setReportType(e.target.value as 'summary' | 'detailed' | 'analytics')}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="detailed">By Student (Detailed Fees)</option>
+                                <option value="summary">By Class (Fee Summary)</option>
+                                <option value="analytics">By Payment Method (Analytics)</option>
+                            </select>
+                        </div>
+
+                        {/* Export Format */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Format
+                            </label>
+                            <select
+                                value={exportFormat}
+                                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'xlsx' | 'pdf')}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                                <option value="pdf">PDF (.pdf)</option>
+                            </select>
+                        </div>
+
+                        {/* Class Filter */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Class Filter
+                            </label>
+                            <select
+                                value={selectedClass}
+                                onChange={(e) => setSelectedClass(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">All Classes</option>
+                                {classes.map((cls) => (
+                                    <option key={cls.id} value={cls.id.toString()}>
+                                        {cls.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Export Button */}
+                        <div className="flex items-end">
+                            <Button
+                                onClick={generateReport}
+                                disabled={isExporting}
+                                className={`w-full flex items-center justify-center ${exportFormat === 'xlsx' ? 'bg-green-600 hover:bg-green-700' :
+                                    exportFormat === 'csv' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
+                            >
+                                {isExporting ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : (
+                                    <PrinterIcon className="h-4 w-4 mr-2" />
+                                )}
+                                {isExporting ? 'Exporting...' : 'Export Report'}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Report Type Descriptions & Preview */}
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-3 bg-gray-50 rounded-md">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2">Report Description:</h4>
+                            <div className="text-xs text-gray-600">
+                                {reportType === 'detailed' && (
+                                    <div>
+                                        <p><strong>By Student (Detailed Fees):</strong></p>
+                                        <p>Individual student fee records with payment history, balances, and transaction details.</p>
+                                        <p className="mt-1"><strong>Includes:</strong> Student name, class, matricule, expected fees, paid amount, balance, payment dates, transaction IDs</p>
+                                    </div>
+                                )}
+                                {reportType === 'summary' && (
+                                    <div>
+                                        <p><strong>By Class (Fee Summary):</strong></p>
+                                        <p>Aggregated fee collection statistics grouped by class, showing totals and collection rates.</p>
+                                        <p className="mt-1"><strong>Includes:</strong> Class name, total students, expected fees, collected amount, outstanding balance, collection percentage</p>
+                                    </div>
+                                )}
+                                {reportType === 'analytics' && (
+                                    <div>
+                                        <p><strong>By Payment Method (Analytics):</strong></p>
+                                        <p>Payment method analysis showing transaction volumes, trends, and preferred payment channels.</p>
+                                        <p className="mt-1"><strong>Includes:</strong> Payment method, transaction count, total amount, average transaction size, usage trends</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-3 bg-blue-50 rounded-md">
+                            <h4 className="text-sm font-medium text-blue-800 mb-2">Export Preview:</h4>
+                            <div className="text-xs text-blue-700">
+                                <p><strong>Format:</strong> {exportFormat.toUpperCase()}</p>
+                                <p><strong>Period:</strong> {selectedPeriod.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                                <p><strong>Classes:</strong> {selectedClass === 'all' ? 'All Classes' : classes.find(c => c.id.toString() === selectedClass)?.name || 'Selected Class'}</p>
+                                <p><strong>Report Type:</strong> {reportType === 'detailed' ? 'Student Details' : reportType === 'summary' ? 'Class Summary' : 'Payment Analytics'}</p>
+                                <div className="mt-2 p-2 bg-white rounded border border-blue-200">
+                                    <p className="text-xs text-blue-600">
+                                        📊 Estimated data rows: {reportType === 'detailed' ? '500-2000' : reportType === 'summary' ? '5-20' : '3-10'} records
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </CardBody>
+            </Card>
 
             {/* Financial Overview Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
