@@ -98,7 +98,7 @@ export const useParentsManagement = () => {
         if (!token) return;
         // Consider adding a loading state for subclasses if needed
         try {
-            const response = await fetch(`${API_BASE_URL}/classes/sub-classes`, {
+            const response = await fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, {
                 headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
             });
             if (!response.ok) throw new Error('Failed to fetch subclasses for filter');

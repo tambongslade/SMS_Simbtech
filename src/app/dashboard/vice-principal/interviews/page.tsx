@@ -91,7 +91,7 @@ export default function InterviewsPage() {
 
   // Fetch subclasses data
   const { data: subClassesData, error: subClassesError, isLoading: subClassesLoading } = useSWR<GetSubclassesResponse>(
-    currentAcademicYear ? `/classes/sub-classes?academicYearId=${currentAcademicYear.id}&includeSubjects=false` : null, // Fetch all subclasses
+    currentAcademicYear ? `/classes/sub-classes?academicYearId=${currentAcademicYear.id}&includeSubjects=false&limit=40` : null, // Fetch all subclasses
     apiService.get
   );
 

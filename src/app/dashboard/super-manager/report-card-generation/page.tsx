@@ -113,7 +113,7 @@ export default function ReportCardGenerationPage() {
             try {
                 const headers = { 'Authorization': `Bearer ${token}` };
                 const yearsPromise = fetch(`${API_BASE_URL}/academic-years`, { headers });
-                const subClassesPromise = fetch(`${API_BASE_URL}/classes/sub-classes`, { headers });
+                const subClassesPromise = fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { headers });
 
                 const [yearsRes, subClassesRes] = await Promise.all([yearsPromise, subClassesPromise]);
 

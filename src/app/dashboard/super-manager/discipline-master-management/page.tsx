@@ -45,7 +45,7 @@ export default function DisciplineMasterManagement() {
 
     const DM_ENDPOINT = '/users?role=DISCIPLINE_MASTER';
     const CLASSES_ENDPOINT = '/classes';
-    const SUBCLASSES_ENDPOINT = '/classes/sub-classes';
+    const SUBCLASSES_ENDPOINT = '/classes/sub-classes?limit=40';
 
     const fetchData = async () => {
         setIsLoading(true);

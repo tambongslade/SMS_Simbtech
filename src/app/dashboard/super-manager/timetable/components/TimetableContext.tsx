@@ -207,7 +207,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         console.log("Fetching initial timetable dependency data from API...");
         const [classResponse, subClassResponse, subjectResponse, periodResponse, teacherResponse, academicYearResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/classes`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
-          fetch(`${API_BASE_URL}/classes/sub-classes`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
+          fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/subjects`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/periods`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/users/teachers`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),

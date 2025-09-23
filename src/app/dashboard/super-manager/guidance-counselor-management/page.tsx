@@ -75,7 +75,7 @@ export default function GuidanceCounselorManagement() {
             const classResult = await classResponse.json();
             setClasses(classResult.data || []);
 
-            const subClassResponse = await fetch(`${API_BASE_URL}/classes/sub-classes`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const subClassResponse = await fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!subClassResponse.ok) throw new Error('Failed to fetch subclasses');
             const subClassResult = await subClassResponse.json();
             setSubClasses(subClassResult.data || []);

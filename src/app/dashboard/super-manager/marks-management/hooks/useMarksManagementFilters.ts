@@ -40,7 +40,7 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
 
     // --- SWR Data Fetching --- 
     const ACADEMIC_YEARS_ENDPOINT = `${API_BASE_URL}/academic-years`;
-    const SUBCLASSES_ENDPOINT = `${API_BASE_URL}/classes/sub-classes?includeSubjects=true`;
+    const SUBCLASSES_ENDPOINT = `${API_BASE_URL}/classes/sub-classes?includeSubjects=true&limit=40`;
 
     // 1. Fetch Academic Years (with nested sequences)
     const { 

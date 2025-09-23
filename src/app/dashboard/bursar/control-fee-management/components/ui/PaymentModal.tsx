@@ -131,7 +131,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   useEffect(() => {
     const fetchSubClasses = async () => {
       try {
-        const result = await apiService.get('/classes/sub-classes');
+        const result = await apiService.get('/classes/sub-classes?limit=40');
         setSubClasses(result.data || []);
       } catch (error) {
         setSubClasses([]);

@@ -108,7 +108,7 @@ export default function PrincipalReportCardManagementPage() {
             setError(null);
 
             try {
-                const subClassesResponse = await apiService.get('/classes/sub-classes');
+                const subClassesResponse = await apiService.get('/classes/sub-classes?limit=40');
                 console.log("Report Card - All SubClasses Data Raw:", subClassesResponse);
                 setAllSubClassesData(subClassesResponse.data || []);
 

@@ -113,7 +113,7 @@ export default function GuidanceCounselorStudentsPage() {
     try {
       // Fetch sub-classes and students
       const [subClassesRes, studentsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/classes/sub-classes`, { headers }),
+        fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { headers }),
         fetch(`${API_BASE_URL}/students`, { headers })
       ]);
 

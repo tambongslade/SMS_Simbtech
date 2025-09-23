@@ -313,7 +313,7 @@ export default function StudentManagement() {
     console.log("Fetching subclasses...");
     try {
       // Use apiService
-      const result = await apiService.get<{ data: any[] }>(`/classes/sub-classes`);
+      const result = await apiService.get<{ data: any[] }>(`/classes/sub-classes?limit=40`);
       const fetchedSubClasses = result.data?.map((sc: any) => ({
         id: sc.id,
         name: sc.name,

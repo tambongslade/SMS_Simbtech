@@ -89,7 +89,7 @@ export default function VicePrincipalManagement() {
             setClasses(classResult.data || []);
 
             // Fetch SubClasses
-            const subClassResult = await apiService.get('/classes/sub-classes');
+            const subClassResult = await apiService.get('/classes/sub-classes?limit=40');
             setSubClasses(subClassResult.data || []);
 
         } catch (error: any) {
