@@ -5,7 +5,16 @@
       "Bash(npx tsc:*)",
       "Bash(rm:*)",
       "Bash(npm run dev:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm view:*)",
+      "Bash(python3 -c \"import sys,json; versions=json.load\\(sys.stdin\\); v15=[v for v in versions if v.startswith\\('15.'\\)]; print\\(v15[-1] if v15 else 'none'\\)\")",
+      "Bash(python3 -c \"import sys,json; versions=json.load\\(sys.stdin\\); v15=[v for v in versions if v.startswith\\('15.'\\) and 'canary' not in v and 'rc' not in v]; print\\(v15[-1] if v15 else 'none'\\)\")",
+      "Bash(cp src/app/dashboard/super-manager/timetable/components/TimetableGrid.tsx src/app/dashboard/principal/timetable/components/TimetableGrid.tsx)",
+      "Bash(cp src/app/dashboard/super-manager/timetable/components/TimetableGrid.tsx src/app/dashboard/vice-principal/timetable/components/TimetableGrid.tsx)",
+      "Bash(cp src/app/dashboard/super-manager/timetable/components/SchoolTimetableView.tsx src/app/dashboard/principal/timetable/components/SchoolTimetableView.tsx)",
+      "Bash(cp src/app/dashboard/super-manager/timetable/components/SchoolTimetableView.tsx src/app/dashboard/vice-principal/timetable/components/SchoolTimetableView.tsx)",
+      "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/principal/timetable/page.tsx)",
+      "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/vice-principal/timetable/page.tsx)"
     ],
     "deny": []
   }

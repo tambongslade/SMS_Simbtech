@@ -5,7 +5,8 @@ import { Button } from "@/components/ui";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui";
 import { Select } from "@/components/ui";
 import { toast } from "react-hot-toast";
-import { useTimetable } from './TimetableContext';
+import { useTimetable, SlotAssignment } from './TimetableContext';
+import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Days of the week for the timetable (ordered)
 const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
@@ -22,22 +23,24 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     allWeeklySlots,
     subjects,
     teachers,
-    updateTimetableSlot,
+    addSlotAssignment,
+    updateSlotAssignment,
+    removeSlotAssignment,
     getTeachersBySubject,
     isTeacherAssignedElsewhere
   } = useTimetable();
 
-  // State for the edit modal
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  // State for the manage slot modal
+  const [manageModalOpen, setManageModalOpen] = useState(false);
   const [editingDay, setEditingDay] = useState('');
   const [editingPeriod, setEditingPeriod] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedTeacher, setSelectedTeacher] = useState('');
-  const [availableTeachers, setAvailableTeachers] = useState<{ id: string; name: string }[]>([]);
+  // State for the "add new assignment" form within the modal
+  const [newSubject, setNewSubject] = useState('');
+  const [newTeacher, setNewTeacher] = useState('');
+  const [newTeacherOptions, setNewTeacherOptions] = useState<{ id: string; name: string }[]>([]);
 
   // Get all unique periods sorted by time
   const allPeriods = useMemo(() => {
-    // Group periods by time range (startTime-endTime)
     const timeGroups: { [timeRange: string]: any } = {};
 
     allWeeklySlots.forEach(slot => {
@@ -48,13 +51,11 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
           endTime: slot.endTime,
           isBreak: slot.isBreak,
           timeRange: timeRange,
-          // Store one representative slot for reference
           representativeSlot: slot
         };
       }
     });
 
-    // Convert to array and sort by start time
     const uniquePeriods = Object.values(timeGroups).sort((a, b) => {
       if (!a.startTime && !b.startTime) return 0;
       if (!a.startTime) return 1;
@@ -66,11 +67,16 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   }, [allWeeklySlots]);
 
   // Get the current timetable for the selected class from full school data
-  const currentTimetable = timetables[selectedSubClassId];
-  const slots = currentTimetable?.slots || [];
+  const currentTimetable = useMemo(() => {
+    return timetables[selectedSubClassId];
+  }, [timetables, selectedSubClassId]);
 
-  // Function to get a slot assignment for a specific day and period name
-  const getSlotAssignment = (day: string, periodName: string) => {
+  const slots = useMemo(() => {
+    return currentTimetable?.slots || [];
+  }, [currentTimetable]);
+
+  // Function to get a slot for a specific day and period name
+  const getSlot = (day: string, periodName: string) => {
     return slots.find(slot => slot.day === day && slot.period === periodName) || null;
   };
 
@@ -79,68 +85,66 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     return allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
   };
 
-  // Function to open the edit modal for a slot
-  const handleEditSlot = (day: string, periodName: string) => {
-    const assignment = getSlotAssignment(day, periodName);
-    const slotDefinition = getWeeklySlotDefinition(day, periodName);
+  // Get live assignments for the currently editing slot
+  const currentSlotAssignments = useMemo(() => {
+    if (!manageModalOpen || !editingDay || !editingPeriod) return [];
+    const slot = getSlot(editingDay, editingPeriod);
+    return slot?.assignments || [];
+  }, [manageModalOpen, editingDay, editingPeriod, slots]);
 
-    // Cannot edit if definition not found or if it's a break
+  // Function to open the manage modal for a slot
+  const handleManageSlot = (day: string, periodName: string) => {
+    const slotDefinition = getWeeklySlotDefinition(day, periodName);
     if (!slotDefinition || slotDefinition.isBreak) return;
 
     setEditingDay(day);
     setEditingPeriod(periodName);
-    // Use assignment data if it exists
-    setSelectedSubject(assignment?.subjectId || '');
-    setSelectedTeacher(assignment?.teacherId || '');
-
-    const initialSubjectId = assignment?.subjectId;
-    const initialTeachers = initialSubjectId ? getTeachersBySubject(initialSubjectId) : [];
-    setAvailableTeachers(initialTeachers.map(t => ({ id: t.id, name: t.name })));
-
-    setEditModalOpen(true);
+    setNewSubject('');
+    setNewTeacher('');
+    setNewTeacherOptions([]);
+    setManageModalOpen(true);
   };
 
-  // Function to handle subject change in the edit modal
-  const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  // Handle subject change in the add form
+  const handleNewSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const subjectId = e.target.value;
-    setSelectedSubject(subjectId);
-    setSelectedTeacher('');
-
-    const teachersForSubject = getTeachersBySubject(subjectId);
-    setAvailableTeachers(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
+    setNewSubject(subjectId);
+    setNewTeacher('');
+    const teachersForSubject = subjectId ? getTeachersBySubject(subjectId) : [];
+    setNewTeacherOptions(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
   };
 
-  // Function to save the edited slot
-  const handleSaveSlot = () => {
-    if (selectedTeacher) {
-      const conflictClass = isTeacherAssignedElsewhere(
-        selectedTeacher,
-        editingDay,
-        editingPeriod,
-        selectedSubClassId
-      );
+  // Add a new assignment to the current slot
+  const handleAddAssignment = () => {
+    if (!newSubject || !newTeacher) return;
 
-      if (conflictClass) {
-        toast.error(`Teacher is already assigned to ${conflictClass} during this time`);
-        return;
-      }
-    }
-
-    updateTimetableSlot(
-      selectedSubClassId,
+    // Check for teacher conflict in other classes
+    const conflictClass = isTeacherAssignedElsewhere(
+      newTeacher,
       editingDay,
       editingPeriod,
-      selectedSubject || null,
-      selectedTeacher || null
+      selectedSubClassId
     );
+    if (conflictClass) {
+      toast.error(`Teacher is already assigned to ${conflictClass} during this time`);
+      return;
+    }
 
-    setEditModalOpen(false);
-    toast.success("Timetable slot updated locally. Remember to save changes.");
+    addSlotAssignment(selectedSubClassId, editingDay, editingPeriod, newSubject, newTeacher);
+    setNewSubject('');
+    setNewTeacher('');
+    setNewTeacherOptions([]);
+    toast.success("Assignment added. Remember to save changes.");
+  };
+
+  // Remove an assignment from the current slot
+  const handleRemoveAssignment = (index: number) => {
+    removeSlotAssignment(selectedSubClassId, editingDay, editingPeriod, index);
+    toast.success("Assignment removed. Remember to save changes.");
   };
 
   // Generate the cell content for a timetable slot
   const renderCellContent = (day: string, timeSlot: any) => {
-    // Find the specific period name for this day and time
     const dayPeriod = allWeeklySlots.find(slot =>
       slot.dayOfWeek === day &&
       slot.startTime === timeSlot.startTime &&
@@ -156,14 +160,8 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     }
 
     const periodName = dayPeriod.name;
-    const assignment = getSlotAssignment(day, periodName);
-
-    // Determine background color based on assignment and conflicts
-    const conflict = assignment?.teacherId ? isTeacherAssignedElsewhere(assignment.teacherId, day, periodName, selectedSubClassId) : null;
-    let bgColor = 'bg-white hover:bg-blue-50'; // Default for unassigned slots
-    if (assignment?.subjectId) {
-      bgColor = conflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
-    }
+    const slot = getSlot(day, periodName);
+    const assignments = slot?.assignments || [];
 
     if (dayPeriod.isBreak) {
       return (
@@ -173,20 +171,38 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
       );
     }
 
+    // Determine background color based on assignments and conflicts
+    const hasAnyConflict = assignments.some(a =>
+      a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, day, periodName, selectedSubClassId) : false
+    );
+    let bgColor = 'bg-white hover:bg-blue-50';
+    if (assignments.length > 0) {
+      bgColor = hasAnyConflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
+    }
+
     return (
       <td
         key={`${day}-${timeSlot.timeRange}`}
         className={`border-r h-20 p-1 cursor-pointer align-top ${bgColor}`}
-        onClick={() => handleEditSlot(day, periodName)}
+        onClick={() => handleManageSlot(day, periodName)}
       >
-        {assignment?.subjectId ? (
-          <div className="h-full flex flex-col justify-center text-center">
-            <div className="font-semibold text-xs truncate px-1">{assignment.subjectName || '(No Subject Name)'}</div>
-            <div className="text-xs text-gray-600 truncate px-1">{assignment.teacherName || '(No Teacher Name)'}</div>
-          </div>
-        ) : (
+        {assignments.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-400 text-xs">
             <div>Click to assign</div>
+          </div>
+        ) : assignments.length === 1 ? (
+          <div className="h-full flex flex-col justify-center text-center">
+            <div className="font-semibold text-xs truncate px-1">{assignments[0].subjectName || '(No Subject)'}</div>
+            <div className="text-xs text-gray-600 truncate px-1">{assignments[0].teacherName || '(No Teacher)'}</div>
+          </div>
+        ) : (
+          <div className="h-full flex flex-col justify-center gap-0.5">
+            {assignments.map((a, i) => (
+              <div key={i} className={`text-center ${i > 0 ? 'border-t border-blue-200 pt-0.5' : ''}`}>
+                <div className="font-semibold text-[10px] truncate px-0.5 leading-tight">{a.subjectName || '(No Subject)'}</div>
+                <div className="text-[10px] text-gray-600 truncate px-0.5 leading-tight">{a.teacherName || '(No Teacher)'}</div>
+              </div>
+            ))}
           </div>
         )}
       </td>
@@ -219,15 +235,15 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                       <th key={day} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r min-w-[140px]">
                         {day.charAt(0) + day.slice(1).toLowerCase()}
                       </th>
-                    ))}
-                  </tr>
-                </thead>
+              ))}
+            </tr>
+          </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {allPeriods.map((timeSlot, index) => {
                     const periodNumber = index + 1;
                     const timeRange = `${timeSlot.startTime?.substring(0, 5) || ''} - ${timeSlot.endTime?.substring(0, 5) || ''}`;
 
-                    return (
+              return (
                       <tr key={timeSlot.timeRange} className="border-b hover:bg-gray-50">
                         <th className="px-2 py-2 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
                           <div className="text-center text-sm font-semibold">Period {periodNumber}</div>
@@ -237,75 +253,107 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                           {timeSlot.isBreak && (
                             <div className="text-xs text-blue-600 font-normal text-center mt-1">
                               (Break)
-                            </div>
-                          )}
-                        </th>
+                      </div>
+                    )}
+                  </th>
                         {DAYS_ORDER.map(day => renderCellContent(day, timeSlot))}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Edit Slot Modal */}
-      {editModalOpen && (
-        <Modal isOpen={editModalOpen} onClose={() => setEditModalOpen(false)} size="lg">
-          <ModalHeader>Edit Slot ({editingDay} - {editingPeriod})</ModalHeader>
-          <ModalBody className="space-y-4">
+      {/* Manage Slot Modal */}
+      {manageModalOpen && (
+        <Modal isOpen={manageModalOpen} onClose={() => setManageModalOpen(false)} size="lg">
+          <ModalHeader>Manage Slot ({editingDay} - {editingPeriod})</ModalHeader>
+          <ModalBody>
+           <div className="space-y-4">
+            {/* Current Assignments */}
             <div>
-              <label htmlFor="subjectSelect" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
-              <Select
-                id="subjectSelect"
-                value={selectedSubject}
-                onChange={handleSubjectChange}
-                options={[{ value: '', label: '-- Select Subject --' }, ...subjects.map(s => ({ value: s.id, label: s.name }))]}
-              />
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Assignments</h4>
+              {currentSlotAssignments.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">No assignments yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {currentSlotAssignments.map((assignment, index) => (
+                    <div key={index} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-medium text-gray-800">{assignment.subjectName || 'Unknown Subject'}</span>
+                        <span className="text-sm text-gray-500 ml-2">- {assignment.teacherName || 'Unknown Teacher'}</span>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveAssignment(index)}
+                        className="ml-2 p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded flex-shrink-0"
+                        title="Remove assignment"
+                      >
+                        <XMarkIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Divider */}
+            <hr className="border-gray-200" />
+
+            {/* Add New Assignment */}
             <div>
-              <label htmlFor="teacherSelect" className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
-              <Select
-                id="teacherSelect"
-                value={selectedTeacher}
-                onChange={(e) => setSelectedTeacher(e.target.value)}
-                options={[{ value: '', label: '-- Select Teacher --' }, ...availableTeachers.map(t => ({ value: t.id, label: t.name }))]}
-                disabled={!selectedSubject}
-              />
+              <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1">
+                <PlusIcon className="w-4 h-4" />
+                Add New Assignment
+              </h4>
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="newSubjectSelect" className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                  <Select
+                    id="newSubjectSelect"
+                    value={newSubject}
+                    onChange={handleNewSubjectChange}
+                    options={[{ value: '', label: '-- Select Subject --' }, ...subjects.map(s => ({ value: s.id, label: s.name }))]}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="newTeacherSelect" className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+                  <Select
+                    id="newTeacherSelect"
+                    value={newTeacher}
+                    onChange={(e) => setNewTeacher(e.target.value)}
+                    options={[{ value: '', label: '-- Select Teacher --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
+                    disabled={!newSubject}
+                  />
+                </div>
+                <Button
+                  color="primary"
+                  onClick={handleAddAssignment}
+                  disabled={!newSubject || !newTeacher}
+                  className="w-full"
+                >
+                  <PlusIcon className="w-4 h-4 mr-1 inline" />
+                  Add Assignment
+                </Button>
+              </div>
             </div>
-            {selectedTeacher && (
+
+            {currentSlotAssignments.length > 0 && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
                 <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> Changes will be saved locally. Click "Save Changes" button above to persist to the server.
+                  <strong>Note:</strong> Changes are saved locally. Click &quot;Save Changes&quot; button above to persist to the server.
                 </p>
               </div>
             )}
+           </div>
           </ModalBody>
           <ModalFooter>
-            <Button
-              color="secondary"
-              onClick={() => {
-                setSelectedSubject('');
-                setSelectedTeacher('');
-                handleSaveSlot();
-              }}
-              className="mr-auto"
-            >
-              Clear Assignment
-            </Button>
-            <Button color="secondary" onClick={() => setEditModalOpen(false)}>Cancel</Button>
-            <Button
-              color="primary"
-              onClick={handleSaveSlot}
-              disabled={!selectedSubject || !selectedTeacher}
-            >
-              Update Slot
-            </Button>
+            <Button color="secondary" onClick={() => setManageModalOpen(false)}>Close</Button>
           </ModalFooter>
         </Modal>
       )}
     </div>
   );
-}; 
+};
