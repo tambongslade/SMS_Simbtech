@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { SequenceForm } from './components/SequenceForm';
 import apiService from '../../../../lib/apiService';
 
-// --- Types --- 
+// --- Types ---
 type AcademicYear = {
     id: number;
     name: string;
@@ -36,7 +36,7 @@ type SequenceStatusUpdate = {
     status: 'OPEN' | 'CLOSED' | 'FINALIZED' | 'REPORTS_GENERATING' | 'REPORTS_AVAILABLE' | 'REPORTS_FAILED';
 };
 
-// --- API Configuration ---
+// --- Modal Component ---
 const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.ReactNode }> = ({ isOpen, onClose, children }) => {
     if (!isOpen) return null;
     return (
@@ -44,6 +44,43 @@ const Modal: React.FC<{ isOpen: boolean; onClose: () => void; children: React.Re
             <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
                 <button onClick={onClose} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
                 {children}
+            </div>
+        </div>
+    );
+};
+
+// --- Confirm Dialog ---
+const ConfirmDialog: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    isLoading?: boolean;
+}> = ({ isOpen, onClose, onConfirm, title, message, confirmLabel = 'Delete', isLoading }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+            <div className="relative mx-auto p-6 border w-full max-w-sm shadow-lg rounded-md bg-white">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+                <p className="text-sm text-gray-600 mb-6">{message}</p>
+                <div className="flex justify-end space-x-3">
+                    <button
+                        onClick={onClose}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={isLoading}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
+                    >
+                        {isLoading ? 'Deleting...' : confirmLabel}
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -144,6 +181,160 @@ const StatusUpdateModal: React.FC<{
     );
 };
 
+// Edit Sequence Modal
+const EditSequenceModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    sequence: Sequence | null;
+    onSave: (sequenceId: number, data: { sequence_number: number }) => Promise<void>;
+    isLoading: boolean;
+}> = ({ isOpen, onClose, sequence, onSave, isLoading }) => {
+    const [seqNumber, setSeqNumber] = useState(1);
+
+    useEffect(() => {
+        if (sequence) {
+            setSeqNumber(sequence.sequence_number);
+        }
+    }, [sequence]);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!sequence || seqNumber < 1) return;
+        await onSave(sequence.id, { sequence_number: seqNumber });
+        onClose();
+    };
+
+    if (!sequence) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Sequence</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Sequence Number</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={seqNumber}
+                            onChange={(e) => setSeqNumber(Number(e.target.value))}
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            disabled={isLoading}
+                        />
+                    </div>
+                    <div className="flex justify-end space-x-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isLoading || seqNumber < 1}
+                            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        >
+                            {isLoading ? 'Saving...' : 'Save'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </Modal>
+    );
+};
+
+// Add Term Modal
+const AddTermModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: { name: string; start_date?: string; end_date?: string }) => Promise<void>;
+    isLoading: boolean;
+}> = ({ isOpen, onClose, onSave, isLoading }) => {
+    const [name, setName] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!name.trim()) {
+            toast.error('Term name is required');
+            return;
+        }
+        await onSave({
+            name: name.trim(),
+            start_date: startDate || undefined,
+            end_date: endDate || undefined,
+        });
+        setName('');
+        setStartDate('');
+        setEndDate('');
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Term</h3>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Term Name</label>
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="e.g. First Term"
+                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                            disabled={isLoading}
+                            required
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                disabled={isLoading}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-3 pt-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 disabled:opacity-50"
+                        >
+                            {isLoading ? 'Creating...' : 'Create Term'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </Modal>
+    );
+};
+
 // Status Badge Component
 const StatusBadge: React.FC<{ status?: string }> = ({ status = 'OPEN' }) => {
     const getStatusStyles = (status: string) => {
@@ -180,9 +371,22 @@ export default function ExaminationStructurePage() {
     const [isLoadingTerms, setIsLoadingTerms] = useState(false);
     const [isSequenceModalOpen, setIsSequenceModalOpen] = useState(false);
     const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [isEditSequenceModalOpen, setIsEditSequenceModalOpen] = useState(false);
+    const [isAddTermModalOpen, setIsAddTermModalOpen] = useState(false);
     const [termForSequence, setTermForSequence] = useState<Term | null>(null);
     const [sequenceForStatusUpdate, setSequenceForStatusUpdate] = useState<Sequence | null>(null);
+    const [sequenceForEdit, setSequenceForEdit] = useState<Sequence | null>(null);
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+    const [isEditingSequence, setIsEditingSequence] = useState(false);
+    const [isAddingTerm, setIsAddingTerm] = useState(false);
+
+    // Delete confirmation state
+    const [deleteConfirm, setDeleteConfirm] = useState<{
+        type: 'sequence' | 'term';
+        id: number;
+        label: string;
+    } | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const ACADEMIC_YEARS_ENDPOINT = '/academic-years';
     const EXAMS_ENDPOINT = '/exams';
@@ -231,10 +435,7 @@ export default function ExaminationStructurePage() {
 
             const sequencesByTermId = allSequences.reduce((acc, seq) => {
                 const termId = seq.term_id;
-                if (!termId) {
-                    console.warn("Sequence found without term_id:", seq);
-                    return acc;
-                }
+                if (!termId) return acc;
                 if (!acc[termId]) acc[termId] = [];
                 acc[termId].push(seq);
                 return acc;
@@ -258,17 +459,82 @@ export default function ExaminationStructurePage() {
         try {
             await apiService.patch(`${EXAMS_ENDPOINT}/${sequenceId}/status`, { status });
             toast.success('Sequence status updated successfully!');
-
-            // Refresh the data to show updated status
-            if (selectedYearId) {
-                await fetchTermsAndSequences(selectedYearId);
-            }
+            if (selectedYearId) await fetchTermsAndSequences(selectedYearId);
         } catch (error: any) {
             console.error("Status update failed:", error);
             toast.error('Failed to update sequence status');
-            throw error; // Re-throw to be handled by the modal
+            throw error;
         } finally {
             setIsUpdatingStatus(false);
+        }
+    };
+
+    const handleEditSequence = async (sequenceId: number, data: { sequence_number: number }) => {
+        setIsEditingSequence(true);
+        try {
+            await apiService.put(`${EXAMS_ENDPOINT}/${sequenceId}`, data);
+            toast.success('Sequence updated successfully!');
+            if (selectedYearId) await fetchTermsAndSequences(selectedYearId);
+        } catch (error: any) {
+            console.error("Sequence update failed:", error);
+            toast.error('Failed to update sequence');
+        } finally {
+            setIsEditingSequence(false);
+        }
+    };
+
+    const handleDeleteSequence = async (sequenceId: number) => {
+        setIsDeleting(true);
+        try {
+            await apiService.delete(`${EXAMS_ENDPOINT}/${sequenceId}`);
+            toast.success('Sequence deleted successfully!');
+            setDeleteConfirm(null);
+            if (selectedYearId) await fetchTermsAndSequences(selectedYearId);
+        } catch (error: any) {
+            console.error("Sequence deletion failed:", error);
+            toast.error('Failed to delete sequence');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleDeleteTerm = async (termId: number) => {
+        if (!selectedYearId) return;
+        setIsDeleting(true);
+        try {
+            await apiService.delete(`${ACADEMIC_YEARS_ENDPOINT}/${selectedYearId}/terms/${termId}`);
+            toast.success('Term deleted successfully!');
+            setDeleteConfirm(null);
+            await fetchTermsAndSequences(selectedYearId);
+        } catch (error: any) {
+            console.error("Term deletion failed:", error);
+            toast.error('Failed to delete term');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleAddTerm = async (data: { name: string; start_date?: string; end_date?: string }) => {
+        if (!selectedYearId) return;
+        setIsAddingTerm(true);
+        try {
+            await apiService.post(`${ACADEMIC_YEARS_ENDPOINT}/${selectedYearId}/terms`, data);
+            toast.success('Term created successfully!');
+            await fetchTermsAndSequences(selectedYearId);
+        } catch (error: any) {
+            console.error("Term creation failed:", error);
+            toast.error('Failed to create term');
+        } finally {
+            setIsAddingTerm(false);
+        }
+    };
+
+    const handleConfirmDelete = () => {
+        if (!deleteConfirm) return;
+        if (deleteConfirm.type === 'sequence') {
+            handleDeleteSequence(deleteConfirm.id);
+        } else {
+            handleDeleteTerm(deleteConfirm.id);
         }
     };
 
@@ -294,16 +560,6 @@ export default function ExaminationStructurePage() {
     const closeSequenceModal = () => {
         setIsSequenceModalOpen(false);
         setTermForSequence(null);
-    };
-
-    const openStatusModal = (sequence: Sequence) => {
-        setSequenceForStatusUpdate(sequence);
-        setIsStatusModalOpen(true);
-    };
-
-    const closeStatusModal = () => {
-        setIsStatusModalOpen(false);
-        setSequenceForStatusUpdate(null);
     };
 
     const handleCreateSequence = async (formData: { sequence_number: number }) => {
@@ -334,7 +590,6 @@ export default function ExaminationStructurePage() {
             <div className="max-w-5xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 bg-white p-4 rounded-lg shadow-sm gap-4">
                     <h1 className="text-2xl font-bold text-gray-900">Examination Structure</h1>
-                    {/* Academic Year Selector */}
                     <div className="w-full md:w-64">
                         <label htmlFor="academicYearSelect" className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
                         <select
@@ -352,7 +607,7 @@ export default function ExaminationStructurePage() {
                     </div>
                 </div>
 
-                {/* Loading/Empty State for Terms */}
+                {/* Loading/Empty State */}
                 {selectedYearId === '' && !isLoading && (
                     <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">Please select an academic year to view its structure.</p>
                 )}
@@ -371,16 +626,28 @@ export default function ExaminationStructurePage() {
                                 {/* Term Header */}
                                 <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
                                     <h2 className="text-lg font-semibold text-gray-800">{term.name}</h2>
-                                    <button
-                                        onClick={() => openSequenceModal(term)}
-                                        className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center"
-                                        disabled={isLoading || isLoadingTerms}
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1">
-                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                                        </svg>
-                                        Add Sequence
-                                    </button>
+                                    <div className="flex items-center space-x-3">
+                                        <button
+                                            onClick={() => openSequenceModal(term)}
+                                            className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center"
+                                            disabled={isLoading || isLoadingTerms}
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                            </svg>
+                                            Add Sequence
+                                        </button>
+                                        <button
+                                            onClick={() => setDeleteConfirm({ type: 'term', id: term.id, label: term.name })}
+                                            className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
+                                            disabled={isLoading || isLoadingTerms || isDeleting}
+                                            title="Delete term"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                                 {/* Sequences List */}
                                 <div className="p-4">
@@ -406,21 +673,29 @@ export default function ExaminationStructurePage() {
                                                         </div>
                                                         <div className="flex space-x-2 ml-4">
                                                             <button
-                                                                onClick={() => openStatusModal(seq)}
+                                                                onClick={() => {
+                                                                    setSequenceForStatusUpdate(seq);
+                                                                    setIsStatusModalOpen(true);
+                                                                }}
                                                                 className="text-xs text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 px-2 py-1 border border-purple-200 rounded hover:bg-purple-50"
                                                                 disabled={isLoading || isUpdatingStatus}
                                                             >
                                                                 Update Status
                                                             </button>
                                                             <button
+                                                                onClick={() => {
+                                                                    setSequenceForEdit(seq);
+                                                                    setIsEditSequenceModalOpen(true);
+                                                                }}
                                                                 className="text-xs text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 px-2 py-1 border border-blue-200 rounded hover:bg-blue-50"
                                                                 disabled={isLoading}
                                                             >
                                                                 Edit
                                                             </button>
                                                             <button
+                                                                onClick={() => setDeleteConfirm({ type: 'sequence', id: seq.id, label: `Sequence ${seq.sequence_number}` })}
                                                                 className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 px-2 py-1 border border-red-200 rounded hover:bg-red-50"
-                                                                disabled={isLoading}
+                                                                disabled={isLoading || isDeleting}
                                                             >
                                                                 Delete
                                                             </button>
@@ -437,7 +712,11 @@ export default function ExaminationStructurePage() {
                         ))}
                         {/* Add New Term Button */}
                         <div className="text-center mt-4">
-                            <button className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50 border border-green-300 px-4 py-2 rounded-md hover:bg-green-50" disabled={isLoading}>
+                            <button
+                                onClick={() => setIsAddTermModalOpen(true)}
+                                className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50 border border-green-300 px-4 py-2 rounded-md hover:bg-green-50"
+                                disabled={isLoading || isAddingTerm}
+                            >
                                 + Add New Term
                             </button>
                         </div>
@@ -461,11 +740,38 @@ export default function ExaminationStructurePage() {
             {/* Status Update Modal */}
             <StatusUpdateModal
                 isOpen={isStatusModalOpen}
-                onClose={closeStatusModal}
+                onClose={() => { setIsStatusModalOpen(false); setSequenceForStatusUpdate(null); }}
                 sequence={sequenceForStatusUpdate}
                 onUpdateStatus={handleUpdateSequenceStatus}
                 isLoading={isUpdatingStatus}
             />
+
+            {/* Edit Sequence Modal */}
+            <EditSequenceModal
+                isOpen={isEditSequenceModalOpen}
+                onClose={() => { setIsEditSequenceModalOpen(false); setSequenceForEdit(null); }}
+                sequence={sequenceForEdit}
+                onSave={handleEditSequence}
+                isLoading={isEditingSequence}
+            />
+
+            {/* Add Term Modal */}
+            <AddTermModal
+                isOpen={isAddTermModalOpen}
+                onClose={() => setIsAddTermModalOpen(false)}
+                onSave={handleAddTerm}
+                isLoading={isAddingTerm}
+            />
+
+            {/* Delete Confirmation */}
+            <ConfirmDialog
+                isOpen={!!deleteConfirm}
+                onClose={() => setDeleteConfirm(null)}
+                onConfirm={handleConfirmDelete}
+                title={`Delete ${deleteConfirm?.type === 'term' ? 'Term' : 'Sequence'}`}
+                message={`Are you sure you want to delete "${deleteConfirm?.label}"? This action cannot be undone.${deleteConfirm?.type === 'term' ? ' All sequences in this term will also be deleted.' : ''}`}
+                isLoading={isDeleting}
+            />
         </div>
     );
-} 
+}
