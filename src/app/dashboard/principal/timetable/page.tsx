@@ -6,6 +6,10 @@ import { TimetableGrid } from './components/TimetableGrid';
 import SchoolTimetableView from './components/SchoolTimetableView';
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
 import { Select, Button } from "@/components/ui";
+import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { toast } from 'react-hot-toast';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
 // Define interface for class items
 interface ClassItem {
@@ -29,34 +33,102 @@ const TimetableContent = () => {
     saveChanges,
     isLoadingTimetable,
     timetables,
-    academicYears, // Added
-    selectedAcademicYearId, // Added
-    setSelectedAcademicYearId, // Added
+    academicYears,
+    selectedAcademicYearId,
+    setSelectedAcademicYearId,
   } = useTimetable();
   const [selectedSubClassId, setSelectedSubClassId] = useState<string>('');
   const [viewMode, setViewMode] = useState<'class' | 'school'>('class');
   const [isZoomed, setIsZoomed] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch timetable when subclass selection or academic year changes
   useEffect(() => {
-    if (selectedAcademicYearId) { // Only fetch if an academic year is selected
-      // Always use full school timetable data for both views
+    if (selectedAcademicYearId) {
       fetchFullSchoolTimetable();
     }
   }, [selectedAcademicYearId, fetchFullSchoolTimetable]);
+
+  // Auto-select first subclass when timetables are loaded
+  useEffect(() => {
+    if (viewMode === 'class' && !selectedSubClassId && subClasses.length > 0 && Object.keys(timetables).length > 0) {
+      console.log("Auto-selecting first subclass:", subClasses[0].id);
+      setSelectedSubClassId(subClasses[0].id);
+    }
+  }, [viewMode, selectedSubClassId, subClasses, timetables]);
 
   // Handle academic year change
   const handleAcademicYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newAcademicYearId = e.target.value;
     setSelectedAcademicYearId(newAcademicYearId);
-    setSelectedSubClassId(''); // Clear selected subclass when academic year changes
-    // Force re-fetch based on new academic year via useEffect
+    setSelectedSubClassId('');
   };
 
   // Handle class selection from the school-wide view
   const handleClassSelect = (subClassId: string) => {
     setSelectedSubClassId(subClassId);
     setViewMode('class');
+  };
+
+  // Export timetable as Excel
+  const handleExport = async (type: 'subclass' | 'school') => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Authentication token not found.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      let url: string;
+      let filename: string;
+
+      if (type === 'subclass') {
+        if (!selectedSubClassId) {
+          toast.error('Please select a subclass first.');
+          return;
+        }
+        url = `${API_BASE_URL}/timetables/subclass/${selectedSubClassId}/export`;
+        const subClassName = subClasses.find(sc => sc.id === selectedSubClassId)?.name || 'subclass';
+        filename = `timetable-${subClassName}.xlsx`;
+      } else {
+        url = `${API_BASE_URL}/timetables/export`;
+        filename = `school-timetable.xlsx`;
+      }
+
+      if (selectedAcademicYearId) {
+        url += `?academicYearId=${selectedAcademicYearId}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: response.statusText }));
+        throw new Error(errorData.message || `Export failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      toast.success('Timetable exported successfully!');
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'Export failed';
+      console.error('Export error:', err);
+      toast.error(`Export failed: ${message}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Check if timetable data exists for the selected subclass
@@ -134,6 +206,15 @@ const TimetableContent = () => {
               </CardBody>
             </Card>
             <Button
+              onClick={() => handleExport('subclass')}
+              disabled={!selectedSubClassId || isExporting || !hasTimetableData}
+              color="secondary"
+              title="Export this class timetable as Excel"
+            >
+              <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
+              {isExporting ? 'Exporting...' : 'Export'}
+            </Button>
+            <Button
               onClick={() => saveChanges(selectedSubClassId)}
               disabled={!selectedSubClassId || isLoadingTimetable || !hasTimetableData}
               color="primary"
@@ -152,7 +233,10 @@ const TimetableContent = () => {
             {selectedSubClassId ? (
               <Card className={`${isLoadingTimetable ? 'opacity-50' : ''}`}>
                 <CardBody className="pt-6">
-                  <TimetableGrid selectedSubClassId={selectedSubClassId} />
+                  <TimetableGrid
+                    key={`${selectedSubClassId}-${hasTimetableData ? 'loaded' : 'empty'}`}
+                    selectedSubClassId={selectedSubClassId}
+                  />
                 </CardBody>
               </Card>
             ) : (
@@ -166,7 +250,11 @@ const TimetableContent = () => {
         /* School-Wide Timetable View */
         <Card>
           <CardBody>
-            <SchoolTimetableView onClassSelect={handleClassSelect} />
+            <SchoolTimetableView
+              onClassSelect={handleClassSelect}
+              onExportSchool={() => handleExport('school')}
+              isExporting={isExporting}
+            />
           </CardBody>
         </Card>
       )}
@@ -174,4 +262,4 @@ const TimetableContent = () => {
   );
 };
 
-export default TimetablePage; 
+export default TimetablePage;

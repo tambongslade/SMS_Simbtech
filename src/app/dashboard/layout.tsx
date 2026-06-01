@@ -167,6 +167,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Teachers', href: '/dashboard/vice-principal/teachers' },
     { icon: UserGroupIcon, label: 'Interviews', href: '/dashboard/vice-principal/interviews' },
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/vice-principal/timetable' },
+    { icon: ClipboardDocumentListIcon, label: 'Marks Submission', href: '/dashboard/vice-principal/marks-submission' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/vice-principal/report-card-management' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/vice-principal/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/vice-principal/messaging' },
@@ -540,7 +541,7 @@ export default function DashboardLayout({
                   className="h-10 w-auto" // Tailwind class for height
                 />
                 <span className="ml-3 text-xl font-semibold text-blue-900"> {/* Dark blue text */}
-                  St Stephens International College
+                  St. Stephen's International College
                 </span>
               </div>
             </div>

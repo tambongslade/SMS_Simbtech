@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
     MagnifyingGlassIcon,
@@ -8,7 +9,8 @@ import {
     ClipboardDocumentListIcon,
     TrashIcon,
     UserGroupIcon,
-    CameraIcon
+    CameraIcon,
+    EyeIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
 import { StudentPhoto, BulkPhotoUploadModal } from '../../../../components/ui';
@@ -118,6 +120,7 @@ type EnrollmentStatusFilter = 'all' | 'enrolled' | 'not-enrolled';
 const STUDENTS_PER_PAGE_OPTIONS = [10, 20, 40, 60, 80, 100];
 
 export default function StudentManagement() {
+    const router = useRouter();
     const [students, setStudents] = useState<Student[]>([]);
     const [totalStudents, setTotalStudents] = useState(0); // State for total students from API
     const [classes, setClasses] = useState<ClassInfo[]>([]); // Maybe not needed directly
@@ -1383,7 +1386,12 @@ export default function StudentManagement() {
                                             {/* Student Info Column */}
                                             <td className="px-4 py-3">
                                                 <div className="space-y-1">
-                                                    <div className="text-sm font-medium text-gray-900">{student.name}</div>
+                                                    <button
+                                                        onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
+                                                        className="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline text-left"
+                                                    >
+                                                        {student.name}
+                                                    </button>
                                                     <div className="text-xs text-gray-500">
                                                         Matricule: {student.matricule || 'Not assigned'}
                                                     </div>
@@ -1423,6 +1431,14 @@ export default function StudentManagement() {
                                             {/* Actions Column with Horizontal Layout */}
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap gap-1">
+                                                    <button
+                                                        onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
+                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                        title="View Full Profile"
+                                                    >
+                                                        <EyeIcon className="h-3 w-3 mr-1" />
+                                                        <span>Profile</span>
+                                                    </button>
                                                     <button
                                                         onClick={() => openEditModal(student)}
                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
