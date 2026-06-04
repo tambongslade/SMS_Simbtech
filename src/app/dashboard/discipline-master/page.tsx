@@ -462,7 +462,7 @@ export default function DisciplineMasterDashboard() {
   };
 
   const handleCreateIssue = async () => {
-    if (!formData.enrollment_id || !formData.description) {
+    if (!selectedStudent || !formData.enrollment_id || !formData.description) {
       toast.error('Please select a student and provide a description');
       return;
     }
@@ -470,12 +470,13 @@ export default function DisciplineMasterDashboard() {
     try {
       setSubmitting(true);
 
+      // New API contract: camelCase body keyed by studentId.
       await apiService.post('/discipline', {
-        enrollment_id: parseInt(formData.enrollment_id),
-        issue_type: formData.issue_type,
+        studentId: selectedStudent.id,
+        issueType: formData.issue_type,
         description: formData.description,
         notes: formData.notes.trim() || undefined,
-        academic_year_id: selectedAcademicYear?.id
+        academicYearId: selectedAcademicYear?.id
       });
 
       toast.success('Discipline issue recorded successfully');

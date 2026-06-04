@@ -248,10 +248,17 @@ export const requiresAcademicYear = (role: string): boolean => {
   const rolesRequiringAcademicYear = [
     'TEACHER',
     'HOD',
+    'PRINCIPAL',
     'VICE_PRINCIPAL',
     'DISCIPLINE_MASTER',
+    'SENIOR_DISCIPLINE_MASTER',
+    'DEAN_OF_DISCIPLINE',
+    'DEAN_OF_STUDIES',
     'GUIDANCE_COUNSELOR',
-    'BURSAR'
+    'BURSAR',
+    'FEE_AUDITOR',
+    'SECRETARY',
+    'NURSE'
   ];
 
   return rolesRequiringAcademicYear.includes(role);
@@ -271,7 +278,13 @@ export const getDashboardRoute = (role: string): string => {
     'HOD': '/dashboard/hod',
     'BURSAR': '/dashboard/bursar',
     'DISCIPLINE_MASTER': '/dashboard/discipline-master',
+    'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
+    'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+    'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
     'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
+    'FEE_AUDITOR': '/dashboard/fee-auditor',
+    'SECRETARY': '/dashboard/secretary',
+    'NURSE': '/dashboard/nurse',
     'PARENT': '/dashboard/parent-student',
     'STUDENT': '/dashboard/parent-student',
     'MANAGER': '/dashboard/manager'

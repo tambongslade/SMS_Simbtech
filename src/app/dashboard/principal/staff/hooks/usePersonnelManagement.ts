@@ -11,10 +11,17 @@ const roles = [
   { value: 'MANAGER', label: 'Manager' },
   { value: 'PRINCIPAL', label: 'Principal' },
   { value: 'VICE_PRINCIPAL', label: 'Vice Principal' },
-  { value: 'TEACHER', label: 'Teacher' },
   { value: 'BURSAR', label: 'Bursar' },
+  { value: 'DEAN_OF_STUDIES', label: 'Dean of Studies' },
+  { value: 'DEAN_OF_DISCIPLINE', label: 'Dean of Discipline' },
+  { value: 'SENIOR_DISCIPLINE_MASTER', label: 'Senior Discipline Master' },
   { value: 'DISCIPLINE_MASTER', label: 'Discipline Master' },
+  { value: 'FEE_AUDITOR', label: 'Fee Auditor' },
+  { value: 'SECRETARY', label: 'Secretary' },
+  { value: 'TEACHER', label: 'Teacher' },
+  { value: 'HOD', label: 'Head of Department' },
   { value: 'GUIDANCE_COUNSELOR', label: 'Guidance Counselor' },
+  { value: 'NURSE', label: 'Nurse' },
   { value: 'PARENT', label: 'Parent' },
 ];
 

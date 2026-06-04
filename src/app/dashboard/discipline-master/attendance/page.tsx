@@ -679,15 +679,25 @@ const AttendanceDashboardPage: React.FC = () => {
     try {
       setSubmitting(true);
 
-      await apiService.post('/discipline/lateness', {
-        student_id: latenessSelectedStudent.id,
+      // New API contract: camelCase body; response wraps the absence as
+      // data: { absence, pendingPunishmentAlert }.
+      const response = await apiService.post('/discipline/lateness', {
+        studentId: latenessSelectedStudent.id,
         date: startDate,
-        arrival_time: arrivalTime,
+        arrivalTime: arrivalTime,
         reason: reason.trim() || undefined,
-        academic_year_id: selectedAcademicYear?.id
+        academicYearId: selectedAcademicYear?.id
       });
 
       toast.success('Morning lateness recorded successfully');
+
+      const alert = response?.data?.pendingPunishmentAlert;
+      if (alert) {
+        toast(
+          `${latenessSelectedStudent.name} has ${alert.latenessCountInTerm} lates this term — schedule a Saturday punishment.`,
+          { icon: '⚠️', duration: 8000 }
+        );
+      }
 
       // Clear form
       setLatenessSelectedStudent(null);
@@ -720,20 +730,31 @@ const AttendanceDashboardPage: React.FC = () => {
     try {
       setSubmitting(true);
 
+      // New API contract: camelCase body; data.successes is now
+      // Array<{ absence, pendingPunishmentAlert }> and data.newAlerts lists
+      // students who just crossed a 3-strike threshold.
       const response = await apiService.post('/discipline/lateness/bulk', {
         date: startDate,
         records: validRecords.map(record => ({
-          student_id: record.selectedStudent!.id,
-          arrival_time: record.arrivalTime,
+          studentId: record.selectedStudent!.id,
+          arrivalTime: record.arrivalTime,
           reason: record.reason.trim() || undefined
         })),
-        academic_year_id: selectedAcademicYear?.id
+        academicYearId: selectedAcademicYear?.id
       });
 
-      toast.success(`Processed ${response.data.successful_records} records successfully`);
+      toast.success(`Processed ${response.data.successfulRecords} records successfully`);
 
-      if (response.data.failed_records > 0) {
-        toast.error(`${response.data.failed_records} records failed`);
+      if (response.data.failedRecords > 0) {
+        toast.error(`${response.data.failedRecords} records failed`);
+      }
+
+      const newAlerts = response.data.newAlerts || [];
+      if (newAlerts.length > 0) {
+        toast(
+          `${newAlerts.length} new 3-strike alert${newAlerts.length === 1 ? '' : 's'} — review Saturday Punishments to schedule.`,
+          { icon: '⚠️', duration: 8000 }
+        );
       }
 
       // Clear bulk form

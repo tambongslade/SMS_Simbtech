@@ -28,6 +28,7 @@ type Student = {
     matricule?: string;
     parents?: ParentLink[]; // Array of linked parent users
     className?: string; // Might come from enrollment info
+    classId?: number; // Class the student is assigned to (even without a subclass)
     subClassName?: string; // Might come from enrollment info
     subClassId?: number;
     academicYearName?: string;
@@ -219,6 +220,7 @@ export default function StudentManagement() {
 
     // --- State for Filters & Pagination ---
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Server-side search term
     const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>('all');
     const [subClassFilter, setSubClassFilter] = useState<string>('all'); // Store subclass ID as string or 'all'
     const [academicYearFilter, setAcademicYearFilter] = useState<string>(''); // Add academic year filter
@@ -287,31 +289,51 @@ export default function StudentManagement() {
         setIsLoading(true);
         console.log("Fetching students...");
         try {
-            // Construct URL with parameters
-            const params = new URLSearchParams();
-            params.append('page', String(currentPage));
-            params.append('limit', String(studentsPerPage));
+            const term = debouncedSearchTerm.trim();
+            let rawList: any[] = [];
+            let total = 0;
 
-            if (enrollmentFilter === 'enrolled') {
-                params.append('enrollmentStatus', 'enrolled');
-            } else if (enrollmentFilter === 'not-enrolled') {
-                params.append('enrollmentStatus', 'not_enrolled');
+            if (term) {
+                // Server-side search across name, matricule, parents, class/subclass, etc.
+                const params = new URLSearchParams();
+                params.append('q', term);
+                params.append('page', String(currentPage));
+                params.append('limit', String(studentsPerPage));
+                if (academicYearFilter) {
+                    params.append('academicYearId', academicYearFilter);
+                }
+                const result = await apiService.get<{ data: { data: any[]; meta?: { total?: number } } }>(
+                    `/students/search?${params.toString()}`
+                );
+                rawList = result.data?.data || [];
+                total = result.data?.meta?.total || 0;
+            } else {
+                // Construct URL with parameters
+                const params = new URLSearchParams();
+                params.append('page', String(currentPage));
+                params.append('limit', String(studentsPerPage));
+
+                if (enrollmentFilter === 'enrolled') {
+                    params.append('enrollmentStatus', 'enrolled');
+                } else if (enrollmentFilter === 'not-enrolled') {
+                    params.append('enrollmentStatus', 'not_enrolled');
+                }
+                if (subClassFilter !== 'all') {
+                    params.append('subClassId', subClassFilter);
+                }
+                if (academicYearFilter) {
+                    params.append('academicYearId', academicYearFilter);
+                }
+
+                const result = await apiService.get<{ data: any[], meta?: { total: number } }>(
+                    `/students?${params.toString()}`
+                );
+                rawList = result.data || [];
+                total = result.meta?.total || 0;
             }
-            if (subClassFilter !== 'all') {
-                params.append('subClassId', subClassFilter);
-            }
-            if (academicYearFilter) {
-                params.append('academicYearId', academicYearFilter);
-            }
 
-            const url = `/students?${params.toString()}`;
-            console.log(`Fetching from URL: ${url}`);
-
-            // Use apiService
-            const result = await apiService.get<{ data: any[], meta?: { total: number } }>(url);
-
-            console.log("Students API response:", result);
-            const fetchedStudents = await Promise.all(result.data?.map(async (s: any) => {
+            console.log("Students API response count:", rawList.length);
+            const fetchedStudents = await Promise.all(rawList.map(async (s: any) => {
                 console.log(`Raw data for student ID ${s.id}:`, JSON.stringify(s, null, 2));
 
                 // Map basic parent data
@@ -330,28 +352,42 @@ export default function StudentManagement() {
                 const enrichedParents = await enrichParentData(basicParents);
                 console.log(`Enriched parents for student ${s.id}:`, JSON.stringify(enrichedParents, null, 2));
 
+                const enrollmentsList: any[] = s.enrollments || [];
+                // Prefer the enrollment for the selected academic year; otherwise fall
+                // back to the most recent enrollment (the API may return several).
+                const currentEnrollment =
+                    enrollmentsList.find((e: any) =>
+                        String(e.academicYearId ?? e.academic_year_id) === String(academicYearFilter)
+                    ) || enrollmentsList[enrollmentsList.length - 1] || enrollmentsList[0];
+
+                // subClass may be absent when the student is only assigned to a class.
+                const subClass = currentEnrollment?.subClass ?? currentEnrollment?.sub_class;
+
                 return {
                     id: s.id,
                     name: s.name,
                     matricule: s.matricule,
-                    subClassName: s.enrollments?.[0]?.subClass?.name,
-                    subClassId: s.enrollments?.[0]?.subClass?.id,
-                    className: s.enrollments?.[0]?.subClass?.class?.name,
-                    academicYearId: s.enrollments?.[0]?.academic_year_id,
-                    academicYearName: s.enrollments?.[0]?.academicYear?.name,
+                    subClassName: subClass?.name,
+                    subClassId: subClass?.id,
+                    className: subClass?.class?.name ?? currentEnrollment?.class?.name,
+                    classId: currentEnrollment?.classId ?? currentEnrollment?.class_id,
+                    academicYearId: currentEnrollment?.academicYearId ?? currentEnrollment?.academic_year_id,
+                    academicYearName:
+                        currentEnrollment?.academicYear?.name ??
+                        academicYears.find(ay => String(ay.id) === academicYearFilter)?.name,
                     date_of_birth: s.dateOfBirth,
                     place_of_birth: s.placeOfBirth,
                     gender: s.gender,
                     residence: s.residence,
                     former_school: s.formerSchool,
                     parents: enrichedParents,
-                    photo: s.photo || s.enrollments?.[0]?.photo,
-                    photoUrl: s.photoUrl || s.enrollments?.[0]?.photoUrl,
-                    hasPhoto: s.hasPhoto || s.enrollments?.[0]?.hasPhoto
+                    photo: s.photo || currentEnrollment?.photo,
+                    photoUrl: s.photoUrl || currentEnrollment?.photoUrl,
+                    hasPhoto: s.hasPhoto || currentEnrollment?.hasPhoto
                 };
-            }) || []);
+            }));
 
-            setTotalStudents(result.meta?.total || 0);
+            setTotalStudents(total);
             setStudents(fetchedStudents);
         } catch (error: any) {
             console.error("Failed to fetch students:", error);
@@ -362,7 +398,7 @@ export default function StudentManagement() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, searchTerm, enrollmentFilter, subClassFilter, academicYearFilter, studentsPerPage]);
+    }, [currentPage, debouncedSearchTerm, enrollmentFilter, subClassFilter, academicYearFilter, studentsPerPage]);
 
     const fetchParentUsers = useCallback(async (searchTerm: string = '') => {
         console.log("Fetching parent users with search:", searchTerm);
@@ -473,10 +509,21 @@ export default function StudentManagement() {
         }
     }, [academicYears]); // Only depend on academicYears, not academicYearFilter
 
+    // Debounce the search box before hitting the server.
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    // Reset to first page whenever the search term changes.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearchTerm]);
+
     // Fetch students when filters change
     useEffect(() => {
         fetchStudents();
-    }, [enrollmentFilter, currentPage, subClassFilter, searchTerm, academicYearFilter, studentsPerPage, fetchStudents]);
+    }, [enrollmentFilter, currentPage, subClassFilter, debouncedSearchTerm, academicYearFilter, studentsPerPage, fetchStudents]);
 
     // Debounced search effect for server-side parent search
     useEffect(() => {
@@ -551,16 +598,8 @@ export default function StudentManagement() {
         setIsBulkPhotoModalOpen(false);
     };
 
-    const filteredStudents = useMemo(() => {
-        return students.filter(student => {
-            const term = searchTerm.toLowerCase();
-            const matchesSearch = term === '' ||
-                student.name.toLowerCase().includes(term) ||
-                (student.matricule && student.matricule.toLowerCase().includes(term));
-            const matchesSubClass = subClassFilter === 'all' || String(student.subClassId) === subClassFilter;
-            return matchesSearch && matchesSubClass;
-        });
-    }, [students, searchTerm, subClassFilter]);
+    // Search and subclass filtering are handled server-side; render rows as-is.
+    const filteredStudents = useMemo(() => students, [students]);
 
     const totalPages = Math.ceil(totalStudents / studentsPerPage);
 
@@ -1401,9 +1440,24 @@ export default function StudentManagement() {
                                             {/* Enrollment Column */}
                                             <td className="px-4 py-3">
                                                 <div className="space-y-1">
-                                                    <div className="text-sm text-gray-700">
-                                                        {student.subClassName || 'Not Enrolled'}
-                                                    </div>
+                                                    {(() => {
+                                                        const resolvedClassName =
+                                                            student.className ||
+                                                            classes.find(c => c.id === student.classId)?.name;
+                                                        if (!resolvedClassName && !student.subClassName) {
+                                                            return <div className="text-sm text-gray-500">Not Enrolled</div>;
+                                                        }
+                                                        return (
+                                                            <>
+                                                                <div className="text-sm font-medium text-gray-800">
+                                                                    {resolvedClassName || 'Class not set'}
+                                                                </div>
+                                                                <div className="text-xs text-gray-600">
+                                                                    {student.subClassName || 'Subclass not assigned'}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
                                                     {student.academicYearName && (
                                                         <div className="text-xs text-gray-500">
                                                             {student.academicYearName}

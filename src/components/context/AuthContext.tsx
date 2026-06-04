@@ -93,8 +93,14 @@ const ROLES_REQUIRING_ACADEMIC_YEAR = [
     'PRINCIPAL',
     'VICE_PRINCIPAL',
     'DISCIPLINE_MASTER',
+    'SENIOR_DISCIPLINE_MASTER',
+    'DEAN_OF_DISCIPLINE',
+    'DEAN_OF_STUDIES',
     'GUIDANCE_COUNSELOR',
-    'BURSAR'
+    'BURSAR',
+    'FEE_AUDITOR',
+    'SECRETARY',
+    'NURSE'
 ];
 
 const DASHBOARD_ROUTES: Record<string, string> = {
@@ -105,7 +111,13 @@ const DASHBOARD_ROUTES: Record<string, string> = {
     'HOD': '/dashboard/hod',
     'BURSAR': '/dashboard/bursar',
     'DISCIPLINE_MASTER': '/dashboard/discipline-master',
+    'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
+    'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+    'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
     'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
+    'FEE_AUDITOR': '/dashboard/fee-auditor',
+    'SECRETARY': '/dashboard/secretary',
+    'NURSE': '/dashboard/nurse',
     'PARENT': '/dashboard/parent-student',
     'STUDENT': '/dashboard/parent-student',
     'MANAGER': '/dashboard/manager'

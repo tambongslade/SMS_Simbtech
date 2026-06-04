@@ -7,10 +7,12 @@ import {
   UsersIcon,
   ChartBarIcon,
   ClockIcon,
-  UserPlusIcon
+  UserPlusIcon,
+  ReceiptRefundIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+import { listOverpaid } from '@/lib/refundsApi';
 import { toast } from 'react-hot-toast';
 
 interface BursarDashboardData {
@@ -39,9 +41,16 @@ export default function BursarDashboard() {
   const { selectedAcademicYear } = useAuth();
   const [dashboardData, setDashboardData] = useState<BursarDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [overpaidCount, setOverpaidCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetchDashboardData();
+  }, [selectedAcademicYear]);
+
+  useEffect(() => {
+    listOverpaid({ academicYearId: selectedAcademicYear?.id, limit: 1 })
+      .then((res) => setOverpaidCount(res.meta?.total ?? res.data.length))
+      .catch(() => setOverpaidCount(null));
   }, [selectedAcademicYear]);
 
   const fetchDashboardData = async () => {
@@ -238,6 +247,18 @@ export default function BursarDashboard() {
               <ChartBarIcon className="w-8 h-8 text-purple-600 mb-2" />
               <h4 className="font-medium text-gray-900">Financial Reports</h4>
               <p className="text-sm text-gray-600">View detailed financial reports</p>
+            </button>
+            <button
+              onClick={() => window.location.href = '/dashboard/bursar/overpayments'}
+              className="p-4 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-left transition-colors"
+            >
+              <ReceiptRefundIcon className="w-8 h-8 text-emerald-600 mb-2" />
+              <h4 className="font-medium text-gray-900">Overpayments &amp; Refunds</h4>
+              <p className="text-sm text-gray-600">
+                {overpaidCount != null
+                  ? `${overpaidCount} student${overpaidCount === 1 ? '' : 's'} with overpayments`
+                  : 'Review and refund overpayments'}
+              </p>
             </button>
           </div>
         </CardBody>

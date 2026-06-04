@@ -1,0 +1,272 @@
+import apiService from '@/lib/apiService';
+
+// ---- Shared types for the Secretary dashboard ----
+
+export type SecretaryStudent = {
+  id: number;
+  name: string;
+  matricule?: string;
+  className?: string;
+  classId?: number;
+  subClassName?: string;
+  subClassId?: number;
+  academicYearId?: number;
+  date_of_birth?: string;
+  place_of_birth?: string;
+  gender?: string;
+  residence?: string;
+  former_school?: string;
+  status?: string;
+  photo?: string | null;
+  photoUrl?: string | null;
+  hasPhoto?: boolean;
+};
+
+export type SecretaryTeacher = {
+  id: number;
+  name: string;
+  email?: string;
+  phone?: string;
+  gender?: string;
+  matricule?: string;
+  subjects?: { id: number; name: string }[];
+};
+
+export type ClassInfo = { id: number; name: string };
+export type SubClassInfo = { id: number; name: string; classId?: number };
+
+export type Paginated<T> = { data: T[]; meta?: { total?: number } };
+
+// ---- Create payloads ----
+
+export interface CreateStudentPayload {
+  studentName: string;
+  dateOfBirth: string;
+  placeOfBirth: string;
+  gender: 'MALE' | 'FEMALE' | '';
+  residence: string;
+  formerSchool: string;
+  classId: number;
+  academicYearId: number;
+  isNewStudent: boolean;
+  parentName: string;
+  parentPhone: string;
+  parentWhatsapp?: string;
+  parentEmail?: string;
+  parentAddress: string;
+  relationship?: string;
+}
+
+export interface CreateTeacherPayload {
+  name: string;
+  email: string;
+  phone?: string;
+  gender: string;
+  date_of_birth: string;
+  address?: string;
+  password: string;
+}
+
+// ---- Fetch helpers ----
+
+export const fetchClasses = async (): Promise<ClassInfo[]> => {
+  const res = await apiService.get<Paginated<ClassInfo>>('/classes?limit=100');
+  return res.data || [];
+};
+
+export const fetchSubClasses = async (): Promise<SubClassInfo[]> => {
+  const res = await apiService.get<Paginated<SubClassInfo>>('/classes/sub-classes?limit=100');
+  return res.data || [];
+};
+
+// The /students endpoint nests class/subclass under enrollments[]; flatten the
+// enrollment for the requested academic year (or the most recent one).
+const mapStudent = (s: any, academicYearId?: number): SecretaryStudent => {
+  const enrollments: any[] = s.enrollments || [];
+  const current =
+    enrollments.find(
+      (e: any) => String(e.academicYearId ?? e.academic_year_id) === String(academicYearId),
+    ) || enrollments[enrollments.length - 1] || enrollments[0];
+
+  // subClass may be absent when the student is only assigned to a class.
+  const subClass = current?.subClass ?? current?.sub_class;
+
+  return {
+    id: s.id,
+    name: s.name,
+    matricule: s.matricule,
+    gender: s.gender,
+    status: s.status,
+    date_of_birth: s.dateOfBirth ?? s.date_of_birth,
+    place_of_birth: s.placeOfBirth ?? s.place_of_birth,
+    residence: s.residence,
+    former_school: s.formerSchool ?? s.former_school,
+    subClassName: subClass?.name,
+    subClassId: subClass?.id,
+    className: subClass?.class?.name ?? current?.class?.name,
+    classId: current?.classId ?? current?.class_id,
+    academicYearId: current?.academicYearId ?? current?.academic_year_id,
+    photo: s.photo ?? current?.photo,
+    photoUrl: s.photoUrl,
+    hasPhoto: s.hasPhoto,
+  };
+};
+
+export const fetchStudents = async (params: {
+  academicYearId?: number;
+  subClassId?: number | string;
+  page?: number;
+  limit?: number;
+}): Promise<Paginated<SecretaryStudent>> => {
+  const qs = new URLSearchParams();
+  qs.append('page', String(params.page ?? 1));
+  qs.append('limit', String(params.limit ?? 20));
+  if (params.academicYearId) qs.append('academicYearId', String(params.academicYearId));
+  if (params.subClassId && params.subClassId !== 'all') qs.append('subClassId', String(params.subClassId));
+  const res = await apiService.get<{ data: any[]; meta?: { total?: number } }>(`/students?${qs.toString()}`);
+  return {
+    data: (res.data || []).map((s) => mapStudent(s, params.academicYearId)),
+    meta: res.meta,
+  };
+};
+
+// Server-side search across name, matricule, parents, class/subclass, etc.
+// Response is double-nested: { data: { data: [...], meta } }.
+export const searchStudents = async (params: {
+  q: string;
+  academicYearId?: number;
+  page?: number;
+  limit?: number;
+}): Promise<Paginated<SecretaryStudent>> => {
+  const qs = new URLSearchParams();
+  qs.append('q', params.q);
+  qs.append('page', String(params.page ?? 1));
+  qs.append('limit', String(params.limit ?? 20));
+  if (params.academicYearId) qs.append('academicYearId', String(params.academicYearId));
+  const res = await apiService.get<{ data: { data: any[]; meta?: { total?: number } } }>(
+    `/students/search?${qs.toString()}`,
+  );
+  const inner = res.data || ({} as { data: any[]; meta?: { total?: number } });
+  return {
+    data: (inner.data || []).map((s) => mapStudent(s, params.academicYearId)),
+    meta: inner.meta,
+  };
+};
+
+export const fetchTeachers = async (params: {
+  academicYearId?: number;
+  page?: number;
+  limit?: number;
+}): Promise<Paginated<SecretaryTeacher>> => {
+  const qs = new URLSearchParams();
+  qs.append('role', 'TEACHER');
+  qs.append('page', String(params.page ?? 1));
+  qs.append('limit', String(params.limit ?? 50));
+  if (params.academicYearId) qs.append('academicYearId', String(params.academicYearId));
+  return apiService.get<Paginated<SecretaryTeacher>>(`/users?${qs.toString()}`);
+};
+
+// ---- Create helpers ----
+
+export const createStudentWithParent = (payload: CreateStudentPayload) =>
+  apiService.post<{ data: { student?: { id: number }; enrollment?: { id: number } } }>(
+    '/bursar/create-parent-with-student',
+    payload,
+  );
+
+// ---- Class / subclass assignment ----
+
+export const assignStudentClass = (id: number, classId: number, academicYearId?: number) =>
+  apiService.post(`/students/${id}/assign-class`, {
+    classId,
+    ...(academicYearId ? { academicYearId } : {}),
+  });
+
+export const enrollStudentInSubclass = (id: number, subClassId: number, academicYearId?: number) =>
+  apiService.post(`/students/${id}/enroll`, {
+    subClassId,
+    ...(academicYearId ? { academicYearId } : {}),
+  });
+
+/**
+ * Sets a student's class/subclass for the academic year. Enrolling into a
+ * subclass also sets its parent class; if only a class is given we assign it.
+ */
+export const changeStudentClass = async (
+  id: number,
+  opts: { classId?: number; subClassId?: number; academicYearId?: number },
+) => {
+  if (opts.subClassId) {
+    return enrollStudentInSubclass(id, opts.subClassId, opts.academicYearId);
+  }
+  if (opts.classId) {
+    return assignStudentClass(id, opts.classId, opts.academicYearId);
+  }
+  throw new Error('Select a class or subclass.');
+};
+
+// ---- Student profile ----
+
+export const fetchStudentProfile = async (id: number, academicYearId?: number): Promise<any> => {
+  const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
+  const res = await apiService.get<{ data: any }>(`/students/${id}/full-profile${qs}`);
+  return res.data;
+};
+
+/**
+ * Creates a teacher: registers the user then assigns the TEACHER role for the
+ * current academic year (the same flow personnel management uses).
+ */
+export const createTeacher = async (payload: CreateTeacherPayload, academicYearId?: number) => {
+  const res = await apiService.post<{ data: { id: number; name: string } }>('/auth/register', payload);
+  const newUser = res.data;
+  if (newUser?.id) {
+    await apiService.put(`/users/${newUser.id}/roles/academic-year`, {
+      roles: ['TEACHER'],
+      ...(academicYearId ? { academicYearId } : {}),
+    });
+  }
+  return newUser;
+};
+
+// ---- Export / download helpers ----
+
+export const downloadBlob = (blob: Blob, filename: string) => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+const buildExportQuery = (format: string, academicYearId?: number) => {
+  const qs = new URLSearchParams();
+  qs.append('format', format);
+  if (academicYearId) qs.append('academicYearId', String(academicYearId));
+  return qs.toString();
+};
+
+export const exportSubclassList = async (
+  subClassId: number,
+  format: 'pdf' | 'docx',
+  academicYearId?: number,
+): Promise<Blob> =>
+  apiService.get<Blob>(
+    `/students/subclass/${subClassId}/export?${buildExportQuery(format, academicYearId)}`,
+    undefined,
+    'blob',
+  );
+
+export const exportClassList = async (
+  classId: number,
+  format: 'pdf' | 'docx',
+  academicYearId?: number,
+): Promise<Blob> =>
+  apiService.get<Blob>(
+    `/students/class/${classId}/export?${buildExportQuery(format, academicYearId)}`,
+    undefined,
+    'blob',
+  );

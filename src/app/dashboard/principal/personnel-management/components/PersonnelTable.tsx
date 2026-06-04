@@ -213,6 +213,12 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                           'BURSAR': 'bg-yellow-100 text-yellow-800',
                           'GUIDANCE_COUNSELOR': 'bg-blue-100 text-blue-800',
                           'DISCIPLINE_MASTER': 'bg-orange-100 text-orange-800',
+                          'SENIOR_DISCIPLINE_MASTER': 'bg-amber-100 text-amber-800',
+                          'DEAN_OF_DISCIPLINE': 'bg-rose-100 text-rose-800',
+                          'DEAN_OF_STUDIES': 'bg-cyan-100 text-cyan-800',
+                          'FEE_AUDITOR': 'bg-lime-100 text-lime-800',
+                          'SECRETARY': 'bg-sky-100 text-sky-800',
+                          'NURSE': 'bg-fuchsia-100 text-fuchsia-800',
                           'HOD': 'bg-teal-100 text-teal-800',
                           'MANAGER': 'bg-pink-100 text-pink-800'
                         };

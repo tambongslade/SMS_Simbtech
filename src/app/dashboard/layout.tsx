@@ -27,7 +27,9 @@ import {
   MegaphoneIcon,
   ChevronUpDownIcon,
   ClockIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
+  BanknotesIcon,
+  ReceiptRefundIcon
 } from '@heroicons/react/24/outline';
 import { Fade } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
@@ -48,6 +50,12 @@ type MenuItemsStructure = {
   principal: MenuItem[];
   bursar: MenuItem[];
   'discipline-master': MenuItem[];
+  'senior-discipline-master': MenuItem[];
+  'dean-of-discipline': MenuItem[];
+  'dean-of-studies': MenuItem[];
+  'fee-auditor': MenuItem[];
+  secretary: MenuItem[];
+  nurse: MenuItem[];
   hod: MenuItem[];
   'parent-student': MenuItem[];
   'super-manager': MenuItem[];
@@ -63,6 +71,17 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/principal/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
+    {
+      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
+        { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
+        { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
+        { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
+        { label: 'Report Requests', href: '/dashboard/principal/report-requests', icon: ChevronRightIcon },
+      ]
+    },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/principal/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/principal/messaging' },
     { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
@@ -73,7 +92,13 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/bursar' },
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/bursar/control-fee-management' },
+    { icon: BanknotesIcon, label: 'Fee Items', href: '/dashboard/bursar/fee-items' },
+    { icon: ReceiptRefundIcon, label: 'Overpayments & Refunds', href: '/dashboard/bursar/overpayments' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/bursar/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/bursar/expenditures' },
+    { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/bursar/broken-property' },
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
+    { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/bursar/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/bursar/messaging' },
@@ -81,7 +106,22 @@ const menuItems: MenuItemsStructure = {
   'discipline-master': [
     { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
     {
+      icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/discipline-master/roll-call'
+    },
+    {
       icon: ClipboardDocumentListIcon, label: 'Attendance & Lateness', href: '/dashboard/discipline-master/attendance'
+    },
+    {
+      icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/discipline-master/punishments'
+    },
+    {
+      icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/discipline-master/broken-property'
+    },
+    {
+      icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/discipline-master/disciplinary-actions'
+    },
+    {
+      icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/discipline-master/report-requests'
     },
     {
       icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/discipline-master/students'
@@ -133,6 +173,17 @@ const menuItems: MenuItemsStructure = {
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
+    { label: 'Finance Requests', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
+    { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
+    {
+      label: 'Discipline', href: '/dashboard/super-manager/discipline', icon: ClipboardDocumentListIcon, subItems: [
+        { label: 'Morning Roll-Call', href: '/dashboard/super-manager/roll-call', icon: ChevronRightIcon },
+        { label: 'Disciplinary Actions', href: '/dashboard/super-manager/disciplinary-actions', icon: ChevronRightIcon },
+        { label: 'Saturday Punishments', href: '/dashboard/super-manager/punishments', icon: ChevronRightIcon },
+        { label: 'Broken Property', href: '/dashboard/super-manager/broken-property', icon: ChevronRightIcon },
+        { label: 'Report Requests', href: '/dashboard/super-manager/report-requests', icon: ChevronRightIcon },
+      ]
+    },
     { label: 'Examination Structure', href: '/dashboard/super-manager/examination-structure', icon: CalendarDaysIcon },
     { label: 'Marks Management', href: '/dashboard/super-manager/marks-management', icon: ClipboardDocumentCheckIcon },
     { label: 'Report Card Generation', href: '/dashboard/super-manager/report-card-generation', icon: DocumentChartBarIcon },
@@ -169,16 +220,84 @@ const menuItems: MenuItemsStructure = {
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/vice-principal/timetable' },
     { icon: ClipboardDocumentListIcon, label: 'Marks Submission', href: '/dashboard/vice-principal/marks-submission' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/vice-principal/report-card-management' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/vice-principal/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/vice-principal/expenditures' },
+    {
+      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
+        { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
+        { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
+        { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
+        { label: 'Report Requests', href: '/dashboard/vice-principal/report-requests', icon: ChevronRightIcon },
+      ]
+    },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/vice-principal/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/vice-principal/messaging' },
   ],
   manager: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/manager' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/manager/financial-reports' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/manager/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/manager/expenditures' },
+    {
+      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/manager/discipline', subItems: [
+        { label: 'Morning Roll-Call', href: '/dashboard/manager/roll-call', icon: ChevronRightIcon },
+        { label: 'Disciplinary Actions', href: '/dashboard/manager/disciplinary-actions', icon: ChevronRightIcon },
+        { label: 'Saturday Punishments', href: '/dashboard/manager/punishments', icon: ChevronRightIcon },
+        { label: 'Broken Property', href: '/dashboard/manager/broken-property', icon: ChevronRightIcon },
+        { label: 'Report Requests', href: '/dashboard/manager/report-requests', icon: ChevronRightIcon },
+      ]
+    },
     { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/manager/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/manager/messaging' },
+  ],
+  'dean-of-studies': [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-studies' },
+    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-studies/announcements' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-studies/messaging' },
+  ],
+  'dean-of-discipline': [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-discipline' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
+    { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
+    { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
+    { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
+    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-discipline/announcements' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-discipline/messaging' },
+  ],
+  'senior-discipline-master': [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/senior-discipline-master' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
+    { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
+    { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
+    { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
+    { icon: BellIcon, label: 'Announcements', href: '/dashboard/senior-discipline-master/announcements' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/senior-discipline-master/messaging' },
+  ],
+  'fee-auditor': [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/fee-auditor' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/fee-auditor/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/fee-auditor/expenditures' },
+    { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/fee-auditor/broken-property' },
+    { icon: BellIcon, label: 'Announcements', href: '/dashboard/fee-auditor/announcements' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/fee-auditor/messaging' },
+  ],
+  secretary: [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/secretary' },
+    { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
+    { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
+    { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
+    { icon: BanknotesIcon, label: 'Bank Verifications', href: '/dashboard/secretary/finance-requests' },
+    { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
+  ],
+  nurse: [
+    { icon: HomeIcon, label: 'Overview', href: '/dashboard/nurse' },
+    { icon: BellIcon, label: 'Announcements', href: '/dashboard/nurse/announcements' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/nurse/messaging' },
   ],
 };
 
@@ -308,6 +427,12 @@ export default function DashboardLayout({
     principal: 'Principal',
     bursar: 'Bursar',
     'discipline-master': 'Discipline Master',
+    'senior-discipline-master': 'Senior Discipline Master',
+    'dean-of-discipline': 'Dean of Discipline',
+    'dean-of-studies': 'Dean of Studies',
+    'fee-auditor': 'Fee Auditor',
+    secretary: 'Secretary',
+    nurse: 'Nurse',
     hod: 'Head of Department',
     'super-manager': 'Super Manager',
     teacher: 'Teacher',
@@ -348,7 +473,13 @@ export default function DashboardLayout({
             'HOD': '/dashboard/hod',
             'BURSAR': '/dashboard/bursar',
             'DISCIPLINE_MASTER': '/dashboard/discipline-master',
+            'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
+            'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+            'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
             'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
+            'FEE_AUDITOR': '/dashboard/fee-auditor',
+            'SECRETARY': '/dashboard/secretary',
+            'NURSE': '/dashboard/nurse',
             'PARENT': '/dashboard/parent-student',
             'STUDENT': '/dashboard/parent-student',
             'MANAGER': '/dashboard/manager',

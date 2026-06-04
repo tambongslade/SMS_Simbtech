@@ -88,6 +88,12 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                                 'BURSAR': 'border-yellow-200 bg-yellow-50',
                                 'GUIDANCE_COUNSELOR': 'border-blue-200 bg-blue-50',
                                 'DISCIPLINE_MASTER': 'border-orange-200 bg-orange-50',
+                                'SENIOR_DISCIPLINE_MASTER': 'border-amber-200 bg-amber-50',
+                                'DEAN_OF_DISCIPLINE': 'border-rose-200 bg-rose-50',
+                                'DEAN_OF_STUDIES': 'border-cyan-200 bg-cyan-50',
+                                'FEE_AUDITOR': 'border-lime-200 bg-lime-50',
+                                'SECRETARY': 'border-sky-200 bg-sky-50',
+                                'NURSE': 'border-fuchsia-200 bg-fuchsia-50',
                                 'HOD': 'border-teal-200 bg-teal-50',
                                 'MANAGER': 'border-pink-200 bg-pink-50'
                             };

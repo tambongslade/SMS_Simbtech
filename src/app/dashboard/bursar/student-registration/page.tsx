@@ -7,8 +7,10 @@ import {
     PencilSquareIcon,
     ClipboardDocumentListIcon,
     TrashIcon,
-    UserGroupIcon
+    UserGroupIcon,
+    EyeIcon
 } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
 import apiService from '../../../../lib/apiService';
 import { useAuth } from '../../../../components/context/AuthContext';
 
@@ -25,6 +27,7 @@ type Student = {
     matricule?: string;
     parents?: ParentLink[]; // Array of linked parent users
     className?: string; // Might come from enrollment info
+    classId?: number; // Class the student is assigned to (even without a subclass)
     subClassName?: string; // Might come from enrollment info
     subClassId?: number;
     academicYearName?: string;
@@ -114,6 +117,7 @@ const STUDENTS_PER_PAGE = 10; // Define how many students per page
 
 export default function StudentManagement() {
     const { selectedAcademicYear } = useAuth(); // Change from currentAcademicYear to selectedAcademicYear
+    const router = useRouter();
 
 
     const [students, setStudents] = useState<Student[]>([]);
@@ -214,6 +218,7 @@ export default function StudentManagement() {
 
     // --- State for Filters & Pagination ---
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Server-side search term
     const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>('all');
     const [subClassFilter, setSubClassFilter] = useState<string>('all'); // Store subclass ID as string or 'all'
     const [currentPage, setCurrentPage] = useState(1);
@@ -230,55 +235,85 @@ export default function StudentManagement() {
         setIsLoading(true);
         console.log("Fetching students...");
         try {
-            // Construct URL with parameters
-            const params = new URLSearchParams();
-            params.append('page', String(currentPage));
-            params.append('limit', String(STUDENTS_PER_PAGE));
+            const term = debouncedSearchTerm.trim();
+            let rawList: any[] = [];
+            let total = 0;
 
-            if (enrollmentFilter === 'enrolled') {
-                params.append('enrollmentStatus', 'enrolled');
-            } else if (enrollmentFilter === 'not-enrolled') {
-                params.append('enrollmentStatus', 'not_enrolled');
+            if (term) {
+                // Server-side search across name, matricule, parents, class/subclass, etc.
+                const params = new URLSearchParams();
+                params.append('q', term);
+                params.append('page', String(currentPage));
+                params.append('limit', String(STUDENTS_PER_PAGE));
+                if (selectedAcademicYear) {
+                    params.append('academicYearId', String(selectedAcademicYear.id));
+                }
+                const result = await apiService.get<{ data: { data: any[]; meta?: { total?: number } } }>(
+                    `/students/search?${params.toString()}`
+                );
+                rawList = result.data?.data || [];
+                total = result.data?.meta?.total || 0;
+            } else {
+                // Construct URL with parameters
+                const params = new URLSearchParams();
+                params.append('page', String(currentPage));
+                params.append('limit', String(STUDENTS_PER_PAGE));
+
+                if (enrollmentFilter === 'enrolled') {
+                    params.append('enrollmentStatus', 'enrolled');
+                } else if (enrollmentFilter === 'not-enrolled') {
+                    params.append('enrollmentStatus', 'not_enrolled');
+                }
+                if (subClassFilter !== 'all') {
+                    params.append('subClassId', subClassFilter);
+                }
+                // Add academic year filter from AuthContext
+                if (selectedAcademicYear) {
+                    params.append('academicYearId', String(selectedAcademicYear.id));
+                }
+
+                const result = await apiService.get<{ data: any[], meta?: { total: number } }>(
+                    `/students?${params.toString()}`
+                );
+                rawList = result.data || [];
+                total = result.meta?.total || 0;
             }
-            if (subClassFilter !== 'all') {
-                params.append('subClassId', subClassFilter);
-            }
-            // Add academic year filter from AuthContext
-            if (selectedAcademicYear) {
-                params.append('academicYearId', String(selectedAcademicYear.id));
-            }
 
-            const url = `/students?${params.toString()}`;
-            console.log(`Fetching from URL: ${url}`);
+            const fetchedStudents = rawList.map((s: any) => {
+                const enrollmentsList: any[] = s.enrollments || [];
+                // Prefer the enrollment for the selected academic year; otherwise fall
+                // back to the most recent enrollment (the API may return several).
+                const currentEnrollment =
+                    enrollmentsList.find((e: any) =>
+                        String(e.academicYearId ?? e.academic_year_id) === String(selectedAcademicYear?.id)
+                    ) || enrollmentsList[enrollmentsList.length - 1] || enrollmentsList[0];
 
-            // Use apiService
-            const result = await apiService.get<{ data: any[], meta?: { total: number } }>(url);
+                // subClass may be absent when the student is only assigned to a class.
+                const subClass = currentEnrollment?.subClass ?? currentEnrollment?.sub_class;
 
-            console.log("Students API response:", result);
-            const fetchedStudents = result.data?.map((s: any) => {
-                console.log(`Raw data for student ID ${s.id}:`, JSON.stringify(s, null, 2));
                 return {
                     id: s.id,
                     name: s.name,
                     matricule: s.matricule,
-                    subClassName: s.enrollments?.[0]?.subClass?.name,
-                    subClassId: s.enrollments?.[0]?.subClass?.id,
-                    className: s.enrollments?.[0]?.subClass?.class?.name,
-                    academicYearId: s.enrollments?.[0]?.academic_year_id,
-                    academicYearName: s.enrollments?.[0]?.academicYear?.name, // Assuming academicYear object is nested
+                    subClassName: subClass?.name,
+                    subClassId: subClass?.id,
+                    className: subClass?.class?.name ?? currentEnrollment?.class?.name,
+                    classId: currentEnrollment?.classId ?? currentEnrollment?.class_id,
+                    academicYearId: currentEnrollment?.academicYearId ?? currentEnrollment?.academic_year_id,
+                    academicYearName: currentEnrollment?.academicYear?.name ?? selectedAcademicYear?.name,
                     date_of_birth: s.dateOfBirth,
                     place_of_birth: s.placeOfBirth,
                     gender: s.gender,
                     residence: s.residence,
                     former_school: s.formerSchool,
                     parents: s.parents?.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        phone: p.phone
+                        id: p.parent?.id ?? p.id,
+                        name: p.parent?.name ?? p.name,
+                        phone: p.parent?.phone ?? p.phone
                     })) || []
                 };
-            }) || [];
-            setTotalStudents(result.meta?.total || 0);
+            });
+            setTotalStudents(total);
             setStudents(fetchedStudents);
         } catch (error: any) {
             console.error("Failed to fetch students:", error);
@@ -364,9 +399,20 @@ export default function StudentManagement() {
         }
     };
 
+    // Debounce the search box before hitting the server.
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
+        return () => clearTimeout(t);
+    }, [searchTerm]);
+
+    // Reset to first page whenever the search term changes.
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearchTerm]);
+
     useEffect(() => {
         fetchStudents();
-    }, [enrollmentFilter, currentPage, subClassFilter, searchTerm, selectedAcademicYear]); // Add selectedAcademicYear dependency
+    }, [enrollmentFilter, currentPage, subClassFilter, debouncedSearchTerm, selectedAcademicYear]); // Add selectedAcademicYear dependency
 
     useEffect(() => {
         fetchSubClasses();
@@ -375,16 +421,8 @@ export default function StudentManagement() {
         fetchClasses();
     }, []);
 
-    const filteredStudents = useMemo(() => {
-        return students.filter(student => {
-            const term = searchTerm.toLowerCase();
-            const matchesSearch = term === '' ||
-                student.name.toLowerCase().includes(term) ||
-                (student.matricule && student.matricule.toLowerCase().includes(term));
-            const matchesSubClass = subClassFilter === 'all' || String(student.subClassId) === subClassFilter;
-            return matchesSearch && matchesSubClass;
-        });
-    }, [students, searchTerm, subClassFilter]);
+    // Search and subclass filtering are handled server-side; render rows as-is.
+    const filteredStudents = useMemo(() => students, [students]);
 
     const totalPages = Math.ceil(totalStudents / STUDENTS_PER_PAGE);
 
@@ -1054,9 +1092,24 @@ export default function StudentManagement() {
                                             {/* Enrollment Column */}
                                             <td className="px-4 py-3">
                                                 <div className="space-y-1">
-                                                    <div className="text-sm text-gray-700">
-                                                        {student.subClassName || 'Not Enrolled'}
-                                                    </div>
+                                                    {(() => {
+                                                        const resolvedClassName =
+                                                            student.className ||
+                                                            classes.find(c => c.id === student.classId)?.name;
+                                                        if (!resolvedClassName && !student.subClassName) {
+                                                            return <div className="text-sm text-gray-500">Not Enrolled</div>;
+                                                        }
+                                                        return (
+                                                            <>
+                                                                <div className="text-sm font-medium text-gray-800">
+                                                                    {resolvedClassName || 'Class not set'}
+                                                                </div>
+                                                                <div className="text-xs text-gray-600">
+                                                                    {student.subClassName || 'Subclass not assigned'}
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
                                                     {student.academicYearName && (
                                                         <div className="text-xs text-gray-500">
                                                             {student.academicYearName}
@@ -1084,6 +1137,15 @@ export default function StudentManagement() {
                                             {/* Actions Column with Horizontal Layout */}
                                             <td className="px-4 py-3">
                                                 <div className="flex flex-wrap gap-1">
+                                                    <button
+                                                        onClick={() => router.push(`/dashboard/bursar/student-registration/${student.id}`)}
+                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                        disabled={isLoading}
+                                                        title="View Full Profile"
+                                                    >
+                                                        <EyeIcon className="h-3 w-3 mr-1" />
+                                                        <span>View</span>
+                                                    </button>
                                                     <button
                                                         onClick={() => openEditModal(student)}
                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"

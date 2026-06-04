@@ -1,0 +1,416 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { MagnifyingGlassIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Button, Input, Select, TextArea, Modal } from '@/components/ui';
+import { useAuth } from '@/components/context/AuthContext';
+import {
+  createFinanceRequest,
+  searchFinanceStudents,
+  listRecipientUsers,
+  TYPE_LABELS,
+  type FinanceRequest,
+  type FinanceRequestType,
+  type FinanceStudent,
+  type StudentEnrollment,
+  type RecipientUser,
+} from '@/lib/financeRequestsApi';
+
+interface CreateFinanceRequestModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreated: (created: FinanceRequest) => void;
+  // Restrict the selectable types (defaults to all three).
+  allowedTypes?: FinanceRequestType[];
+}
+
+const ALL_TYPES: FinanceRequestType[] = [
+  'FEE_REDUCTION',
+  'PERSONNEL_DISBURSEMENT',
+  'BANK_VERIFICATION',
+];
+
+const monthValue = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+export function CreateFinanceRequestModal({
+  isOpen,
+  onClose,
+  onCreated,
+  allowedTypes = ALL_TYPES,
+}: CreateFinanceRequestModalProps) {
+  const { selectedAcademicYear } = useAuth();
+
+  const [type, setType] = useState<FinanceRequestType>(allowedTypes[0]);
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // FEE_REDUCTION / BANK_VERIFICATION: student picker
+  const [studentQuery, setStudentQuery] = useState('');
+  const [studentResults, setStudentResults] = useState<FinanceStudent[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<FinanceStudent | null>(null);
+
+  // FEE_REDUCTION extras
+  const [enrollmentId, setEnrollmentId] = useState('');
+  const [partnerName, setPartnerName] = useState('');
+
+  // PERSONNEL_DISBURSEMENT: recipient picker
+  const [recipients, setRecipients] = useState<RecipientUser[]>([]);
+  const [recipientQuery, setRecipientQuery] = useState('');
+  const [recipientId, setRecipientId] = useState('');
+  const [purpose, setPurpose] = useState('');
+
+  // BANK_VERIFICATION extras
+  const [claimedAmount, setClaimedAmount] = useState('');
+  const [periodFrom, setPeriodFrom] = useState('');
+  const [periodTo, setPeriodTo] = useState('');
+
+  const resetForm = () => {
+    setType(allowedTypes[0]);
+    setAmount('');
+    setReason('');
+    setNotes('');
+    setStudentQuery('');
+    setStudentResults([]);
+    setSelectedStudent(null);
+    setEnrollmentId('');
+    setPartnerName('');
+    setRecipientQuery('');
+    setRecipientId('');
+    setPurpose('');
+    setClaimedAmount('');
+    setPeriodFrom('');
+    setPeriodTo('');
+  };
+
+  // Reset whenever the modal opens.
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+      const now = new Date();
+      setPeriodFrom(monthValue(now));
+      setPeriodTo(monthValue(now));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // Load recipient users once (for the personnel disbursement picker).
+  useEffect(() => {
+    if (isOpen) {
+      listRecipientUsers().then(setRecipients).catch(() => setRecipients([]));
+    }
+  }, [isOpen]);
+
+  // Debounced student search.
+  useEffect(() => {
+    if (type !== 'FEE_REDUCTION' && type !== 'BANK_VERIFICATION') return;
+    const q = studentQuery.trim();
+    if (q.length < 2) {
+      setStudentResults([]);
+      return;
+    }
+    setIsSearching(true);
+    const handle = setTimeout(() => {
+      searchFinanceStudents({ q, academicYearId: selectedAcademicYear?.id, limit: 15 })
+        .then(setStudentResults)
+        .catch(() => setStudentResults([]))
+        .finally(() => setIsSearching(false));
+    }, 350);
+    return () => clearTimeout(handle);
+  }, [studentQuery, type, selectedAcademicYear?.id]);
+
+  const filteredRecipients = useMemo(() => {
+    const q = recipientQuery.trim().toLowerCase();
+    if (!q) return recipients.slice(0, 50);
+    return recipients
+      .filter(
+        (u) =>
+          u.name?.toLowerCase().includes(q) ||
+          u.matricule?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q),
+      )
+      .slice(0, 50);
+  }, [recipients, recipientQuery]);
+
+  const pickStudent = (s: FinanceStudent) => {
+    setSelectedStudent(s);
+    setStudentResults([]);
+    setStudentQuery(`${s.name}${s.matricule ? ` (${s.matricule})` : ''}`);
+    // Pre-select the enrollment for the active academic year, else the latest.
+    if (type === 'FEE_REDUCTION') {
+      const match =
+        s.enrollments.find((e) => e.academicYearId === selectedAcademicYear?.id) ||
+        s.enrollments[s.enrollments.length - 1];
+      setEnrollmentId(match ? String(match.id) : '');
+    }
+  };
+
+  const enrollmentLabel = (e: StudentEnrollment) => {
+    const cls = [e.className, e.subClassName].filter(Boolean).join(' · ');
+    const yr = e.academicYearName ? ` — ${e.academicYearName}` : '';
+    return `${cls || 'Enrollment'}${yr} (#${e.id})`;
+  };
+
+  const validate = (): string | null => {
+    if (!reason.trim()) return 'Reason is required.';
+    if (type === 'FEE_REDUCTION') {
+      if (!enrollmentId) return 'Select the student enrollment to discount.';
+      if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
+    }
+    if (type === 'PERSONNEL_DISBURSEMENT') {
+      if (!recipientId) return 'Select the recipient.';
+      if (!purpose.trim()) return 'Purpose is required.';
+      if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
+    }
+    if (type === 'BANK_VERIFICATION') {
+      if (!selectedStudent) return 'Select the student.';
+      if (!periodFrom || !periodTo) return 'Provide the estimated payment period.';
+    }
+    return null;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const err = validate();
+    if (err) {
+      toast.error(err);
+      return;
+    }
+
+    let payload: Record<string, any> = {};
+    let amountValue: number | null = null;
+
+    if (type === 'FEE_REDUCTION') {
+      amountValue = Number(amount);
+      payload = {
+        enrollmentId: Number(enrollmentId),
+        ...(partnerName.trim() ? { partnerName: partnerName.trim() } : {}),
+      };
+    } else if (type === 'PERSONNEL_DISBURSEMENT') {
+      amountValue = Number(amount);
+      payload = { recipientUserId: Number(recipientId), purpose: purpose.trim() };
+    } else {
+      // BANK_VERIFICATION — amount omitted
+      payload = {
+        studentId: selectedStudent!.id,
+        estimatedPaymentPeriod: `${periodFrom} to ${periodTo}`,
+        ...(claimedAmount && Number(claimedAmount) > 0
+          ? { claimedAmount: Number(claimedAmount) }
+          : {}),
+      };
+    }
+
+    setIsSaving(true);
+    try {
+      const created = await createFinanceRequest({
+        type,
+        amount: amountValue,
+        reason: reason.trim(),
+        notes: notes.trim() || undefined,
+        payload,
+      });
+      toast.success(`${TYPE_LABELS[type]} request created (#${created.id}).`);
+      onCreated(created);
+      onClose();
+    } catch (error: any) {
+      if (error?.message !== 'Unauthorized') {
+        toast.error(error?.message || 'Failed to create request.');
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const StudentPicker = (
+    <div className="space-y-2">
+      <div className="relative">
+        <Input
+          label="Student *"
+          value={studentQuery}
+          onChange={(e) => {
+            setStudentQuery(e.target.value);
+            setSelectedStudent(null);
+            setEnrollmentId('');
+          }}
+          placeholder="Search by name or matricule…"
+        />
+        <MagnifyingGlassIcon className="absolute right-3 top-9 h-5 w-5 text-gray-400 pointer-events-none" />
+      </div>
+      {isSearching && <p className="text-xs text-gray-500">Searching…</p>}
+      {studentResults.length > 0 && (
+        <div className="border border-gray-200 rounded-lg divide-y max-h-48 overflow-y-auto">
+          {studentResults.map((s) => (
+            <button
+              type="button"
+              key={s.id}
+              onClick={() => pickStudent(s)}
+              className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm"
+            >
+              <span className="font-medium text-gray-900">{s.name}</span>
+              {s.matricule && <span className="text-gray-500"> · {s.matricule}</span>}
+            </button>
+          ))}
+        </div>
+      )}
+      {selectedStudent && (
+        <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+          <CheckCircleIcon className="h-4 w-4" />
+          Selected: <span className="font-medium">{selectedStudent.name}</span>
+          {selectedStudent.matricule && <span>· {selectedStudent.matricule}</span>}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="New Finance Request" size="lg">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {allowedTypes.length > 1 ? (
+          <Select
+            label="Request Type *"
+            value={type}
+            onChange={(e) => setType(e.target.value as FinanceRequestType)}
+            options={allowedTypes.map((t) => ({ value: t, label: TYPE_LABELS[t] }))}
+          />
+        ) : (
+          <div className="text-sm text-gray-600">
+            Type: <span className="font-medium text-gray-900">{TYPE_LABELS[type]}</span>
+          </div>
+        )}
+
+        {/* FEE_REDUCTION */}
+        {type === 'FEE_REDUCTION' && (
+          <>
+            {StudentPicker}
+            {selectedStudent && (
+              <Select
+                label="Enrollment to discount *"
+                value={enrollmentId}
+                onChange={(e) => setEnrollmentId(e.target.value)}
+                options={[
+                  { value: '', label: 'Select enrollment…' },
+                  ...selectedStudent.enrollments.map((en) => ({
+                    value: String(en.id),
+                    label: enrollmentLabel(en),
+                  })),
+                ]}
+              />
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Reduction amount (XAF) *"
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <Input
+                label="Partner name (optional)"
+                value={partnerName}
+                onChange={(e) => setPartnerName(e.target.value)}
+                placeholder="e.g. XYZ Foundation"
+              />
+            </div>
+          </>
+        )}
+
+        {/* PERSONNEL_DISBURSEMENT */}
+        {type === 'PERSONNEL_DISBURSEMENT' && (
+          <>
+            <Input
+              label="Find recipient"
+              value={recipientQuery}
+              onChange={(e) => setRecipientQuery(e.target.value)}
+              placeholder="Filter staff by name, matricule or email…"
+            />
+            <Select
+              label="Recipient *"
+              value={recipientId}
+              onChange={(e) => setRecipientId(e.target.value)}
+              options={[
+                { value: '', label: recipients.length ? 'Select recipient…' : 'Loading staff…' },
+                ...filteredRecipients.map((u) => ({
+                  value: String(u.id),
+                  label: `${u.name}${u.matricule ? ` (${u.matricule})` : ''}`,
+                })),
+              ]}
+            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Amount (XAF) *"
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <Input
+                label="Purpose *"
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                placeholder="e.g. Travel reimbursement"
+              />
+            </div>
+          </>
+        )}
+
+        {/* BANK_VERIFICATION */}
+        {type === 'BANK_VERIFICATION' && (
+          <>
+            {StudentPicker}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                label="Claimed amount (optional)"
+                type="number"
+                min={1}
+                value={claimedAmount}
+                onChange={(e) => setClaimedAmount(e.target.value)}
+                helperText="What the parent claims they paid"
+              />
+              <Input
+                label="Period from *"
+                type="month"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+              />
+              <Input
+                label="Period to *"
+                type="month"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        <Input
+          label="Reason *"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={
+            type === 'BANK_VERIFICATION'
+              ? 'e.g. Parent claims they paid at the bank'
+              : 'Why is this request being made?'
+          }
+        />
+        <TextArea
+          label="Notes (optional)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={2}
+        />
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
+            Cancel
+          </Button>
+          <Button type="submit" color="primary" isLoading={isSaving}>
+            Create Request
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
