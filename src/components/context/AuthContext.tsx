@@ -440,9 +440,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 // If no academic years are found for the role, toast an error.
                 if (fetchedAcademicYears.length === 0) {
                     toast.error(`No academic years found for role: ${refreshedSelectedRole}. Please contact administrator.`);
+                } else {
+                    // Restore the previously selected academic year across refreshes /
+                    // deep-links, as long as it's still valid for this role. Falls back
+                    // to the current academic year so dependent pages (e.g. Fee
+                    // Management) aren't left without one.
+                    let restored: AcademicYear | null = null;
+                    if (savedAcademicYearString) {
+                        try {
+                            const saved = JSON.parse(savedAcademicYearString) as AcademicYear;
+                            restored = fetchedAcademicYears.find(y => y.id === saved.id) || null;
+                        } catch {
+                            restored = null;
+                        }
+                    }
+                    if (!restored) {
+                        const currentId = academicYearsResponse.data.currentAcademicYearId;
+                        restored = fetchedAcademicYears.find(y => y.id === currentId) || null;
+                    }
+                    if (restored) {
+                        refreshedAcademicYear = restored;
+                        setSelectedAcademicYear(restored);
+                        localStorage.setItem('academicYear', JSON.stringify(restored));
+                    }
                 }
-                // selectedAcademicYear remains null or whatever it was before,
-                // unless explicitly set by selectAcademicYear.
 
             } else {
                 // For roles that do NOT require an academic year, clear any saved academic year
