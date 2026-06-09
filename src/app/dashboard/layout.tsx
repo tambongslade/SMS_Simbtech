@@ -29,7 +29,8 @@ import {
   ClockIcon,
   ChatBubbleLeftRightIcon,
   BanknotesIcon,
-  ReceiptRefundIcon
+  ReceiptRefundIcon,
+  ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { Fade } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
@@ -89,7 +90,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
   ],
   bursar: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/bursar' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
     { icon: BanknotesIcon, label: 'Fee Items', href: '/dashboard/bursar/fee-items' },
     { icon: ReceiptRefundIcon, label: 'Overpayments & Refunds', href: '/dashboard/bursar/overpayments' },
@@ -101,6 +102,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/bursar/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/bursar/messaging' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
   'discipline-master': [
     { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
