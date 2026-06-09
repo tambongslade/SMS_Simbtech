@@ -213,7 +213,108 @@ export function ExpendituresPanel({
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            Loading expenditures…
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            No expenditures found for this filter.
+          </div>
+        ) : (
+          rows.map((exp) => {
+            const canEdit = canEditExpenditure(exp, selectedRole, user?.id);
+            const canDelete = canDeleteExpenditure(selectedRole);
+            return (
+              <div key={exp.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <CategoryBadge category={exp.category} />
+                  <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {fmtMoney(exp.amount)}
+                  </span>
+                </div>
+                <div className="mt-2 text-sm font-medium text-gray-900">{exp.description}</div>
+                {exp.notes && <div className="text-xs text-gray-500">{exp.notes}</div>}
+                {exp.paymentMethod && (
+                  <div className="text-xs text-gray-400">via {exp.paymentMethod}</div>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+                  <span>{fmtDate(exp.date)}</span>
+                  <span>To: {exp.recipientUser?.name || exp.recipient || '—'}</span>
+                  <span>By: {exp.recordedBy?.name || `User #${exp.recordedById}`}</span>
+                </div>
+                {(exp.receiptUrl || canEdit || canDelete) && (
+                  <div className="flex justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {exp.receiptUrl && (
+                      <a
+                        href={exp.receiptUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="View receipt"
+                        className="inline-flex items-center justify-center h-8 w-8 rounded border border-gray-200 text-gray-500 hover:bg-gray-50"
+                      >
+                        <ArrowTopRightOnSquareIcon className="h-4 w-4" />
+                      </a>
+                    )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        title="Edit"
+                        onClick={() => openEdit(exp)}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded border border-gray-200 text-blue-600 hover:bg-blue-50"
+                      >
+                        <PencilSquareIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        type="button"
+                        title="Delete"
+                        onClick={() => setDeleting(exp)}
+                        className="inline-flex items-center justify-center h-8 w-8 rounded border border-gray-200 text-red-600 hover:bg-red-50"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+
+        {/* Mobile pagination */}
+        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
+          <span className="text-xs text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={ChevronLeftIcon}
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              rightIcon={ChevronRightIcon}
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">

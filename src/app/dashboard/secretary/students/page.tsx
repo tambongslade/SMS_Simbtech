@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -26,10 +27,21 @@ import {
   type SubClassInfo,
   type ClassInfo,
   type CreateStudentPayload,
+  type ParentContactPayload,
 } from '../lib/secretaryApi';
 
+const emptyParent: ParentContactPayload = {
+  name: '',
+  phone: '',
+  address: '',
+  phoneIsWhatsapp: true,
+  whatsapp: '',
+  relationship: undefined,
+};
+
 const emptyForm: CreateStudentPayload = {
-  studentName: '',
+  studentNom: '',
+  studentPrenom: '',
   dateOfBirth: '',
   placeOfBirth: '',
   gender: '',
@@ -38,19 +50,16 @@ const emptyForm: CreateStudentPayload = {
   classId: 0,
   academicYearId: 0,
   isNewStudent: true,
-  parentName: '',
-  parentPhone: '',
-  parentWhatsapp: '',
-  parentEmail: '',
-  parentAddress: '',
-  relationship: 'PARENT',
+  reamOfPaperCollected: false,
+  parents: [{ ...emptyParent }],
 };
 
 const LIMIT = 20;
 
-export default function SecretaryStudentsPage() {
+function SecretaryStudentsPageInner() {
   const { selectedAcademicYear } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [students, setStudents] = useState<SecretaryStudent[]>([]);
   const [total, setTotal] = useState(0);
@@ -77,6 +86,14 @@ export default function SecretaryStudentsPage() {
   const [changeClassId, setChangeClassId] = useState('');
   const [changeSubClassId, setChangeSubClassId] = useState('');
   const [isChanging, setIsChanging] = useState(false);
+
+  // Open the registration form directly when launched from the quick actions menu.
+  useEffect(() => {
+    if (searchParams.get('create') === '1') {
+      setIsCreateOpen(true);
+      router.replace('/dashboard/secretary/students');
+    }
+  }, [searchParams, router]);
 
   // Debounce the search input
   useEffect(() => {
@@ -135,28 +152,66 @@ export default function SecretaryStudentsPage() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Update a single field on one parent contact.
+  const updateParent = (index: number, patch: Partial<ParentContactPayload>) => {
+    setForm((prev) => ({
+      ...prev,
+      parents: prev.parents.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+    }));
+  };
+
+  const addParent = () => {
+    setForm((prev) =>
+      prev.parents.length >= 2 ? prev : { ...prev, parents: [...prev.parents, { ...emptyParent }] },
+    );
+  };
+
+  const removeParent = (index: number) => {
+    setForm((prev) => ({ ...prev, parents: prev.parents.filter((_, i) => i !== index) }));
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAcademicYear) {
       toast.error('Please select an academic year first.');
       return;
     }
-    if (!form.studentName || !form.classId || !form.parentName || !form.parentPhone || !form.parentAddress) {
-      toast.error('Student name, class, parent name, parent phone and parent address are required.');
+    const first = form.parents[0];
+    if (!form.studentNom || !form.studentPrenom || !form.classId || !first?.name || !first?.phone || !first?.address) {
+      toast.error('Family name, given name, class, and the first contact’s name, phone and address are required.');
       return;
     }
+    // Keep only filled contacts and strip the WhatsApp field when the phone is
+    // flagged as the WhatsApp number (the backend copies the phone).
+    const parents: ParentContactPayload[] = form.parents
+      .filter((p) => p.name && p.phone && p.address)
+      .map((p) => ({
+        name: p.name,
+        phone: p.phone,
+        address: p.address,
+        phoneIsWhatsapp: !!p.phoneIsWhatsapp,
+        whatsapp: p.phoneIsWhatsapp ? undefined : p.whatsapp || undefined,
+        relationship: p.relationship || undefined,
+      }));
     setIsSubmitting(true);
     try {
       const res = await createStudentWithParent({
         ...form,
         classId: Number(form.classId),
         academicYearId: selectedAcademicYear.id,
-        isNewStudent: true,
+        // Ream only matters for new students.
+        reamOfPaperCollected: form.isNewStudent ? form.reamOfPaperCollected : false,
+        parents,
       });
       const newStudentId = res?.data?.student?.id;
       if (createSubClassId && newStudentId) {
         try {
-          await enrollStudentInSubclass(newStudentId, Number(createSubClassId), selectedAcademicYear.id);
+          await enrollStudentInSubclass(
+            newStudentId,
+            Number(createSubClassId),
+            selectedAcademicYear.id,
+            form.isNewStudent ? form.reamOfPaperCollected : false,
+          );
         } catch {
           toast.error('Student created, but assigning the subclass failed. You can set it via Change Class.');
         }
@@ -210,18 +265,26 @@ export default function SecretaryStudentsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="text-gray-600 mt-1">
+          <Link
+            href="/dashboard/secretary"
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-1.5 sm:hidden"
+          >
+            <ChevronLeftIcon className="h-4 w-4 mr-1" />
+            Menu
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Students</h1>
+          <p className="text-sm text-gray-600 mt-1">
             Register students, view profiles and manage classes &amp; photos.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
             variant="outline"
             color="primary"
             leftIcon={PhotoIcon}
+            className="w-full sm:w-auto justify-center"
             onClick={() => {
               if (students.length === 0) {
                 toast.error('No students loaded to upload photos for.');
@@ -232,7 +295,12 @@ export default function SecretaryStudentsPage() {
           >
             Bulk Photos
           </Button>
-          <Button color="primary" leftIcon={UserPlusIcon} onClick={() => setIsCreateOpen(true)}>
+          <Button
+            color="primary"
+            leftIcon={UserPlusIcon}
+            className="w-full sm:w-auto justify-center"
+            onClick={() => setIsCreateOpen(true)}
+          >
             Register Student
           </Button>
         </div>
@@ -265,8 +333,101 @@ export default function SecretaryStudentsPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            Loading students…
+          </div>
+        ) : students.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            No students found.
+          </div>
+        ) : (
+          students.map((student) => (
+            <div
+              key={student.id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+              onClick={() => router.push(`/dashboard/secretary/students/${student.id}`)}
+            >
+              <div className="flex items-center gap-3">
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StudentPhoto
+                    studentId={student.id}
+                    photo={student.photo}
+                    size="md"
+                    showUploadButton
+                    canUpload
+                    fetchPhoto
+                    studentName={student.name}
+                    onPhotoUpdate={() => loadStudents()}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{student.name}</p>
+                  <p className="text-xs text-gray-500 truncate">{student.matricule || 'No matricule'}</p>
+                  <p className="text-xs text-gray-600 mt-0.5 truncate">
+                    {classNameFor(student) || '—'}
+                    {student.subClassName ? ` · ${student.subClassName}` : ''}
+                    {student.gender ? ` · ${student.gender}` : ''}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={EyeIcon}
+                  className="flex-1 justify-center"
+                  onClick={() => router.push(`/dashboard/secretary/students/${student.id}`)}
+                >
+                  View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  color="secondary"
+                  leftIcon={ArrowsRightLeftIcon}
+                  className="flex-1 justify-center"
+                  onClick={() => openChangeClass(student)}
+                >
+                  Change Class
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+
+        {/* Mobile pagination */}
+        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
+          <span className="text-xs text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={ChevronLeftIcon}
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              rightIcon={ChevronRightIcon}
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -379,7 +540,8 @@ export default function SecretaryStudentsPage() {
           <div>
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Student Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Full Name *" name="studentName" value={form.studentName} onChange={handleFormChange} required />
+              <Input label="Family Name (Nom) *" name="studentNom" value={form.studentNom} onChange={handleFormChange} required />
+              <Input label="Given Name(s) (Prénom) *" name="studentPrenom" value={form.studentPrenom} onChange={handleFormChange} required />
               <Input label="Date of Birth" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleFormChange} />
               <Input label="Place of Birth" name="placeOfBirth" value={form.placeOfBirth} onChange={handleFormChange} />
               <Select
@@ -422,34 +584,117 @@ export default function SecretaryStudentsPage() {
               <Input label="Former School" name="formerSchool" value={form.formerSchool} onChange={handleFormChange} />
               <Input label="Residence" name="residence" value={form.residence} onChange={handleFormChange} />
             </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Parent / Guardian</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input label="Parent Name *" name="parentName" value={form.parentName} onChange={handleFormChange} required />
-              <Input label="Parent Phone *" name="parentPhone" value={form.parentPhone} onChange={handleFormChange} required />
-              <Input label="Parent WhatsApp" name="parentWhatsapp" value={form.parentWhatsapp} onChange={handleFormChange} />
-              <Input label="Parent Email" name="parentEmail" type="email" value={form.parentEmail} onChange={handleFormChange} />
-              <Input label="Parent Address *" name="parentAddress" value={form.parentAddress} onChange={handleFormChange} required />
-              <Select
-                label="Relationship"
-                name="relationship"
-                value={form.relationship}
-                onChange={handleFormChange}
-                options={[
-                  { value: 'PARENT', label: 'Parent' },
-                  { value: 'GUARDIAN', label: 'Guardian' },
-                ]}
-              />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mt-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={!!form.isNewStudent}
+                  onChange={(e) => setForm((prev) => ({ ...prev, isNewStudent: e.target.checked }))}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                New student
+              </label>
+              {form.isNewStudent && (
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={!!form.reamOfPaperCollected}
+                    onChange={(e) => setForm((prev) => ({ ...prev, reamOfPaperCollected: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  Ream of paper collected
+                </label>
+              )}
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Contacts</h3>
+              {form.parents.length < 2 && (
+                <Button type="button" variant="outline" size="xs" leftIcon={UserPlusIcon} onClick={addParent}>
+                  Add contact
+                </Button>
+              )}
+            </div>
+            <div className="space-y-4">
+              {form.parents.map((parent, index) => (
+                <div key={index} className="rounded-lg border border-gray-200 p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-gray-500 uppercase">
+                      Contact {index + 1}{index === 0 ? ' (required)' : ''}
+                    </span>
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => removeParent(index)}
+                        className="text-xs text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Relationship is chosen first. */}
+                    <Select
+                      label="Relationship"
+                      value={parent.relationship ?? ''}
+                      onChange={(e) =>
+                        updateParent(index, { relationship: (e.target.value || undefined) as ParentContactPayload['relationship'] })
+                      }
+                      options={[
+                        { value: '', label: 'Select relationship' },
+                        { value: 'FATHER', label: 'Father' },
+                        { value: 'MOTHER', label: 'Mother' },
+                        { value: 'GUARDIAN', label: 'Guardian' },
+                        { value: 'SIBLING', label: 'Sibling' },
+                      ]}
+                    />
+                    <Input
+                      label={index === 0 ? 'Name *' : 'Name'}
+                      value={parent.name}
+                      onChange={(e) => updateParent(index, { name: e.target.value })}
+                      required={index === 0}
+                    />
+                    <Input
+                      label={index === 0 ? 'Phone *' : 'Phone'}
+                      value={parent.phone}
+                      onChange={(e) => updateParent(index, { phone: e.target.value })}
+                      required={index === 0}
+                    />
+                    {!parent.phoneIsWhatsapp && (
+                      <Input
+                        label="WhatsApp"
+                        value={parent.whatsapp}
+                        onChange={(e) => updateParent(index, { whatsapp: e.target.value })}
+                      />
+                    )}
+                    <Input
+                      label={index === 0 ? 'Address *' : 'Address'}
+                      value={parent.address}
+                      onChange={(e) => updateParent(index, { address: e.target.value })}
+                      required={index === 0}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={!!parent.phoneIsWhatsapp}
+                      onChange={(e) => updateParent(index, { phoneIsWhatsapp: e.target.checked })}
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    This phone number is also the WhatsApp number
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-200">
+            <Button type="button" variant="outline" className="w-full sm:w-auto justify-center" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" color="primary" isLoading={isSubmitting}>
+            <Button type="submit" color="primary" className="w-full sm:w-auto justify-center" isLoading={isSubmitting}>
               Register Student
             </Button>
           </div>
@@ -498,11 +743,11 @@ export default function SecretaryStudentsPage() {
               Choosing a subclass assigns the student to it (and its class). Choosing only a
               class assigns the class without a subclass.
             </p>
-            <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-              <Button variant="outline" onClick={() => setChangingStudent(null)} disabled={isChanging}>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-200">
+              <Button variant="outline" className="w-full sm:w-auto justify-center" onClick={() => setChangingStudent(null)} disabled={isChanging}>
                 Cancel
               </Button>
-              <Button color="primary" isLoading={isChanging} onClick={handleChangeClass}>
+              <Button color="primary" className="w-full sm:w-auto justify-center" isLoading={isChanging} onClick={handleChangeClass}>
                 Save Class
               </Button>
             </div>
@@ -521,5 +766,13 @@ export default function SecretaryStudentsPage() {
         }}
       />
     </div>
+  );
+}
+
+export default function SecretaryStudentsPage() {
+  return (
+    <Suspense fallback={<div className="text-center text-gray-500 py-10">Loading…</div>}>
+      <SecretaryStudentsPageInner />
+    </Suspense>
   );
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowDownIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Select } from '@/components/ui';
 import {
@@ -77,9 +78,16 @@ export default function SecretaryClassListsPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Class Lists</h1>
-        <p className="text-gray-600 mt-1">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <Link
+          href="/dashboard/secretary"
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-1.5 sm:hidden"
+        >
+          <ChevronLeftIcon className="h-4 w-4 mr-1" />
+          Menu
+        </Link>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Class Lists</h1>
+        <p className="text-sm text-gray-600 mt-1">
           Export student lists for a class or subclass
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
         </p>
@@ -132,6 +140,7 @@ export default function SecretaryClassListsPage() {
           <Button
             color="primary"
             leftIcon={DocumentArrowDownIcon}
+            className="w-full sm:w-auto justify-center"
             isLoading={isExporting}
             onClick={handleExport}
           >

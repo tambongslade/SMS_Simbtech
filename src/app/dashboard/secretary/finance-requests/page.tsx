@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { Tabs } from '@/components/ui';
 import { FinanceRequestsPanel } from '@/components/finance-requests';
 import type { FinanceRequest } from '@/lib/financeRequestsApi';
@@ -16,9 +18,16 @@ const bankFollowUp = (req: FinanceRequest) =>
 export default function SecretaryFinanceRequestsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Bank Verification Queue</h1>
-        <p className="text-gray-600 mt-1">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+        <Link
+          href="/dashboard/secretary"
+          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-1.5 sm:hidden"
+        >
+          <ChevronLeftIcon className="h-4 w-4 mr-1" />
+          Menu
+        </Link>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Bank Verification Queue</h1>
+        <p className="text-sm text-gray-600 mt-1">
           Check the bank for parent-claimed deposits. Mark each request verified or not found.
         </p>
       </div>

@@ -2,9 +2,14 @@ import apiService from '@/lib/apiService';
 
 // ---- Shared types for the Secretary dashboard ----
 
+// Parent/guardian relationship is now a validated enum on the backend.
+export type Relationship = 'FATHER' | 'MOTHER' | 'SIBLING' | 'GUARDIAN';
+
 export type SecretaryStudent = {
   id: number;
   name: string;
+  nom?: string;
+  prenom?: string;
   matricule?: string;
   className?: string;
   classId?: number;
@@ -39,8 +44,21 @@ export type Paginated<T> = { data: T[]; meta?: { total?: number } };
 
 // ---- Create payloads ----
 
+// A parent/guardian contact. name, phone and address are required; the rest are
+// optional. When phoneIsWhatsapp is true the backend copies phone into the
+// WhatsApp number, so whatsapp can be omitted. No email is collected.
+export interface ParentContactPayload {
+  name: string;
+  phone: string;
+  address: string;
+  phoneIsWhatsapp?: boolean;
+  whatsapp?: string;
+  relationship?: Relationship;
+}
+
 export interface CreateStudentPayload {
-  studentName: string;
+  studentNom: string;
+  studentPrenom: string;
   dateOfBirth: string;
   placeOfBirth: string;
   gender: 'MALE' | 'FEMALE' | '';
@@ -49,12 +67,10 @@ export interface CreateStudentPayload {
   classId: number;
   academicYearId: number;
   isNewStudent: boolean;
-  parentName: string;
-  parentPhone: string;
-  parentWhatsapp?: string;
-  parentEmail?: string;
-  parentAddress: string;
-  relationship?: string;
+  // Only meaningful for new students; the server forces false for old students.
+  reamOfPaperCollected?: boolean;
+  // 1 required, 2 max. The backend also accepts legacy single-parent fields.
+  parents: ParentContactPayload[];
 }
 
 export interface CreateTeacherPayload {
@@ -94,6 +110,8 @@ const mapStudent = (s: any, academicYearId?: number): SecretaryStudent => {
   return {
     id: s.id,
     name: s.name,
+    nom: s.nom,
+    prenom: s.prenom,
     matricule: s.matricule,
     gender: s.gender,
     status: s.status,
@@ -176,16 +194,28 @@ export const createStudentWithParent = (payload: CreateStudentPayload) =>
 
 // ---- Class / subclass assignment ----
 
-export const assignStudentClass = (id: number, classId: number, academicYearId?: number) =>
+export const assignStudentClass = (
+  id: number,
+  classId: number,
+  academicYearId?: number,
+  reamOfPaperCollected?: boolean,
+) =>
   apiService.post(`/students/${id}/assign-class`, {
     classId,
     ...(academicYearId ? { academicYearId } : {}),
+    ...(reamOfPaperCollected !== undefined ? { reamOfPaperCollected } : {}),
   });
 
-export const enrollStudentInSubclass = (id: number, subClassId: number, academicYearId?: number) =>
+export const enrollStudentInSubclass = (
+  id: number,
+  subClassId: number,
+  academicYearId?: number,
+  reamOfPaperCollected?: boolean,
+) =>
   apiService.post(`/students/${id}/enroll`, {
     subClassId,
     ...(academicYearId ? { academicYearId } : {}),
+    ...(reamOfPaperCollected !== undefined ? { reamOfPaperCollected } : {}),
   });
 
 /**
@@ -194,13 +224,13 @@ export const enrollStudentInSubclass = (id: number, subClassId: number, academic
  */
 export const changeStudentClass = async (
   id: number,
-  opts: { classId?: number; subClassId?: number; academicYearId?: number },
+  opts: { classId?: number; subClassId?: number; academicYearId?: number; reamOfPaperCollected?: boolean },
 ) => {
   if (opts.subClassId) {
-    return enrollStudentInSubclass(id, opts.subClassId, opts.academicYearId);
+    return enrollStudentInSubclass(id, opts.subClassId, opts.academicYearId, opts.reamOfPaperCollected);
   }
   if (opts.classId) {
-    return assignStudentClass(id, opts.classId, opts.academicYearId);
+    return assignStudentClass(id, opts.classId, opts.academicYearId, opts.reamOfPaperCollected);
   }
   throw new Error('Select a class or subclass.');
 };
@@ -249,24 +279,36 @@ const buildExportQuery = (format: string, academicYearId?: number) => {
   return qs.toString();
 };
 
+// PDF uses the dedicated export/pdf endpoints; other formats use the generic
+// export endpoint with a format query.
 export const exportSubclassList = async (
   subClassId: number,
   format: 'pdf' | 'docx',
   academicYearId?: number,
-): Promise<Blob> =>
-  apiService.get<Blob>(
+): Promise<Blob> => {
+  if (format === 'pdf') {
+    const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
+    return apiService.get<Blob>(`/students/subclass/${subClassId}/export/pdf${qs}`, undefined, 'blob');
+  }
+  return apiService.get<Blob>(
     `/students/subclass/${subClassId}/export?${buildExportQuery(format, academicYearId)}`,
     undefined,
     'blob',
   );
+};
 
 export const exportClassList = async (
   classId: number,
   format: 'pdf' | 'docx',
   academicYearId?: number,
-): Promise<Blob> =>
-  apiService.get<Blob>(
+): Promise<Blob> => {
+  if (format === 'pdf') {
+    const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
+    return apiService.get<Blob>(`/students/class/${classId}/export/pdf${qs}`, undefined, 'blob');
+  }
+  return apiService.get<Blob>(
     `/students/class/${classId}/export?${buildExportQuery(format, academicYearId)}`,
     undefined,
     'blob',
   );
+};

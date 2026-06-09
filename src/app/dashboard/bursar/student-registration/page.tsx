@@ -21,9 +21,23 @@ type ParentLink = {
     phone?: string; // Assuming phone is also available from s.parents items
 };
 
+type Relationship = 'FATHER' | 'MOTHER' | 'SIBLING' | 'GUARDIAN';
+
+// A parent/guardian contact in the create form (1 required, 2 max). No email.
+type ParentContact = {
+    name: string;
+    phone: string;
+    address: string;
+    phoneIsWhatsapp?: boolean;
+    whatsapp?: string;
+    relationship?: Relationship | '';
+};
+
 type Student = {
     id: number;
     name: string;
+    nom?: string;
+    prenom?: string;
     matricule?: string;
     parents?: ParentLink[]; // Array of linked parent users
     className?: string; // Might come from enrollment info
@@ -64,7 +78,8 @@ type AcademicYearInfo = {
 
 type FormData = {
     // Student fields
-    studentName: string;
+    studentNom: string;
+    studentPrenom: string;
     dateOfBirth: string;
     placeOfBirth: string;
     gender: 'MALE' | 'FEMALE' | '';
@@ -73,18 +88,25 @@ type FormData = {
     classId: number | '';
     academicYearId: number | '';
     isNewStudent?: boolean;
-    // Parent fields
-    parentName: string;
-    parentPhone: string;
-    parentWhatsapp?: string;
-    parentEmail?: string;
-    parentAddress: string;
-    relationship?: string;
+    reamOfPaperCollected?: boolean;
+    // Parent/guardian contacts (1 required, 2 max).
+    parents: ParentContact[];
+};
+
+const emptyParent: ParentContact = {
+    name: '',
+    phone: '',
+    address: '',
+    phoneIsWhatsapp: true,
+    whatsapp: '',
+    relationship: '',
 };
 
 // For Edit Details Modal
 type EditFormData = {
     name: string;
+    nom?: string | null;
+    prenom?: string | null;
     matricule?: string | null;
     dateOfBirth?: string | null;
     placeOfBirth?: string | null;
@@ -129,7 +151,8 @@ export default function StudentManagement() {
     const [isLoading, setIsLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState<FormData>({
-        studentName: '',
+        studentNom: '',
+        studentPrenom: '',
         dateOfBirth: '',
         placeOfBirth: '',
         gender: '',
@@ -138,12 +161,8 @@ export default function StudentManagement() {
         classId: '',
         academicYearId: selectedAcademicYear?.id || '', // Update to use selectedAcademicYear
         isNewStudent: true,
-        parentName: '',
-        parentPhone: '',
-        parentWhatsapp: '',
-        parentEmail: '',
-        parentAddress: '',
-        relationship: 'PARENT',
+        reamOfPaperCollected: false,
+        parents: [{ ...emptyParent }],
     });
 
     // State for Edit Details Modal
@@ -294,6 +313,8 @@ export default function StudentManagement() {
                 return {
                     id: s.id,
                     name: s.name,
+                    nom: s.nom,
+                    prenom: s.prenom,
                     matricule: s.matricule,
                     subClassName: subClass?.name,
                     subClassId: subClass?.id,
@@ -434,7 +455,8 @@ export default function StudentManagement() {
 
     const openModal = () => {
         setFormData({
-            studentName: '',
+            studentNom: '',
+            studentPrenom: '',
             dateOfBirth: '',
             placeOfBirth: '',
             gender: '',
@@ -443,12 +465,8 @@ export default function StudentManagement() {
             classId: '',
             academicYearId: selectedAcademicYear?.id || '', // Update to use selectedAcademicYear
             isNewStudent: true,
-            parentName: '',
-            parentPhone: '',
-            parentWhatsapp: '',
-            parentEmail: '',
-            parentAddress: '',
-            relationship: 'PARENT',
+            reamOfPaperCollected: false,
+            parents: [{ ...emptyParent }],
         });
         setIsModalOpen(true);
     };
@@ -462,17 +480,46 @@ export default function StudentManagement() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // --- Parent contact helpers (1 required, 2 max) ---
+    const updateParent = (index: number, patch: Partial<ParentContact>) => {
+        setFormData(prev => ({
+            ...prev,
+            parents: prev.parents.map((p, i) => (i === index ? { ...p, ...patch } : p)),
+        }));
+    };
+    const addParent = () => {
+        setFormData(prev => (prev.parents.length >= 2 ? prev : { ...prev, parents: [...prev.parents, { ...emptyParent }] }));
+    };
+    const removeParent = (index: number) => {
+        setFormData(prev => ({ ...prev, parents: prev.parents.filter((_, i) => i !== index) }));
+    };
+
     const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         // Validate required fields
-        if (!formData.studentName || !formData.classId || !formData.academicYearId || !formData.parentName || !formData.parentPhone || !formData.parentAddress) {
+        const firstParent = formData.parents[0];
+        if (!formData.studentNom || !formData.studentPrenom || !formData.classId || !formData.academicYearId || !firstParent?.name || !firstParent?.phone || !firstParent?.address) {
             toast.error("All required fields must be filled.");
             return;
         }
         setIsLoading(true);
         try {
+            const isNew = formData.isNewStudent || false;
+            // Keep only filled contacts; drop the WhatsApp field when the phone is
+            // the WhatsApp number (the backend copies the phone).
+            const parents = formData.parents
+                .filter(p => p.name && p.phone && p.address)
+                .map(p => ({
+                    name: p.name,
+                    phone: p.phone,
+                    address: p.address,
+                    phoneIsWhatsapp: !!p.phoneIsWhatsapp,
+                    whatsapp: p.phoneIsWhatsapp ? undefined : (p.whatsapp || undefined),
+                    relationship: p.relationship || undefined,
+                }));
             const payload = {
-                studentName: formData.studentName,
+                studentNom: formData.studentNom,
+                studentPrenom: formData.studentPrenom,
                 dateOfBirth: formData.dateOfBirth,
                 placeOfBirth: formData.placeOfBirth,
                 gender: formData.gender,
@@ -480,13 +527,10 @@ export default function StudentManagement() {
                 formerSchool: formData.formerSchool,
                 classId: Number(formData.classId),
                 academicYearId: Number(formData.academicYearId),
-                isNewStudent: formData.isNewStudent || false,
-                parentName: formData.parentName,
-                parentPhone: formData.parentPhone,
-                parentWhatsapp: formData.parentWhatsapp,
-                parentEmail: formData.parentEmail,
-                parentAddress: formData.parentAddress,
-                relationship: formData.relationship || 'PARENT',
+                isNewStudent: isNew,
+                // Ream only applies to new students; backend forces false otherwise.
+                reamOfPaperCollected: isNew ? !!formData.reamOfPaperCollected : false,
+                parents,
             };
             const result = await apiService.post('/bursar/create-parent-with-student', payload);
             toast.success('Student and parent created successfully!');
@@ -516,8 +560,13 @@ export default function StudentManagement() {
         const formattedDOB = student.date_of_birth
             ? student.date_of_birth.split('T')[0]
             : '';
+        // Fall back to splitting the combined name for students saved before the
+        // nom/prenom split (name is stored as "${nom} ${prenom}").
+        const [fallbackNom, ...fallbackPrenom] = (student.name || '').trim().split(' ');
         setEditFormData({
             name: student.name || '',
+            nom: student.nom || fallbackNom || '',
+            prenom: student.prenom || fallbackPrenom.join(' ') || '',
             matricule: student.matricule || '',
             dateOfBirth: formattedDOB,
             placeOfBirth: student.place_of_birth || '',
@@ -542,14 +591,17 @@ export default function StudentManagement() {
     const handleUpdateStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingStudent) return;
-        if (!editFormData.name) {
-            toast.error("Student Name is required.");
+        if (!editFormData.nom || !editFormData.prenom) {
+            toast.error("Family name (Nom) and given name (Prénom) are required.");
             return;
         }
 
         setIsLoading(true);
+        // Send the split name; the server resyncs name = "${nom} ${prenom}".
         const payload: EditFormData = {
-            name: editFormData.name,
+            name: `${editFormData.nom} ${editFormData.prenom}`.trim(),
+            nom: editFormData.nom,
+            prenom: editFormData.prenom,
             matricule: editFormData.matricule || null,
             dateOfBirth: editFormData.dateOfBirth || null,
             placeOfBirth: editFormData.placeOfBirth || null,
@@ -1684,9 +1736,13 @@ export default function StudentManagement() {
                             <section className="border-b pb-4 mb-4">
                                 <h4 className="text-md font-semibold text-gray-700 mb-3">Student Details</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="studentName" className="block text-sm font-medium text-gray-700">Full Name *</label>
-                                        <input type="text" id="studentName" name="studentName" value={formData.studentName} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
+                                    <div>
+                                        <label htmlFor="studentNom" className="block text-sm font-medium text-gray-700">Family Name (Nom) *</label>
+                                        <input type="text" id="studentNom" name="studentNom" value={formData.studentNom} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="studentPrenom" className="block text-sm font-medium text-gray-700">Given Name(s) (Prénom) *</label>
+                                        <input type="text" id="studentPrenom" name="studentPrenom" value={formData.studentPrenom} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
                                     </div>
                                     <div>
                                         <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">Date of Birth *</label>
@@ -1724,43 +1780,103 @@ export default function StudentManagement() {
                                     </div>
                                     <div className="flex items-end pb-1">
                                         <div className="flex items-center h-full">
-                                            <input 
-                                                id="isNewStudent" 
-                                                name="isNewStudent" 
-                                                type="checkbox" 
-                                                checked={formData.isNewStudent || false} 
-                                                onChange={(e) => setFormData(prev => ({ ...prev, isNewStudent: e.target.checked }))} 
-                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
+                                            <input
+                                                id="isNewStudent"
+                                                name="isNewStudent"
+                                                type="checkbox"
+                                                checked={formData.isNewStudent || false}
+                                                onChange={(e) => setFormData(prev => ({ ...prev, isNewStudent: e.target.checked }))}
+                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                             />
                                             <label htmlFor="isNewStudent" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
                                         </div>
                                     </div>
+                                    {formData.isNewStudent && (
+                                        <div className="flex items-end pb-1">
+                                            <div className="flex items-center h-full">
+                                                <input
+                                                    id="reamOfPaperCollected"
+                                                    name="reamOfPaperCollected"
+                                                    type="checkbox"
+                                                    checked={formData.reamOfPaperCollected || false}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, reamOfPaperCollected: e.target.checked }))}
+                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="reamOfPaperCollected" className="ml-2 block text-sm text-gray-900">Ream of paper collected?</label>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
-                            {/* Parent Details Section */}
+                            {/* Contacts Section (1 required, 2 max) */}
                             <section>
-                                <h4 className="text-md font-semibold text-gray-700 mb-3">Parent Details</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="parentName" className="block text-sm font-medium text-gray-700">Parent Name *</label>
-                                        <input type="text" id="parentName" name="parentName" value={formData.parentName} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="parentPhone" className="block text-sm font-medium text-gray-700">Parent Phone *</label>
-                                        <input type="text" id="parentPhone" name="parentPhone" value={formData.parentPhone} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="parentWhatsapp" className="block text-sm font-medium text-gray-700">Parent Whatsapp</label>
-                                        <input type="text" id="parentWhatsapp" name="parentWhatsapp" value={formData.parentWhatsapp || ''} onChange={handleInputChange} className="mt-1 block w-full input-field" />
-                                    </div>
-                                    <div>
-                                        <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent Email</label>
-                                        <input type="email" id="parentEmail" name="parentEmail" value={formData.parentEmail || ''} onChange={handleInputChange} className="mt-1 block w-full input-field" />
-                                    </div>
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="parentAddress" className="block text-sm font-medium text-gray-700">Parent Address *</label>
-                                        <input type="text" id="parentAddress" name="parentAddress" value={formData.parentAddress} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
-                                    </div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-md font-semibold text-gray-700">Contacts</h4>
+                                    {formData.parents.length < 2 && (
+                                        <button type="button" onClick={addParent} className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                                            + Add contact
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="space-y-4">
+                                    {formData.parents.map((parent, index) => (
+                                        <div key={index} className="rounded-lg border border-gray-200 p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <span className="text-xs font-medium text-gray-500 uppercase">
+                                                    Contact {index + 1}{index === 0 ? ' (required)' : ''}
+                                                </span>
+                                                {index > 0 && (
+                                                    <button type="button" onClick={() => removeParent(index)} className="text-xs text-red-600 hover:text-red-700">
+                                                        Remove
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                {/* Relationship is chosen first. */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">Relationship</label>
+                                                    <select
+                                                        value={parent.relationship || ''}
+                                                        onChange={(e) => updateParent(index, { relationship: e.target.value as ParentContact['relationship'] })}
+                                                        className="mt-1 block w-full input-field bg-white"
+                                                    >
+                                                        <option value="">Select</option>
+                                                        <option value="FATHER">Father</option>
+                                                        <option value="MOTHER">Mother</option>
+                                                        <option value="GUARDIAN">Guardian</option>
+                                                        <option value="SIBLING">Sibling</option>
+                                                    </select>
+                                                </div>
+                                                <div className="md:col-span-2">
+                                                    <label className="block text-sm font-medium text-gray-700">Name {index === 0 ? '*' : ''}</label>
+                                                    <input type="text" value={parent.name} onChange={(e) => updateParent(index, { name: e.target.value })} required={index === 0} className="mt-1 block w-full input-field" />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700">Phone {index === 0 ? '*' : ''}</label>
+                                                    <input type="text" value={parent.phone} onChange={(e) => updateParent(index, { phone: e.target.value })} required={index === 0} className="mt-1 block w-full input-field" />
+                                                    <label className="mt-2 flex items-center gap-2 text-sm text-gray-700">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={parent.phoneIsWhatsapp || false}
+                                                            onChange={(e) => updateParent(index, { phoneIsWhatsapp: e.target.checked })}
+                                                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                        />
+                                                        This phone is also the WhatsApp number
+                                                    </label>
+                                                </div>
+                                                {!parent.phoneIsWhatsapp && (
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700">WhatsApp</label>
+                                                        <input type="text" value={parent.whatsapp || ''} onChange={(e) => updateParent(index, { whatsapp: e.target.value })} className="mt-1 block w-full input-field" />
+                                                    </div>
+                                                )}
+                                                <div className="md:col-span-3">
+                                                    <label className="block text-sm font-medium text-gray-700">Address {index === 0 ? '*' : ''}</label>
+                                                    <input type="text" value={parent.address} onChange={(e) => updateParent(index, { address: e.target.value })} required={index === 0} className="mt-1 block w-full input-field" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             </section>
                             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
@@ -1808,10 +1924,14 @@ export default function StudentManagement() {
                             {/* Ensure all inputs use `editFormData.fieldName || ''` for value */}
                             <section>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    {/* Name (Span 2) */}
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="edit-name" className="block text-sm font-medium text-gray-700">Full Name *</label>
-                                        <input type="text" id="edit-name" name="name" value={editFormData.name || ''} onChange={handleEditInputChange} required className="mt-1 block w-full input-field" />
+                                    {/* Split name */}
+                                    <div>
+                                        <label htmlFor="edit-nom" className="block text-sm font-medium text-gray-700">Family Name (Nom) *</label>
+                                        <input type="text" id="edit-nom" name="nom" value={editFormData.nom || ''} onChange={handleEditInputChange} required className="mt-1 block w-full input-field" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="edit-prenom" className="block text-sm font-medium text-gray-700">Given Name(s) (Prénom) *</label>
+                                        <input type="text" id="edit-prenom" name="prenom" value={editFormData.prenom || ''} onChange={handleEditInputChange} required className="mt-1 block w-full input-field" />
                                     </div>
                                     {/* Matricule */}
                                     <div>

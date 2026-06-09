@@ -91,7 +91,6 @@ const menuItems: MenuItemsStructure = {
   bursar: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/bursar' },
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/bursar/control-fee-management' },
     { icon: BanknotesIcon, label: 'Fee Items', href: '/dashboard/bursar/fee-items' },
     { icon: ReceiptRefundIcon, label: 'Overpayments & Refunds', href: '/dashboard/bursar/overpayments' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/bursar/finance-requests' },
@@ -287,12 +286,13 @@ const menuItems: MenuItemsStructure = {
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/fee-auditor/messaging' },
   ],
   secretary: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/secretary' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/secretary' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
     { icon: BanknotesIcon, label: 'Bank Verifications', href: '/dashboard/secretary/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
+    { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },
   ],
   nurse: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/nurse' },
@@ -671,7 +671,7 @@ export default function DashboardLayout({
                   height={40} // Adjust height as needed
                   className="h-10 w-auto" // Tailwind class for height
                 />
-                <span className="ml-3 text-xl font-semibold text-blue-900"> {/* Dark blue text */}
+                <span className="ml-3 text-xl font-semibold text-blue-900 hidden sm:inline"> {/* Dark blue text, hidden on mobile */}
                   St. Stephen's International College
                 </span>
               </div>

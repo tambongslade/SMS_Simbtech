@@ -67,9 +67,12 @@ type AcademicYearInfo = {
     isActive?: boolean; // To filter for active years perhaps
 };
 
+type Relationship = 'FATHER' | 'MOTHER' | 'SIBLING' | 'GUARDIAN';
+
 type FormData = {
     // Student fields
-    studentName: string;
+    studentNom: string;
+    studentPrenom: string;
     dateOfBirth: string;
     placeOfBirth: string;
     gender: 'MALE' | 'FEMALE' | '';
@@ -84,7 +87,7 @@ type FormData = {
     parentWhatsapp?: string;
     parentEmail?: string;
     parentAddress: string;
-    relationship?: string;
+    relationship?: Relationship | '';
 };
 
 // For Edit Details Modal
@@ -131,7 +134,8 @@ export default function StudentManagement() {
     const [isLoading, setIsLoading] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [formData, setFormData] = useState<FormData>({
-        studentName: '',
+        studentNom: '',
+        studentPrenom: '',
         dateOfBirth: '',
         placeOfBirth: '',
         gender: '',
@@ -145,7 +149,7 @@ export default function StudentManagement() {
         parentWhatsapp: '',
         parentEmail: '',
         parentAddress: '',
-        relationship: 'PARENT',
+        relationship: '',
     });
 
     // State for Edit Details Modal
@@ -611,7 +615,8 @@ export default function StudentManagement() {
 
     const openModal = () => {
         setFormData({
-            studentName: '',
+            studentNom: '',
+            studentPrenom: '',
             dateOfBirth: '',
             placeOfBirth: '',
             gender: '',
@@ -625,7 +630,7 @@ export default function StudentManagement() {
             parentWhatsapp: '',
             parentEmail: '',
             parentAddress: '',
-            relationship: 'PARENT',
+            relationship: '',
         });
         setIsModalOpen(true);
     };
@@ -642,14 +647,15 @@ export default function StudentManagement() {
     const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
         e.preventDefault();
         // Validate required fields
-        if (!formData.studentName || !formData.classId || !formData.academicYearId || !formData.parentName || !formData.parentPhone || !formData.parentAddress) {
+        if (!formData.studentNom || !formData.studentPrenom || !formData.classId || !formData.academicYearId || !formData.parentName || !formData.parentPhone || !formData.parentAddress) {
             toast.error("All required fields must be filled.");
             return;
         }
         setIsLoading(true);
         try {
             const payload = {
-                studentName: formData.studentName,
+                studentNom: formData.studentNom,
+                studentPrenom: formData.studentPrenom,
                 dateOfBirth: formData.dateOfBirth,
                 placeOfBirth: formData.placeOfBirth,
                 gender: formData.gender,
@@ -663,7 +669,8 @@ export default function StudentManagement() {
                 parentWhatsapp: formData.parentWhatsapp,
                 parentEmail: formData.parentEmail,
                 parentAddress: formData.parentAddress,
-                relationship: formData.relationship || 'PARENT',
+                // Relationship is optional; only send a valid enum value.
+                relationship: formData.relationship || undefined,
             };
             const result = await apiService.post('/bursar/create-parent-with-student', payload);
             toast.success('Student and parent created successfully!');
@@ -1942,9 +1949,13 @@ export default function StudentManagement() {
                             <section className="border-b pb-4 mb-4">
                                 <h4 className="text-md font-semibold text-gray-700 mb-3">Student Details</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="md:col-span-2">
-                                        <label htmlFor="studentName" className="block text-sm font-medium text-gray-700">Full Name *</label>
-                                        <input type="text" id="studentName" name="studentName" value={formData.studentName} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
+                                    <div>
+                                        <label htmlFor="studentNom" className="block text-sm font-medium text-gray-700">Family Name (Nom) *</label>
+                                        <input type="text" id="studentNom" name="studentNom" value={formData.studentNom} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="studentPrenom" className="block text-sm font-medium text-gray-700">Given Name(s) (Prénom) *</label>
+                                        <input type="text" id="studentPrenom" name="studentPrenom" value={formData.studentPrenom} onChange={handleInputChange} required className="mt-1 block w-full input-field" />
                                     </div>
                                     <div>
                                         <label htmlFor="dateOfBirth" className="block text-sm font-medium text-gray-700">Date of Birth *</label>
@@ -2011,6 +2022,16 @@ export default function StudentManagement() {
                                     <div>
                                         <label htmlFor="parentEmail" className="block text-sm font-medium text-gray-700">Parent Email</label>
                                         <input type="email" id="parentEmail" name="parentEmail" value={formData.parentEmail || ''} onChange={handleInputChange} className="mt-1 block w-full input-field" />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="relationship" className="block text-sm font-medium text-gray-700">Relationship</label>
+                                        <select id="relationship" name="relationship" value={formData.relationship || ''} onChange={handleInputChange} className="mt-1 block w-full input-field bg-white">
+                                            <option value="">Select (optional)</option>
+                                            <option value="FATHER">Father</option>
+                                            <option value="MOTHER">Mother</option>
+                                            <option value="GUARDIAN">Guardian</option>
+                                            <option value="SIBLING">Sibling</option>
+                                        </select>
                                     </div>
                                     <div className="md:col-span-2">
                                         <label htmlFor="parentAddress" className="block text-sm font-medium text-gray-700">Parent Address *</label>

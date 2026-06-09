@@ -181,8 +181,94 @@ export function FinanceRequestsPanel({
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            Loading requests…
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            {emptyMessage}
+          </div>
+        ) : (
+          rows.map((req) => {
+            const actions = availableActions(req, selectedRole, user?.id);
+            return (
+              <div key={req.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <TypeBadge type={req.type} />
+                    <span className="text-xs text-gray-400">#{req.id}</span>
+                  </div>
+                  <StatusBadge status={req.status} />
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm font-medium text-gray-900">{req.reason}</div>
+                  <div className="text-xs text-gray-500">{payloadSummary(req)}</div>
+                  {req.actedNotes && (
+                    <div className="text-xs text-gray-400 mt-1 italic">“{req.actedNotes}”</div>
+                  )}
+                  {followUpHint && followUpHint(req)}
+                </div>
+                <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                  <span>{req.requestedBy?.name || `User #${req.requestedById}`}</span>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {req.amount != null ? fmtMoney(req.amount) : '—'}
+                  </span>
+                </div>
+                <div className="text-xs text-gray-400">{fmtDateTime(req.createdAt)}</div>
+                {actions.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                    {actions.map((a) => (
+                      <Button
+                        key={a}
+                        size="sm"
+                        color={ACTION_COLOR[a]}
+                        variant={a === 'reject' ? 'outline' : 'solid'}
+                        className="flex-1 justify-center"
+                        onClick={() => openAction(req, a)}
+                      >
+                        {ACTION_LABEL[a]}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
+
+        {/* Mobile pagination */}
+        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
+          <span className="text-xs text-gray-600">
+            Page {page} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={ChevronLeftIcon}
+              disabled={page <= 1 || isLoading}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Prev
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              rightIcon={ChevronRightIcon}
+              disabled={page >= totalPages || isLoading}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">

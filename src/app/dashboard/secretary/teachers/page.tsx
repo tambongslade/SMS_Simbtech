@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { MagnifyingGlassIcon, UserPlusIcon } from '@heroicons/react/24/outline';
+import { MagnifyingGlassIcon, UserPlusIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal } from '@/components/ui';
 import {
@@ -99,12 +100,24 @@ export default function SecretaryTeachersPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Teachers</h1>
-          <p className="text-gray-600 mt-1">Create and view teacher accounts.</p>
+          <Link
+            href="/dashboard/secretary"
+            className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-1.5 sm:hidden"
+          >
+            <ChevronLeftIcon className="h-4 w-4 mr-1" />
+            Menu
+          </Link>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Teachers</h1>
+          <p className="text-sm text-gray-600 mt-1">Create and view teacher accounts.</p>
         </div>
-        <Button color="primary" leftIcon={UserPlusIcon} onClick={() => setIsCreateOpen(true)}>
+        <Button
+          color="primary"
+          leftIcon={UserPlusIcon}
+          className="w-full sm:w-auto justify-center"
+          onClick={() => setIsCreateOpen(true)}
+        >
           Add Teacher
         </Button>
       </div>
@@ -122,8 +135,41 @@ export default function SecretaryTeachersPage() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            Loading teachers…
+          </div>
+        ) : filteredTeachers.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
+            No teachers found.
+          </div>
+        ) : (
+          filteredTeachers.map((teacher) => (
+            <div
+              key={teacher.id}
+              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
+            >
+              <p className="text-sm font-semibold text-gray-900">{teacher.name}</p>
+              <p className="text-xs text-gray-600 mt-1 break-all">{teacher.email || '—'}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
+                <span>{teacher.phone || 'No phone'}</span>
+                <span>{teacher.gender || '—'}</span>
+              </div>
+              <p className="text-xs text-gray-600 mt-2">
+                <span className="font-medium text-gray-500">Subjects: </span>
+                {teacher.subjects && teacher.subjects.length > 0
+                  ? teacher.subjects.map((s) => s.name).join(', ')
+                  : '—'}
+              </p>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -194,11 +240,11 @@ export default function SecretaryTeachersPage() {
             The teacher will be created and assigned the Teacher role for
             {selectedAcademicYear ? ` ${selectedAcademicYear.name}` : ' the current academic year'}.
           </p>
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
-            <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-200">
+            <Button type="button" variant="outline" className="w-full sm:w-auto justify-center" onClick={() => setIsCreateOpen(false)} disabled={isSubmitting}>
               Cancel
             </Button>
-            <Button type="submit" color="primary" isLoading={isSubmitting}>
+            <Button type="submit" color="primary" className="w-full sm:w-auto justify-center" isLoading={isSubmitting}>
               Create Teacher
             </Button>
           </div>

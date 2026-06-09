@@ -16,10 +16,8 @@ import { listOverpaid } from '@/lib/refundsApi';
 import { toast } from 'react-hot-toast';
 
 interface BursarDashboardData {
-  totalFeesExpected: number;
-  totalFeesCollected: number;
-  pendingPayments: number;
-  collectionRate: number;
+  studentsOwingCount: number;
+  totalAmountOwed: number;
   recentTransactions: number;
   newStudentsThisMonth: number;
   studentsWithParents: number;
@@ -100,29 +98,17 @@ export default function BursarDashboard() {
       </div>
 
       {/* Financial Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatsCard
-          title="Total Expected"
-          value={formatCurrency(dashboardData?.totalFeesExpected || 0)}
-          icon={CurrencyDollarIcon}
-          color="primary"
-        />
-        <StatsCard
-          title="Total Collected"
-          value={formatCurrency(dashboardData?.totalFeesCollected || 0)}
-          icon={CurrencyDollarIcon}
-          color="success"
-        />
-        <StatsCard
-          title="Collection Rate"
-          value={`${dashboardData?.collectionRate.toFixed(2) || 0}%`}
-          icon={ChartBarIcon}
+          title="Students Owing"
+          value={dashboardData?.studentsOwingCount?.toString() || '0'}
+          icon={ClockIcon}
           color="warning"
         />
         <StatsCard
-          title="Pending Payments"
-          value={dashboardData?.pendingPayments?.toString() || '0'}
-          icon={ClockIcon}
+          title="Total Amount Owed"
+          value={formatCurrency(dashboardData?.totalAmountOwed || 0)}
+          icon={CurrencyDollarIcon}
           color="danger"
           className="bg-red-50 border-red-200"
         />
