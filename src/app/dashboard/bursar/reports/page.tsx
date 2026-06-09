@@ -231,7 +231,7 @@ const FinancialReportsPage = () => {
   };
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Financial Reports</h1>
         <div className="flex space-x-2 mt-4 md:mt-0">

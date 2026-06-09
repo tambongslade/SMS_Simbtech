@@ -102,8 +102,8 @@ export const Filters = ({
           <option value="unpaid">Unpaid</option>
         </select>
 
-        {/* View Mode Toggle */}
-        <div className="flex gap-2">
+        {/* View Mode Toggle (desktop only — phones always show cards) */}
+        <div className="hidden md:flex gap-2">
           <button
             onClick={() => setViewMode("list")}
             className={`px-4 py-2 rounded-lg ${viewMode === "list"
@@ -126,13 +126,13 @@ export const Filters = ({
       </div>
 
       {/* Actions Row */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         {/* Left side - Subclass Summary */}
         <div>
           {selectedClass && selectedClass !== 'all' && (
             <button
               onClick={handleSubclassSummary}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <ChartBarIcon className="h-5 w-5" />
               Subclass Summary
@@ -141,14 +141,14 @@ export const Filters = ({
         </div>
 
         {/* Right side - Export Options */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           {/* Word Export - Blue */}
           <button
             onClick={() => {
               handleExportEnhanced?.('csv');
               setShowExportDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           >
             <DocumentTextIcon className="h-5 w-5" />
             Word
@@ -160,7 +160,7 @@ export const Filters = ({
               handleExportEnhanced?.('xlsx');
               setShowExportDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
           >
             <TableCellsIcon className="h-5 w-5" />
             Excel
@@ -172,7 +172,7 @@ export const Filters = ({
               handleExportEnhanced?.('pdf');
               setShowExportDropdown(false);
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
           >
             <DocumentArrowDownIcon className="h-5 w-5" />
             PDF

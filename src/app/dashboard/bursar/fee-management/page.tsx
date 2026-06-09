@@ -160,11 +160,24 @@ export default function FeeManagementPage() {
       ) : (
         <>
           {viewMode === "list" ? (
-            <ListView
-              students={getFilteredStudents()}
-              onRecordPayment={handleRecordPaymentClick}
-              onViewTransactions={handleViewTransactions}
-            />
+            <>
+              {/* List view is desktop-only; phones always get the card layout. */}
+              <div className="hidden md:block">
+                <ListView
+                  students={getFilteredStudents()}
+                  onRecordPayment={handleRecordPaymentClick}
+                  onViewTransactions={handleViewTransactions}
+                />
+              </div>
+              <div className="md:hidden">
+                <CardView
+                  students={getFilteredStudents()}
+                  onRecordPayment={handleRecordPaymentClick}
+                  onViewHistory={handleViewHistory}
+                  onViewTransactions={handleViewTransactions}
+                />
+              </div>
+            </>
           ) : (
             <CardView
               students={getFilteredStudents()}

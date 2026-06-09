@@ -242,7 +242,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC'];
+  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
   // Styled student type selector as button group
   const studentTypeSelector = (
@@ -266,13 +266,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Modal wrapper
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-8 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-6 h-6" />
         </button>
-        <h2 className="text-2xl font-bold mb-6 text-center">Record Payment</h2>
+        <h2 className="text-xl sm:text-2xl font-bold mb-6 text-center">Record Payment</h2>
         {studentTypeSelector}
 
         {/* New Student Form */}
@@ -356,6 +356,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
                     <option value="F3DC">F3DC</option>
+                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
                   </select>
                 </div>
               </div>
@@ -438,6 +439,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
                     <option value="F3DC">F3DC</option>
+                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
                   </select>
                 </div>
               </div>
@@ -478,8 +480,8 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
 }) => {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-8 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>

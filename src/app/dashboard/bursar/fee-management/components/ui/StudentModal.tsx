@@ -25,8 +25,8 @@ export const StudentModal: React.FC<StudentModalProps> = ({
   const classes = ['10A', '9B', '8C', '7D', '6E']; // Add all your classes
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl p-5 sm:p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-xl font-bold">Add New Student</h2>
           <button

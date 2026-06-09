@@ -6,7 +6,8 @@ export type RefundMethod =
   | 'MOBILE_MONEY'
   | 'EXPRESS_UNION'
   | 'CCA'
-  | 'F3DC';
+  | 'F3DC'
+  | 'AFRILAND_FIRST_BANK';
 
 export const REFUND_METHODS: { value: RefundMethod; label: string }[] = [
   { value: 'CASH', label: 'Cash' },
@@ -15,6 +16,7 @@ export const REFUND_METHODS: { value: RefundMethod; label: string }[] = [
   { value: 'EXPRESS_UNION', label: 'Express Union' },
   { value: 'CCA', label: 'CCA' },
   { value: 'F3DC', label: 'F3DC' },
+  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
 ];
 
 export interface OverpaidRow {

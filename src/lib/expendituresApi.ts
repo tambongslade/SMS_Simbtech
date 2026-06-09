@@ -17,7 +17,7 @@ export type ExpenditureCategory =
   | 'TRANSPORT'
   | 'OTHER';
 
-export type ExpenditurePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC';
+export type ExpenditurePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
 
 export const EXPENDITURE_CATEGORIES: { value: ExpenditureCategory; label: string }[] = [
   { value: 'SALARY', label: 'Salary' },
@@ -38,6 +38,7 @@ export const EXPENDITURE_PAYMENT_METHODS: { value: ExpenditurePaymentMethod; lab
   { value: 'EXPRESS_UNION', label: 'Express Union' },
   { value: 'CCA', label: 'CCA' },
   { value: 'F3DC', label: 'F3DC' },
+  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
 ];
 
 export interface PersonRef {

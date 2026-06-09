@@ -247,7 +247,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC'];
+  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
   // Styled student type selector as button group
   const studentTypeSelector = (
@@ -361,6 +361,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
                     <option value="F3DC">F3DC</option>
+                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
                   </select>
                 </div>
               </div>
@@ -441,6 +442,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     <option value="EXPRESS_UNION">Express Union</option>
                     <option value="CCA">CCA</option>
                     <option value="F3DC">F3DC</option>
+                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
                   </select>
                 </div>
               </div>

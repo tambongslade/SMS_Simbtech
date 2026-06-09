@@ -1,7 +1,7 @@
 import apiService from './apiService';
 
 export type FeeScope = 'ALL' | 'CLASS' | 'SUBCLASS';
-export type FeePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC';
+export type FeePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
 
 export interface FeeItem {
   id: number;
@@ -81,6 +81,7 @@ export const PAYMENT_METHODS: { value: FeePaymentMethod; label: string }[] = [
   { value: 'EXPRESS_UNION', label: 'Express Union' },
   { value: 'CCA', label: 'CCA' },
   { value: 'F3DC', label: 'F3DC' },
+  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
 ];
 
 export const listFeeItems = async (
