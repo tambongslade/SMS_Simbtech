@@ -6,7 +6,7 @@
  *   - API calls and other cross-origin requests: network only (never cached).
  * Bump CACHE_VERSION to invalidate old caches on the next deploy.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const STATIC_CACHE = `sms-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `sms-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
