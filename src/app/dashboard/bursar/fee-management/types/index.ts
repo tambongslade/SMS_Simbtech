@@ -57,7 +57,9 @@ export interface Student {
   }
   
   export interface NewStudent {
-    name: string;
+    name?: string;
+    nom?: string;
+    prenom?: string;
     class: string;
     admissionNumber?: string;
     email?: string;
@@ -69,4 +71,5 @@ export interface Student {
     residence?: string;
     former_school?: string;
     phone?: string;
+    reamOfPaperCollected?: boolean;
   }

@@ -46,18 +46,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const [isNewStudent, setIsNewStudent] = useState<boolean | null>(null);
   const [newStudent, setNewStudent] = useState<NewStudent>({
-    name: '',
+    nom: '',
+    prenom: '',
     class: '',
     admissionNumber: '',
-    email: '',
-    parentName: '',
-    parentPhone: '',
     dateOfBirth: '',
     gender: '',
     placeOfBirth: '',
     residence: '',
     former_school: '',
-    phone: '',
+    reamOfPaperCollected: false,
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Student[]>([]);
@@ -155,20 +153,22 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       setSelectedExistingStudent(null);
     } else if (isNew === false) {
       setNewStudent({
-        name: '',
+        nom: '',
+        prenom: '',
         class: '',
         admissionNumber: '',
-        email: '',
-        parentName: '',
-        parentPhone: '',
         dateOfBirth: '',
         gender: '',
         placeOfBirth: '',
         residence: '',
         former_school: '',
-        phone: '',
+        reamOfPaperCollected: false,
       });
     }
+  };
+
+  const handleNewStudentToggle = (field: keyof NewStudent, value: boolean) => {
+    setNewStudent(prev => ({ ...prev, [field]: value }));
   };
 
   const handleNewStudentChange = (field: keyof NewStudent, value: string) => {
@@ -195,17 +195,27 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     e.preventDefault();
     setIsProcessing(true);
     try {
-      // 1. Create student
-      const studentPayload = { ...newStudent };
+      // 1. Create student (split name; no email collected)
+      const studentPayload = {
+        nom: newStudent.nom,
+        prenom: newStudent.prenom,
+        dateOfBirth: newStudent.dateOfBirth || undefined,
+        placeOfBirth: newStudent.placeOfBirth || undefined,
+        gender: newStudent.gender || undefined,
+        residence: newStudent.residence || undefined,
+        formerSchool: newStudent.former_school || undefined,
+        isNewStudent: true,
+      };
       const createRes = await apiService.post('/students', studentPayload);
       const studentId = createRes.data?.id;
       if (!studentId) throw new Error('Failed to create student');
       // 2. Enroll student
       const enrollRes = await apiService.post(`/students/${studentId}/enroll`, {
-        sub_class_id: subClassId,
-        academic_year_id: academicYearId,
+        subClassId: Number(subClassId),
+        academicYearId: Number(academicYearId),
         repeater,
-        photo: photo || null,
+        reamOfPaperCollected: !!newStudent.reamOfPaperCollected,
+        photo: photo || undefined,
       });
       const enrollment = enrollRes.data;
       if (!enrollment || !enrollment.id) throw new Error('Failed to enroll student');
@@ -246,7 +256,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   // Styled student type selector as button group
   const studentTypeSelector = (
-    <div className="mb-6 flex justify-center gap-4">
+    <div className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:justify-center sm:gap-4">
       <button
         type="button"
         onClick={() => { handleStudentTypeSelection(true); setStudentType('new'); }}
@@ -282,8 +292,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <h3 className="text-lg font-semibold mb-2">Student Details</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <input type="text" value={newStudent.name} onChange={e => handleNewStudentChange('name', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Family Name (Nom)</label>
+                  <input type="text" value={newStudent.nom || ''} onChange={e => handleNewStudentChange('nom', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Given Name(s) (Prénom)</label>
+                  <input type="text" value={newStudent.prenom || ''} onChange={e => handleNewStudentChange('prenom', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Matricule</label>
@@ -332,13 +346,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                     {academicYears.map(year => <option key={year.id} value={year.id}>{year.name}</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 md:col-span-2">
-                  <input type="checkbox" checked={repeater} onChange={e => setRepeater(e.target.checked)} id="repeater" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
-                  <label htmlFor="repeater" className="text-sm font-medium text-gray-700">Is Repeater?</label>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Photo URL (optional)</label>
-                  <input type="text" value={photo} onChange={e => setPhoto(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 md:col-span-2">
+                  <label htmlFor="repeater" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input type="checkbox" checked={repeater} onChange={e => setRepeater(e.target.checked)} id="repeater" className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                    Is Repeater?
+                  </label>
+                  <label htmlFor="ream" className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <input type="checkbox" checked={!!newStudent.reamOfPaperCollected} onChange={e => handleNewStudentToggle('reamOfPaperCollected', e.target.checked)} id="ream" className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                    Ream of paper collected?
+                  </label>
                 </div>
               </div>
             </div>
@@ -364,8 +380,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                disabled={isLoading || !newStudent.name || !subClassId || !academicYearId || !paymentAmount || isProcessing}
+                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={isLoading || !newStudent.nom || !newStudent.prenom || !subClassId || !academicYearId || !paymentAmount || isProcessing}
               >
                 {isProcessing ? 'Processing...' : 'Create, Enroll & Record Payment'}
               </button>
@@ -447,10 +463,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                 disabled={isLoading || !selectedExistingStudent || !paymentAmount}
               >
-Record Payment
+                Record Payment
               </button>
             </div>
           </form>

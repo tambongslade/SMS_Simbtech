@@ -50,8 +50,8 @@ export const CardView: React.FC<CardViewProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {students.map((student) => (
         <div key={student.id} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center space-x-3">
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex items-center space-x-3 min-w-0">
               <StudentPhoto
                 studentId={parseInt(student.id)}
                 photo={student.photo}
@@ -61,15 +61,15 @@ export const CardView: React.FC<CardViewProps> = ({
                 showUploadButton={true}
                 canUpload={true}
               />
-              <div>
-                <h3 className="text-lg font-semibold">{student.name}</h3>
-                <p className="text-sm text-gray-500">{student.admissionNumber}</p>
-                <p className={`text-xs ${getEnrollmentStatusStyle(student)}`}>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold truncate">{student.name}</h3>
+                <p className="text-sm text-gray-500 truncate">{student.admissionNumber}</p>
+                <p className={`text-xs ${getEnrollmentStatusStyle(student)} truncate`}>
                   {formatClassDisplay(student)}
                 </p>
               </div>
             </div>
-            <span className={`px-2 py-1 text-xs font-semibold rounded-full 
+            <span className={`shrink-0 px-2 py-1 text-xs font-semibold rounded-full
               ${student.status === 'Paid' ? 'bg-green-100 text-green-800' :
                 student.status === 'Partial' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-red-100 text-red-800'}`}>
@@ -116,22 +116,16 @@ export const CardView: React.FC<CardViewProps> = ({
             </div>
           </div>
 
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 space-y-2">
             <button
               onClick={() => onRecordPayment(student)}
-              className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors"
+              className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-blue-700 transition-colors"
             >
               Record Payment
             </button>
             <button
-              onClick={() => onViewHistory(student)}
-              className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
-            >
-              History
-            </button>
-            <button
               onClick={() => onViewTransactions(student)}
-              className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 transition-colors"
+              className="w-full bg-indigo-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
               View Transactions
             </button>
