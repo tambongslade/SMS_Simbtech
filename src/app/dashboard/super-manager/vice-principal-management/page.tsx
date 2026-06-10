@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditVicePrincipalModal, VicePrincipalEditableFields } from './components/EditVicePrincipalModal';
@@ -86,7 +87,7 @@ export default function VicePrincipalManagement() {
 
             // Fetch Classes
             const classResult = await apiService.get('/classes');
-            setClasses(classResult.data || []);
+            setClasses(sortClassesByLevel(classResult.data || []));
 
             // Fetch SubClasses
             const subClassResult = await apiService.get('/classes/sub-classes?limit=40');

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   CalendarIcon,
@@ -372,7 +373,7 @@ const AttendanceDashboardPage: React.FC = () => {
         ]);
 
         setDashboardStats(statsData);
-        setClasses(classesData);
+        setClasses(sortClassesByLevel(classesData));
 
         // Set default class selection
         if (classesData.length > 0) {

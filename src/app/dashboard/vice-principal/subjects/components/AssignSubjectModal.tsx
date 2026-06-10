@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { Subject } from '../types/subject';
 import { toast } from 'react-hot-toast';
 
@@ -68,7 +69,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
             return;
         }
         try {
-            setClasses(allClasses);
+            setClasses(sortClassesByLevel(allClasses));
         } catch (error: any) {
             toast.error(`Could not load classes: ${error.message}`);
             setClasses([]);

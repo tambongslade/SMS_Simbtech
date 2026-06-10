@@ -6,11 +6,12 @@ import {
   DocumentArrowDownIcon,
   PencilSquareIcon,
   ClipboardDocumentListIcon,
-  TrashIcon,
+  UserMinusIcon,
   UserGroupIcon,
   CameraIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useAuth } from '../../../../components/context/AuthContext'; // Add useAuth import
 import { StudentPhoto } from '../../../../components/ui';
 
@@ -228,6 +229,10 @@ export default function StudentManagement() {
   const [managingParentsForStudent, setManagingParentsForStudent] = useState<Student | null>(null);
   const [selectedParentToLink, setSelectedParentToLink] = useState<string>(''); // Store parent ID
 
+  // --- State for Unenroll (dismiss) Student ---
+  const [unenrollTarget, setUnenrollTarget] = useState<Student | null>(null);
+  const [isUnenrolling, setIsUnenrolling] = useState(false);
+
   // --- Data Fetching ---
   const fetchStudents = async () => {
     setIsLoading(true);
@@ -361,7 +366,7 @@ export default function StudentManagement() {
         name: c.name,
         level: c.level,
       })) || [];
-      setClasses(fetchedClasses);
+      setClasses(sortClassesByLevel(fetchedClasses));
     } catch (error: any) {
       setClasses([]);
     }
@@ -837,6 +842,44 @@ export default function StudentManagement() {
     }
   };
 
+  // --- Unenroll (dismiss) a student from a given academic year ---
+  const openUnenrollModal = (student: Student) => {
+    setUnenrollTarget(student);
+  };
+
+  const closeUnenrollModal = () => {
+    setUnenrollTarget(null);
+  };
+
+  const handleUnenrollStudent = async () => {
+    if (!unenrollTarget) return;
+    const student = unenrollTarget;
+
+    // Prefer the year tied to this enrollment row, then the selected academic year; otherwise let the
+    // backend default to the current academic year.
+    const academicYearId = student.academicYearId
+      ?? (selectedAcademicYear ? Number(selectedAcademicYear.id) : undefined);
+
+    toast.loading('Unenrolling student...', { id: 'unenroll-toast' });
+    setIsUnenrolling(true);
+    try {
+      await apiService.post(
+        `/students/${student.id}/unenroll`,
+        academicYearId ? { academicYearId } : {}
+      );
+      toast.success(`'${student.name}' unenrolled successfully!`, { id: 'unenroll-toast' });
+      closeUnenrollModal();
+      fetchStudents();
+    } catch (error: any) {
+      toast.dismiss('unenroll-toast'); // apiService already surfaced its own error toast
+      // 409 (history exists) is surfaced by apiService. A principal cannot delete, so we keep the
+      // modal closed and rely on that toast; permanent deletion is a SUPER_MANAGER escalation.
+      console.error('Student unenroll failed:', error);
+    } finally {
+      setIsUnenrolling(false);
+    }
+  };
+
   // JSX remains largely the same, only API call logic changes
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -1132,14 +1175,17 @@ export default function StudentManagement() {
                             <span>Parents</span>
                           </button>
 
-                          <button
-                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-                            disabled={isLoading}
-                            title="Delete Student"
-                          >
-                            <TrashIcon className="h-3 w-3 mr-1" />
-                            <span>Delete</span>
-                          </button>
+                          {student.subClassName && (
+                            <button
+                              onClick={() => openUnenrollModal(student)}
+                              className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-amber-600 rounded hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                              disabled={isLoading}
+                              title="Unenroll Student from current academic year"
+                            >
+                              <UserMinusIcon className="h-3 w-3 mr-1" />
+                              <span>Unenroll</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -2021,6 +2067,51 @@ export default function StudentManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Unenroll (dismiss) Confirmation Modal */}
+      {unenrollTarget && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <UserMinusIcon className="h-6 w-6 text-amber-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900">Unenroll student?</h3>
+                <p className="mt-2 text-sm text-gray-600">
+                  This removes <span className="font-medium text-gray-900">{unenrollTarget.name}</span>
+                  {unenrollTarget.matricule ? ` (${unenrollTarget.matricule})` : ''} from
+                  {unenrollTarget.academicYearName ? ` ${unenrollTarget.academicYearName}` : ' the current academic year'}.
+                  Their account is kept and they can be re-enrolled later.
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  If the student already has marks, attendance, discipline, or payment records for this
+                  year, the unenrollment is blocked to protect history.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={closeUnenrollModal}
+                disabled={isUnenrolling}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnenrollStudent}
+                disabled={isUnenrolling}
+                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center"
+              >
+                {isUnenrolling && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                )}
+                {isUnenrolling ? 'Unenrolling...' : 'Unenroll'}
+              </button>
+            </div>
           </div>
         </div>
       )}

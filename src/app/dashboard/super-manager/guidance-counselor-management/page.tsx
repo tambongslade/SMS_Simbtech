@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditGuidanceCounselorModal, GuidanceCounselorEditableFields } from './components/EditGuidanceCounselorModal';
@@ -73,7 +74,7 @@ export default function GuidanceCounselorManagement() {
             const classResponse = await fetch(`${API_BASE_URL}/classes`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!classResponse.ok) throw new Error('Failed to fetch classes');
             const classResult = await classResponse.json();
-            setClasses(classResult.data || []);
+            setClasses(sortClassesByLevel(classResult.data || []));
 
             const subClassResponse = await fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { headers: { 'Authorization': `Bearer ${token}` } });
             if (!subClassResponse.ok) throw new Error('Failed to fetch subclasses');

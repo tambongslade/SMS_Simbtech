@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Student, NewStudent } from '../../types';
 import apiService from '../../../../../../lib/apiService';
@@ -91,10 +92,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         const data = await response.json();
         if (data && data.data) {
-          setClasses(data.data.map((c: any) => ({
+          setClasses(sortClassesByLevel(data.data.map((c: any) => ({
             id: c.id,
             name: c.name
-          })));
+          }))));
         }
       } catch (error) {
         console.error('Error fetching classes:', error);

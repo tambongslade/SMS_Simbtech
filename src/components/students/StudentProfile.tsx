@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
@@ -133,7 +134,7 @@ export default function StudentProfile({
   }, [loadProfile]);
 
   useEffect(() => {
-    fetchClasses().then(setClasses).catch(() => setClasses([]));
+    fetchClasses().then((c) => setClasses(sortClassesByLevel(c))).catch(() => setClasses([]));
     fetchSubClasses().then(setSubClasses).catch(() => setSubClasses([]));
   }, []);
 

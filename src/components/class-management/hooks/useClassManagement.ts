@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import useSWR, { useSWRConfig } from 'swr';
 import { Class, SubClass } from '../types/class';
 import apiService from '../../../lib/apiService'; // Import apiService
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // Define Teacher type locally for selection
 type Teacher = {
@@ -90,7 +91,7 @@ export const useClassManagement = () => {
     const classes = useMemo((): Class[] => {
         // Assuming apiService.get returns { data: [...] } structure matching ApiResponse
         if (!classesApiResult?.data) return [];
-        return classesApiResult.data.map((cls: any): Class => ({
+        const mapped = classesApiResult.data.map((cls: any): Class => ({
             id: cls.id,
             name: cls.name,
             firstTermFee: cls.first_term_fee ?? cls.firstTermFee ?? cls.first_installment ?? cls.firstInstallment ?? cls.base_fee ?? cls.baseFee ?? 0,
@@ -110,6 +111,7 @@ export const useClassManagement = () => {
                 subjects: sub.subjects || [], // Initialize subjects array
             })) || [],
         }));
+        return sortClassesByLevel(mapped);
     }, [classesApiResult]);
 
     const teachers = useMemo((): Teacher[] => {

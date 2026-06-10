@@ -7,20 +7,22 @@ import { BellAlertIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/o
 import { Button, Input, Select } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import {
+  getRollCall,
+  submitRollCall,
   getAbsencesFormData,
   recordLatenessBulk,
   createAbsencesBulk,
   listSubClassOptions,
   todayStr,
-  type AbsenceFormData,
+  type RollCallData,
+  type RollCallStatus,
+  type AbsenceFormPeriod,
   type NewAlert,
   type SubClassOption,
 } from '@/lib/disciplineApi';
 
-type RowStatus = 'PRESENT' | 'LATE' | 'ABSENT';
-
 interface RowState {
-  status: RowStatus;
+  status: RollCallStatus;
   arrivalTime: string;
   reason: string;
   actionTaken: string;
@@ -55,9 +57,13 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
   const [date, setDate] = useState(todayStr());
   const [startTime, setStartTime] = useState('07:30');
 
-  const [formData, setFormData] = useState<AbsenceFormData | null>(null);
+  const [roster, setRoster] = useState<RollCallData | null>(null);
+  const [periods, setPeriods] = useState<AbsenceFormPeriod[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [rowsState, setRowsState] = useState<Record<number, RowState>>({}); // by studentId
+  // Students the user has touched this session — only these are submitted so
+  // pre-filled rows that are already on the server are left untouched.
+  const [dirty, setDirty] = useState<Set<number>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newAlerts, setNewAlerts] = useState<NewAlert[]>([]);
 
@@ -79,26 +85,44 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
     setIsLoading(true);
     setNewAlerts([]);
     try {
-      const data = await getAbsencesFormData(id, date, selectedAcademicYear?.id);
-      setFormData(data);
+      // Primary source of truth for the roster + each student's current status.
+      const data = await getRollCall(id, date, selectedAcademicYear?.id);
+      // Periods power the per-period absence selection; tolerate roles/days that
+      // can't load them by degrading to full-day absences.
+      let loadedPeriods: AbsenceFormPeriod[] = [];
+      try {
+        const form = await getAbsencesFormData(id, date, selectedAcademicYear?.id);
+        loadedPeriods = form.periods || [];
+      } catch {
+        loadedPeriods = [];
+      }
+
+      setRoster(data);
+      setPeriods(loadedPeriods);
       const initial: Record<number, RowState> = {};
       data.students.forEach((s) => {
-        initial[s.studentId] = { ...DEFAULT_ROW };
+        initial[s.studentId] = { ...DEFAULT_ROW, status: s.status || 'PRESENT' };
       });
       setRowsState(initial);
+      setDirty(new Set());
     } catch {
       // apiService already toasts the backend message.
-      setFormData(null);
+      setRoster(null);
+      setPeriods([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const markDirty = (studentId: number) =>
+    setDirty((prev) => (prev.has(studentId) ? prev : new Set(prev).add(studentId)));
 
   const setRow = (studentId: number, patch: Partial<RowState>) => {
     setRowsState((prev) => ({
       ...prev,
       [studentId]: { ...(prev[studentId] || DEFAULT_ROW), ...patch },
     }));
+    markDirty(studentId);
   };
 
   const togglePeriod = (studentId: number, periodId: number) => {
@@ -113,26 +137,32 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
         },
       };
     });
+    markDirty(studentId);
   };
 
   const counts = useMemo(() => {
     const values = Object.values(rowsState);
     return {
+      present: values.filter((r) => r.status === 'PRESENT').length,
       late: values.filter((r) => r.status === 'LATE').length,
       absent: values.filter((r) => r.status === 'ABSENT').length,
     };
   }, [rowsState]);
 
   const handleSubmit = async () => {
-    if (!formData) return;
+    if (!roster) return;
 
-    const lateEntries = formData.students.filter((s) => rowsState[s.studentId]?.status === 'LATE');
-    const absentEntries = formData.students.filter((s) => rowsState[s.studentId]?.status === 'ABSENT');
-
-    if (lateEntries.length === 0 && absentEntries.length === 0) {
-      toast.error('Nothing to record — everyone is marked present.');
+    // Only act on students the user changed this session.
+    const changed = roster.students.filter((s) => dirty.has(s.studentId));
+    if (changed.length === 0) {
+      toast.error('No changes to save — tap a student to mark them late or absent.');
       return;
     }
+
+    const presentEntries = changed.filter((s) => rowsState[s.studentId]?.status === 'PRESENT');
+    const lateEntries = changed.filter((s) => rowsState[s.studentId]?.status === 'LATE');
+    const absentEntries = changed.filter((s) => rowsState[s.studentId]?.status === 'ABSENT');
+
     const missingArrival = lateEntries.find((s) => !rowsState[s.studentId].arrivalTime);
     if (missingArrival) {
       toast.error(`Enter the arrival time for ${missingArrival.name}.`);
@@ -143,6 +173,20 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
     setNewAlerts([]);
     const messages: string[] = [];
     try {
+      // PRESENT → unified roll-call. Idempotent reconcile: clears any existing
+      // morning record for a student who turned out to be present after all.
+      if (presentEntries.length > 0) {
+        const result = await submitRollCall({
+          subClassId: Number(subClassId),
+          date,
+          academicYearId: selectedAcademicYear?.id,
+          entries: presentEntries.map((s) => ({ enrollmentId: s.enrollmentId, status: 'PRESENT' as const })),
+        });
+        messages.push(`${result.updated} marked present`);
+      }
+
+      // LATE → lateness-bulk so minutes-late / reason / action and the 3-strike
+      // Saturday-punishment alerts survive (the unified endpoint drops them).
       if (lateEntries.length > 0) {
         const result = await recordLatenessBulk({
           date,
@@ -171,6 +215,7 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
         if (result.newAlerts?.length) setNewAlerts(result.newAlerts);
       }
 
+      // ABSENT → absences-bulk so the per-period selection is preserved.
       if (absentEntries.length > 0) {
         const result = await createAbsencesBulk({
           date,
@@ -195,17 +240,12 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
       }
 
       if (messages.length) toast.success(messages.join(' · '));
-      // Reset everyone back to present for a clean follow-up pass.
-      setRowsState((prev) => {
-        const next: Record<number, RowState> = {};
-        Object.keys(prev).forEach((k) => {
-          next[Number(k)] = { ...DEFAULT_ROW };
-        });
-        return next;
-      });
-    } catch (error: any) {
-      if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Failed to save roll-call.');
+      // Reload so the roster reflects the saved statuses and the dirty set clears.
+      await loadRoster();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (message !== 'Unauthorized') {
+        toast.error(message || 'Failed to save roll-call.');
       }
     } finally {
       setIsSubmitting(false);
@@ -213,7 +253,7 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
   };
 
   const nameById = (studentId: number) =>
-    formData?.students.find((s) => s.studentId === studentId)?.name || `Student #${studentId}`;
+    roster?.students.find((s) => s.studentId === studentId)?.name || `Student #${studentId}`;
 
   return (
     <div className="space-y-4">
@@ -272,15 +312,16 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
       )}
 
       {/* Roster */}
-      {formData && (
+      {roster && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-gray-700">
               <span className="font-semibold">
-                {formData.subclass.className ? `${formData.subclass.className} · ` : ''}
-                {formData.subclass.name}
+                {roster.subclass.className ? `${roster.subclass.className} · ` : ''}
+                {roster.subclass.name}
               </span>{' '}
-              — {formData.students.length} students · {counts.late} late · {counts.absent} absent
+              — {roster.students.length} students · {counts.present} present · {counts.late} late ·{' '}
+              {counts.absent} absent
             </div>
             <Button color="primary" size="sm" isLoading={isSubmitting} onClick={handleSubmit}>
               Save Roll-Call
@@ -288,10 +329,10 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
           </div>
 
           <div className="divide-y divide-gray-100">
-            {formData.students.length === 0 ? (
+            {roster.students.length === 0 ? (
               <div className="px-4 py-8 text-center text-gray-500">No students in this subclass.</div>
             ) : (
-              formData.students.map((s) => {
+              roster.students.map((s) => {
                 const row = rowsState[s.studentId] || DEFAULT_ROW;
                 return (
                   <div key={s.enrollmentId} className="px-4 py-3">
@@ -301,7 +342,7 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
                         {s.matricule && <div className="text-xs text-gray-400">{s.matricule}</div>}
                       </div>
                       <div className="inline-flex rounded-md border border-gray-200 overflow-hidden text-xs">
-                        {(['PRESENT', 'LATE', 'ABSENT'] as RowStatus[]).map((st) => (
+                        {(['PRESENT', 'LATE', 'ABSENT'] as RollCallStatus[]).map((st) => (
                           <button
                             key={st}
                             type="button"
@@ -360,12 +401,12 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
                             : `Absent for ${row.periodIds.length} period(s):`}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
-                          {formData.periods.length === 0 ? (
+                          {periods.length === 0 ? (
                             <span className="text-xs text-gray-400">
                               No periods on this day — recorded as full-day.
                             </span>
                           ) : (
-                            formData.periods.map((p) => {
+                            periods.map((p) => {
                               const active = row.periodIds.includes(p.teacherPeriodId);
                               return (
                                 <button

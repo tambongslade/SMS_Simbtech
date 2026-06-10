@@ -599,3 +599,110 @@ export const enrollmentStudent = (row: {
     className: [sc?.class?.name, sc?.name].filter(Boolean).join(' · ') || '—',
   };
 };
+
+// ---------------------------------------------------------------------------
+// 8) Unified roll-call (morning, by subclass) — GET/POST /discipline/roll-call
+// ---------------------------------------------------------------------------
+// The unified endpoint reconciles a subclass's morning attendance in one round
+// trip. The GET returns each student pre-filled with their current status so the
+// UI can default to PRESENT and only tap to correct. The POST is idempotent:
+// submitting a status overwrites any existing morning record for that student on
+// that date (PRESENT clears it). It does NOT carry lateness detail or fire the
+// 3-strike alert — for LATE we still use recordLatenessBulk so that metadata and
+// the Saturday-punishment alerts survive.
+
+export type RollCallStatus = 'PRESENT' | 'LATE' | 'ABSENT';
+
+export interface RollCallStudent {
+  enrollmentId: number;
+  studentId: number;
+  name: string;
+  matricule?: string;
+  status: RollCallStatus;
+  absenceId?: number | null;
+}
+
+export interface RollCallData {
+  subclass: { id: number; name: string; className?: string };
+  date: string;
+  dayOfWeek?: string;
+  students: RollCallStudent[];
+  summary?: { total: number; present: number; late: number; absent: number };
+}
+
+export interface RollCallSubmitResult {
+  updated: number;
+  skipped: Array<{ enrollmentId: number; reason: string }>;
+}
+
+export const getRollCall = async (
+  subClassId: number,
+  date: string,
+  academicYearId?: number,
+): Promise<RollCallData> => {
+  if (!Number.isFinite(subClassId) || subClassId <= 0) {
+    throw new Error('Select a valid subclass first.');
+  }
+  const qs = new URLSearchParams();
+  qs.append('subClassId', String(subClassId));
+  qs.append('date', date);
+  if (academicYearId) qs.append('academicYearId', String(academicYearId));
+  const res = await apiService.get<{ data: RollCallData }>(`/discipline/roll-call?${qs.toString()}`);
+  return res.data;
+};
+
+export const submitRollCall = async (body: {
+  subClassId: number;
+  date: string;
+  academicYearId?: number;
+  entries: Array<{ enrollmentId: number; status: RollCallStatus }>;
+}): Promise<RollCallSubmitResult> => {
+  const res = await apiService.post<{ data: RollCallSubmitResult }>('/discipline/roll-call', body);
+  return res.data;
+};
+
+// ---------------------------------------------------------------------------
+// 9) In-class period roll-call — GET/POST /teacher-periods/:id/roll-call
+// ---------------------------------------------------------------------------
+// Keyed by the teacherPeriodId from the teacher's timetable. Status is only
+// PRESENT | ABSENT (lateness is a morning-gate concept). A plain TEACHER may
+// only submit for a period they own (else 403); admins can submit for any.
+
+export type PeriodRollCallStatus = 'PRESENT' | 'ABSENT';
+
+export interface PeriodRollCallStudent {
+  enrollmentId: number;
+  studentId: number;
+  fullName: string;
+  matricule?: string;
+  status: PeriodRollCallStatus | null;
+}
+
+export interface PeriodRollCallData {
+  teacherPeriodId: number;
+  subClass: { id: number; name: string; className?: string };
+  subject: { id: number; name: string };
+  period: { id: number; dayOfWeek: string; startTime: string; endTime: string };
+  students: PeriodRollCallStudent[];
+}
+
+export const getPeriodRollCall = async (teacherPeriodId: number): Promise<PeriodRollCallData> => {
+  if (!Number.isFinite(teacherPeriodId) || teacherPeriodId <= 0) {
+    throw new Error('Invalid teacher period.');
+  }
+  const res = await apiService.get<{ data: PeriodRollCallData }>(
+    `/teacher-periods/${teacherPeriodId}/roll-call`,
+  );
+  return res.data;
+};
+
+export const submitPeriodRollCall = async (
+  teacherPeriodId: number,
+  entries: Array<{ enrollmentId: number; status: PeriodRollCallStatus }>,
+): Promise<RollCallSubmitResult> => {
+  const res = await apiService.post<{ data: RollCallSubmitResult }>(
+    `/teacher-periods/${teacherPeriodId}/roll-call`,
+    { entries },
+  );
+  return res.data;
+};

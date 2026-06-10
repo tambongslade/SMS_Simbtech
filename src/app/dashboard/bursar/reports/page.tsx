@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { ArrowDownTrayIcon, DocumentTextIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService'; // Import apiService
 import { toast } from 'react-hot-toast'; // Import toast
@@ -88,7 +89,7 @@ const FinancialReportsPage = () => {
           apiService.get<{ data: AcademicYearInfo[] }>('/academic-years'),
         ]);
 
-        setClasses(classesRes.data || []);
+        setClasses(sortClassesByLevel(classesRes.data || []));
         setAcademicYears(academicYearsRes.data || []);
 
         // Set initial academic year to current if available

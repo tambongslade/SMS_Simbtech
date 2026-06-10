@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { Modal } from '@/components/ui/Modal'; // Base Modal component
 import { Button } from '@/components/ui/Button'; // Assuming a reusable Button component exists
 import { Input } from '@/components/ui/Input'; // Assuming a reusable Input component exists
@@ -85,7 +86,7 @@ export const NewStudentPaymentModal: React.FC<NewStudentPaymentModalProps> = ({
           // Assuming fetchAcademicData returns { classes: Class[], academicYears: AcademicYear[] }
           // You might need a different API call or adjust this
           const data = await fetchAcademicData(); // TODO: Ensure this function exists and fetches necessary data
-          setClasses(data.classes || []);
+          setClasses(sortClassesByLevel(data.classes || []));
           setAcademicYears(data.academicYears || []); // Store if needed
         } catch (err) {
           console.error("Error fetching academic data:", err);

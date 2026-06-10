@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, Suspense } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -12,6 +13,7 @@ import {
   ChevronRightIcon,
   EyeIcon,
   ArrowsRightLeftIcon,
+  UserMinusIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal, StudentPhoto, BulkPhotoUploadModal } from '@/components/ui';
@@ -23,6 +25,7 @@ import {
   createStudentWithParent,
   enrollStudentInSubclass,
   changeStudentClass,
+  unenrollStudent,
   type SecretaryStudent,
   type SubClassInfo,
   type ClassInfo,
@@ -87,6 +90,10 @@ function SecretaryStudentsPageInner() {
   const [changeSubClassId, setChangeSubClassId] = useState('');
   const [isChanging, setIsChanging] = useState(false);
 
+  // Unenroll (dismiss)
+  const [unenrollTarget, setUnenrollTarget] = useState<SecretaryStudent | null>(null);
+  const [isUnenrolling, setIsUnenrolling] = useState(false);
+
   // Open the registration form directly when launched from the quick actions menu.
   useEffect(() => {
     if (searchParams.get('create') === '1') {
@@ -119,7 +126,7 @@ function SecretaryStudentsPageInner() {
 
   useEffect(() => {
     fetchSubClasses().then(setSubClasses).catch(() => setSubClasses([]));
-    fetchClasses().then(setClasses).catch(() => setClasses([]));
+    fetchClasses().then((c) => setClasses(sortClassesByLevel(c))).catch(() => setClasses([]));
   }, []);
 
   useEffect(() => {
@@ -262,6 +269,29 @@ function SecretaryStudentsPageInner() {
     }
   };
 
+  const handleUnenroll = async () => {
+    if (!unenrollTarget) return;
+    setIsUnenrolling(true);
+    try {
+      // Prefer the year tied to this enrollment row; otherwise fall back to the selected year
+      // (the backend defaults to the current year when none is given).
+      await unenrollStudent(
+        unenrollTarget.id,
+        unenrollTarget.academicYearId ?? selectedAcademicYear?.id,
+      );
+      toast.success(`${unenrollTarget.name} unenrolled successfully.`);
+      setUnenrollTarget(null);
+      loadStudents();
+    } catch (error: any) {
+      // apiService already surfaces the message (incl. the 409 history-protection blocks).
+      if (error?.message !== 'Unauthorized') {
+        toast.error(error?.message || 'Failed to unenroll student.');
+      }
+    } finally {
+      setIsUnenrolling(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -393,6 +423,18 @@ function SecretaryStudentsPageInner() {
                 >
                   Change Class
                 </Button>
+                {student.subClassName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    color="warning"
+                    leftIcon={UserMinusIcon}
+                    className="flex-1 justify-center"
+                    onClick={() => setUnenrollTarget(student)}
+                  >
+                    Unenroll
+                  </Button>
+                )}
               </div>
             </div>
           ))
@@ -497,6 +539,17 @@ function SecretaryStudentsPageInner() {
                         >
                           Change Class
                         </Button>
+                        {student.subClassName && (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            color="warning"
+                            leftIcon={UserMinusIcon}
+                            onClick={() => setUnenrollTarget(student)}
+                          >
+                            Unenroll
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -749,6 +802,37 @@ function SecretaryStudentsPageInner() {
               </Button>
               <Button color="primary" className="w-full sm:w-auto justify-center" isLoading={isChanging} onClick={handleChangeClass}>
                 Save Class
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Unenroll (dismiss) modal */}
+      <Modal
+        isOpen={!!unenrollTarget}
+        onClose={() => setUnenrollTarget(null)}
+        title="Unenroll student"
+        size="md"
+      >
+        {unenrollTarget && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              This removes <span className="font-medium text-gray-900">{unenrollTarget.name}</span>
+              {unenrollTarget.matricule ? ` (${unenrollTarget.matricule})` : ''} from
+              {selectedAcademicYear ? ` ${selectedAcademicYear.name}` : ' the current academic year'}.
+              The student account is kept and they can be re-enrolled later.
+            </p>
+            <p className="text-xs text-gray-500">
+              If the student already has marks, attendance, discipline, or payment records for this
+              year, the unenrollment is blocked to protect their history.
+            </p>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-200">
+              <Button variant="outline" className="w-full sm:w-auto justify-center" onClick={() => setUnenrollTarget(null)} disabled={isUnenrolling}>
+                Cancel
+              </Button>
+              <Button color="warning" className="w-full sm:w-auto justify-center" isLoading={isUnenrolling} onClick={handleUnenroll}>
+                Unenroll
               </Button>
             </div>
           </div>

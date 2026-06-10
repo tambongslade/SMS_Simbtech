@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import {
     CurrencyDollarIcon,
     ChartBarIcon,
@@ -161,7 +162,7 @@ export default function ManagerFinancialReportsPage() {
 
             if (response.ok) {
                 const data = await response.json();
-                setClasses(data.data || []);
+                setClasses(sortClassesByLevel(data.data || []));
             }
         } catch (error) {
             console.error('Error fetching classes:', error);

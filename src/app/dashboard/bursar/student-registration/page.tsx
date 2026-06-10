@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import {
     MagnifyingGlassIcon,
@@ -414,7 +415,7 @@ export default function StudentManagement() {
                 name: c.name,
                 level: c.level,
             })) || [];
-            setClasses(fetchedClasses);
+            setClasses(sortClassesByLevel(fetchedClasses));
         } catch (error: any) {
             setClasses([]);
         }

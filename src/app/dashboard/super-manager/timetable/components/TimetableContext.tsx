@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -272,7 +273,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
           name: cls.name,
           level: cls.level
         })) || [];
-        setClasses(fetchedClasses);
+        setClasses(sortClassesByLevel(fetchedClasses));
 
         console.log("SubClasses API response:", subClassResult);
         let fetchedSubClasses: SubClass[] = subClassResult.data?.map((sc: any) => ({

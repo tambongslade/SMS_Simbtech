@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import {
   PlusIcon,
@@ -131,7 +132,7 @@ export default function BursarFeeItemsPage() {
   useEffect(() => {
     apiService
       .get<{ data: ClassInfo[] }>('/classes?limit=100')
-      .then((r) => setClasses(r.data || []))
+      .then((r) => setClasses(sortClassesByLevel(r.data || [])))
       .catch(() => setClasses([]));
     apiService
       .get<{ data: SubClassInfo[] }>('/classes/sub-classes?limit=100')

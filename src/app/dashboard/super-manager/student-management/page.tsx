@@ -9,10 +9,13 @@ import {
     ClipboardDocumentListIcon,
     TrashIcon,
     UserGroupIcon,
+    UserMinusIcon,
     CameraIcon,
-    EyeIcon
+    EyeIcon,
+    ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { StudentPhoto, BulkPhotoUploadModal } from '../../../../components/ui';
 
 // --- Types ---
@@ -242,6 +245,17 @@ export default function StudentManagement() {
     // --- State for Bulk Photo Upload ---
     const [selectedStudentIds, setSelectedStudentIds] = useState<Set<number>>(new Set());
     const [isBulkPhotoModalOpen, setIsBulkPhotoModalOpen] = useState(false);
+
+    // --- State for Unenroll (dismiss) Student ---
+    const [unenrollTarget, setUnenrollTarget] = useState<Student | null>(null);
+    const [isUnenrolling, setIsUnenrolling] = useState(false);
+
+    // --- State for Delete Student (permanent) ---
+    const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
+    // When unenroll is blocked (409), we carry the reason into the delete modal as the escalation path.
+    const [deleteEscalationReason, setDeleteEscalationReason] = useState<string | null>(null);
 
     // --- Data Fetching ---
     // Function to fetch individual parent details
@@ -489,7 +503,7 @@ export default function StudentManagement() {
                 name: c.name,
                 level: c.level,
             })) || [];
-            setClasses(fetchedClasses);
+            setClasses(sortClassesByLevel(fetchedClasses));
         } catch (error: any) {
             setClasses([]);
         }
@@ -1113,6 +1127,86 @@ export default function StudentManagement() {
         }
     };
 
+    // --- Unenroll (dismiss) a student from a given academic year ---
+    const openUnenrollModal = (student: Student) => {
+        setUnenrollTarget(student);
+    };
+
+    const closeUnenrollModal = () => {
+        setUnenrollTarget(null);
+    };
+
+    const handleUnenrollStudent = async () => {
+        if (!unenrollTarget) return;
+        const student = unenrollTarget;
+
+        // Prefer the year tied to this enrollment row, then the active filter; otherwise let the
+        // backend default to the current academic year.
+        const academicYearId = student.academicYearId
+            ?? (academicYearFilter ? Number(academicYearFilter) : undefined);
+
+        toast.loading('Unenrolling student...', { id: 'unenroll-toast' });
+        setIsUnenrolling(true);
+        try {
+            await apiService.post(
+                `/students/${student.id}/unenroll`,
+                academicYearId ? { academicYearId } : {}
+            );
+            toast.success(`'${student.name}' unenrolled successfully!`, { id: 'unenroll-toast' });
+            closeUnenrollModal();
+            fetchStudents();
+        } catch (error: any) {
+            toast.dismiss('unenroll-toast'); // apiService already surfaced its own error toast
+            const message: string = error?.message || '';
+            // 409: history exists. Offer the permanent-delete escalation path (SUPER_MANAGER only).
+            if (message.toLowerCase().includes('cannot unenroll')) {
+                closeUnenrollModal();
+                setDeleteEscalationReason(message);
+                openDeleteModal(student);
+            }
+            console.error('Student unenroll failed:', error);
+        } finally {
+            setIsUnenrolling(false);
+        }
+    };
+
+    // --- Permanently delete a student (irreversible) ---
+    const openDeleteModal = (student: Student) => {
+        setDeleteTarget(student);
+        setDeleteConfirmText('');
+    };
+
+    const closeDeleteModal = () => {
+        setDeleteTarget(null);
+        setDeleteConfirmText('');
+        setDeleteEscalationReason(null);
+    };
+
+    // The student must type their matricule (or name, if no matricule) to confirm.
+    const deleteConfirmationToken = (deleteTarget?.matricule || deleteTarget?.name || '').trim();
+    const isDeleteConfirmed =
+        deleteConfirmationToken.length > 0 &&
+        deleteConfirmText.trim() === deleteConfirmationToken;
+
+    const handleDeleteStudent = async () => {
+        if (!deleteTarget || !isDeleteConfirmed) return;
+        const student = deleteTarget;
+
+        toast.loading('Deleting student...', { id: 'delete-student-toast' });
+        setIsDeleting(true);
+        try {
+            await apiService.delete(`/students/${student.id}`);
+            toast.success(`'${student.name}' permanently deleted.`, { id: 'delete-student-toast' });
+            closeDeleteModal();
+            fetchStudents();
+        } catch (error: any) {
+            toast.dismiss('delete-student-toast'); // apiService already surfaced its own error toast
+            console.error('Student deletion failed:', error);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     // JSX remains largely the same, only API call logic changes
     return (
         <div className="min-h-screen bg-gray-50 p-4 md:p-6">
@@ -1542,10 +1636,23 @@ export default function StudentManagement() {
                                                         <span>Parents</span>
                                                     </button>
 
+                                                    {student.subClassName && (
+                                                        <button
+                                                            onClick={() => openUnenrollModal(student)}
+                                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-amber-600 rounded hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                            disabled={isLoading}
+                                                            title="Unenroll Student from current academic year"
+                                                        >
+                                                            <UserMinusIcon className="h-3 w-3 mr-1" />
+                                                            <span>Unenroll</span>
+                                                        </button>
+                                                    )}
+
                                                     <button
+                                                        onClick={() => openDeleteModal(student)}
                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                                                         disabled={isLoading}
-                                                        title="Delete Student"
+                                                        title="Permanently delete student"
                                                     >
                                                         <TrashIcon className="h-3 w-3 mr-1" />
                                                         <span>Delete</span>
@@ -2629,6 +2736,113 @@ export default function StudentManagement() {
                                     </div>
                                 </form>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Unenroll (dismiss) Confirmation Modal */}
+            {unenrollTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                                <UserMinusIcon className="h-6 w-6 text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900">Unenroll student?</h3>
+                                <p className="mt-2 text-sm text-gray-600">
+                                    This removes <span className="font-medium text-gray-900">{unenrollTarget.name}</span>
+                                    {unenrollTarget.matricule ? ` (${unenrollTarget.matricule})` : ''} from
+                                    {unenrollTarget.academicYearName ? ` ${unenrollTarget.academicYearName}` : ' the current academic year'}.
+                                    Their account is kept and they can be re-enrolled later.
+                                </p>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    If the student already has marks, attendance, discipline, or payment records for this
+                                    year, the unenrollment is blocked to protect history.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                onClick={closeUnenrollModal}
+                                disabled={isUnenrolling}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUnenrollStudent}
+                                disabled={isUnenrolling}
+                                className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 flex items-center"
+                            >
+                                {isUnenrolling && (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                )}
+                                {isUnenrolling ? 'Unenrolling...' : 'Unenroll'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Student Confirmation Modal (typed confirmation) */}
+            {deleteTarget && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="text-lg font-semibold text-gray-900">Permanently delete student</h3>
+
+                                {deleteEscalationReason && (
+                                    <div className="mt-2 rounded-md bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                                        {deleteEscalationReason} Deleting is the only way to remove this student.
+                                    </div>
+                                )}
+
+                                <p className="mt-2 text-sm text-gray-600">
+                                    This <span className="font-semibold">cannot be undone</span>. It permanently wipes
+                                    {' '}<span className="font-medium text-gray-900">{deleteTarget.name}</span>
+                                    {deleteTarget.matricule ? ` (${deleteTarget.matricule})` : ''} along with all of their
+                                    enrollments, marks, attendance, discipline, payments, refunds, fees, parent links,
+                                    interview marks, quiz submissions, and generated reports.
+                                </p>
+
+                                <label className="block mt-4 text-sm font-medium text-gray-700">
+                                    Type <span className="font-mono font-semibold text-gray-900">{deleteConfirmationToken}</span> to confirm
+                                </label>
+                                <input
+                                    type="text"
+                                    value={deleteConfirmText}
+                                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                                    autoFocus
+                                    autoComplete="off"
+                                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                                    placeholder={deleteConfirmationToken}
+                                />
+                            </div>
+                        </div>
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                onClick={closeDeleteModal}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteStudent}
+                                disabled={isDeleting || !isDeleteConfirmed}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                            >
+                                {isDeleting && (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                )}
+                                {isDeleting ? 'Deleting...' : 'Delete permanently'}
+                            </button>
                         </div>
                     </div>
                 </div>

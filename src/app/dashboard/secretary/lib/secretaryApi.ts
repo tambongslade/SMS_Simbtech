@@ -235,6 +235,14 @@ export const changeStudentClass = async (
   throw new Error('Select a class or subclass.');
 };
 
+/**
+ * Unenrolls (dismisses) a student from an academic year. Defaults to the current
+ * year when academicYearId is omitted. The backend returns 409 if the student has
+ * marks/attendance/discipline/payment records for that year (history is protected).
+ */
+export const unenrollStudent = (id: number, academicYearId?: number) =>
+  apiService.post(`/students/${id}/unenroll`, academicYearId ? { academicYearId } : {});
+
 // ---- Student profile ----
 
 export const fetchStudentProfile = async (id: number, academicYearId?: number): Promise<any> => {

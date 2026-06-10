@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditDisciplineMasterModal, DisciplineMasterEditableFields } from './components/EditDisciplineMasterModal';
@@ -67,7 +68,7 @@ export default function DisciplineMasterManagement() {
                 assignedSubClassIds: (dm.disciplineMasterAssignments || []).map((a: any) => a.subClassId)
             })) || [];
             setDisciplineMasters(fetchedDms);
-            setClasses(classResult.data || []);
+            setClasses(sortClassesByLevel(classResult.data || []));
             setSubClasses(subClassResult.data || []);
 
         } catch (error: any) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
@@ -32,7 +33,7 @@ export default function SecretaryClassListsPage() {
   const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
-    fetchClasses().then(setClasses).catch(() => setClasses([]));
+    fetchClasses().then((c) => setClasses(sortClassesByLevel(c))).catch(() => setClasses([]));
     fetchSubClasses().then(setSubClasses).catch(() => setSubClasses([]));
   }, []);
 
