@@ -105,143 +105,6 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   AFRILAND_FIRST_BANK: 'Afriland First Bank',
 };
 
-// ─── Record Payment Modal ─────────────────────────────────────────────────────
-
-interface RecordPaymentModalProps {
-  record: ControlFeeRecord;
-  academicYearId: number;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: RecordPaymentModalProps) {
-  const [amount, setAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState(todayISO());
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('EXPRESS_UNION');
-  const [receiptNumber, setReceiptNumber] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const student = record.enrollment?.student;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    setLoading(true);
-    try {
-      await apiService.post('/control-fees/payments', {
-        enrollmentId: record.enrollmentId,
-        studentId: record.enrollment?.student?.id,
-        amount: numAmount,
-        paymentDate,
-        paymentMethod,
-        ...(receiptNumber ? { receiptNumber } : {}),
-        academicYearId,
-      });
-      toast.success('Payment recorded successfully');
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.message || 'Failed to record payment');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[95vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-semibold text-gray-900">Record Payment</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="p-5">
-          {/* Student info */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-5">
-            <p className="text-sm font-medium text-blue-900">{student?.name}</p>
-            <p className="text-xs text-blue-700 mt-1">{student?.matricule}</p>
-            <p className="text-xs text-blue-800 mt-2">
-              Total paid so far: <strong>{formatCurrency(record.amountPaid)}</strong>
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (XAF) *</label>
-              <input
-                type="number"
-                min="1"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. 50000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
-              <input
-                type="date"
-                value={paymentDate}
-                onChange={e => setPaymentDate(e.target.value)}
-                required
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
-              <select
-                value={paymentMethod}
-                onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map(m => (
-                  <option key={m} value={m}>{paymentMethodLabels[m]}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Receipt Number (optional)</label>
-              <input
-                type="text"
-                value={receiptNumber}
-                onChange={e => setReceiptNumber(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g. EU-2026-00421"
-              />
-            </div>
-
-            <div className="flex gap-3 pt-2 pb-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Recording…' : 'Record Payment'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── New Payment Modal (record for any student by search) ────────────────────
 
 interface NewPaymentModalProps {
@@ -652,7 +515,6 @@ export default function ControllerFeeManagementPage() {
 
   // Modals
   const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
-  const [recordPaymentFor, setRecordPaymentFor] = useState<ControlFeeRecord | null>(null);
   const [historyFor, setHistoryFor] = useState<ControlFeeRecord | null>(null);
   const [summaryFor, setSummaryFor] = useState<{ id: number; name: string } | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -903,13 +765,6 @@ export default function ControllerFeeManagementPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <button
-                              onClick={() => setRecordPaymentFor(record)}
-                              title="Record Payment"
-                              className="px-2.5 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
-                            >
-                              Pay
-                            </button>
-                            <button
                               onClick={() => setHistoryFor(record)}
                               title="View Payment History"
                               className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
@@ -954,20 +809,14 @@ export default function ControllerFeeManagementPage() {
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setRecordPaymentFor(record)}
-                        className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
-                      >
-                        Record Payment
-                      </button>
-                      <button
                         onClick={() => setHistoryFor(record)}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                       >
                         History
                       </button>
                       <button
                         onClick={() => setSummaryFor({ id: subClass?.id ?? 0, name: subClass?.name ?? '' })}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                       >
                         Summary
                       </button>
@@ -1012,15 +861,6 @@ export default function ControllerFeeManagementPage() {
         <NewPaymentModal
           academicYearId={academicYearId}
           onClose={() => setShowNewPaymentModal(false)}
-          onSuccess={() => mutate()}
-        />
-      )}
-
-      {recordPaymentFor && (
-        <RecordPaymentModal
-          record={recordPaymentFor}
-          academicYearId={academicYearId}
-          onClose={() => setRecordPaymentFor(null)}
           onSuccess={() => mutate()}
         />
       )}
