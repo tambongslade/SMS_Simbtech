@@ -95,7 +95,8 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                                 'SECRETARY': 'border-sky-200 bg-sky-50',
                                 'NURSE': 'border-fuchsia-200 bg-fuchsia-50',
                                 'HOD': 'border-teal-200 bg-teal-50',
-                                'MANAGER': 'border-pink-200 bg-pink-50'
+                                'MANAGER': 'border-pink-200 bg-pink-50',
+                                'CONTROLLER': 'border-violet-200 bg-violet-50'
                             };
                             
                             return (

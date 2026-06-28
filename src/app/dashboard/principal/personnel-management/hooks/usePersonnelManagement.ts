@@ -22,6 +22,7 @@ const roles = [
   { value: 'GUIDANCE_COUNSELOR', label: 'Guidance Counselor' },
   { value: 'NURSE', label: 'Nurse' },
   { value: 'PARENT', label: 'Parent' },
+  { value: 'CONTROLLER', label: 'Controller' },
 ];
 
 export type Personnel = {

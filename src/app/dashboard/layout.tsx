@@ -64,6 +64,7 @@ type MenuItemsStructure = {
   teacher: MenuItem[];
   'vice-principal': MenuItem[];
   manager: MenuItem[];
+  controller: MenuItem[];
 };
 
 // Original menu items structure with corrected type
@@ -311,6 +312,10 @@ const menuItems: MenuItemsStructure = {
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/nurse/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/nurse/messaging' },
   ],
+  controller: [
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },
+  ],
 };
 
 // Helper function to format role names
@@ -451,7 +456,8 @@ export default function DashboardLayout({
     'parent-student': 'Parent/Student',
     guidancecounselor: 'Guidance Counselor',
     manager: 'Manager',
-    'vice-principal': 'Vice Principal'
+    'vice-principal': 'Vice Principal',
+    controller: 'Controller'
   };
 
   const toggleSubmenu = (href: string) => {
@@ -495,6 +501,7 @@ export default function DashboardLayout({
             'PARENT': '/dashboard/parent-student',
             'STUDENT': '/dashboard/parent-student',
             'MANAGER': '/dashboard/manager',
+            'CONTROLLER': '/dashboard/controller',
           };
           const redirectPath = DASHBOARD_ROUTES[newRole] || '/dashboard';
           console.log('Academic year not needed. Redirecting to:', redirectPath);

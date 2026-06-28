@@ -100,7 +100,8 @@ const ROLES_REQUIRING_ACADEMIC_YEAR = [
     'BURSAR',
     'FEE_AUDITOR',
     'SECRETARY',
-    'NURSE'
+    'NURSE',
+    'CONTROLLER'
 ];
 
 const DASHBOARD_ROUTES: Record<string, string> = {
@@ -120,7 +121,8 @@ const DASHBOARD_ROUTES: Record<string, string> = {
     'NURSE': '/dashboard/nurse',
     'PARENT': '/dashboard/parent-student',
     'STUDENT': '/dashboard/parent-student',
-    'MANAGER': '/dashboard/manager'
+    'MANAGER': '/dashboard/manager',
+    'CONTROLLER': '/dashboard/controller'
 };
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
