@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
@@ -17,6 +17,7 @@ import {
   ChartBarIcon,
   ExclamationCircleIcon,
   BuildingLibraryIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -151,17 +152,17 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold text-gray-900">Record Payment</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-5">
           {/* Student info */}
-          <div className="bg-blue-50 rounded-lg p-4 mb-6">
+          <div className="bg-blue-50 rounded-lg p-4 mb-5">
             <p className="text-sm font-medium text-blue-900">{student?.name}</p>
             <p className="text-xs text-blue-700 mt-1">{student?.matricule}</p>
             <p className="text-xs text-blue-800 mt-2">
@@ -178,7 +179,7 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. 50000"
               />
             </div>
@@ -190,7 +191,7 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
                 value={paymentDate}
                 onChange={e => setPaymentDate(e.target.value)}
                 required
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -199,7 +200,7 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
               <select
                 value={paymentMethod}
                 onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map(m => (
                   <option key={m} value={m}>{paymentMethodLabels[m]}</option>
@@ -213,29 +214,230 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
                 type="text"
                 value={receiptNumber}
                 onChange={e => setReceiptNumber(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="e.g. EU-2026-00421"
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2 pb-1">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? 'Recording…' : 'Record Payment'}
               </button>
             </div>
           </form>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── New Payment Modal (record for any student by search) ────────────────────
+
+interface NewPaymentModalProps {
+  academicYearId: number;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModalProps) {
+  const [studentSearch, setStudentSearch] = useState('');
+  const [studentResults, setStudentResults] = useState<Array<{ id: number; name: string; matricule: string; enrollmentId?: number }>>([]);
+  const [selectedStudent, setSelectedStudent] = useState<{ id: number; name: string; enrollmentId?: number } | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(todayISO());
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('EXPRESS_UNION');
+  const [receiptNumber, setReceiptNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchStudents = useCallback(async (query: string) => {
+    if (!query.trim()) { setStudentResults([]); return; }
+    setSearchLoading(true);
+    try {
+      const params = new URLSearchParams({ q: query, limit: '10' });
+      if (academicYearId) params.set('academicYearId', String(academicYearId));
+      const res = await apiService.get(`/students/search?${params.toString()}`);
+      const list = res?.data?.data || res?.data || [];
+      setStudentResults(
+        (Array.isArray(list) ? list : []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          matricule: s.matricule,
+          enrollmentId: s.enrollments?.[0]?.id || s.enrollmentId,
+        }))
+      );
+    } catch {
+      setStudentResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [academicYearId]);
+
+  const handleSearchChange = (val: string) => {
+    setStudentSearch(val);
+    setSelectedStudent(null);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => searchStudents(val), 350);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStudent) { toast.error('Please select a student'); return; }
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) { toast.error('Please enter a valid amount'); return; }
+    setLoading(true);
+    try {
+      await apiService.post('/control-fees/payments', {
+        studentId: selectedStudent.id,
+        ...(selectedStudent.enrollmentId ? { enrollmentId: selectedStudent.enrollmentId } : {}),
+        amount: numAmount,
+        paymentDate,
+        paymentMethod,
+        ...(receiptNumber ? { receiptNumber } : {}),
+        academicYearId,
+      });
+      toast.success('Payment recorded successfully');
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err?.message || 'Failed to record payment');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[95vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
+          <h2 className="text-lg font-semibold text-gray-900">Record Payment</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          {/* Student search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
+            {selectedStudent ? (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md px-3 py-2.5">
+                <span className="text-sm text-blue-900 font-medium">{selectedStudent.name}</span>
+                <button type="button" onClick={() => { setSelectedStudent(null); setStudentSearch(''); }} className="text-blue-400 hover:text-blue-600 ml-2 flex-shrink-0">
+                  <XMarkIcon className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={studentSearch}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  placeholder="Search by name or matricule…"
+                  className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+                {searchLoading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                  </div>
+                )}
+                {studentResults.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {studentResults.map(s => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => { setSelectedStudent(s); setStudentSearch(s.name); setStudentResults([]); }}
+                        className="w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 border-b border-gray-100 last:border-0"
+                      >
+                        <span className="font-medium text-gray-900">{s.name}</span>
+                        <span className="text-gray-500 ml-2 text-xs">{s.matricule}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (XAF) *</label>
+            <input
+              type="number"
+              min="1"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. 50000"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
+            <input
+              type="date"
+              value={paymentDate}
+              onChange={e => setPaymentDate(e.target.value)}
+              required
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+            <select
+              value={paymentMethod}
+              onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map(m => (
+                <option key={m} value={m}>{paymentMethodLabels[m]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Receipt Number (optional)</label>
+            <input
+              type="text"
+              value={receiptNumber}
+              onChange={e => setReceiptNumber(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. EU-2026-00421"
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2 pb-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !selectedStudent}
+              className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Recording…' : 'Record Payment'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -449,6 +651,7 @@ export default function ControllerFeeManagementPage() {
   const limit = 15;
 
   // Modals
+  const [showNewPaymentModal, setShowNewPaymentModal] = useState(false);
   const [recordPaymentFor, setRecordPaymentFor] = useState<ControlFeeRecord | null>(null);
   const [historyFor, setHistoryFor] = useState<ControlFeeRecord | null>(null);
   const [summaryFor, setSummaryFor] = useState<{ id: number; name: string } | null>(null);
@@ -540,6 +743,14 @@ export default function ControllerFeeManagementPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowNewPaymentModal(true)}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Record Payment
+          </button>
+
           {/* Export dropdown */}
           <div className="relative">
             <button
@@ -797,6 +1008,14 @@ export default function ControllerFeeManagementPage() {
       )}
 
       {/* ── Modals ────────────────────────────────────────────────── */}
+      {showNewPaymentModal && (
+        <NewPaymentModal
+          academicYearId={academicYearId}
+          onClose={() => setShowNewPaymentModal(false)}
+          onSuccess={() => mutate()}
+        />
+      )}
+
       {recordPaymentFor && (
         <RecordPaymentModal
           record={recordPaymentFor}
