@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
@@ -9,23 +9,19 @@ import {
   CurrencyDollarIcon,
   MagnifyingGlassIcon,
   ArrowDownTrayIcon,
-  PlusIcon,
   ClockIcon,
   ClipboardDocumentListIcon,
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  BanknotesIcon,
   ChartBarIcon,
   ExclamationCircleIcon,
-  CheckCircleIcon,
   BuildingLibraryIcon,
 } from '@heroicons/react/24/outline';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type PaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
-type PaymentStatusFilter = 'paid' | 'partial' | 'unpaid' | '';
 type ExportFormat = 'csv' | 'pdf' | 'docx' | 'xlsx';
 
 interface ControlPaymentTransaction {
@@ -108,25 +104,6 @@ const paymentMethodLabels: Record<PaymentMethod, string> = {
   AFRILAND_FIRST_BANK: 'Afriland First Bank',
 };
 
-const getPaymentStatus = (record: ControlFeeRecord): 'Paid' | 'Partial' | 'Unpaid' => {
-  if (record.amountPaid <= 0) return 'Unpaid';
-  if (record.amountPaid >= record.amountExpected) return 'Paid';
-  return 'Partial';
-};
-
-const statusBadge = (status: 'Paid' | 'Partial' | 'Unpaid') => {
-  const map = {
-    Paid: 'bg-green-100 text-green-800',
-    Partial: 'bg-yellow-100 text-yellow-800',
-    Unpaid: 'bg-red-100 text-red-800',
-  };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${map[status]}`}>
-      {status}
-    </span>
-  );
-};
-
 // ─── Record Payment Modal ─────────────────────────────────────────────────────
 
 interface RecordPaymentModalProps {
@@ -154,12 +131,13 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
     }
     setLoading(true);
     try {
-      await apiService.post(`/control-fees/${record.id}/payments`, {
+      await apiService.post('/control-fees/payments', {
+        enrollmentId: record.enrollmentId,
+        studentId: record.enrollment?.student?.id,
         amount: numAmount,
         paymentDate,
         paymentMethod,
         ...(receiptNumber ? { receiptNumber } : {}),
-        enrollmentId: record.enrollmentId,
         academicYearId,
       });
       toast.success('Payment recorded successfully');
@@ -186,11 +164,9 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
           <div className="bg-blue-50 rounded-lg p-4 mb-6">
             <p className="text-sm font-medium text-blue-900">{student?.name}</p>
             <p className="text-xs text-blue-700 mt-1">{student?.matricule}</p>
-            <div className="mt-2 flex gap-4 text-xs text-blue-800">
-              <span>Expected: <strong>{formatCurrency(record.amountExpected)}</strong></span>
-              <span>Paid: <strong>{formatCurrency(record.amountPaid)}</strong></span>
-              <span>Balance: <strong>{formatCurrency(record.amountExpected - record.amountPaid)}</strong></span>
-            </div>
+            <p className="text-xs text-blue-800 mt-2">
+              Total paid so far: <strong>{formatCurrency(record.amountPaid)}</strong>
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -260,208 +236,6 @@ function RecordPaymentModal({ record, academicYearId, onClose, onSuccess }: Reco
             </div>
           </form>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── New Control Fee Modal ────────────────────────────────────────────────────
-
-interface NewControlFeeModalProps {
-  academicYearId: number;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-function NewControlFeeModal({ academicYearId, onClose, onSuccess }: NewControlFeeModalProps) {
-  const [studentSearch, setStudentSearch] = useState('');
-  const [studentResults, setStudentResults] = useState<Array<{ id: number; name: string; matricule: string; enrollmentId?: number }>>([]);
-  const [selectedStudent, setSelectedStudent] = useState<{ id: number; name: string; enrollmentId?: number } | null>(null);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [amountExpected, setAmountExpected] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('');
-  const [loading, setLoading] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const searchStudents = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setStudentResults([]);
-      return;
-    }
-    setSearchLoading(true);
-    try {
-      const res = await apiService.get('/students', { params: { search: query, academicYearId } });
-      const list = res?.data || res || [];
-      const mapped = (Array.isArray(list) ? list : []).map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        matricule: s.matricule,
-        enrollmentId: s.enrollments?.[0]?.id || s.enrollmentId,
-      }));
-      setStudentResults(mapped);
-    } catch {
-      setStudentResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  }, [academicYearId]);
-
-  const handleSearchChange = (val: string) => {
-    setStudentSearch(val);
-    setSelectedStudent(null);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => searchStudents(val), 400);
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedStudent) {
-      toast.error('Please select a student');
-      return;
-    }
-    const amount = parseFloat(amountExpected);
-    if (!amount || amount <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-    if (!dueDate) {
-      toast.error('Please enter a due date');
-      return;
-    }
-    setLoading(true);
-    try {
-      const body: Record<string, unknown> = {
-        amountExpected: amount,
-        dueDate,
-        academicYearId,
-      };
-      if (selectedStudent.enrollmentId) {
-        body.enrollmentId = selectedStudent.enrollmentId;
-      } else {
-        body.studentId = selectedStudent.id;
-      }
-      if (paymentMethod) body.paymentMethod = paymentMethod;
-
-      await apiService.post('/control-fees', body);
-      toast.success('Control fee created successfully');
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.message || 'Failed to create control fee');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">New Control Fee</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Student search */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
-            {selectedStudent ? (
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
-                <span className="text-sm text-blue-900 font-medium">{selectedStudent.name}</span>
-                <button type="button" onClick={() => { setSelectedStudent(null); setStudentSearch(''); }} className="text-blue-400 hover:text-blue-600">
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="relative">
-                <input
-                  type="text"
-                  value={studentSearch}
-                  onChange={e => handleSearchChange(e.target.value)}
-                  placeholder="Search by name or matricule…"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {searchLoading && (
-                  <div className="absolute right-3 top-2.5">
-                    <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-                  </div>
-                )}
-                {studentResults.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                    {studentResults.map(s => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => { setSelectedStudent(s); setStudentSearch(s.name); setStudentResults([]); }}
-                        className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 border-b border-gray-100 last:border-0"
-                      >
-                        <span className="font-medium">{s.name}</span>
-                        <span className="text-gray-500 ml-2">{s.matricule}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount Expected (XAF) *</label>
-            <input
-              type="number"
-              min="1"
-              value={amountExpected}
-              onChange={e => setAmountExpected(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. 250000"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method (optional)</label>
-            <select
-              value={paymentMethod}
-              onChange={e => setPaymentMethod(e.target.value as PaymentMethod | '')}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">— Select method —</option>
-              {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map(m => (
-                <option key={m} value={m}>{paymentMethodLabels[m]}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {loading ? 'Creating…' : 'Create'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
@@ -671,7 +445,6 @@ export default function ControllerFeeManagementPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedClassId, setSelectedClassId] = useState('');
-  const [paymentStatus, setPaymentStatus] = useState<PaymentStatusFilter>('');
   const [page, setPage] = useState(1);
   const limit = 15;
 
@@ -679,7 +452,6 @@ export default function ControllerFeeManagementPage() {
   const [recordPaymentFor, setRecordPaymentFor] = useState<ControlFeeRecord | null>(null);
   const [historyFor, setHistoryFor] = useState<ControlFeeRecord | null>(null);
   const [summaryFor, setSummaryFor] = useState<{ id: number; name: string } | null>(null);
-  const [showNewModal, setShowNewModal] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
@@ -694,11 +466,11 @@ export default function ControllerFeeManagementPage() {
   }, [search]);
 
   // Reset page when filters change
-  useEffect(() => { setPage(1); }, [debouncedSearch, selectedClassId, paymentStatus, academicYearId]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, selectedClassId, academicYearId]);
 
   // Build SWR key
   const swrKey = academicYearId
-    ? `/control-fees?page=${page}&limit=${limit}&academicYearId=${academicYearId}${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''}${selectedClassId ? `&classId=${selectedClassId}` : ''}${paymentStatus ? `&paymentStatus=${paymentStatus}` : ''}`
+    ? `/control-fees?page=${page}&limit=${limit}&academicYearId=${academicYearId}${debouncedSearch ? `&studentIdentifier=${encodeURIComponent(debouncedSearch)}` : ''}${selectedClassId ? `&classId=${selectedClassId}` : ''}`
     : null;
 
   const { data: feeData, isLoading, mutate } = useSWR(
@@ -709,19 +481,15 @@ export default function ControllerFeeManagementPage() {
   const records: ControlFeeRecord[] = feeData?.data?.data || [];
   const meta = feeData?.data?.meta || { total: 0, totalPages: 1, page: 1 };
 
-  // Stats (computed from current page data)
-  const totalExpected = records.reduce((s, r) => s + r.amountExpected, 0);
   const totalPaid = records.reduce((s, r) => s + r.amountPaid, 0);
-  const totalOutstanding = totalExpected - totalPaid;
 
   const clearFilters = () => {
     setSearch('');
     setDebouncedSearch('');
     setSelectedClassId('');
-    setPaymentStatus('');
   };
 
-  const hasFilters = search || selectedClassId || paymentStatus;
+  const hasFilters = search || selectedClassId;
 
   const handleExport = async (format: ExportFormat) => {
     if (!academicYearId) { toast.error('No academic year selected'); return; }
@@ -730,7 +498,7 @@ export default function ControllerFeeManagementPage() {
     try {
       const blob = await apiService.get(
         '/control-fees/export',
-        { params: { format, academicYearId, ...(selectedClassId ? { classId: selectedClassId } : {}), ...(paymentStatus ? { paymentStatus } : {}) } },
+        { params: { format, academicYearId, ...(selectedClassId ? { classId: selectedClassId } : {}) } },
         'blob',
       );
       const url = window.URL.createObjectURL(blob as Blob);
@@ -796,31 +564,19 @@ export default function ControllerFeeManagementPage() {
               </div>
             )}
           </div>
-
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-          >
-            <PlusIcon className="h-4 w-4" />
-            New Control Fee
-          </button>
         </div>
       </div>
 
       {/* ── Stats ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         {[
           { label: 'Total Records', value: meta.total.toString(), icon: ClipboardDocumentListIcon, color: 'blue' },
-          { label: 'Total Expected', value: formatCurrency(totalExpected), icon: CurrencyDollarIcon, color: 'indigo' },
-          { label: 'Total Paid', value: formatCurrency(totalPaid), icon: CheckCircleIcon, color: 'green' },
-          { label: 'Outstanding', value: formatCurrency(totalOutstanding), icon: BanknotesIcon, color: 'red' },
+          { label: 'Total Collected', value: formatCurrency(totalPaid), icon: CurrencyDollarIcon, color: 'green' },
         ].map(stat => {
           const Icon = stat.icon;
           const colorMap: Record<string, string> = {
             blue: 'bg-blue-50 text-blue-600',
-            indigo: 'bg-indigo-50 text-indigo-600',
             green: 'bg-green-50 text-green-600',
-            red: 'bg-red-50 text-red-600',
           };
           return (
             <div key={stat.label} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
@@ -865,18 +621,6 @@ export default function ControllerFeeManagementPage() {
             ))}
           </select>
 
-          {/* Status filter */}
-          <select
-            value={paymentStatus}
-            onChange={e => setPaymentStatus(e.target.value as PaymentStatusFilter)}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[120px]"
-          >
-            <option value="">All Status</option>
-            <option value="paid">Paid</option>
-            <option value="partial">Partial</option>
-            <option value="unpaid">Unpaid</option>
-          </select>
-
           {hasFilters && (
             <button
               onClick={clearFilters}
@@ -913,7 +657,7 @@ export default function ControllerFeeManagementPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Student', 'Class / Subclass', 'Expected', 'Paid', 'Balance', 'Status', 'Due Date', 'Actions'].map(h => (
+                    {['Student', 'Class / Subclass', 'Total Paid', 'Last Payment', 'Actions'].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
@@ -924,8 +668,7 @@ export default function ControllerFeeManagementPage() {
                   {records.map(record => {
                     const student = record.enrollment?.student;
                     const subClass = record.enrollment?.subClass;
-                    const status = getPaymentStatus(record);
-                    const balance = record.amountExpected - record.amountPaid;
+                    const lastTx = record.controlPaymentTransactions?.[0];
                     return (
                       <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
@@ -940,11 +683,12 @@ export default function ControllerFeeManagementPage() {
                             <p className="text-xs text-gray-500">{subClass?.name}</p>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">{formatCurrency(record.amountExpected)}</td>
-                        <td className="px-4 py-3 text-sm text-green-700 font-medium whitespace-nowrap">{formatCurrency(record.amountPaid)}</td>
-                        <td className="px-4 py-3 text-sm text-red-700 font-medium whitespace-nowrap">{formatCurrency(balance)}</td>
-                        <td className="px-4 py-3">{statusBadge(status)}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatDate(record.dueDate)}</td>
+                        <td className="px-4 py-3 text-sm text-green-700 font-medium whitespace-nowrap">
+                          {formatCurrency(record.amountPaid)}
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                          {lastTx ? formatDate(lastTx.paymentDate) : '—'}
+                        </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
                             <button
@@ -982,33 +726,21 @@ export default function ControllerFeeManagementPage() {
               {records.map(record => {
                 const student = record.enrollment?.student;
                 const subClass = record.enrollment?.subClass;
-                const status = getPaymentStatus(record);
-                const balance = record.amountExpected - record.amountPaid;
+                const lastTx = record.controlPaymentTransactions?.[0];
                 return (
                   <div key={record.id} className="p-4 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{student?.name}</p>
-                        <p className="text-xs text-gray-500">{student?.matricule}</p>
-                        <p className="text-xs text-gray-600 mt-0.5">{subClass?.class?.name} — {subClass?.name}</p>
-                      </div>
-                      {statusBadge(status)}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{student?.name}</p>
+                      <p className="text-xs text-gray-500">{student?.matricule}</p>
+                      <p className="text-xs text-gray-600 mt-0.5">{subClass?.class?.name} — {subClass?.name}</p>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="bg-gray-50 rounded p-2">
-                        <p className="text-gray-500">Expected</p>
-                        <p className="font-semibold text-gray-900">{formatCurrency(record.amountExpected)}</p>
-                      </div>
-                      <div className="bg-green-50 rounded p-2">
-                        <p className="text-gray-500">Paid</p>
-                        <p className="font-semibold text-green-700">{formatCurrency(record.amountPaid)}</p>
-                      </div>
-                      <div className="bg-red-50 rounded p-2">
-                        <p className="text-gray-500">Balance</p>
-                        <p className="font-semibold text-red-700">{formatCurrency(balance)}</p>
-                      </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">Total paid:</span>
+                      <span className="font-semibold text-green-700">{formatCurrency(record.amountPaid)}</span>
                     </div>
-                    <p className="text-xs text-gray-500">Due: {formatDate(record.dueDate)}</p>
+                    <p className="text-xs text-gray-500">
+                      {lastTx ? `Last payment: ${formatDate(lastTx.paymentDate)}` : 'No payments yet'}
+                    </p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setRecordPaymentFor(record)}
@@ -1087,14 +819,6 @@ export default function ControllerFeeManagementPage() {
           subClassName={summaryFor.name}
           academicYearId={academicYearId}
           onClose={() => setSummaryFor(null)}
-        />
-      )}
-
-      {showNewModal && (
-        <NewControlFeeModal
-          academicYearId={academicYearId}
-          onClose={() => setShowNewModal(false)}
-          onSuccess={() => mutate()}
         />
       )}
 
