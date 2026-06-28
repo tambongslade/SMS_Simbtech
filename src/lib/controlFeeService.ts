@@ -101,6 +101,28 @@ export interface ComparisonSummary {
     };
 }
 
+export type AuditStatus = 'MATCHED' | 'PAYMENT_MISMATCH' | 'MISSING_PRIMARY' | 'MISSING_CONTROL' | 'NO_RECORDS';
+
+export interface AuditRosterRow {
+    studentId: number;
+    studentName: string;
+    studentMatricule: string;
+    className: string;
+    subClassName: string;
+    enrollmentId: number;
+    primary: {
+        amountExpected: number;
+        amountPaid: number;
+        paymentsCount: number;
+    } | null;
+    control: {
+        amountPaid: number;
+        paymentsCount: number;
+    } | null;
+    paidAmountDifference: number;
+    status: AuditStatus;
+}
+
 export interface ApiResponse<T> {
     success: boolean;
     data: T;
@@ -150,6 +172,17 @@ export const controlFeeService = {
 
     exportDiscrepancies: (params?: any): Promise<Blob> =>
         apiService.get('/fee-comparison/export', { params }, 'blob'),
+
+    getAuditRoster: (params?: {
+        academicYearId?: number;
+        page?: number;
+        limit?: number;
+        classId?: number | string;
+        subClassId?: number | string;
+        search?: string;
+        status?: AuditStatus | '';
+    }): Promise<ApiResponse<{ data: AuditRosterRow[]; meta: { total: number; totalPages: number; page: number; limit: number; academicYearId: number } }>> =>
+        apiService.get('/fee-comparison/students', { params }),
 };
 
 export default controlFeeService;
