@@ -91,6 +91,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/principal/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/principal/teacher-logbook' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/principal/fee-comparison' },
   ],
   bursar: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
@@ -262,6 +263,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/manager/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/manager/messaging' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-studies' },
