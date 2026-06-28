@@ -14,7 +14,8 @@
       "Bash(cp src/app/dashboard/super-manager/timetable/components/SchoolTimetableView.tsx src/app/dashboard/principal/timetable/components/SchoolTimetableView.tsx)",
       "Bash(cp src/app/dashboard/super-manager/timetable/components/SchoolTimetableView.tsx src/app/dashboard/vice-principal/timetable/components/SchoolTimetableView.tsx)",
       "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/principal/timetable/page.tsx)",
-      "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/vice-principal/timetable/page.tsx)"
+      "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/vice-principal/timetable/page.tsx)",
+      "Bash(grep -n \"reamOfPaper\\\\|ream_of_paper\\\\|Ream\\\\|updateStudent\\\\|handleUpdateStudent\\\\|Edit\\\\|students/\\\\${\" src/app/dashboard/secretary/students/page.tsx)"
     ],
     "deny": []
   }

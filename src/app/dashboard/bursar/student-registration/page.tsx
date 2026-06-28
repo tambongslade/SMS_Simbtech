@@ -54,6 +54,7 @@ type Student = {
     residence?: string;
     former_school?: string;
     is_new_student?: boolean;
+    reamOfPaperCollected?: boolean; // Per-enrollment flag for the resolved academic year
 };
 
 type SubClassInfo = {
@@ -115,6 +116,8 @@ type EditFormData = {
     residence?: string | null;
     former_school?: string | null;
     is_new_student?: boolean;
+    reamOfPaperCollected?: boolean;
+    academicYearId?: number | null;
 };
 
 // For Enrollment Modal
@@ -323,6 +326,8 @@ export default function StudentManagement() {
                     classId: currentEnrollment?.classId ?? currentEnrollment?.class_id,
                     academicYearId: currentEnrollment?.academicYearId ?? currentEnrollment?.academic_year_id,
                     academicYearName: currentEnrollment?.academicYear?.name ?? selectedAcademicYear?.name,
+                    reamOfPaperCollected:
+                        currentEnrollment?.reamOfPaperCollected ?? currentEnrollment?.ream_of_paper_collected ?? false,
                     date_of_birth: s.dateOfBirth,
                     place_of_birth: s.placeOfBirth,
                     gender: s.gender,
@@ -575,6 +580,8 @@ export default function StudentManagement() {
             residence: student.residence || '',
             former_school: student.former_school || '',
             is_new_student: student.is_new_student ?? true,
+            reamOfPaperCollected: student.reamOfPaperCollected ?? false,
+            academicYearId: student.academicYearId ?? null,
         });
         setIsEditModalOpen(true);
     };
@@ -611,6 +618,13 @@ export default function StudentManagement() {
             former_school: editFormData.former_school || null,
             is_new_student: editFormData.is_new_student,
         };
+        // Ream-of-paper lives on the enrollment record. Only send it when the student is
+        // actually enrolled for a year — the backend rejects the whole update otherwise.
+        const enrollmentYearId = editingStudent.academicYearId ?? editFormData.academicYearId ?? null;
+        if (enrollmentYearId) {
+            payload.reamOfPaperCollected = !!editFormData.reamOfPaperCollected;
+            payload.academicYearId = enrollmentYearId;
+        }
         console.log(`Updating student ID ${editingStudent.id} with payload:`, payload);
 
         try {
@@ -1990,6 +2004,26 @@ export default function StudentManagement() {
                                             <label htmlFor="edit-is_new_student" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
                                         </div>
                                     </div>
+                                    {/* Ream of paper collected — only relevant once the student is enrolled */}
+                                    {editingStudent.academicYearId ? (
+                                        <div className="flex items-end pb-1">
+                                            <div className="flex items-center h-full">
+                                                <input
+                                                    id="edit-reamOfPaperCollected"
+                                                    name="reamOfPaperCollected"
+                                                    type="checkbox"
+                                                    checked={editFormData.reamOfPaperCollected || false}
+                                                    onChange={(e) => setEditFormData(prev => ({ ...prev, reamOfPaperCollected: e.target.checked }))}
+                                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                />
+                                                <label htmlFor="edit-reamOfPaperCollected" className="ml-2 block text-sm text-gray-900">Ream of paper collected?</label>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-end pb-1">
+                                            <p className="text-xs text-gray-400">Enroll the student to set ream-of-paper collection.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
