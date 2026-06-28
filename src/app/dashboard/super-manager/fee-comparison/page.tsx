@@ -32,18 +32,18 @@ export default function FeeComparisonDashboard() {
   const [localAcademicYears, setLocalAcademicYears] = useState<any[]>([]);
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<any>(null);
 
-  // Check if user is super admin - check both selectedRole and user roles
-  const isSuperAdmin = selectedRole === 'SUPER_MANAGER' || user?.userRoles?.some(ur => ur.role === 'SUPER_MANAGER');
+  const canAccess = ['SUPER_MANAGER', 'PRINCIPAL', 'MANAGER'].includes(selectedRole || '') ||
+    user?.userRoles?.some(ur => ['SUPER_MANAGER', 'PRINCIPAL', 'MANAGER'].includes(ur.role));
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canAccess) return;
     loadAcademicYears();
-  }, [isSuperAdmin]);
+  }, [canAccess]);
 
   useEffect(() => {
-    if (!isSuperAdmin || !selectedAcademicYear) return;
+    if (!canAccess || !selectedAcademicYear) return;
     loadDashboardData();
-  }, [selectedAcademicYear, isSuperAdmin]);
+  }, [selectedAcademicYear, canAccess]);
 
   const loadAcademicYears = async () => {
     try {
@@ -123,12 +123,12 @@ export default function FeeComparisonDashboard() {
   };
 
   const searchDiscrepancies = async () => {
-    if (!currentAcademicYear) return;
+    if (!selectedAcademicYear) return;
 
     setLoading(true);
     try {
       const response = await controlFeeService.getDiscrepancies({
-        academicYearId: currentAcademicYear.id,
+        academicYearId: selectedAcademicYear.id,
         search: searchTerm,
         limit: itemsPerPage,
         page: 1
@@ -156,7 +156,6 @@ export default function FeeComparisonDashboard() {
     switch (type) {
       case 'MISSING_PRIMARY': return 'Missing Primary Fee';
       case 'MISSING_CONTROL': return 'Missing Control Fee';
-      case 'AMOUNT_MISMATCH': return 'Amount Mismatch';
       case 'PAYMENT_MISMATCH': return 'Payment Mismatch';
       default: return type;
     }
@@ -166,20 +165,19 @@ export default function FeeComparisonDashboard() {
     switch (type) {
       case 'MISSING_PRIMARY': return 'bg-red-100 text-red-800 border-red-200';
       case 'MISSING_CONTROL': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'AMOUNT_MISMATCH': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'PAYMENT_MISMATCH': return 'bg-purple-100 text-purple-800 border-purple-200';
       default: return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  if (!isSuperAdmin) {
+  if (!canAccess) {
     return (
       <div className="p-6 bg-gray-100 min-h-screen">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="text-center py-8">
             <XCircleIcon className="mx-auto h-12 w-12 text-red-500 mb-4" />
             <h1 className="text-2xl font-bold mb-4 text-gray-800">Access Denied</h1>
-            <p className="text-gray-600 mb-4">Fee Audit & Control access is restricted to Super Administrators only.</p>
+            <p className="text-gray-600 mb-4">This page is accessible to Super Managers, Principals, and Managers.</p>
             <p className="text-sm text-gray-500">Contact your system administrator for access.</p>
           </div>
         </div>
@@ -307,7 +305,7 @@ export default function FeeComparisonDashboard() {
       {summary?.discrepancyTypes && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Discrepancy Types Breakdown</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
               <p className="text-2xl font-bold text-red-900">{summary.discrepancyTypes.missingPrimary}</p>
               <p className="text-sm text-red-600">Missing Primary</p>
@@ -315,10 +313,6 @@ export default function FeeComparisonDashboard() {
             <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
               <p className="text-2xl font-bold text-orange-900">{summary.discrepancyTypes.missingControl}</p>
               <p className="text-sm text-orange-600">Missing Control</p>
-            </div>
-            <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-2xl font-bold text-yellow-900">{summary.discrepancyTypes.amountMismatch}</p>
-              <p className="text-sm text-yellow-600">Amount Mismatch</p>
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
               <p className="text-2xl font-bold text-purple-900">{summary.discrepancyTypes.paymentMismatch}</p>
@@ -382,6 +376,9 @@ export default function FeeComparisonDashboard() {
                   <div>
                     <h4 className="font-semibold text-gray-900">{discrepancy.studentName}</h4>
                     <p className="text-sm text-gray-600">Matricule: {discrepancy.studentMatricule}</p>
+                    {(discrepancy.className || discrepancy.subClassName) && (
+                      <p className="text-sm text-gray-500">{discrepancy.className} — {discrepancy.subClassName}</p>
+                    )}
                   </div>
                   <span className={`px-3 py-1 text-xs rounded-full border ${getDiscrepancyTypeColor(discrepancy.discrepancyType)}`}>
                     {getDiscrepancyTypeLabel(discrepancy.discrepancyType)}
@@ -405,20 +402,17 @@ export default function FeeComparisonDashboard() {
                     <div className="p-3 bg-green-50 rounded border border-green-200">
                       <p className="text-sm font-medium text-green-700 mb-1">Control Fee</p>
                       <p className="text-sm text-gray-600">
-                        Expected: {formatCurrency(discrepancy.controlFee.amountExpected)}
-                      </p>
-                      <p className="text-sm text-gray-600">
                         Paid: {formatCurrency(discrepancy.controlFee.amountPaid)}
                       </p>
                     </div>
                   )}
                 </div>
 
-                {discrepancy.expectedAmountDifference && (
-                  <div className="mt-3 p-2 bg-yellow-100 rounded border border-yellow-200">
-                    <p className="text-sm text-yellow-800">
-                      Amount Difference: {formatCurrency(Math.abs(discrepancy.expectedAmountDifference))}
-                      {discrepancy.variancePercentage && ` (${discrepancy.variancePercentage.toFixed(1)}% variance)`}
+                {discrepancy.paidAmountDifference !== undefined && (
+                  <div className="mt-3 p-2 bg-purple-50 rounded border border-purple-200">
+                    <p className="text-sm text-purple-800">
+                      Payment Difference: {formatCurrency(Math.abs(discrepancy.paidAmountDifference))}
+                      {discrepancy.variancePercentage !== undefined && ` (${discrepancy.variancePercentage.toFixed(1)}% variance)`}
                     </p>
                   </div>
                 )}
