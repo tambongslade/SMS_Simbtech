@@ -25,6 +25,23 @@ import {
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('fr-CM', { style: 'currency', currency: 'XAF', minimumFractionDigits: 0 }).format(amount);
 
+type StudentStatus = 'NEW' | 'OLD' | 'REPEATER';
+
+const STUDENT_STATUS_BADGE: Record<StudentStatus, { bg: string; label: string }> = {
+  NEW:      { bg: 'bg-emerald-100 text-emerald-800', label: 'New' },
+  OLD:      { bg: 'bg-gray-100 text-gray-600',       label: 'Old' },
+  REPEATER: { bg: 'bg-orange-100 text-orange-800',   label: 'Repeater' },
+};
+
+function StudentStatusBadge({ status }: { status: StudentStatus }) {
+  const { bg, label } = STUDENT_STATUS_BADGE[status] ?? { bg: 'bg-gray-100 text-gray-500', label: status };
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${bg}`}>
+      {label}
+    </span>
+  );
+}
+
 const STATUS_CHIPS: { value: AuditStatus | ''; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'MATCHED', label: 'Matched' },
@@ -54,7 +71,7 @@ function StatusBadge({ status }: { status: AuditStatus }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function FeeAuditRoster() {
-  const { user, currentAcademicYear, selectedRole } = useAuth();
+  const { user, currentAcademicYear, selectedRole, selectedAcademicYear: globalAcademicYear } = useAuth();
 
   const canAccess = ['SUPER_MANAGER', 'PRINCIPAL', 'MANAGER'].includes(selectedRole || '') ||
     user?.userRoles?.some((ur: { role: string }) => ['SUPER_MANAGER', 'PRINCIPAL', 'MANAGER'].includes(ur.role));
@@ -67,6 +84,7 @@ export default function FeeAuditRoster() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<AuditStatus | ''>('');
+  const [studentStatusFilter, setStudentStatusFilter] = useState<StudentStatus | ''>('');
   const [classId, setClassId] = useState('');
   const [page, setPage] = useState(1);
   const LIMIT = 25;
@@ -85,8 +103,10 @@ export default function FeeAuditRoster() {
         const json = await res.json();
         const years: { id: number; name: string }[] = json.data || [];
         setLocalAcademicYears(years);
-        if (currentAcademicYear) {
-          setSelectedAcademicYear(currentAcademicYear as { id: number; name: string });
+        // Prefer the globally selected year, then current year, then first in list
+        const initial = globalAcademicYear ?? currentAcademicYear;
+        if (initial) {
+          setSelectedAcademicYear(initial as { id: number; name: string });
         } else if (years.length > 0) {
           setSelectedAcademicYear(years[0]);
         }
@@ -97,6 +117,13 @@ export default function FeeAuditRoster() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canAccess]);
 
+  // ── Sync with global academic year when changed via sidebar ────────────
+  useEffect(() => {
+    if (globalAcademicYear) {
+      setSelectedAcademicYear(globalAcademicYear as { id: number; name: string });
+    }
+  }, [globalAcademicYear]);
+
   // ── Debounce search ──────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search), 400);
@@ -104,7 +131,7 @@ export default function FeeAuditRoster() {
   }, [search]);
 
   // ── Reset page on filter change ──────────────────────────────────────────
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, classId, selectedAcademicYear]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, studentStatusFilter, classId, selectedAcademicYear]);
 
   // ── SWR: roster ─────────────────────────────────────────────────────────
   const rosterKey = selectedAcademicYear
@@ -116,6 +143,7 @@ export default function FeeAuditRoster() {
         ...(classId ? { classId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
+        ...(studentStatusFilter ? { studentStatus: studentStatusFilter } : {}),
       }
     : null;
 
@@ -174,8 +202,8 @@ export default function FeeAuditRoster() {
     }
   };
 
-  const hasFilters = !!(search || statusFilter || classId);
-  const clearFilters = () => { setSearch(''); setStatusFilter(''); setClassId(''); };
+  const hasFilters = !!(search || statusFilter || studentStatusFilter || classId);
+  const clearFilters = () => { setSearch(''); setStatusFilter(''); setStudentStatusFilter(''); setClassId(''); };
 
   // ── Access guard ─────────────────────────────────────────────────────────
   if (!canAccess) {
@@ -289,6 +317,23 @@ export default function FeeAuditRoster() {
             ))}
           </div>
 
+          {/* ── Student status chips ───────────────────────────────────── */}
+          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+            {([['', 'All Students'], ['NEW', 'New'], ['OLD', 'Old'], ['REPEATER', 'Repeater']] as [StudentStatus | '', string][]).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setStudentStatusFilter(val)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  studentStatusFilter === val
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-600 border border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           {/* ── Search + class filter ──────────────────────────────────── */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex flex-col sm:flex-row gap-3">
@@ -348,7 +393,7 @@ export default function FeeAuditRoster() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        {['Student', 'Class / Subclass', 'Primary Expected', 'Primary Paid', 'Control Paid', 'Difference', 'Status'].map(h => (
+                        {['Student', 'Class / Subclass', 'Type', 'Primary Expected', 'Primary Paid', 'Control Paid', 'Difference', 'Status'].map(h => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                             {h}
                           </th>
@@ -365,6 +410,9 @@ export default function FeeAuditRoster() {
                           <td className="px-4 py-3">
                             <p className="text-sm text-gray-900">{row.className}</p>
                             <p className="text-xs text-gray-500">{row.subClassName}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            <StudentStatusBadge status={row.studentStatus} />
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                             {row.primary ? formatCurrency(row.primary.amountExpected) : '—'}
@@ -401,7 +449,10 @@ export default function FeeAuditRoster() {
                           <p className="text-xs text-gray-500">{row.studentMatricule}</p>
                           <p className="text-xs text-gray-600 mt-0.5">{row.className} — {row.subClassName}</p>
                         </div>
-                        <StatusBadge status={row.status} />
+                        <div className="flex flex-col items-end gap-1">
+                          <StatusBadge status={row.status} />
+                          <StudentStatusBadge status={row.studentStatus} />
+                        </div>
                       </div>
                       <div className="text-xs space-y-1 pt-1">
                         <p className="text-gray-700">

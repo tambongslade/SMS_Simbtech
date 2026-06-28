@@ -121,6 +121,7 @@ export interface AuditRosterRow {
     } | null;
     paidAmountDifference: number;
     status: AuditStatus;
+    studentStatus: 'NEW' | 'OLD' | 'REPEATER';
 }
 
 export interface ApiResponse<T> {
@@ -181,6 +182,7 @@ export const controlFeeService = {
         subClassId?: number | string;
         search?: string;
         status?: AuditStatus | '';
+        studentStatus?: 'NEW' | 'OLD' | 'REPEATER' | '';
     }): Promise<ApiResponse<{ data: AuditRosterRow[]; meta: { total: number; totalPages: number; page: number; limit: number; academicYearId: number } }>> =>
         apiService.get('/fee-comparison/students', { params }),
 };

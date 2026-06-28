@@ -365,8 +365,22 @@ export default function DashboardLayout({
     logout,
     selectRole,
     requiresAcademicYear,
-    selectedAcademicYear // Add this line to destructure the function
+    selectedAcademicYear,
+    selectAcademicYear,
   } = useAuth();
+
+  // --- Academic Years for sidebar selector ---
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [allAcademicYears, setAllAcademicYears] = useState<any[]>([]);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/academic-years`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+      .then(r => r.json())
+      .then(json => setAllAcademicYears(json.data || []))
+      .catch(() => { /* silent */ });
+  }, [isAuthenticated]);
 
   // --- Get Role from URL Path ---
   // Use useMemo to avoid recalculating on every render unless pathname changes
@@ -650,6 +664,32 @@ export default function DashboardLayout({
         )}
         {isLoading && availableRoles.length <= 1 && (
           <div className="text-xs text-gray-400">Loading roles...</div> // Placeholder while loading
+        )}
+
+        {/* Academic Year Selector */}
+        {allAcademicYears.length > 1 && (
+          <div className="relative">
+            <label htmlFor="academic-year-switcher" className="block text-xs font-medium text-gray-500 mb-1">
+              Academic Year
+            </label>
+            <select
+              id="academic-year-switcher"
+              value={selectedAcademicYear?.id ?? ''}
+              onChange={e => {
+                const yr = allAcademicYears.find(y => y.id === parseInt(e.target.value));
+                if (yr) selectAcademicYear(yr);
+              }}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
+            >
+              <option value="">Select Year</option>
+              {allAcademicYears.map(yr => (
+                <option key={yr.id} value={yr.id}>{yr.name}</option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 top-6 flex items-center px-2 text-gray-700">
+              <ChevronUpDownIcon className="h-5 w-5" aria-hidden="true" />
+            </div>
+          </div>
         )}
 
         {/* Logout Button */}
