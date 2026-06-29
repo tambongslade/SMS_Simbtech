@@ -55,6 +55,7 @@ type Student = {
     former_school?: string;
     is_new_student?: boolean;
     reamOfPaperCollected?: boolean; // Per-enrollment flag for the resolved academic year
+    status?: string; // e.g. 'NOT_ENROLLED', 'ACTIVE'
 };
 
 type SubClassInfo = {
@@ -253,6 +254,34 @@ export default function StudentManagement() {
 
 
 
+    // --- State for Delete Confirmation ---
+    const [deleteTarget, setDeleteTarget] = useState<Student | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // A bursar can delete when the student is not enrolled OR is in Form 1.
+    const canDelete = (student: Student) => {
+        if (student.status === 'NOT_ENROLLED' || !student.classId) return true;
+        const name = (student.className || '').toLowerCase();
+        return name.startsWith('form 1') || name === 'form 1';
+    };
+
+    const handleDeleteStudent = async () => {
+        if (!deleteTarget) return;
+        setIsDeleting(true);
+        try {
+            await apiService.delete(`/students/${deleteTarget.id}`);
+            toast.success(`${deleteTarget.name} deleted successfully.`);
+            setDeleteTarget(null);
+            fetchStudents();
+        } catch (error: any) {
+            if (error?.message !== 'Unauthorized') {
+                toast.error(error?.message || 'Failed to delete student.');
+            }
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     // --- Data Fetching ---
     const fetchStudents = async () => {
         setIsLoading(true);
@@ -320,6 +349,7 @@ export default function StudentManagement() {
                     nom: s.nom,
                     prenom: s.prenom,
                     matricule: s.matricule,
+                    status: s.status,
                     subClassName: subClass?.name,
                     subClassId: subClass?.id,
                     className: subClass?.class?.name ?? currentEnrollment?.class?.name,
@@ -1255,14 +1285,17 @@ export default function StudentManagement() {
                                                         <span>Parents</span>
                                                     </button>
 
-                                                    <button
-                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
-                                                        disabled={isLoading}
-                                                        title="Delete Student"
-                                                    >
-                                                        <TrashIcon className="h-3 w-3 mr-1" />
-                                                        <span>Delete</span>
-                                                    </button>
+                                                    {canDelete(student) && (
+                                                        <button
+                                                            onClick={() => setDeleteTarget(student)}
+                                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                            disabled={isLoading}
+                                                            title="Delete Student"
+                                                        >
+                                                            <TrashIcon className="h-3 w-3 mr-1" />
+                                                            <span>Delete</span>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </tr>
@@ -2212,6 +2245,42 @@ export default function StudentManagement() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation Modal */}
+            {deleteTarget && (
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+                    <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100">
+                                <TrashIcon className="h-5 w-5 text-red-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">Delete Student</h3>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    Are you sure you want to permanently delete <span className="font-medium">{deleteTarget.name}</span>? This action cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+                        <div className="mt-5 flex gap-3 justify-end">
+                            <button
+                                onClick={() => setDeleteTarget(null)}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleDeleteStudent}
+                                disabled={isDeleting}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isDeleting && <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />}
+                                {isDeleting ? 'Deleting…' : 'Delete'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

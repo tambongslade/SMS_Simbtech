@@ -26,6 +26,7 @@ import {
   enrollStudentInSubclass,
   changeStudentClass,
   unenrollStudent,
+  updateReamOfPaper,
   type SecretaryStudent,
   type SubClassInfo,
   type ClassInfo,
@@ -292,6 +293,22 @@ function SecretaryStudentsPageInner() {
     }
   };
 
+  const handleReamToggle = async (student: SecretaryStudent, value: boolean) => {
+    // Optimistic update
+    setStudents((prev) =>
+      prev.map((s) => (s.id === student.id ? { ...s, reamOfPaperCollected: value } : s)),
+    );
+    try {
+      await updateReamOfPaper(student.id, value, student.academicYearId ?? selectedAcademicYear?.id);
+    } catch {
+      // Revert on failure
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, reamOfPaperCollected: !value } : s)),
+      );
+      toast.error('Failed to update ream of paper status.');
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
@@ -403,7 +420,18 @@ function SecretaryStudentsPageInner() {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={!!student.reamOfPaperCollected}
+                    onChange={(e) => handleReamToggle(student, e.target.checked)}
+                    className="h-3.5 w-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  Ream of paper collected
+                </label>
+              </div>
+              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -480,19 +508,20 @@ function SecretaryStudentsPageInner() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subclass</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gender</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ream of Paper</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     Loading students…
                   </td>
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
                     No students found.
                   </td>
                 </tr>
@@ -520,6 +549,15 @@ function SecretaryStudentsPageInner() {
                     <td className="px-4 py-3 text-sm text-gray-600">{classNameFor(student) || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{student.subClassName || '—'}</td>
                     <td className="px-4 py-3 text-sm text-gray-600">{student.gender || '—'}</td>
+                    <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={!!student.reamOfPaperCollected}
+                        onChange={(e) => handleReamToggle(student, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                        title={student.reamOfPaperCollected ? 'Collected' : 'Not collected'}
+                      />
+                    </td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex justify-end gap-2">
                         <Button

@@ -25,6 +25,7 @@ export type SecretaryStudent = {
   photo?: string | null;
   photoUrl?: string | null;
   hasPhoto?: boolean;
+  reamOfPaperCollected?: boolean;
 };
 
 export type SecretaryTeacher = {
@@ -127,6 +128,7 @@ const mapStudent = (s: any, academicYearId?: number): SecretaryStudent => {
     photo: s.photo ?? current?.photo,
     photoUrl: s.photoUrl,
     hasPhoto: s.hasPhoto,
+    reamOfPaperCollected: current?.reamOfPaperCollected ?? false,
   };
 };
 
@@ -234,6 +236,20 @@ export const changeStudentClass = async (
   }
   throw new Error('Select a class or subclass.');
 };
+
+/**
+ * Toggles ream-of-paper collected on the student's current-year enrollment.
+ * Calls PUT /students/:id which writes to the enrollment row for the given year.
+ */
+export const updateReamOfPaper = (
+  id: number,
+  reamOfPaperCollected: boolean,
+  academicYearId?: number,
+) =>
+  apiService.put(`/students/${id}`, {
+    reamOfPaperCollected,
+    ...(academicYearId ? { academicYearId } : {}),
+  });
 
 /**
  * Unenrolls (dismisses) a student from an academic year. Defaults to the current
