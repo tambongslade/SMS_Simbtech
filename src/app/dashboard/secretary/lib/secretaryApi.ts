@@ -259,6 +259,9 @@ export const updateReamOfPaper = (
 export const unenrollStudent = (id: number, academicYearId?: number) =>
   apiService.post(`/students/${id}/unenroll`, academicYearId ? { academicYearId } : {});
 
+export const deleteStudent = (id: number) =>
+  apiService.delete(`/students/${id}`);
+
 // ---- Student profile ----
 
 export const fetchStudentProfile = async (id: number, academicYearId?: number): Promise<any> => {

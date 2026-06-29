@@ -14,6 +14,7 @@ import {
   EyeIcon,
   ArrowsRightLeftIcon,
   UserMinusIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal, StudentPhoto, BulkPhotoUploadModal } from '@/components/ui';
@@ -27,6 +28,7 @@ import {
   changeStudentClass,
   unenrollStudent,
   updateReamOfPaper,
+  deleteStudent,
   type SecretaryStudent,
   type SubClassInfo,
   type ClassInfo,
@@ -94,6 +96,10 @@ function SecretaryStudentsPageInner() {
   // Unenroll (dismiss)
   const [unenrollTarget, setUnenrollTarget] = useState<SecretaryStudent | null>(null);
   const [isUnenrolling, setIsUnenrolling] = useState(false);
+
+  // Delete
+  const [deleteTarget, setDeleteTarget] = useState<SecretaryStudent | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Open the registration form directly when launched from the quick actions menu.
   useEffect(() => {
@@ -293,6 +299,29 @@ function SecretaryStudentsPageInner() {
     }
   };
 
+  const canDelete = (student: SecretaryStudent) => {
+    if (!student.classId) return true; // not enrolled
+    const name = (student.className || '').toLowerCase();
+    return name.startsWith('form 1') || name === 'form 1';
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    try {
+      await deleteStudent(deleteTarget.id);
+      toast.success(`${deleteTarget.name} deleted successfully.`);
+      setDeleteTarget(null);
+      loadStudents();
+    } catch (error: any) {
+      if (error?.message !== 'Unauthorized') {
+        toast.error(error?.message || 'Failed to delete student.');
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleReamToggle = async (student: SecretaryStudent, value: boolean) => {
     // Optimistic update
     setStudents((prev) =>
@@ -463,6 +492,18 @@ function SecretaryStudentsPageInner() {
                     Unenroll
                   </Button>
                 )}
+                {canDelete(student) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    color="danger"
+                    leftIcon={TrashIcon}
+                    className="flex-1 justify-center"
+                    onClick={() => setDeleteTarget(student)}
+                  >
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           ))
@@ -586,6 +627,17 @@ function SecretaryStudentsPageInner() {
                             onClick={() => setUnenrollTarget(student)}
                           >
                             Unenroll
+                          </Button>
+                        )}
+                        {canDelete(student) && (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            color="danger"
+                            leftIcon={TrashIcon}
+                            onClick={() => setDeleteTarget(student)}
+                          >
+                            Delete
                           </Button>
                         )}
                       </div>
@@ -876,6 +928,38 @@ function SecretaryStudentsPageInner() {
           </div>
         )}
       </Modal>
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md p-6">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100">
+                <TrashIcon className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Delete Student</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Are you sure you want to permanently delete <span className="font-medium">{deleteTarget.name}</span>? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+                Cancel
+              </Button>
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isDeleting && <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />}
+                {isDeleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk photo upload modal */}
       <BulkPhotoUploadModal
