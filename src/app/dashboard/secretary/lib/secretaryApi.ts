@@ -22,6 +22,7 @@ export type SecretaryStudent = {
   residence?: string;
   former_school?: string;
   status?: string;
+  is_new_student?: boolean;
   photo?: string | null;
   photoUrl?: string | null;
   hasPhoto?: boolean;
@@ -120,6 +121,7 @@ const mapStudent = (s: any, academicYearId?: number): SecretaryStudent => {
     place_of_birth: s.placeOfBirth ?? s.place_of_birth,
     residence: s.residence,
     former_school: s.formerSchool ?? s.former_school,
+    is_new_student: s.isNewStudent ?? s.is_new_student,
     subClassName: subClass?.name,
     subClassId: subClass?.id,
     className: subClass?.class?.name ?? current?.class?.name,
@@ -236,6 +238,37 @@ export const changeStudentClass = async (
   }
   throw new Error('Select a class or subclass.');
 };
+
+// Editable student detail fields (mistake corrections). PUT /students/:id
+// accepts these; the server resyncs name = "${nom} ${prenom}".
+export interface UpdateStudentPayload {
+  nom: string;
+  prenom: string;
+  matricule?: string | null;
+  dateOfBirth?: string | null;
+  placeOfBirth?: string | null;
+  gender?: string | null;
+  residence?: string | null;
+  former_school?: string | null;
+  is_new_student?: boolean;
+  // Enrollment-scoped: only send when the student is enrolled for a year,
+  // otherwise the backend rejects the whole update.
+  reamOfPaperCollected?: boolean;
+  academicYearId?: number;
+}
+
+export const updateStudent = (id: number, payload: UpdateStudentPayload) =>
+  apiService.put(`/students/${id}`, {
+    name: `${payload.nom} ${payload.prenom}`.trim(),
+    ...payload,
+  });
+
+// Parents are separate user accounts linked to the student; contact fixes go
+// through the user update endpoint. Only send the fields that changed.
+export const updateParentContact = (
+  parentId: number,
+  patch: { name?: string; phone?: string; address?: string },
+) => apiService.put(`/users/${parentId}`, patch);
 
 /**
  * Toggles ream-of-paper collected on the student's current-year enrollment.
