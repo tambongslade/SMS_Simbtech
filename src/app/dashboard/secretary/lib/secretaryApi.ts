@@ -270,6 +270,45 @@ export const updateParentContact = (
   patch: { name?: string; phone?: string; address?: string },
 ) => apiService.put(`/users/${parentId}`, patch);
 
+// ---- Linking additional parents ----
+// New parent accounts can only be created during student registration; for an
+// existing student we search the existing parent accounts and link one.
+
+export type AvailableParent = {
+  id: number;
+  matricule?: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  childrenCount?: number;
+  children?: { id: number; name: string; className?: string }[];
+};
+
+export const searchAvailableParents = async (
+  search: string,
+  limit = 10,
+): Promise<AvailableParent[]> => {
+  const qs = new URLSearchParams();
+  if (search) qs.append('search', search);
+  qs.append('limit', String(limit));
+  const res = await apiService.get<{ data: AvailableParent[] }>(
+    `/bursar/available-parents?${qs.toString()}`,
+  );
+  return res.data || [];
+};
+
+export const linkExistingParent = (
+  studentId: number,
+  parentId: number,
+  relationship?: Relationship,
+) =>
+  apiService.post('/bursar/link-existing-parent', {
+    studentId,
+    parentId,
+    ...(relationship ? { relationship } : {}),
+  });
+
 /**
  * Toggles ream-of-paper collected on the student's current-year enrollment.
  * Calls PUT /students/:id which writes to the enrollment row for the given year.

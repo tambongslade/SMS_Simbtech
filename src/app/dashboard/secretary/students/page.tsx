@@ -33,6 +33,10 @@ import {
   updateParentContact,
   deleteStudent,
   fetchStudentProfile,
+  searchAvailableParents,
+  linkExistingParent,
+  type AvailableParent,
+  type Relationship,
   type SecretaryStudent,
   type SubClassInfo,
   type ClassInfo,
@@ -135,6 +139,13 @@ function SecretaryStudentsPageInner() {
   const [editParents, setEditParents] = useState<EditParentContact[]>([]);
   const [isLoadingEditExtras, setIsLoadingEditExtras] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // Link an additional parent from the edit modal
+  const [parentSearch, setParentSearch] = useState('');
+  const [parentResults, setParentResults] = useState<AvailableParent[]>([]);
+  const [isSearchingParents, setIsSearchingParents] = useState(false);
+  const [linkRelationship, setLinkRelationship] = useState<Relationship | ''>('');
+  const [linkingParentId, setLinkingParentId] = useState<number | null>(null);
 
   // Change class
   const [changingStudent, setChangingStudent] = useState<SecretaryStudent | null>(null);
@@ -344,10 +355,17 @@ function SecretaryStudentsPageInner() {
     setEditClassId(student.classId ? String(student.classId) : '');
     setEditSubClassId(student.subClassId ? String(student.subClassId) : '');
     setEditParents([]);
+    setParentSearch('');
+    setParentResults([]);
+    setLinkRelationship('');
     // The list rows don't carry new-student status or parent contacts; pull
     // them from the full profile.
+    loadEditExtras(student.id);
+  };
+
+  const loadEditExtras = (studentId: number) => {
     setIsLoadingEditExtras(true);
-    fetchStudentProfile(student.id, selectedAcademicYear?.id)
+    fetchStudentProfile(studentId, selectedAcademicYear?.id)
       .then((profile) => {
         const isNew =
           profile?.is_new_student ??
@@ -385,6 +403,41 @@ function SecretaryStudentsPageInner() {
 
   const updateEditParent = (index: number, patch: Partial<EditParentContact>) => {
     setEditParents((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
+  };
+
+  // Debounced search of existing parent accounts (new parent accounts can only
+  // be created during student registration).
+  useEffect(() => {
+    if (!editingStudent || parentSearch.trim().length < 2) {
+      setParentResults([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      setIsSearchingParents(true);
+      searchAvailableParents(parentSearch.trim())
+        .then(setParentResults)
+        .catch(() => setParentResults([]))
+        .finally(() => setIsSearchingParents(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [parentSearch, editingStudent]);
+
+  const handleLinkParent = async (parent: AvailableParent) => {
+    if (!editingStudent) return;
+    setLinkingParentId(parent.id);
+    try {
+      await linkExistingParent(editingStudent.id, parent.id, linkRelationship || undefined);
+      toast.success(`${parent.name} linked to ${editingStudent.name}.`);
+      setParentSearch('');
+      setParentResults([]);
+      loadEditExtras(editingStudent.id);
+    } catch (error: any) {
+      if (error?.message !== 'Unauthorized') {
+        toast.error(error?.message || 'Failed to link parent.');
+      }
+    } finally {
+      setLinkingParentId(null);
+    }
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -1159,6 +1212,71 @@ function SecretaryStudentsPageInner() {
                   ))}
                 </div>
               )}
+
+              {/* Link an additional parent contact */}
+              <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserPlusIcon className="h-4 w-4 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-500 uppercase">Add another contact</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Search existing parents"
+                    placeholder="Name or phone…"
+                    value={parentSearch}
+                    onChange={(e) => setParentSearch(e.target.value)}
+                    leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />}
+                  />
+                  <Select
+                    label="Relationship"
+                    value={linkRelationship}
+                    onChange={(e) => setLinkRelationship(e.target.value as Relationship | '')}
+                    options={[
+                      { value: '', label: 'Select relationship (optional)' },
+                      { value: 'FATHER', label: 'Father' },
+                      { value: 'MOTHER', label: 'Mother' },
+                      { value: 'GUARDIAN', label: 'Guardian' },
+                      { value: 'SIBLING', label: 'Sibling' },
+                    ]}
+                  />
+                </div>
+                {isSearchingParents ? (
+                  <p className="text-sm text-gray-500">Searching…</p>
+                ) : parentResults.length > 0 ? (
+                  <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
+                    {parentResults
+                      .filter((p) => !editParents.some((ep) => ep.id === p.id))
+                      .map((p) => (
+                        <li key={p.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {p.phone || 'No phone'}
+                              {p.childrenCount ? ` · ${p.childrenCount} child${p.childrenCount === 1 ? '' : 'ren'}` : ''}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="xs"
+                            color="primary"
+                            isLoading={linkingParentId === p.id}
+                            onClick={() => handleLinkParent(p)}
+                          >
+                            Link
+                          </Button>
+                        </li>
+                      ))}
+                  </ul>
+                ) : parentSearch.trim().length >= 2 ? (
+                  <p className="text-sm text-gray-500">No matching parents found.</p>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Type at least 2 characters to search. Brand-new parent accounts can only be
+                    created while registering a student.
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 border-t border-gray-200">
