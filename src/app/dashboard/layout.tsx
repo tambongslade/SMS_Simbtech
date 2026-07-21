@@ -70,7 +70,7 @@ type MenuItemsStructure = {
 // Original menu items structure with corrected type
 const menuItems: MenuItemsStructure = {
   principal: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/principal' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/principal/finance-requests' },
@@ -92,6 +92,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/principal/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/principal/teacher-logbook' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/principal/fee-comparison' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/principal/overview' },
   ],
   bursar: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
@@ -221,7 +222,8 @@ const menuItems: MenuItemsStructure = {
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/teacher/messaging' },
   ],
   'vice-principal': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/vice-principal' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
+    { icon: UserGroupIcon, label: 'Students', href: '/dashboard/vice-principal/students' },
     { icon: AcademicCapIcon, label: 'Classes', href: '/dashboard/vice-principal/classes' },
     { icon: ClipboardDocumentCheckIcon, label: 'Subjects', href: '/dashboard/vice-principal/subjects' },
     { icon: UserGroupIcon, label: 'Teachers', href: '/dashboard/vice-principal/teachers' },
@@ -244,6 +246,7 @@ const menuItems: MenuItemsStructure = {
     },
     { icon: BellIcon, label: 'Announcements', href: '/dashboard/vice-principal/announcements' },
     { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/vice-principal/messaging' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
   ],
   manager: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/manager' },
