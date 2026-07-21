@@ -377,6 +377,24 @@ export const useFeeManagement = () => {
     }
   };
 
+  const handleUpdatePayment = async (
+    feeId: number | string,
+    paymentId: number | string,
+    data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
+  ): Promise<boolean> => {
+    try {
+      await apiService.put(`/fees/${feeId}/payments/${paymentId}`, data);
+      toast.success('Payment updated successfully!');
+      await fetchFeeTransactions(feeId); // Refresh the transactions list
+      mutateFeeRecords(); // Refresh balances/paid amounts in the main list
+      return true;
+    } catch (error: any) {
+      console.error('Error updating payment:', error);
+      toast.error(error.message || 'Failed to update payment.');
+      return false;
+    }
+  };
+
   const fetchSubclassSummary = async (subClassId: number | string) => {
     setIsLoadingSubclassSummary(true);
     try {
@@ -473,6 +491,7 @@ export const useFeeManagement = () => {
     transactions,
     isLoadingTransactions,
     fetchFeeTransactions,
+    handleUpdatePayment,
     handleExportEnhanced,
     subclassSummary,
     isLoadingSubclassSummary,

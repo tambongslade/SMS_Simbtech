@@ -58,6 +58,7 @@ export default function FeeManagementPage() {
     transactions,
     isLoadingTransactions,
     fetchFeeTransactions,
+    handleUpdatePayment,
     handleExportEnhanced,
     subclassSummary,
     isLoadingSubclassSummary,
@@ -238,6 +239,11 @@ export default function FeeManagementPage() {
         transactions={transactions}
         isLoading={isLoadingTransactions}
         studentName={selectedTransactionsStudent?.name}
+        onUpdatePayment={
+          selectedTransactionsStudent?.feeId
+            ? (paymentId, data) => handleUpdatePayment(selectedTransactionsStudent.feeId!, paymentId, data)
+            : undefined
+        }
       />
       <SubclassSummaryModal
         isOpen={showSubclassSummaryModal}

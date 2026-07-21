@@ -486,19 +486,63 @@ interface TransactionsModalProps {
   transactions: any[];
   isLoading: boolean;
   studentName?: string;
+  /** When provided, each row gets an Edit action that submits the changed payment. */
+  onUpdatePayment?: (
+    paymentId: number | string,
+    data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
+  ) => Promise<boolean>;
 }
+
+const PAYMENT_METHODS = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
 export const TransactionsModal: React.FC<TransactionsModalProps> = ({
   isOpen,
   onClose,
   transactions,
   isLoading,
-  studentName
+  studentName,
+  onUpdatePayment
 }) => {
+  const [editingId, setEditingId] = useState<number | string | null>(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editMethod, setEditMethod] = useState('');
+  const [editReceipt, setEditReceipt] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
   if (!isOpen) return null;
+
+  const startEdit = (tx: any) => {
+    setEditingId(tx.id);
+    setEditAmount(tx.amount != null ? String(tx.amount) : '');
+    setEditDate(tx.paymentDate ? new Date(tx.paymentDate).toISOString().split('T')[0] : '');
+    setEditMethod(tx.paymentMethod || '');
+    setEditReceipt(tx.receiptNumber || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setIsSaving(false);
+  };
+
+  const saveEdit = async () => {
+    if (!onUpdatePayment || editingId == null) return;
+    const amount = parseFloat(editAmount);
+    if (!amount || amount <= 0) return;
+    setIsSaving(true);
+    const ok = await onUpdatePayment(editingId, {
+      amount,
+      paymentDate: editDate ? new Date(editDate).toISOString() : undefined,
+      paymentMethod: editMethod || undefined,
+      receiptNumber: editReceipt || undefined,
+    });
+    setIsSaving(false);
+    if (ok) setEditingId(null);
+  };
+
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-lg max-w-3xl w-full p-5 sm:p-8 relative max-h-[90vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
@@ -516,16 +560,96 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
+                  {onUpdatePayment && (
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {transactions.map((tx) => (
-                  <tr key={tx.id}>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentMethod || '-'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.receiptNumber || '-'}</td>
-                  </tr>
+                  editingId === tx.id ? (
+                    <tr key={tx.id} className="bg-blue-50">
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          min="1"
+                          value={editAmount}
+                          onChange={e => setEditAmount(e.target.value)}
+                          className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="date"
+                          value={editDate}
+                          onChange={e => setEditDate(e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <select
+                          value={editMethod}
+                          onChange={e => setEditMethod(e.target.value)}
+                          className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          disabled={isSaving}
+                        >
+                          <option value="">Select Method</option>
+                          {PAYMENT_METHODS.map(m => (
+                            <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="text"
+                          value={editReceipt}
+                          onChange={e => setEditReceipt(e.target.value)}
+                          className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                          placeholder="Receipt No."
+                          disabled={isSaving}
+                        />
+                      </td>
+                      <td className="px-4 py-2 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={saveEdit}
+                          disabled={isSaving || !editAmount || parseFloat(editAmount) <= 0}
+                          className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 mr-2"
+                        >
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          disabled={isSaving}
+                          className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={tx.id}>
+                      <td className="px-4 py-2 text-sm text-gray-700">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentMethod || '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{tx.receiptNumber || '-'}</td>
+                      {onUpdatePayment && (
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => startEdit(tx)}
+                            disabled={editingId != null}
+                            className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>
