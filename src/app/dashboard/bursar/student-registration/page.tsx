@@ -19,7 +19,20 @@ import { useAuth } from '../../../../components/context/AuthContext';
 type ParentLink = {
     id: number;
     name: string;
-    phone?: string; // Assuming phone is also available from s.parents items
+    phone?: string;
+    whatsappNumber?: string;
+    address?: string;
+    email?: string;
+    relationship?: string;
+};
+
+// A parent row edited from inside the Edit Student modal.
+type EditableParent = {
+    id: number;
+    name: string;
+    phone: string;
+    whatsappNumber: string;
+    address: string;
 };
 
 type Relationship = 'FATHER' | 'MOTHER' | 'SIBLING' | 'GUARDIAN';
@@ -119,6 +132,7 @@ type EditFormData = {
     is_new_student?: boolean;
     reamOfPaperCollected?: boolean;
     academicYearId?: number | null;
+    parents?: EditableParent[];
 };
 
 // For Enrollment Modal
@@ -366,7 +380,11 @@ export default function StudentManagement() {
                     parents: s.parents?.map((p: any) => ({
                         id: p.parent?.id ?? p.id,
                         name: p.parent?.name ?? p.name,
-                        phone: p.parent?.phone ?? p.phone
+                        phone: p.parent?.phone ?? p.phone,
+                        whatsappNumber: p.parent?.whatsappNumber ?? p.whatsappNumber ?? p.whatsapp_number,
+                        address: p.parent?.address ?? p.address,
+                        email: p.parent?.email ?? p.email,
+                        relationship: p.relationship
                     })) || []
                 };
             });
@@ -532,23 +550,33 @@ export default function StudentManagement() {
 
     const handleCreateAndEnrollStudent = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Validate required fields
+        // Validate required fields. The backend only requires name + phone for a
+        // parent contact; address is optional. Keep the first-parent name/phone
+        // requirement here to match the UI's required markers.
         const firstParent = formData.parents[0];
-        if (!formData.studentNom || !formData.studentPrenom || !formData.classId || !formData.academicYearId || !firstParent?.name || !firstParent?.phone || !firstParent?.address) {
+        if (!formData.studentNom || !formData.studentPrenom || !formData.classId || !formData.academicYearId || !firstParent?.name || !firstParent?.phone) {
             toast.error("All required fields must be filled.");
+            return;
+        }
+        // If a second contact is partially filled (has a name OR phone but not both),
+        // warn instead of silently dropping it. The backend needs both to create the account.
+        const secondParent = formData.parents[1];
+        if (secondParent && ((secondParent.name && !secondParent.phone) || (!secondParent.name && secondParent.phone))) {
+            toast.error("Contact 2 needs both a name and a phone number, or leave it empty.");
             return;
         }
         setIsLoading(true);
         try {
             const isNew = formData.isNewStudent || false;
-            // Keep only filled contacts; drop the WhatsApp field when the phone is
-            // the WhatsApp number (the backend copies the phone).
+            // Keep only contacts with both name and phone (backend requirement).
+            // Drop the WhatsApp field when the phone is the WhatsApp number
+            // (the backend copies the phone).
             const parents = formData.parents
-                .filter(p => p.name && p.phone && p.address)
+                .filter(p => p.name && p.phone)
                 .map(p => ({
                     name: p.name,
                     phone: p.phone,
-                    address: p.address,
+                    address: p.address || undefined,
                     phoneIsWhatsapp: !!p.phoneIsWhatsapp,
                     whatsapp: p.phoneIsWhatsapp ? undefined : (p.whatsapp || undefined),
                     relationship: p.relationship || undefined,
@@ -612,8 +640,22 @@ export default function StudentManagement() {
             is_new_student: student.is_new_student ?? true,
             reamOfPaperCollected: student.reamOfPaperCollected ?? false,
             academicYearId: student.academicYearId ?? null,
+            parents: (student.parents || []).map(p => ({
+                id: p.id,
+                name: p.name || '',
+                phone: p.phone || '',
+                whatsappNumber: p.whatsappNumber || '',
+                address: p.address || '',
+            })),
         });
         setIsEditModalOpen(true);
+    };
+
+    const updateEditParent = (index: number, patch: Partial<EditableParent>) => {
+        setEditFormData(prev => ({
+            ...prev,
+            parents: (prev.parents || []).map((p, i) => (i === index ? { ...p, ...patch } : p)),
+        }));
     };
 
     const closeEditModal = () => {
@@ -660,7 +702,37 @@ export default function StudentManagement() {
         try {
             // Use apiService for updating student
             await apiService.put(`/students/${editingStudent.id}`, payload);
-            toast.success(`Student '${editingStudent.name}' updated successfully!`);
+
+            // Diff each linked parent against its original snapshot and PUT only
+            // the ones that actually changed. Parents are User records, so they
+            // update via /users/:id (SECRETARY has access).
+            const originalParentsById = new Map(
+                (editingStudent.parents || []).map(p => [p.id, p])
+            );
+            const parentUpdates = (editFormData.parents || []).flatMap(p => {
+                const original = originalParentsById.get(p.id);
+                if (!original) return [];
+                const diff: Record<string, string> = {};
+                if ((p.name || '') !== (original.name || '')) diff.name = p.name.trim();
+                if ((p.phone || '') !== (original.phone || '')) diff.phone = p.phone.trim();
+                if ((p.whatsappNumber || '') !== (original.whatsappNumber || '')) diff.whatsappNumber = p.whatsappNumber.trim();
+                if ((p.address || '') !== (original.address || '')) diff.address = p.address.trim();
+                if (Object.keys(diff).length === 0) return [];
+                return [{ id: p.id, patch: diff }];
+            });
+
+            const parentResults = await Promise.allSettled(
+                parentUpdates.map(u => apiService.put(`/users/${u.id}`, u.patch))
+            );
+            const failedParents = parentResults
+                .map((r, i) => (r.status === 'rejected' ? parentUpdates[i].id : null))
+                .filter((v): v is number => v !== null);
+
+            if (failedParents.length > 0) {
+                toast.error(`Student saved, but failed to update ${failedParents.length} contact(s).`);
+            } else {
+                toast.success(`Student '${editingStudent.name}' updated successfully!`);
+            }
             closeEditModal();
             fetchStudents();
         } catch (error: any) {
@@ -1919,8 +1991,8 @@ export default function StudentManagement() {
                                                     </div>
                                                 )}
                                                 <div className="md:col-span-3">
-                                                    <label className="block text-sm font-medium text-gray-700">Address {index === 0 ? '*' : ''}</label>
-                                                    <input type="text" value={parent.address} onChange={(e) => updateParent(index, { address: e.target.value })} required={index === 0} className="mt-1 block w-full input-field" />
+                                                    <label className="block text-sm font-medium text-gray-700">Address</label>
+                                                    <input type="text" value={parent.address} onChange={(e) => updateParent(index, { address: e.target.value })} className="mt-1 block w-full input-field" />
                                                 </div>
                                             </div>
                                         </div>
@@ -2059,6 +2131,66 @@ export default function StudentManagement() {
                                     )}
                                 </div>
                             </section>
+
+                            {/* Contacts (parents) — edit name / phone / whatsapp / address inline. */}
+                            {editFormData.parents && editFormData.parents.length > 0 && (
+                                <section className="pt-4 border-t border-gray-200">
+                                    <h4 className="text-md font-semibold text-gray-700 mb-3">Contacts</h4>
+                                    <p className="text-xs text-gray-500 mb-3">
+                                        Fix a misspelled name or an outdated phone number here. To add or remove a
+                                        contact, use &quot;Manage Parents&quot; from the student row.
+                                    </p>
+                                    <div className="space-y-4">
+                                        {editFormData.parents.map((parent, index) => (
+                                            <div key={parent.id} className="rounded-lg border border-gray-200 p-4">
+                                                <div className="flex items-center justify-between mb-3">
+                                                    <span className="text-xs font-medium text-gray-500 uppercase">
+                                                        Contact {index + 1}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-sm font-medium text-gray-700">Name</label>
+                                                        <input
+                                                            type="text"
+                                                            value={parent.name}
+                                                            onChange={(e) => updateEditParent(index, { name: e.target.value })}
+                                                            className="mt-1 block w-full input-field"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700">Phone</label>
+                                                        <input
+                                                            type="text"
+                                                            value={parent.phone}
+                                                            onChange={(e) => updateEditParent(index, { phone: e.target.value })}
+                                                            className="mt-1 block w-full input-field"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700">WhatsApp</label>
+                                                        <input
+                                                            type="text"
+                                                            value={parent.whatsappNumber}
+                                                            onChange={(e) => updateEditParent(index, { whatsappNumber: e.target.value })}
+                                                            className="mt-1 block w-full input-field"
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-sm font-medium text-gray-700">Address</label>
+                                                        <input
+                                                            type="text"
+                                                            value={parent.address}
+                                                            onChange={(e) => updateEditParent(index, { address: e.target.value })}
+                                                            className="mt-1 block w-full input-field"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Form Actions */}
                             <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-6">
