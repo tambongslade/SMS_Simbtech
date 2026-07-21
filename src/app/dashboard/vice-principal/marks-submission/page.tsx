@@ -191,7 +191,17 @@ export default function MarksSubmissionPage() {
   );
 
   const tracking = trackingResult?.data;
-  const pendingTeachers = pendingResult?.data || [];
+  // The endpoint may return the list directly, or wrapped as { teachers: [...] } / { data: [...] }
+  const pendingTeachers = useMemo((): PendingTeacher[] => {
+    const raw = pendingResult?.data as unknown;
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') {
+      const obj = raw as { teachers?: unknown; data?: unknown };
+      if (Array.isArray(obj.teachers)) return obj.teachers;
+      if (Array.isArray(obj.data)) return obj.data;
+    }
+    return [];
+  }, [pendingResult]);
 
   // Reset sequence when year changes
   useEffect(() => {
