@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import { UserGroupIcon, AcademicCapIcon, BuildingLibraryIcon, UsersIcon, IdentificationIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
-import apiService from '../../../lib/apiService';
+import apiService from '@/lib/apiService';
 
 // Interface for the expected summary data structure from the API
 interface DashboardSummary {
