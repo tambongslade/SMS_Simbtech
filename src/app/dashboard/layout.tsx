@@ -108,7 +108,7 @@ const menuItems: MenuItemsStructure = {
             { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
   'discipline-master': [
-    { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-master' },
     {
       icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/discipline-master/roll-call'
     },
@@ -138,6 +138,9 @@ const menuItems: MenuItemsStructure = {
     },
             {
       icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/discipline-master/reports'
+    },
+    {
+      icon: ChartBarIcon, label: 'Overview', href: '/dashboard/discipline-master/overview'
     },
   ],
   hod: [
@@ -272,7 +275,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
           ],
   'senior-discipline-master': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/senior-discipline-master' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
     { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/senior-discipline-master/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/senior-discipline-master/warnings-summons' },
