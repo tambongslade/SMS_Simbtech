@@ -72,6 +72,13 @@ const quickActions: QuickAction[] = [
     color: 'teal',
   },
   {
+    label: 'DM Assignments',
+    description: 'Assign DMs to their subclasses',
+    href: '/dashboard/senior-discipline-master/dm-assignments',
+    icon: UserGroupIcon,
+    color: 'indigo',
+  },
+  {
     label: 'Chat',
     description: 'Message staff in real time',
     href: '/dashboard/senior-discipline-master/chat',

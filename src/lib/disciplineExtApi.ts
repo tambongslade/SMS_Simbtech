@@ -276,6 +276,70 @@ export const updateSummons = async (
   return res.data;
 };
 
+// --- Discipline Master ⇄ subclass assignments ---
+
+export interface DmAssignment {
+  id: number;
+  userId: number;
+  academicYearId: number;
+  roleType: string;
+  subClassId: number | null;
+}
+
+const normalizeAssignment = (a: any): DmAssignment => ({
+  id: a.id,
+  userId: a.userId ?? a.user_id,
+  academicYearId: a.academicYearId ?? a.academic_year_id,
+  roleType: a.roleType ?? a.role_type,
+  subClassId: a.subClassId ?? a.sub_class_id ?? null,
+});
+
+export interface DisciplineMasterUser {
+  id: number;
+  name: string;
+  matricule?: string;
+  assignments: DmAssignment[];
+}
+
+// GET /users?role=DISCIPLINE_MASTER — assignments are read from
+// roleAssignments/role_assignments when the endpoint includes them.
+export const listDisciplineMasters = async (academicYearId?: number): Promise<DisciplineMasterUser[]> => {
+  const qs = new URLSearchParams({ role: 'DISCIPLINE_MASTER', limit: '100' });
+  if (academicYearId) qs.append('academicYearId', String(academicYearId));
+  const res = await apiService.get<{ data: any[] }>(`/users?${qs.toString()}`);
+  const users = Array.isArray(res.data) ? res.data : (res.data as any)?.data || [];
+  return users.map((u: any) => ({
+    id: u.id,
+    name: u.name,
+    matricule: u.matricule,
+    assignments: (u.roleAssignments || u.role_assignments || [])
+      .map(normalizeAssignment)
+      .filter((a: DmAssignment) => a.roleType === 'DISCIPLINE_MASTER' && a.subClassId != null)
+      .filter((a: DmAssignment) => !academicYearId || a.academicYearId === academicYearId),
+  }));
+};
+
+export const assignDisciplineMaster = async (
+  userId: number,
+  subClassId: number,
+  academicYearId?: number
+): Promise<DmAssignment> => {
+  const res = await apiService.post<{ data: any }>(`/users/${userId}/assignments/discipline-master`, {
+    subClassId,
+    academicYearId: academicYearId ?? undefined,
+  });
+  return normalizeAssignment(res.data);
+};
+
+export const unassignDisciplineMaster = async (
+  userId: number,
+  subClassId: number,
+  academicYearId?: number
+): Promise<void> => {
+  const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
+  await apiService.delete(`/users/${userId}/assignments/discipline-master/${subClassId}${qs}`);
+};
+
 // --- DM slot roll call ---
 
 export const getDmRollCallStatus = async (subClassId: number | string, date: string): Promise<DmRollCallStatusData> => {
