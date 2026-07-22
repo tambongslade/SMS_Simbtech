@@ -146,7 +146,7 @@ const menuItems: MenuItemsStructure = {
     },
   ],
   hod: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/hod' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/hod' },
     {
       icon: UserGroupIcon, label: 'Department Staff', href: '/dashboard/hod/staff'
     },
@@ -155,15 +155,17 @@ const menuItems: MenuItemsStructure = {
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/hod/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/hod/teacher-logbook' },
     { icon: DocumentChartBarIcon, label: 'Performance', href: '/dashboard/hod/performance' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/hod/overview' },
           ],
   'parent-student': [
-    { icon: HomeIcon, label: 'Dashboard', href: '/dashboard/parent-student' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/parent-student' },
     { icon: UserGroupIcon, label: 'My Children', href: '/dashboard/parent-student/children' },
             { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
     { icon: Cog6ToothIcon, label: 'Settings', href: '/dashboard/parent-student/settings' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/parent-student/overview' },
   ],
   'super-manager': [
-    { label: 'Dashboard', href: '/dashboard/super-manager', icon: HomeIcon },
+    { label: 'Menu', href: '/dashboard/super-manager', icon: HomeIcon },
     {
       label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, subItems: [
         { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon },
@@ -198,12 +200,14 @@ const menuItems: MenuItemsStructure = {
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
   ],
   guidancecounselor: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/guidance-counselor' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/guidance-counselor' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/guidance-counselor/students' },
     { icon: ClipboardDocumentCheckIcon, label: 'Remarks', href: '/dashboard/guidance-counselor/remarks' },
     { icon: BuildingLibraryIcon, label: 'Behavior', href: '/dashboard/guidance-counselor/behavior' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/guidance-counselor/overview' },
           ],
   teacher: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/teacher' },
@@ -247,7 +251,7 @@ const menuItems: MenuItemsStructure = {
             { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
   ],
   manager: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/manager' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/manager/financial-reports' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/manager/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/manager/expenditures' },
@@ -263,14 +267,15 @@ const menuItems: MenuItemsStructure = {
     { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
             { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
   ],
   'dean-of-studies': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-studies' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/dean-of-studies/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/dean-of-studies/teacher-logbook' },
           ],
   'dean-of-discipline': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-discipline' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
     { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
@@ -293,7 +298,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
           ],
   'fee-auditor': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/fee-auditor' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/fee-auditor' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/fee-auditor/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/fee-auditor/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/fee-auditor/broken-property' },
@@ -308,7 +313,7 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },
   ],
   nurse: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/nurse' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/nurse' },
           ],
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
