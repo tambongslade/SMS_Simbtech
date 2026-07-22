@@ -37,6 +37,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useAuth } from '@/components/context/AuthContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
+import ChatIndicator from '@/components/chat/ChatIndicator';
 
 // Define type for a menu item - Added subItems
 interface MenuItem {
@@ -754,8 +755,9 @@ export default function DashboardLayout({
                 </span>
               </div>
             </div>
-            {/* Notification Indicator */}
+            {/* Chat + Notification Indicators */}
             <div className="flex items-center">
+              <ChatIndicator className="mr-1" />
               <NotificationIndicator
                 onClick={() => {
                   const currentMenuItems = roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]
