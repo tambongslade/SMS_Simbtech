@@ -285,16 +285,10 @@ export default function ParentStudentDashboard() {
             </CardHeader>
             <CardBody>
               <div className="space-y-3">
-                <Link href="/dashboard/parent-student/messages">
+                <Link href="/dashboard/parent-student/chat">
                   <Button variant="outline" className="w-full justify-start">
                     <BellIcon className="w-4 h-4 mr-2" />
-                    Send Message to Staff
-                  </Button>
-                </Link>
-                <Link href="/dashboard/parent-student/announcements">
-                  <Button variant="outline" className="w-full justify-start">
-                    <CalendarIcon className="w-4 h-4 mr-2" />
-                    View Announcements
+                    Message Staff (Chat)
                   </Button>
                 </Link>
                 <Link href="/dashboard/parent-student/settings">
