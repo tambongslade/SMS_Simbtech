@@ -70,6 +70,13 @@ const quickActions: QuickAction[] = [
     color: 'purple',
   },
   {
+    label: 'Seized Items',
+    description: 'Confiscated items & custody',
+    href: '/dashboard/senior-discipline-master/seized-items',
+    icon: ClipboardDocumentListIcon,
+    color: 'amber',
+  },
+  {
     label: 'Chat',
     description: 'Message staff in real time',
     href: '/dashboard/senior-discipline-master/chat',

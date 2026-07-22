@@ -86,6 +86,7 @@ const menuItems: MenuItemsStructure = {
         { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
         { label: 'Report Requests', href: '/dashboard/principal/report-requests', icon: ChevronRightIcon },
+        { label: 'Seized Items', href: '/dashboard/principal/seized-items', icon: ChevronRightIcon },
       ]
     },
             { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
@@ -137,6 +138,9 @@ const menuItems: MenuItemsStructure = {
     },
     {
       icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/discipline-master/students'
+    },
+    {
+      icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/discipline-master/seized-items'
     },
             {
       icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/discipline-master/reports'
@@ -198,6 +202,7 @@ const menuItems: MenuItemsStructure = {
     { label: 'Report Card Generation', href: '/dashboard/super-manager/report-card-generation', icon: DocumentChartBarIcon },
     { label: 'Academic Year', href: '/dashboard/super-manager/academic-years', icon: CalendarIcon },
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
+    { label: 'Seized Items', href: '/dashboard/super-manager/seized-items', icon: ArchiveBoxIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
@@ -246,6 +251,7 @@ const menuItems: MenuItemsStructure = {
         { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
         { label: 'Report Requests', href: '/dashboard/vice-principal/report-requests', icon: ChevronRightIcon },
+        { label: 'Seized Items', href: '/dashboard/vice-principal/seized-items', icon: ChevronRightIcon },
       ]
     },
             { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
@@ -267,6 +273,7 @@ const menuItems: MenuItemsStructure = {
     { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
             { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
   ],
   'dean-of-studies': [
@@ -281,6 +288,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
@@ -295,6 +303,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/senior-discipline-master/students' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/senior-discipline-master/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/senior-discipline-master/teacher-roll-calls' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/senior-discipline-master/seized-items' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
           ],
   'fee-auditor': [
