@@ -1,18 +1,45 @@
 'use client';
 
-import { HeartIcon } from '@heroicons/react/24/outline';
+import {
+  ArchiveBoxIcon,
+  ChatBubbleLeftRightIcon,
+} from '@heroicons/react/24/outline';
+import { useAuth } from '@/components/context/AuthContext';
+import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
 
-export default function NurseDashboard() {
+const quickActions: QuickAction[] = [
+  {
+    label: 'Chat',
+    description: "Message staff in real time",
+    href: '/dashboard/nurse/chat',
+    icon: ChatBubbleLeftRightIcon,
+    color: 'green',
+  },
+  {
+    label: 'Inventory',
+    description: "Your stock & transfers",
+    href: '/dashboard/nurse/inventory',
+    icon: ArchiveBoxIcon,
+    color: 'blue',
+  },
+];
+
+export default function NurseMenu() {
+  const { selectedAcademicYear, user } = useAuth();
+
   return (
-    <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
-        <HeartIcon className="h-12 w-12 mx-auto text-blue-600 mb-4" />
-        <h1 className="text-2xl font-semibold text-gray-900 mb-2">Nurse</h1>
-        <p className="text-gray-600">
-          Welcome to the Nurse dashboard. School health and student medical record
-          features are coming soon.
+    <div className="max-w-7xl mx-auto space-y-5">
+      <div>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+        </h1>
+        <p className="text-sm text-gray-600 mt-0.5">
+          What would you like to do?
+          {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
         </p>
       </div>
+
+      <QuickActionGrid actions={quickActions} />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import {
   ClipboardDocumentCheckIcon,
   BuildingLibraryIcon,
   Bars3Icon,
+  ArchiveBoxIcon,
   XMarkIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -27,7 +28,6 @@ import {
   MegaphoneIcon,
   ChevronUpDownIcon,
   ClockIcon,
-  ChatBubbleLeftRightIcon,
   BanknotesIcon,
   ReceiptRefundIcon,
   ChartBarIcon
@@ -37,6 +37,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useAuth } from '@/components/context/AuthContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
+import ChatIndicator from '@/components/chat/ChatIndicator';
 
 // Define type for a menu item - Added subItems
 interface MenuItem {
@@ -70,7 +71,7 @@ type MenuItemsStructure = {
 // Original menu items structure with corrected type
 const menuItems: MenuItemsStructure = {
   principal: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/principal' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/principal/finance-requests' },
@@ -78,20 +79,23 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls', icon: ChevronRightIcon },
+        { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
         { label: 'Report Requests', href: '/dashboard/principal/report-requests', icon: ChevronRightIcon },
+        { label: 'Seized Items', href: '/dashboard/principal/seized-items', icon: ChevronRightIcon },
       ]
     },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/principal/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/principal/messaging' },
-    { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
+            { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
     // { icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/principal/reports' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/principal/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/principal/teacher-logbook' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/principal/fee-comparison' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/principal/overview' },
   ],
   bursar: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
@@ -104,14 +108,18 @@ const menuItems: MenuItemsStructure = {
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/bursar/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/bursar/messaging' },
-    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
+            { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
   'discipline-master': [
-    { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-master' },
     {
       icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/discipline-master/roll-call'
+    },
+    {
+      icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/discipline-master/dm-roll-call'
+    },
+    {
+      icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons'
     },
     {
       icon: ClipboardDocumentListIcon, label: 'Attendance & Lateness', href: '/dashboard/discipline-master/attendance'
@@ -132,17 +140,17 @@ const menuItems: MenuItemsStructure = {
       icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/discipline-master/students'
     },
     {
-      icon: BellIcon, label: 'Announcements', href: '/dashboard/discipline-master/communications'
+      icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/discipline-master/seized-items'
     },
-    {
-      icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/discipline-master/messaging'
-    },
-    {
+            {
       icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/discipline-master/reports'
+    },
+    {
+      icon: ChartBarIcon, label: 'Overview', href: '/dashboard/discipline-master/overview'
     },
   ],
   hod: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/hod' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/hod' },
     {
       icon: UserGroupIcon, label: 'Department Staff', href: '/dashboard/hod/staff'
     },
@@ -151,19 +159,17 @@ const menuItems: MenuItemsStructure = {
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/hod/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/hod/teacher-logbook' },
     { icon: DocumentChartBarIcon, label: 'Performance', href: '/dashboard/hod/performance' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/hod/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/hod/messaging' },
-  ],
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/hod/overview' },
+          ],
   'parent-student': [
-    { icon: HomeIcon, label: 'Dashboard', href: '/dashboard/parent-student' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/parent-student' },
     { icon: UserGroupIcon, label: 'My Children', href: '/dashboard/parent-student/children' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messages', href: '/dashboard/parent-student/messages' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/parent-student/announcements' },
-    { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
+            { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
     { icon: Cog6ToothIcon, label: 'Settings', href: '/dashboard/parent-student/settings' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/parent-student/overview' },
   ],
   'super-manager': [
-    { label: 'Dashboard', href: '/dashboard/super-manager', icon: HomeIcon },
+    { label: 'Menu', href: '/dashboard/super-manager', icon: HomeIcon },
     {
       label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, subItems: [
         { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon },
@@ -196,19 +202,20 @@ const menuItems: MenuItemsStructure = {
     { label: 'Report Card Generation', href: '/dashboard/super-manager/report-card-generation', icon: DocumentChartBarIcon },
     { label: 'Academic Year', href: '/dashboard/super-manager/academic-years', icon: CalendarIcon },
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
+    { label: 'Seized Items', href: '/dashboard/super-manager/seized-items', icon: ArchiveBoxIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
   ],
   guidancecounselor: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/guidance-counselor' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/guidance-counselor' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/guidance-counselor/students' },
     { icon: ClipboardDocumentCheckIcon, label: 'Remarks', href: '/dashboard/guidance-counselor/remarks' },
     { icon: BuildingLibraryIcon, label: 'Behavior', href: '/dashboard/guidance-counselor/behavior' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/guidance-counselor/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/guidance-counselor/messaging' },
-  ],
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/guidance-counselor/overview' },
+          ],
   teacher: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/teacher' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/teacher' },
     { icon: BuildingLibraryIcon, label: 'Question Management', href: '/dashboard/teacher/question-management' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/teacher/students' },
     { icon: AcademicCapIcon, label: 'Subjects', href: '/dashboard/teacher/subjects' },
@@ -216,12 +223,13 @@ const menuItems: MenuItemsStructure = {
     { icon: BuildingLibraryIcon, label: 'Exams', href: '/dashboard/teacher/exams' },
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/teacher/timetable' },
     { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/teacher/roll-call' },
+    { icon: ClockIcon, label: 'Period Roll Call', href: '/dashboard/teacher/period-roll-call' },
     { icon: BookOpenIcon, label: 'Logbook', href: '/dashboard/teacher/logbook' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/teacher/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/teacher/messaging' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/teacher/overview' },
   ],
   'vice-principal': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/vice-principal' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
+    { icon: UserGroupIcon, label: 'Students', href: '/dashboard/vice-principal/students' },
     { icon: AcademicCapIcon, label: 'Classes', href: '/dashboard/vice-principal/classes' },
     { icon: ClipboardDocumentCheckIcon, label: 'Subjects', href: '/dashboard/vice-principal/subjects' },
     { icon: UserGroupIcon, label: 'Teachers', href: '/dashboard/vice-principal/teachers' },
@@ -236,17 +244,20 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls', icon: ChevronRightIcon },
+        { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
         { label: 'Report Requests', href: '/dashboard/vice-principal/report-requests', icon: ChevronRightIcon },
+        { label: 'Seized Items', href: '/dashboard/vice-principal/seized-items', icon: ChevronRightIcon },
       ]
     },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/vice-principal/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/vice-principal/messaging' },
+            { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
   ],
   manager: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/manager' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/manager/financial-reports' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/manager/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/manager/expenditures' },
@@ -261,45 +272,46 @@ const menuItems: MenuItemsStructure = {
     },
     { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/manager/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/manager/messaging' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+            { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
   ],
   'dean-of-studies': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-studies' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/dean-of-studies/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/dean-of-studies/teacher-logbook' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-studies/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-studies/messaging' },
-  ],
+          ],
   'dean-of-discipline': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-discipline' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
+    { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/dean-of-discipline/dm-roll-call' },
+    { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
+    { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-discipline/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-discipline/messaging' },
-  ],
+          ],
   'senior-discipline-master': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/senior-discipline-master' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
+    { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/senior-discipline-master/warnings-summons' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
+    { icon: UserGroupIcon, label: 'Students', href: '/dashboard/senior-discipline-master/students' },
+    { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/senior-discipline-master/dm-assignments' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/senior-discipline-master/teacher-roll-calls' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/senior-discipline-master/seized-items' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/senior-discipline-master/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/senior-discipline-master/messaging' },
-  ],
+          ],
   'fee-auditor': [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/fee-auditor' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/fee-auditor' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/fee-auditor/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/fee-auditor/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/fee-auditor/broken-property' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/fee-auditor/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/fee-auditor/messaging' },
-  ],
+          ],
   secretary: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/secretary' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
@@ -310,15 +322,21 @@ const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },
   ],
   nurse: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/nurse' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/nurse/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/nurse/messaging' },
-  ],
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/nurse' },
+          ],
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },
   ],
 };
+
+// Every staff role gets the shared Inventory section; parents can't hold
+// inventory so they're excluded.
+Object.entries(menuItems).forEach(([key, items]) => {
+  if (key === 'parent-student') return;
+  const slug = key === 'guidancecounselor' ? 'guidance-counselor' : key;
+  items.push({ icon: ArchiveBoxIcon, label: 'Inventory', href: `/dashboard/${slug}/inventory` });
+});
 
 // Helper function to format role names
 const formatRoleName = (role: string | undefined | null): string => {
@@ -737,8 +755,9 @@ export default function DashboardLayout({
                 </span>
               </div>
             </div>
-            {/* Notification Indicator */}
+            {/* Chat + Notification Indicators */}
             <div className="flex items-center">
+              <ChatIndicator className="mr-1" />
               <NotificationIndicator
                 onClick={() => {
                   const currentMenuItems = roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]

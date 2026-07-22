@@ -15,7 +15,17 @@
       "Bash(cp src/app/dashboard/super-manager/timetable/components/SchoolTimetableView.tsx src/app/dashboard/vice-principal/timetable/components/SchoolTimetableView.tsx)",
       "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/principal/timetable/page.tsx)",
       "Bash(cp src/app/dashboard/super-manager/timetable/page.tsx src/app/dashboard/vice-principal/timetable/page.tsx)",
-      "Bash(grep -n \"reamOfPaper\\\\|ream_of_paper\\\\|Ream\\\\|updateStudent\\\\|handleUpdateStudent\\\\|Edit\\\\|students/\\\\${\" src/app/dashboard/secretary/students/page.tsx)"
+      "Bash(grep -n \"reamOfPaper\\\\|ream_of_paper\\\\|Ream\\\\|updateStudent\\\\|handleUpdateStudent\\\\|Edit\\\\|students/\\\\${\" src/app/dashboard/secretary/students/page.tsx)",
+      "Bash(npm install *)",
+      "Bash(NEXT_CONFIG_FILE=next.capacitor.config.ts npx next build)",
+      "Bash(grep -rn \"students/\\\\${\" \"/Users/user/Documents/School Management/SMS_Simbtech-main/src\" --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -rn \"updateStudent\\\\|PUT.*students\\\\|put\\(\\\\`/students\" \"/Users/user/Documents/School Management/SMS_Simbtech-main/src\" --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -rn \"put\\(\\\\`/users/\\\\${\" \"/Users/user/Documents/School Management/SMS_Simbtech-main/src\" --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(grep -rn \"apiService.put\\(\\\\`/users\" \"/Users/user/Documents/School Management/SMS_Simbtech-main/src\" --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(gh repo *)",
+      "Bash(grep -rn \"link-parent\\\\|linkParent\\\\|link_parent\\\\|/parents\\\\b\\\\|parents\\\\`\" src --include=\"*.ts\" --include=\"*.tsx\")",
+      "Bash(curl -s -m 5 -X POST http://localhost:4000/api/v1/auth/register -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(curl -s -m 8 -X POST https://api.ssiccmr.com/api/v1/auth/register -H \"Content-Type: application/json\" -d '{}')"
     ],
     "deny": []
   }
