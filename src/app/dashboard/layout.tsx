@@ -282,6 +282,7 @@ const menuItems: MenuItemsStructure = {
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
+    { icon: UserGroupIcon, label: 'Students', href: '/dashboard/senior-discipline-master/students' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
           ],
   'fee-auditor': [

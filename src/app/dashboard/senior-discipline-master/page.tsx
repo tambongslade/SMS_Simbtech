@@ -8,6 +8,7 @@ import {
   DocumentChartBarIcon,
   BellIcon,
   ClockIcon,
+  UserGroupIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
@@ -55,6 +56,13 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/senior-discipline-master/broken-property',
     icon: BanknotesIcon,
     color: 'cyan',
+  },
+  {
+    label: 'Students',
+    description: 'Per-student discipline records',
+    href: '/dashboard/senior-discipline-master/students',
+    icon: UserGroupIcon,
+    color: 'blue',
   },
   {
     label: 'Report Requests',
