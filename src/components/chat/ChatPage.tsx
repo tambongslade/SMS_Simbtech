@@ -214,12 +214,32 @@ export default function ChatPage() {
     try {
       const list = await listChannels();
       setChannels(list);
+      // Sidebar presence dots for DMs: make sure we know each DM's peer, then
+      // batch-fetch their presence. The list endpoint may omit members.
+      const needDetail = list.filter(c => c.type === 'DIRECT' && !(c.members && c.members.length > 0));
+      if (needDetail.length > 0) {
+        const details = await Promise.all(needDetail.slice(0, 25).map(c => getChannel(c.id).catch(() => null)));
+        const byId = new Map(details.filter(Boolean).map(d => [d!.id, d!]));
+        if (byId.size > 0) {
+          setChannels(prev => prev.map(c => (byId.has(c.id) ? { ...c, members: byId.get(c.id)!.members } : c)));
+        }
+        const seeded: Record<number, PresenceInfo> = {};
+        details.filter(Boolean).forEach(d => (d!.members || []).forEach(m => { if (m.presence) seeded[m.userId] = m.presence; }));
+        if (Object.keys(seeded).length > 0) setPresenceMap(prev => ({ ...prev, ...seeded }));
+      }
+      const peerIds = Array.from(new Set(
+        list.filter(c => c.type === 'DIRECT').flatMap(c => (c.members || []).map(m => m.userId)).filter(id => id && id !== myId)
+      ));
+      if (peerIds.length > 0) {
+        const presence = await getPresence(peerIds);
+        setPresenceMap(prev => ({ ...prev, ...presence }));
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to load channels.');
     } finally {
       setIsLoadingChannels(false);
     }
-  }, []);
+  }, [myId]);
 
   const openChannel = useCallback(async (channelId: number) => {
     setActiveId(channelId);
@@ -758,7 +778,14 @@ export default function ChatPage() {
       }`}
     >
       <div className="min-w-0">
-        <p className="text-sm font-medium truncate">{dmTitle(c)}</p>
+        <p className="text-sm font-medium truncate flex items-center gap-1.5">
+          {dmTitle(c)}
+          {c.type === 'DIRECT' && (() => {
+            const peerId = (c.members || []).find(m => m.userId !== myId)?.userId;
+            const p = peerId ? presenceMap[peerId] : undefined;
+            return p ? <PresenceDot online={p.online} /> : null;
+          })()}
+        </p>
         {c.lastMessage && (
           <p className="text-xs text-gray-500 truncate">
             {c.lastMessage.senderName ? `${c.lastMessage.senderName}: ` : ''}
