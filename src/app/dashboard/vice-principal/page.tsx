@@ -10,8 +10,6 @@ import {
   CalendarIcon,
   DocumentChartBarIcon,
   BookOpenIcon,
-  BellIcon,
-  ChatBubbleLeftRightIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
@@ -109,21 +107,7 @@ const quickActions: QuickAction[] = [
     icon: ClipboardDocumentListIcon,
     color: 'cyan',
   },
-  {
-    label: 'Announcements',
-    description: 'Post and view announcements',
-    href: '/dashboard/vice-principal/announcements',
-    icon: BellIcon,
-    color: 'rose',
-  },
-  {
-    label: 'Messaging',
-    description: 'Chat with staff and parents',
-    href: '/dashboard/vice-principal/messaging',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'green',
-  },
-  {
+      {
     label: 'Overview',
     description: 'Assignments, interviews & stats',
     href: '/dashboard/vice-principal/overview',

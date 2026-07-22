@@ -27,7 +27,6 @@ import {
   MegaphoneIcon,
   ChevronUpDownIcon,
   ClockIcon,
-  ChatBubbleLeftRightIcon,
   BanknotesIcon,
   ReceiptRefundIcon,
   ChartBarIcon
@@ -87,9 +86,7 @@ const menuItems: MenuItemsStructure = {
         { label: 'Report Requests', href: '/dashboard/principal/report-requests', icon: ChevronRightIcon },
       ]
     },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/principal/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/principal/messaging' },
-    { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
+            { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
     // { icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/principal/reports' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/principal/schemes-of-work' },
@@ -108,9 +105,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/bursar/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/bursar/messaging' },
-    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
+            { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
   'discipline-master': [
     { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
@@ -141,13 +136,7 @@ const menuItems: MenuItemsStructure = {
     {
       icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/discipline-master/students'
     },
-    {
-      icon: BellIcon, label: 'Announcements', href: '/dashboard/discipline-master/communications'
-    },
-    {
-      icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/discipline-master/messaging'
-    },
-    {
+            {
       icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/discipline-master/reports'
     },
   ],
@@ -161,15 +150,11 @@ const menuItems: MenuItemsStructure = {
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/hod/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/hod/teacher-logbook' },
     { icon: DocumentChartBarIcon, label: 'Performance', href: '/dashboard/hod/performance' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/hod/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/hod/messaging' },
-  ],
+          ],
   'parent-student': [
     { icon: HomeIcon, label: 'Dashboard', href: '/dashboard/parent-student' },
     { icon: UserGroupIcon, label: 'My Children', href: '/dashboard/parent-student/children' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messages', href: '/dashboard/parent-student/messages' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/parent-student/announcements' },
-    { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
+            { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
     { icon: Cog6ToothIcon, label: 'Settings', href: '/dashboard/parent-student/settings' },
   ],
   'super-manager': [
@@ -214,9 +199,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/guidance-counselor/students' },
     { icon: ClipboardDocumentCheckIcon, label: 'Remarks', href: '/dashboard/guidance-counselor/remarks' },
     { icon: BuildingLibraryIcon, label: 'Behavior', href: '/dashboard/guidance-counselor/behavior' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/guidance-counselor/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/guidance-counselor/messaging' },
-  ],
+          ],
   teacher: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/teacher' },
     { icon: BuildingLibraryIcon, label: 'Question Management', href: '/dashboard/teacher/question-management' },
@@ -227,9 +210,7 @@ const menuItems: MenuItemsStructure = {
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/teacher/timetable' },
     { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/teacher/roll-call' },
     { icon: BookOpenIcon, label: 'Logbook', href: '/dashboard/teacher/logbook' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/teacher/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/teacher/messaging' },
-  ],
+          ],
   'vice-principal': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/vice-principal/students' },
@@ -255,9 +236,7 @@ const menuItems: MenuItemsStructure = {
         { label: 'Report Requests', href: '/dashboard/vice-principal/report-requests', icon: ChevronRightIcon },
       ]
     },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/vice-principal/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/vice-principal/messaging' },
-    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
+            { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
   ],
   manager: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/manager' },
@@ -275,17 +254,13 @@ const menuItems: MenuItemsStructure = {
     },
     { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
     { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/manager/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/manager/messaging' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+            { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-studies' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/dean-of-studies/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/dean-of-studies/teacher-logbook' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-studies/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-studies/messaging' },
-  ],
+          ],
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-discipline' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
@@ -295,9 +270,7 @@ const menuItems: MenuItemsStructure = {
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/dean-of-discipline/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/dean-of-discipline/messaging' },
-  ],
+          ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/senior-discipline-master' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
@@ -307,17 +280,13 @@ const menuItems: MenuItemsStructure = {
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/senior-discipline-master/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/senior-discipline-master/messaging' },
-  ],
+          ],
   'fee-auditor': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/fee-auditor' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/fee-auditor/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/fee-auditor/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/fee-auditor/broken-property' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/fee-auditor/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/fee-auditor/messaging' },
-  ],
+          ],
   secretary: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/secretary' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
@@ -329,9 +298,7 @@ const menuItems: MenuItemsStructure = {
   ],
   nurse: [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/nurse' },
-    { icon: BellIcon, label: 'Announcements', href: '/dashboard/nurse/announcements' },
-    { icon: ChatBubbleLeftRightIcon, label: 'Messaging', href: '/dashboard/nurse/messaging' },
-  ],
+          ],
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },

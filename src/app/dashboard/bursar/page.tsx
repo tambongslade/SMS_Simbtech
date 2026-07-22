@@ -7,8 +7,6 @@ import {
   ClipboardDocumentListIcon,
   UserPlusIcon,
   DocumentChartBarIcon,
-  BellIcon,
-  ChatBubbleLeftRightIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
@@ -78,21 +76,7 @@ const quickActions: QuickAction[] = [
     icon: DocumentChartBarIcon,
     color: 'blue',
   },
-  {
-    label: 'Announcements',
-    description: 'Post and view announcements',
-    href: '/dashboard/bursar/announcements',
-    icon: BellIcon,
-    color: 'amber',
-  },
-  {
-    label: 'Messaging',
-    description: 'Chat with staff and parents',
-    href: '/dashboard/bursar/messaging',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'green',
-  },
-  {
+      {
     label: 'Overview',
     description: 'Stats, payments & registrations',
     href: '/dashboard/bursar/overview',
