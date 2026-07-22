@@ -1,13 +1,11 @@
 'use client';
 
 import {
-  ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon,
   CalendarDaysIcon,
   BanknotesIcon,
   DocumentChartBarIcon,
   BellIcon,
-  ClockIcon,
   UserGroupIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
@@ -15,20 +13,6 @@ import { useAuth } from '@/components/context/AuthContext';
 import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
 
 const quickActions: QuickAction[] = [
-  {
-    label: 'Morning Roll-Call',
-    description: 'Record the morning roll-call',
-    href: '/dashboard/senior-discipline-master/roll-call',
-    icon: ClipboardDocumentCheckIcon,
-    color: 'blue',
-  },
-  {
-    label: 'Slot Roll Call (2/5/8)',
-    description: 'Record the three daily control slots',
-    href: '/dashboard/senior-discipline-master/dm-roll-call',
-    icon: ClockIcon,
-    color: 'indigo',
-  },
   {
     label: 'Warnings & Summons',
     description: 'Follow up warnings & parent summons',

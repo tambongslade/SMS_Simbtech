@@ -278,8 +278,6 @@ const menuItems: MenuItemsStructure = {
           ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
-    { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/senior-discipline-master/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/senior-discipline-master/warnings-summons' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
