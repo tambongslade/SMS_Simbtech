@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal, StudentPhoto, BulkPhotoUploadModal } from '@/components/ui';
+import StudentExtrasModal from '@/components/students/StudentExtrasModal';
 import {
   fetchStudents,
   searchStudents,
@@ -139,6 +140,7 @@ function SecretaryStudentsPageInner() {
   const [editParents, setEditParents] = useState<EditParentContact[]>([]);
   const [isLoadingEditExtras, setIsLoadingEditExtras] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [extrasStudent, setExtrasStudent] = useState<SecretaryStudent | null>(null);
 
   // Link an additional parent from the edit modal
   const [parentSearch, setParentSearch] = useState('');
@@ -718,6 +720,14 @@ function SecretaryStudentsPageInner() {
                 <Button
                   variant="outline"
                   size="sm"
+                  className="flex-1 justify-center"
+                  onClick={() => setExtrasStudent(student)}
+                >
+                  Extras
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   color="secondary"
                   leftIcon={ArrowsRightLeftIcon}
                   className="flex-1 justify-center"
@@ -862,6 +872,13 @@ function SecretaryStudentsPageInner() {
                           onClick={() => openEdit(student)}
                         >
                           Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          onClick={() => setExtrasStudent(student)}
+                        >
+                          Extras
                         </Button>
                         <Button
                           variant="outline"
@@ -1418,6 +1435,20 @@ function SecretaryStudentsPageInner() {
           loadStudents();
         }}
       />
+
+      {/* Student extras: health conditions, previous schools, siblings */}
+      {extrasStudent && (
+        <StudentExtrasModal
+          isOpen={!!extrasStudent}
+          onClose={() => setExtrasStudent(null)}
+          studentId={extrasStudent.id}
+          studentName={extrasStudent.name}
+          initialHealthConditions={(extrasStudent as any).healthConditions || []}
+          initialMedicalNotes={(extrasStudent as any).medicalNotes || ''}
+          initialAdmissionAcademicYearId={(extrasStudent as any).admissionAcademicYearId || null}
+          onSaved={() => loadStudents()}
+        />
+      )}
     </div>
   );
 }

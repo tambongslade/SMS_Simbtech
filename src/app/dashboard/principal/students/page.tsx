@@ -14,6 +14,8 @@ import apiService from '../../../../lib/apiService';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useAuth } from '../../../../components/context/AuthContext'; // Add useAuth import
 import { StudentPhoto } from '../../../../components/ui';
+import StudentExtrasModal from '@/components/students/StudentExtrasModal';
+import { HEALTH_CONDITIONS, type HealthCondition } from '@/lib/disciplineExtApi';
 
 // --- Types ---
 type ParentLink = {
@@ -147,6 +149,14 @@ export default function StudentManagement() {
     parentAddress: '',
     relationship: '',
   });
+
+  // State for Student Extras modal (health, previous schools, siblings)
+  const [extrasStudent, setExtrasStudent] = useState<Student | null>(null);
+
+  // New-student extra fields shared by both create modals
+  const [createHealthConditions, setCreateHealthConditions] = useState<HealthCondition[]>([]);
+  const [createMedicalNotes, setCreateMedicalNotes] = useState('');
+  const [createAdmissionYearId, setCreateAdmissionYearId] = useState<string>('');
 
   // State for Edit Details Modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -599,6 +609,9 @@ export default function StudentManagement() {
       photo: '',
       is_new_student: true,
     });
+    setCreateHealthConditions([]);
+    setCreateMedicalNotes('');
+    setCreateAdmissionYearId('');
     setIsAddEnrollModalOpen(true);
   };
 
@@ -616,6 +629,9 @@ export default function StudentManagement() {
       photo: '',
       is_new_student: true,
     });
+    setCreateHealthConditions([]);
+    setCreateMedicalNotes('');
+    setCreateAdmissionYearId('');
     setIsAddAssignModalOpen(true);
   };
 
@@ -1175,6 +1191,16 @@ export default function StudentManagement() {
                             <span>Parents</span>
                           </button>
 
+                          <button
+                            onClick={() => setExtrasStudent(student)}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-teal-600 rounded hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                            disabled={isLoading}
+                            title="Health conditions, previous schools & siblings"
+                          >
+                            <ClipboardDocumentListIcon className="h-3 w-3 mr-1" />
+                            <span>Extras</span>
+                          </button>
+
                           {student.subClassName && (
                             <button
                               onClick={() => openUnenrollModal(student)}
@@ -1287,6 +1313,9 @@ export default function StudentManagement() {
                 residence: addEnrollFormData.residence || null,
                 former_school: addEnrollFormData.former_school || null,
                 is_new_student: addEnrollFormData.is_new_student || false,
+                healthConditions: Array.from(new Set(createHealthConditions)),
+                medicalNotes: createMedicalNotes || undefined,
+                admissionAcademicYearId: createAdmissionYearId ? parseInt(createAdmissionYearId) : undefined,
               };
               try {
                 const createResult = await apiService.post<{ data?: { id: number, name: string } }>('/students', studentPayload);
@@ -1358,6 +1387,37 @@ export default function StudentManagement() {
                         className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" 
                       />
                       <label htmlFor="isNewStudentEnroll" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700 mb-1">Health Conditions</span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {HEALTH_CONDITIONS.map(c => (
+                        <label key={c.value} className="flex items-center gap-1.5 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={createHealthConditions.includes(c.value)}
+                            onChange={() => setCreateHealthConditions(prev => prev.includes(c.value) ? prev.filter(x => x !== c.value) : [...prev, c.value])}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Medical Notes</label>
+                      <textarea value={createMedicalNotes} onChange={e => setCreateMedicalNotes(e.target.value)} rows={2} className="mt-1 block w-full input-field" placeholder="e.g. Peanut allergy — carries epi-pen" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Admission Academic Year</label>
+                      <select value={createAdmissionYearId} onChange={e => setCreateAdmissionYearId(e.target.value)} className="mt-1 block w-full input-field bg-white">
+                        <option value="">Not set</option>
+                        {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -1434,6 +1494,9 @@ export default function StudentManagement() {
                 residence: addAssignFormData.residence || null,
                 former_school: addAssignFormData.former_school || null,
                 is_new_student: addAssignFormData.is_new_student || false,
+                healthConditions: Array.from(new Set(createHealthConditions)),
+                medicalNotes: createMedicalNotes || undefined,
+                admissionAcademicYearId: createAdmissionYearId ? parseInt(createAdmissionYearId) : undefined,
               };
               try {
                 const createResult = await apiService.post<{ data?: { id: number, name: string } }>('/students', studentPayload);
@@ -1518,6 +1581,37 @@ export default function StudentManagement() {
                         className="h-4 w-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500" 
                       />
                       <label htmlFor="isNewStudentAssign" className="ml-2 block text-sm text-gray-900">Is New Student?</label>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <span className="block text-sm font-medium text-gray-700 mb-1">Health Conditions</span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {HEALTH_CONDITIONS.map(c => (
+                        <label key={c.value} className="flex items-center gap-1.5 text-sm text-gray-700">
+                          <input
+                            type="checkbox"
+                            checked={createHealthConditions.includes(c.value)}
+                            onChange={() => setCreateHealthConditions(prev => prev.includes(c.value) ? prev.filter(x => x !== c.value) : [...prev, c.value])}
+                            className="h-4 w-4 text-purple-600 border-gray-300 rounded"
+                          />
+                          {c.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Medical Notes</label>
+                      <textarea value={createMedicalNotes} onChange={e => setCreateMedicalNotes(e.target.value)} rows={2} className="mt-1 block w-full input-field" placeholder="e.g. Peanut allergy — carries epi-pen" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Admission Academic Year</label>
+                      <select value={createAdmissionYearId} onChange={e => setCreateAdmissionYearId(e.target.value)} className="mt-1 block w-full input-field bg-white">
+                        <option value="">Not set</option>
+                        {academicYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -2114,6 +2208,20 @@ export default function StudentManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Student Extras: health conditions, previous schools, siblings */}
+      {extrasStudent && (
+        <StudentExtrasModal
+          isOpen={!!extrasStudent}
+          onClose={() => setExtrasStudent(null)}
+          studentId={extrasStudent.id}
+          studentName={extrasStudent.name}
+          initialHealthConditions={(extrasStudent as any).healthConditions || (extrasStudent as any).health_conditions || []}
+          initialMedicalNotes={(extrasStudent as any).medicalNotes || (extrasStudent as any).medical_notes || ''}
+          initialAdmissionAcademicYearId={(extrasStudent as any).admissionAcademicYearId || (extrasStudent as any).admission_academic_year_id || null}
+          onSaved={() => fetchStudents()}
+        />
       )}
 
       {/* Simple CSS for input fields - Can be moved to a global CSS file */}
