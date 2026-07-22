@@ -206,7 +206,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BuildingLibraryIcon, label: 'Behavior', href: '/dashboard/guidance-counselor/behavior' },
           ],
   teacher: [
-    { icon: HomeIcon, label: 'Overview', href: '/dashboard/teacher' },
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/teacher' },
     { icon: BuildingLibraryIcon, label: 'Question Management', href: '/dashboard/teacher/question-management' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/teacher/students' },
     { icon: AcademicCapIcon, label: 'Subjects', href: '/dashboard/teacher/subjects' },
@@ -216,7 +216,8 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/teacher/roll-call' },
     { icon: ClockIcon, label: 'Period Roll Call', href: '/dashboard/teacher/period-roll-call' },
     { icon: BookOpenIcon, label: 'Logbook', href: '/dashboard/teacher/logbook' },
-          ],
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/teacher/overview' },
+  ],
   'vice-principal': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/vice-principal/students' },
