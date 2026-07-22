@@ -1,9 +1,9 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
-import { ArrowPathIcon, ClockIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ClockIcon, CheckCircleIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import {
   type PeriodRollCallData,
   type TeacherRollCallStatus,
@@ -20,8 +20,32 @@ const STATUS_OPTIONS: { value: TeacherRollCallStatus; label: string; active: str
   { value: 'ABSENT', label: 'Absent', active: 'bg-red-600 text-white', idle: 'bg-red-50 text-red-700 hover:bg-red-100' },
 ];
 
+// "ends in 23 min" chip from the period's HH:mm end time vs the client clock
+const minutesToEnd = (endTime?: string): number | null => {
+  if (!endTime) return null;
+  const [h, m] = endTime.split(':').map(Number);
+  if (Number.isNaN(h)) return null;
+  const end = new Date();
+  end.setHours(h, m || 0, 0, 0);
+  const mins = Math.round((end.getTime() - Date.now()) / 60000);
+  return mins >= 0 ? mins : null;
+};
+
+const relativeStart = (n: { isToday: boolean; minutesToStart: number | null; dayOfWeek: string }): string => {
+  if (n.isToday && n.minutesToStart != null) {
+    if (n.minutesToStart >= 60) {
+      const h = Math.floor(n.minutesToStart / 60);
+      return `in ${h}h ${n.minutesToStart % 60}m`;
+    }
+    return `in ${n.minutesToStart} min`;
+  }
+  const day = (n.dayOfWeek || '').toLowerCase();
+  return day ? day.charAt(0).toUpperCase() + day.slice(1) : '';
+};
+
 function PeriodRollCallInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const requestedPeriodId = searchParams.get('teacherPeriodId');
 
   const [data, setData] = useState<PeriodRollCallData | null>(null);
@@ -122,14 +146,23 @@ function PeriodRollCallInner() {
         </div>
       ) : (
         <>
-          {/* Period card */}
+          {/* Period card — "Mathematics • Form 3A • 42 students" */}
           <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="font-semibold text-gray-900">
                 {data.period.subject?.name} — {data.period.subClass?.class?.name} {data.period.subClass?.name}
+                <span className="text-gray-400 font-normal"> · {data.totalStudents || data.roster.length} students</span>
               </p>
               <p className="text-xs text-gray-500">
                 {data.period.periodName || 'Period'} · {data.period.startTime}–{data.period.endTime}
+                {(() => {
+                  const mins = minutesToEnd(data.period?.endTime);
+                  return mins != null ? (
+                    <span className="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded-full">
+                      <ClockIcon className="w-3 h-3" /> ends in {mins} min
+                    </span>
+                  ) : null;
+                })()}
                 {data.rollCall && (
                   <span className="inline-flex items-center gap-1 ml-2 text-green-700">
                     <CheckCircleIcon className="w-3.5 h-3.5" /> Already recorded — saving replaces it
@@ -201,6 +234,26 @@ function PeriodRollCallInner() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Next class card */}
+      {!isLoading && data?.nextPeriod && (
+        <button
+          onClick={() => router.push(`/dashboard/teacher/period-roll-call?teacherPeriodId=${data.nextPeriod!.teacherPeriodId}`)}
+          className="w-full bg-white rounded-lg shadow p-4 flex items-center justify-between gap-3 text-left hover:shadow-md transition-shadow"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-gray-400 uppercase mb-0.5">Next class</p>
+            <p className="text-sm font-medium text-gray-900 truncate">
+              {data.nextPeriod.subject?.name} — {data.nextPeriod.subClass?.class?.name} {data.nextPeriod.subClass?.name}
+            </p>
+            <p className="text-xs text-gray-500">
+              {data.nextPeriod.periodName || 'Period'} · {data.nextPeriod.startTime}–{data.nextPeriod.endTime}
+              <span className="text-blue-600 font-medium"> · {relativeStart(data.nextPeriod)}</span>
+            </p>
+          </div>
+          <ArrowRightIcon className="w-5 h-5 text-gray-300 shrink-0" />
+        </button>
       )}
 
       {/* Recent roll calls */}

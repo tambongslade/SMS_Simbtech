@@ -24,11 +24,25 @@ export interface RosterEntry {
   entry: any | null;
 }
 
+export interface NextPeriodInfo {
+  teacherPeriodId: number;
+  dayOfWeek: string;
+  isToday: boolean;
+  minutesToStart: number | null;
+  startTime: string;
+  endTime: string;
+  periodName?: string;
+  subject?: { id: number; name: string };
+  subClass?: { id: number; name: string; class?: { id: number; name: string } };
+}
+
 export interface PeriodRollCallData {
   period: PeriodInfo | null;
   date?: string;
+  totalStudents: number;
   rollCall: { id: number; recordedBy?: any; notes?: string | null; entryCount?: number; createdAt?: string; updatedAt?: string } | null;
   roster: RosterEntry[];
+  nextPeriod: NextPeriodInfo | null;
 }
 
 export interface TeacherRollCallSummary {
@@ -54,6 +68,23 @@ export interface TeacherRollCallSummary {
   createdAt?: string;
 }
 
+const pk = (o: any, camel: string, snake: string) => o?.[camel] ?? o?.[snake];
+
+const normalizeNextPeriod = (n: any): NextPeriodInfo | null => {
+  if (!n) return null;
+  return {
+    teacherPeriodId: pk(n, 'teacherPeriodId', 'teacher_period_id'),
+    dayOfWeek: pk(n, 'dayOfWeek', 'day_of_week'),
+    isToday: !!pk(n, 'isToday', 'is_today'),
+    minutesToStart: pk(n, 'minutesToStart', 'minutes_to_start') ?? null,
+    startTime: pk(n, 'startTime', 'start_time'),
+    endTime: pk(n, 'endTime', 'end_time'),
+    periodName: pk(n, 'periodName', 'period_name'),
+    subject: n.subject,
+    subClass: pk(n, 'subClass', 'sub_class'),
+  };
+};
+
 const normalizePeriodData = (d: any): PeriodRollCallData => ({
   period: d?.period
     ? {
@@ -69,6 +100,8 @@ const normalizePeriodData = (d: any): PeriodRollCallData => ({
       }
     : null,
   date: d?.date,
+  totalStudents: pk(d, 'totalStudents', 'total_students') ?? (d?.roster?.length || 0),
+  nextPeriod: normalizeNextPeriod(pk(d, 'nextPeriod', 'next_period')),
   rollCall: d?.rollCall ?? null,
   roster: (d?.roster || []).map((r: any) => ({
     enrollmentId: r.enrollmentId,
