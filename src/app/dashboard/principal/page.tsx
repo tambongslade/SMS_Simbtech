@@ -51,6 +51,13 @@ const quickActions: QuickAction[] = [
     color: 'cyan',
   },
   {
+    label: 'Seized Items',
+    description: 'Confiscated items & custody',
+    href: '/dashboard/principal/seized-items',
+    icon: ClipboardDocumentListIcon,
+    color: 'amber',
+  },
+  {
     label: 'Examination Structure',
     description: 'Terms, sequences & exams',
     href: '/dashboard/principal/examination-structure',

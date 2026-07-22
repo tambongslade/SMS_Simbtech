@@ -107,6 +107,13 @@ const quickActions: QuickAction[] = [
     icon: ClipboardDocumentListIcon,
     color: 'cyan',
   },
+  {
+    label: 'Seized Items',
+    description: 'Confiscated items & custody',
+    href: '/dashboard/vice-principal/seized-items',
+    icon: ClipboardDocumentListIcon,
+    color: 'amber',
+  },
       {
     label: 'Overview',
     description: 'Assignments, interviews & stats',
