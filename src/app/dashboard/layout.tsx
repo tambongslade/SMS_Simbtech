@@ -19,6 +19,7 @@ import {
   ClipboardDocumentCheckIcon,
   BuildingLibraryIcon,
   Bars3Icon,
+  ArchiveBoxIcon,
   XMarkIcon,
   ChevronDownIcon,
   ChevronRightIcon,
@@ -310,6 +311,14 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },
   ],
 };
+
+// Every staff role gets the shared Inventory section; parents can't hold
+// inventory so they're excluded.
+Object.entries(menuItems).forEach(([key, items]) => {
+  if (key === 'parent-student') return;
+  const slug = key === 'guidancecounselor' ? 'guidance-counselor' : key;
+  items.push({ icon: ArchiveBoxIcon, label: 'Inventory', href: `/dashboard/${slug}/inventory` });
+});
 
 // Helper function to format role names
 const formatRoleName = (role: string | undefined | null): string => {
