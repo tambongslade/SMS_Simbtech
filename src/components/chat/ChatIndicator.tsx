@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { listChannels } from '@/lib/chatApi';
 import { getChatSocket } from '@/lib/chatSocket';
@@ -48,10 +49,19 @@ export default function ChatIndicator({ className = '' }: { className?: string }
     };
     const onChannelCreated = () => scheduleRefresh();
     const onReconnect = () => refresh();
+    // Targeted mention event — toast even when the channel isn't open
+    const onMention = (evt: any) => {
+      const sender = evt?.sender?.name || 'Someone';
+      const channel = evt?.channel_name ?? evt?.channelName ?? 'a channel';
+      const preview = (evt?.preview || '').slice(0, 80);
+      toast(`@ ${sender} mentioned you in #${channel}${preview ? `: ${preview}` : ''}`, { icon: '💬', duration: 6000 });
+      scheduleRefresh();
+    };
 
     socket?.on('message.new', onMessageNew);
     socket?.on('read.updated', onReadUpdated);
     socket?.on('channel.created', onChannelCreated);
+    socket?.on('chat.mention.new', onMention);
     socket?.on('connect', onReconnect);
 
     return () => {
@@ -60,6 +70,7 @@ export default function ChatIndicator({ className = '' }: { className?: string }
       socket?.off('message.new', onMessageNew);
       socket?.off('read.updated', onReadUpdated);
       socket?.off('channel.created', onChannelCreated);
+      socket?.off('chat.mention.new', onMention);
       socket?.off('connect', onReconnect);
     };
   }, [refresh, scheduleRefresh, user?.id]);

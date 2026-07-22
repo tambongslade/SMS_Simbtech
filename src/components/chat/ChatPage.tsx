@@ -17,6 +17,7 @@ import {
   MicrophoneIcon,
   StopIcon,
   CheckIcon,
+  ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { getChatSocket } from '@/lib/chatSocket';
@@ -171,6 +172,11 @@ export default function ChatPage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Reply + mentions
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [mentionPicks, setMentionPicks] = useState<ChatUserLite[]>([]);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+
   // Voice recording
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -247,6 +253,9 @@ export default function ChatPage() {
     setThreadMessages([]);
     setEditing(null);
     setPendingAttachments([]);
+    setReplyTo(null);
+    setMentionPicks([]);
+    setMentionQuery(null);
     setActiveDetail(null);
     setIsLoadingMessages(true);
     try {
@@ -318,16 +327,15 @@ export default function ChatPage() {
       // Ack delivery back to the sender
       if (msg.senderId !== myId) socket.emit('message.delivered', { messageId: msg.id });
       if (visible) {
+        // Replies render inline in the main scroll (WhatsApp-style)
+        setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
         if (msg.parentMessageId) {
-          // Reply: bump the parent's counter; append to thread if it's open
           setMessages(prev => prev.map(m => (m.id === msg.parentMessageId ? { ...m, replyCount: m.replyCount + 1 } : m)));
           if (threadRootRef.current && msg.parentMessageId === threadRootRef.current.id) {
             setThreadMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
           }
-        } else {
-          setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
-          scrollToBottom();
         }
+        scrollToBottom();
         if (msg.senderId !== myId) {
           socket.emit('message.read', { channelId: msg.channelId, upToMessageId: msg.id });
         }
@@ -510,22 +518,33 @@ export default function ChatPage() {
     setIsSending(true);
     getChatSocket()?.emit('typing.stop', { channelId: activeId });
     try {
+      // Only send mention ids whose @Name is still present in the content
+      const mentionUserIds = mentionPicks
+        .filter(u => content.includes(`@${u.name}`))
+        .map(u => u.id);
       if (editing) {
         const updated = await editMessage(editing.id, content);
         setMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)));
         setThreadMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)));
         setEditing(null);
-      } else if (threadRoot) {
-        const msg = await postMessage(activeId, { content, parentMessageId: threadRoot.id, attachments: pendingAttachments });
-        setThreadMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
-        setMessages(prev => prev.map(m => (m.id === threadRoot.id ? { ...m, replyCount: m.replyCount + 1 } : m)));
       } else {
-        const msg = await postMessage(activeId, { content, attachments: pendingAttachments });
+        const parentMessageId = replyTo?.id ?? threadRoot?.id ?? null;
+        const msg = await postMessage(activeId, { content, parentMessageId, attachments: pendingAttachments, mentionUserIds });
+        // Replies show inline in the main scroll as well
         setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
+        if (parentMessageId) {
+          setMessages(prev => prev.map(m => (m.id === parentMessageId ? { ...m, replyCount: m.replyCount + 1 } : m)));
+          if (threadRoot && parentMessageId === threadRoot.id) {
+            setThreadMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
+          }
+        }
         scrollToBottom();
       }
       setDraft('');
       setPendingAttachments([]);
+      setReplyTo(null);
+      setMentionPicks([]);
+      setMentionQuery(null);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send message.');
     } finally {
@@ -535,6 +554,9 @@ export default function ChatPage() {
 
   const handleDraftChange = (value: string) => {
     setDraft(value);
+    // @-mention autocomplete: active while the caret is inside a trailing @token
+    const match = value.match(/@([\w'-]*)$/);
+    setMentionQuery(match ? match[1] : null);
     const socket = getChatSocket();
     if (!activeId || !socket) return;
     if (value.length === 0) {
@@ -551,6 +573,51 @@ export default function ChatPage() {
 
   const handleComposerBlur = () => {
     if (activeId) getChatSocket()?.emit('typing.stop', { channelId: activeId });
+  };
+
+  // @-autocomplete candidates come from the channel's member list
+  const mentionCandidates = useMemo(() => {
+    if (mentionQuery === null || isParent) return [];
+    const q = mentionQuery.toLowerCase();
+    return (activeDetail?.members || [])
+      .filter(m => m.userId !== myId && m.user?.name)
+      .filter(m => m.user!.name.toLowerCase().includes(q))
+      .slice(0, 6);
+  }, [mentionQuery, activeDetail, myId, isParent]);
+
+  const pickMention = (name: string, userId: number) => {
+    setDraft(prev => prev.replace(/@([\w'-]*)$/, `@${name} `));
+    setMentionPicks(prev => (prev.some(u => u.id === userId) ? prev : [...prev, { id: userId, name }]));
+    setMentionQuery(null);
+  };
+
+  // Bold the @Name tokens the server confirmed as mentions
+  const renderContentText = (m: ChatMessage, mine: boolean) => {
+    if (!m.content) return null;
+    const names = m.mentions.map(x => x.user?.name).filter(Boolean) as string[];
+    if (names.length === 0) return <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>;
+    const pattern = new RegExp(`@(${names.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g');
+    const parts = m.content.split(pattern);
+    return (
+      <p className="text-sm whitespace-pre-wrap break-words">
+        {parts.map((part, i) =>
+          i % 2 === 1 ? (
+            <span key={i} className={`font-semibold ${mine ? 'text-white underline' : 'text-blue-700'}`}>@{part}</span>
+          ) : (
+            part
+          )
+        )}
+      </p>
+    );
+  };
+
+  const parentPreview = (p: NonNullable<ChatMessage['parentMessage']>) => {
+    if (p.deletedAt) return 'This message was deleted';
+    if (p.content) return p.content.slice(0, 80);
+    if (p.attachmentKind === 'IMAGE') return '📷 Photo';
+    if (p.attachmentKind === 'AUDIO') return '🎤 Voice note';
+    if (p.attachmentKind === 'VIDEO') return '🎬 Video';
+    return '📎 Attachment';
   };
 
   // Measure image dimensions so the server can render aspect-correct thumbnails
@@ -808,11 +875,17 @@ export default function ChatPage() {
       <div key={m.id} className={`group flex ${mine ? 'justify-end' : 'justify-start'}`}>
         <div className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 ${mine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}>
           {!mine && <p className={`text-xs font-semibold ${mine ? 'text-blue-100' : 'text-blue-700'}`}>{m.sender?.name || 'Unknown'}</p>}
+          {m.parentMessage && !m.deletedAt && (
+            <div className={`border-l-2 pl-2 pr-1 py-0.5 mb-1 text-xs rounded ${mine ? 'border-blue-300 bg-blue-700/50 text-blue-100' : 'border-blue-400 bg-gray-50 text-gray-500'}`}>
+              <p className="font-semibold">{m.parentMessage.sender?.name || 'Unknown'}</p>
+              <p className={`truncate ${m.parentMessage.deletedAt ? 'italic' : ''}`}>{parentPreview(m.parentMessage)}</p>
+            </div>
+          )}
           {m.deletedAt ? (
             <p className={`text-sm italic ${mine ? 'text-blue-200' : 'text-gray-400'}`}>Message deleted</p>
           ) : (
             <>
-              {m.content && <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>}
+              {renderContentText(m, mine)}
               {m.attachments.map((a, i) => {
                 const key = a.id ?? i;
                 if (a.kind === 'IMAGE') {
@@ -901,6 +974,15 @@ export default function ChatPage() {
               {QUICK_EMOJIS.map(e => (
                 <button key={e} onClick={() => toggleReaction(m, e)} className="text-sm hover:scale-125 transition-transform">{e}</button>
               ))}
+              {!inThread && (
+                <button
+                  onClick={() => { setReplyTo(m); setEditing(null); }}
+                  title="Reply"
+                  className={mine ? 'text-blue-100' : 'text-gray-400'}
+                >
+                  <ArrowUturnLeftIcon className="w-4 h-4" />
+                </button>
+              )}
               {!inThread && (
                 <button onClick={() => openThread(m)} title="Reply in thread" className={mine ? 'text-blue-100' : 'text-gray-400'}>
                   <ChatBubbleOvalLeftIcon className="w-4 h-4" />
@@ -1028,6 +1110,31 @@ export default function ChatPage() {
                   <div className="flex items-center justify-between text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">
                     Editing message
                     <button type="button" onClick={() => { setEditing(null); setDraft(''); }}><XMarkIcon className="w-4 h-4" /></button>
+                  </div>
+                )}
+                {replyTo && !editing && (
+                  <div className="flex items-center justify-between gap-2 text-xs text-gray-600 bg-gray-50 border-l-2 border-blue-400 rounded px-2 py-1 mb-2">
+                    <span className="truncate">
+                      Replying to <span className="font-semibold">{replyTo.sender?.name || 'Unknown'}</span>
+                      {': '}
+                      {replyTo.content ? replyTo.content.slice(0, 60) : parentPreview({ ...replyTo, sender: replyTo.sender, attachmentKind: replyTo.attachments[0]?.kind ?? null } as any)}
+                    </span>
+                    <button type="button" onClick={() => setReplyTo(null)}><XMarkIcon className="w-4 h-4" /></button>
+                  </div>
+                )}
+                {mentionCandidates.length > 0 && (
+                  <div className="mb-2 border border-gray-200 rounded-md bg-white shadow-sm max-h-40 overflow-y-auto">
+                    {mentionCandidates.map(m => (
+                      <button
+                        key={m.userId}
+                        type="button"
+                        onClick={() => pickMention(m.user!.name, m.userId)}
+                        className="w-full text-left px-3 py-1.5 text-sm hover:bg-blue-50 flex items-center gap-2"
+                      >
+                        <span className="font-medium">@{m.user!.name}</span>
+                        <span className="text-xs text-gray-400">{m.user?.matricule || ''}</span>
+                      </button>
+                    ))}
                   </div>
                 )}
                 {pendingAttachments.length > 0 && (

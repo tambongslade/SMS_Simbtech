@@ -69,6 +69,23 @@ export interface ChatReaction {
   user?: { id: number; name: string };
 }
 
+export interface ChatMention {
+  id?: number;
+  userId: number;
+  user?: { id: number; name: string; matricule?: string };
+}
+
+// Snapshot of the replied-to message, for WhatsApp-style quote blocks
+export interface ParentMessageSnapshot {
+  id: number;
+  content: string;
+  senderId?: number;
+  sender?: { id: number; name: string };
+  attachmentKind?: ChatAttachmentKind | null;
+  deletedAt: string | null;
+  createdAt?: string;
+}
+
 export interface ChatMessage {
   id: number;
   channelId: number;
@@ -85,6 +102,8 @@ export interface ChatMessage {
   replyCount: number;
   seenByUserIds: number[];
   seenCount: number;
+  parentMessage: ParentMessageSnapshot | null;
+  mentions: ChatMention[];
 }
 
 export interface ChatChannel {
@@ -148,6 +167,27 @@ export const normalizeMessage = (m: any): ChatMessage => ({
   replyCount: m._count?.replies ?? 0,
   seenByUserIds: pick(m, 'seenByUserIds', 'seen_by_user_ids') ?? [],
   seenCount: pick(m, 'seenCount', 'seen_count') ?? 0,
+  parentMessage: (() => {
+    const p = pick(m, 'parentMessage', 'parent_message');
+    if (!p) return null;
+    const firstAttachment = (p.attachments || [])[0];
+    return {
+      id: p.id,
+      content: p.content ?? '',
+      senderId: pick(p, 'senderId', 'sender_id') ?? p.sender?.id,
+      sender: p.sender ? { id: p.sender.id, name: p.sender.name } : undefined,
+      attachmentKind: firstAttachment
+        ? (firstAttachment.kind as ChatAttachmentKind) || inferKind(pick(firstAttachment, 'mimeType', 'mime_type'))
+        : null,
+      deletedAt: pick(p, 'deletedAt', 'deleted_at') ?? null,
+      createdAt: pick(p, 'createdAt', 'created_at'),
+    };
+  })(),
+  mentions: (m.mentions || []).map((mn: any) => ({
+    id: mn.id,
+    userId: pick(mn, 'userId', 'user_id') ?? mn.user?.id,
+    user: mn.user ? { id: mn.user.id, name: mn.user.name, matricule: mn.user.matricule } : undefined,
+  })),
 });
 
 export const normalizeChannel = (c: any): ChatChannel => {
@@ -232,11 +272,12 @@ export const listMessages = async (
 
 export const postMessage = async (
   channelId: number,
-  body: { content?: string; parentMessageId?: number | null; attachments?: ChatAttachment[] }
+  body: { content?: string; parentMessageId?: number | null; attachments?: ChatAttachment[]; mentionUserIds?: number[] }
 ): Promise<ChatMessage> => {
   const res = await apiService.post<{ data: any }>(`/chat/channels/${channelId}/messages`, {
     content: body.content ?? '',
     parentMessageId: body.parentMessageId ?? null,
+    mentionUserIds: body.mentionUserIds && body.mentionUserIds.length > 0 ? body.mentionUserIds : undefined,
     attachments: (body.attachments || []).map(a => ({
       fileUrl: a.fileUrl,
       fileName: a.fileName,
