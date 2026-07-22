@@ -202,8 +202,12 @@ export default function ChatPage() {
   const TYPING_TTL = 7000; // slightly longer than the server's 6s auto-stop
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const messageRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const [highlightId, setHighlightId] = useState<number | null>(null);
   const activeIdRef = useRef<number | null>(null);
   activeIdRef.current = activeId;
+  const messagesRef = useRef<ChatMessage[]>([]);
+  messagesRef.current = messages;
   const threadRootRef = useRef<ChatMessage | null>(null);
   threadRootRef.current = threadRoot;
 
@@ -300,6 +304,35 @@ export default function ChatPage() {
       setHasMore(older.length >= PAGE_SIZE);
     } catch (error: any) {
       toast.error(error.message || 'Failed to load history.');
+    }
+  };
+
+  // Jump to a quoted message: load older pages until it's present, then
+  // scroll it into view with a brief highlight.
+  const jumpToMessage = async (targetId: number) => {
+    if (!activeId) return;
+    let current = messagesRef.current;
+    let more = hasMore;
+    let attempts = 0;
+    try {
+      while (!current.some(m => m.id === targetId) && more && attempts < 10 && current.length > 0) {
+        const older = await listMessages(activeId, { limit: PAGE_SIZE, before: current[0].createdAt });
+        if (older.length === 0) { more = false; break; }
+        current = [...older.filter(o => !current.some(m => m.id === o.id)), ...current];
+        more = older.length >= PAGE_SIZE;
+        attempts += 1;
+      }
+    } catch {
+      // fall through — we scroll if we found it, warn otherwise
+    }
+    setMessages(current);
+    setHasMore(more);
+    if (current.some(m => m.id === targetId)) {
+      setHighlightId(targetId);
+      setTimeout(() => messageRefs.current[targetId]?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+      setTimeout(() => setHighlightId(prev => (prev === targetId ? null : prev)), 2200);
+    } else {
+      toast('Original message could not be found.', { icon: 'ℹ️' });
     }
   };
 
@@ -872,14 +905,23 @@ export default function ChatPage() {
     const mine = m.senderId === myId;
     const isAdmin = activeChannel?.myRole === 'ADMIN';
     return (
-      <div key={m.id} className={`group flex ${mine ? 'justify-end' : 'justify-start'}`}>
-        <div className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 ${mine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}>
+      <div
+        key={m.id}
+        ref={el => { if (!inThread) messageRefs.current[m.id] = el; }}
+        className={`group flex ${mine ? 'justify-end' : 'justify-start'}`}
+      >
+        <div className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 transition-shadow duration-300 ${highlightId === m.id ? 'ring-2 ring-amber-400 shadow-lg' : ''} ${mine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}>
           {!mine && <p className={`text-xs font-semibold ${mine ? 'text-blue-100' : 'text-blue-700'}`}>{m.sender?.name || 'Unknown'}</p>}
           {m.parentMessage && !m.deletedAt && (
-            <div className={`border-l-2 pl-2 pr-1 py-0.5 mb-1 text-xs rounded ${mine ? 'border-blue-300 bg-blue-700/50 text-blue-100' : 'border-blue-400 bg-gray-50 text-gray-500'}`}>
+            <button
+              type="button"
+              onClick={() => jumpToMessage(m.parentMessage!.id)}
+              title="Go to original message"
+              className={`block w-full text-left border-l-2 pl-2 pr-1 py-0.5 mb-1 text-xs rounded cursor-pointer ${mine ? 'border-blue-300 bg-blue-700/50 text-blue-100 hover:bg-blue-700/70' : 'border-blue-400 bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
+            >
               <p className="font-semibold">{m.parentMessage.sender?.name || 'Unknown'}</p>
               <p className={`truncate ${m.parentMessage.deletedAt ? 'italic' : ''}`}>{parentPreview(m.parentMessage)}</p>
-            </div>
+            </button>
           )}
           {m.deletedAt ? (
             <p className={`text-sm italic ${mine ? 'text-blue-200' : 'text-gray-400'}`}>Message deleted</p>
