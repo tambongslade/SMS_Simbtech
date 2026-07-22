@@ -22,6 +22,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
+import { excuseAbsence, markMakeup, MAKEUP_STATUSES, enumLabel, type MakeupStatus } from '@/lib/disciplineExtApi';
 
 // Define types for general attendance management
 interface ClassInfo {
@@ -357,6 +358,15 @@ const AttendanceDashboardPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
 
   // Bulk Lateness State
+  // Excuse / makeup actions on an absence record
+  const [excuseTarget, setExcuseTarget] = useState<StudentAttendanceRecord | null>(null);
+  const [excuseReason, setExcuseReason] = useState('');
+  const [excuseParentId, setExcuseParentId] = useState('');
+  const [makeupTarget, setMakeupTarget] = useState<StudentAttendanceRecord | null>(null);
+  const [makeupStatus, setMakeupStatus] = useState<MakeupStatus>('COMPLETED');
+  const [makeupNotes, setMakeupNotes] = useState('');
+  const [isActionSaving, setIsActionSaving] = useState(false);
+
   const [bulkRecords, setBulkRecords] = useState<BulkLatenessRecord[]>([]);
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [activeBulkSearchIndex, setActiveBulkSearchIndex] = useState<number | null>(null);
@@ -803,6 +813,47 @@ const AttendanceDashboardPage: React.FC = () => {
   };
 
   // Get filtered student attendance
+  const handleExcuseSubmit = async () => {
+    if (!excuseTarget) return;
+    setIsActionSaving(true);
+    try {
+      const result = await excuseAbsence(excuseTarget.id, {
+        excuseReason: excuseReason || undefined,
+        excusedByParentId: excuseParentId ? Number(excuseParentId) : undefined,
+      });
+      const reversed = (result.revertedWarnings || 0) + (result.cancelledSummons || 0);
+      toast.success(
+        reversed > 0
+          ? `Absence excused. ${result.revertedWarnings} warning(s) and ${result.cancelledSummons} summons were reversed.`
+          : 'Absence excused.'
+      );
+      setStudentAttendance(prev => prev.map(r => (r.id === excuseTarget.id ? { ...r, status: 'EXCUSED' } : r)));
+      setExcuseTarget(null);
+      setExcuseReason('');
+      setExcuseParentId('');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to excuse absence.');
+    } finally {
+      setIsActionSaving(false);
+    }
+  };
+
+  const handleMakeupSubmit = async () => {
+    if (!makeupTarget) return;
+    setIsActionSaving(true);
+    try {
+      await markMakeup(makeupTarget.id, { status: makeupStatus, makeupNotes: makeupNotes || undefined });
+      toast.success(`Makeup marked as ${enumLabel(makeupStatus)}.`);
+      setMakeupTarget(null);
+      setMakeupNotes('');
+      setMakeupStatus('COMPLETED');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update makeup status.');
+    } finally {
+      setIsActionSaving(false);
+    }
+  };
+
   const filteredStudentAttendance = studentAttendance.filter(record => {
     if (attendanceFilter === 'all') return true;
     return record.status.toLowerCase() === attendanceFilter;
@@ -1120,6 +1171,22 @@ const AttendanceDashboardPage: React.FC = () => {
                           >
                             <PhoneIcon className="h-4 w-4" />
                           </button>
+                          {record.status !== 'EXCUSED' && (
+                            <button
+                              onClick={() => setExcuseTarget(record)}
+                              className="text-teal-600 hover:text-teal-900"
+                              title="Excuse this absence (reverses related warnings/summons)"
+                            >
+                              Excuse
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setMakeupTarget(record)}
+                            className="text-purple-600 hover:text-purple-900"
+                            title="Record makeup work status"
+                          >
+                            Makeup
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1128,6 +1195,108 @@ const AttendanceDashboardPage: React.FC = () => {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Excuse absence modal */}
+      {excuseTarget && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+            <h3 className="text-lg font-semibold mb-1">Excuse Absence</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {excuseTarget.student.name} — {new Date(excuseTarget.date).toLocaleDateString()}.
+              Excusing reverses any warnings/summons that no longer meet their threshold.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Excuse reason</label>
+                <textarea
+                  value={excuseReason}
+                  onChange={e => setExcuseReason(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="e.g. Sick — hospital note attached"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Excused by parent ID (optional)</label>
+                <input
+                  type="number"
+                  value={excuseParentId}
+                  onChange={e => setExcuseParentId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="Parent user ID, if the excuse came from a parent"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setExcuseTarget(null)}
+                disabled={isActionSaving}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleExcuseSubmit}
+                disabled={isActionSaving}
+                className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 disabled:opacity-50"
+              >
+                {isActionSaving ? 'Saving…' : 'Excuse Absence'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Makeup modal */}
+      {makeupTarget && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+            <h3 className="text-lg font-semibold mb-1">Makeup Work</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {makeupTarget.student.name} — {new Date(makeupTarget.date).toLocaleDateString()}.
+              Makeup is independent of the excuse flag and does not affect warnings or summons.
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select
+                  value={makeupStatus}
+                  onChange={e => setMakeupStatus(e.target.value as MakeupStatus)}
+                  className="w-full rounded-md border-gray-300 border px-3 py-2 text-sm"
+                >
+                  {MAKEUP_STATUSES.map(s => <option key={s} value={s}>{enumLabel(s)}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={makeupNotes}
+                  onChange={e => setMakeupNotes(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                  placeholder="e.g. Attended Saturday recovery class"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-4">
+              <button
+                onClick={() => setMakeupTarget(null)}
+                disabled={isActionSaving}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMakeupSubmit}
+                disabled={isActionSaving}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md text-sm hover:bg-purple-700 disabled:opacity-50"
+              >
+                {isActionSaving ? 'Saving…' : 'Save Makeup Status'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

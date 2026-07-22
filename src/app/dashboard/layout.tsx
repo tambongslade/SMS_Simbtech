@@ -78,6 +78,8 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
@@ -113,6 +115,12 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Discipline Dashboard', href: '/dashboard/discipline-master' },
     {
       icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/discipline-master/roll-call'
+    },
+    {
+      icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/discipline-master/dm-roll-call'
+    },
+    {
+      icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons'
     },
     {
       icon: ClipboardDocumentListIcon, label: 'Attendance & Lateness', href: '/dashboard/discipline-master/attendance'
@@ -238,6 +246,8 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
+        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
@@ -278,6 +288,8 @@ const menuItems: MenuItemsStructure = {
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/dean-of-discipline' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
+    { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/dean-of-discipline/dm-roll-call' },
+    { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
@@ -288,6 +300,8 @@ const menuItems: MenuItemsStructure = {
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Overview', href: '/dashboard/senior-discipline-master' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/senior-discipline-master/roll-call' },
+    { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/senior-discipline-master/dm-roll-call' },
+    { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/senior-discipline-master/warnings-summons' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
