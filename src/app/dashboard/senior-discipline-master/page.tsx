@@ -63,6 +63,13 @@ const quickActions: QuickAction[] = [
     color: 'indigo',
   },
   {
+    label: 'Teacher Roll Calls',
+    description: 'Review per-period roll calls',
+    href: '/dashboard/senior-discipline-master/teacher-roll-calls',
+    icon: ClipboardDocumentListIcon,
+    color: 'purple',
+  },
+  {
     label: 'Chat',
     description: 'Message staff in real time',
     href: '/dashboard/senior-discipline-master/chat',

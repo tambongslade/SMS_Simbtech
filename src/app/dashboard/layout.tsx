@@ -80,6 +80,7 @@ const menuItems: MenuItemsStructure = {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
         { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
@@ -213,6 +214,7 @@ const menuItems: MenuItemsStructure = {
     { icon: BuildingLibraryIcon, label: 'Exams', href: '/dashboard/teacher/exams' },
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/teacher/timetable' },
     { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/teacher/roll-call' },
+    { icon: ClockIcon, label: 'Period Roll Call', href: '/dashboard/teacher/period-roll-call' },
     { icon: BookOpenIcon, label: 'Logbook', href: '/dashboard/teacher/logbook' },
           ],
   'vice-principal': [
@@ -233,6 +235,7 @@ const menuItems: MenuItemsStructure = {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
         { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
@@ -271,6 +274,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
@@ -284,6 +288,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/senior-discipline-master/disciplinary-actions' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/senior-discipline-master/students' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/senior-discipline-master/dm-assignments' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/senior-discipline-master/teacher-roll-calls' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
           ],
   'fee-auditor': [
