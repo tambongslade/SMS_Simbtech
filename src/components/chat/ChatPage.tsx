@@ -829,15 +829,16 @@ export default function ChatPage() {
     return `${names.join(', ')} typing…`;
   }, [typingUsers, activeDetail]);
 
-  // Presence line for the header: DM peer's status, or online count for groups
+  // Presence line for the header: DM peer's status ('online' / 'last seen …'),
+  // or online count for groups
   const headerPresence = useMemo(() => {
     const members = activeDetail?.members || [];
     if (activeDetail?.type === 'DIRECT') {
       const other = members.find(m => m.userId !== myId);
       if (!other) return '';
-      const p = presenceMap[other.userId];
+      const p = presenceMap[other.userId] ?? other.presence;
       if (!p) return '';
-      return p.online ? 'Online' : lastSeenLabel(p.lastSeenAt);
+      return p.online ? 'online' : lastSeenLabel(p.lastSeenAt);
     }
     const online = members.filter(m => m.userId !== myId && presenceMap[m.userId]?.online).length;
     return online > 0 ? `${online} online` : '';
@@ -1117,14 +1118,24 @@ export default function ChatPage() {
               <button onClick={openInfo} className="min-w-0 text-left flex-1">
                 <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
                   {dmTitle(activeChannel)}
-                  {activeChannel.type === 'DIRECT' && headerPresence === 'Online' && <PresenceDot online />}
+                  {activeChannel.type === 'DIRECT' && (
+                    <PresenceDot online={headerPresence === 'online'} />
+                  )}
                 </p>
-                <p className="text-xs text-gray-500">
-                  {activeChannel.isSystem ? 'System channel' : activeChannel.type === 'DIRECT' ? 'Direct message' : 'Custom channel'}
-                  {activeChannel.memberCount ? ` · ${activeChannel.memberCount} members` : ''}
-                  {headerPresence && <span className={headerPresence === 'Online' ? 'text-green-600' : ''}> · {headerPresence}</span>}
-                  {typingNames && <span className="text-blue-600"> · {typingNames}</span>}
-                </p>
+                {/* WhatsApp-style status line: typing… beats presence */}
+                {typingNames ? (
+                  <p className="text-xs text-blue-600 truncate">{typingNames}</p>
+                ) : activeChannel.type === 'DIRECT' ? (
+                  <p className={`text-xs truncate ${headerPresence === 'online' ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
+                    {headerPresence || 'Direct message'}
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 truncate">
+                    {activeChannel.isSystem ? 'System channel' : 'Custom channel'}
+                    {activeChannel.memberCount ? ` · ${activeChannel.memberCount} members` : ''}
+                    {headerPresence ? ` · ${headerPresence}` : ''}
+                  </p>
+                )}
               </button>
             </div>
 
