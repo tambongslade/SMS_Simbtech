@@ -26,7 +26,11 @@ export interface ChatMember {
   userId: number;
   role: MemberRole;
   user?: ChatUserLite;
+  lastReadAt?: string | null;
+  presence?: PresenceInfo;
 }
+
+export type ChatAttachmentKind = 'IMAGE' | 'AUDIO' | 'VIDEO' | 'FILE';
 
 export interface ChatAttachment {
   id?: number;
@@ -34,7 +38,29 @@ export interface ChatAttachment {
   fileName: string;
   mimeType?: string | null;
   sizeBytes?: number | null;
+  kind?: ChatAttachmentKind;
+  durationSecs?: number | null;
+  width?: number | null;
+  height?: number | null;
 }
+
+export interface PresenceInfo {
+  online: boolean;
+  lastSeenAt: string | null;
+}
+
+export const normalizePresence = (p: any): PresenceInfo => ({
+  online: !!p?.online,
+  lastSeenAt: p?.last_seen_at ?? p?.lastSeenAt ?? null,
+});
+
+// Infer kind client-side as a fallback (server derives it from mime-type too)
+export const inferKind = (mimeType?: string | null): ChatAttachmentKind => {
+  if (mimeType?.startsWith('image/')) return 'IMAGE';
+  if (mimeType?.startsWith('audio/')) return 'AUDIO';
+  if (mimeType?.startsWith('video/')) return 'VIDEO';
+  return 'FILE';
+};
 
 export interface ChatReaction {
   id?: number;
@@ -57,6 +83,8 @@ export interface ChatMessage {
   attachments: ChatAttachment[];
   reactions: ChatReaction[];
   replyCount: number;
+  seenByUserIds: number[];
+  seenCount: number;
 }
 
 export interface ChatChannel {
@@ -97,13 +125,20 @@ export const normalizeMessage = (m: any): ChatMessage => ({
   updatedAt: pick(m, 'updatedAt', 'updated_at'),
   sender: normalizeUser(m.sender),
   senderId: pick(m, 'senderId', 'sender_id') ?? m.sender?.id,
-  attachments: (m.attachments || []).map((a: any) => ({
-    id: a.id,
-    fileUrl: pick(a, 'fileUrl', 'file_url'),
-    fileName: pick(a, 'fileName', 'file_name'),
-    mimeType: pick(a, 'mimeType', 'mime_type'),
-    sizeBytes: pick(a, 'sizeBytes', 'size_bytes'),
-  })),
+  attachments: (m.attachments || []).map((a: any) => {
+    const mimeType = pick(a, 'mimeType', 'mime_type');
+    return {
+      id: a.id,
+      fileUrl: pick(a, 'fileUrl', 'file_url'),
+      fileName: pick(a, 'fileName', 'file_name'),
+      mimeType,
+      sizeBytes: pick(a, 'sizeBytes', 'size_bytes'),
+      kind: (a.kind as ChatAttachmentKind) || inferKind(mimeType),
+      durationSecs: pick(a, 'durationSecs', 'duration_secs'),
+      width: a.width ?? null,
+      height: a.height ?? null,
+    };
+  }),
   reactions: (m.reactions || []).map((r: any) => ({
     id: r.id,
     emoji: r.emoji,
@@ -111,6 +146,8 @@ export const normalizeMessage = (m: any): ChatMessage => ({
     user: r.user ? { id: r.user.id, name: r.user.name } : undefined,
   })),
   replyCount: m._count?.replies ?? 0,
+  seenByUserIds: pick(m, 'seenByUserIds', 'seen_by_user_ids') ?? [],
+  seenCount: pick(m, 'seenCount', 'seen_count') ?? 0,
 });
 
 export const normalizeChannel = (c: any): ChatChannel => {
@@ -142,6 +179,8 @@ export const normalizeChannel = (c: any): ChatChannel => {
       userId: pick(mm, 'userId', 'user_id'),
       role: mm.role,
       user: normalizeUser(mm.user),
+      lastReadAt: pick(mm, 'lastReadAt', 'last_read_at') ?? null,
+      presence: mm.presence ? normalizePresence(mm.presence) : undefined,
     })),
     updatedAt: pick(c, 'updatedAt', 'updated_at'),
   };
@@ -203,6 +242,10 @@ export const postMessage = async (
       fileName: a.fileName,
       mimeType: a.mimeType ?? undefined,
       sizeBytes: a.sizeBytes ?? undefined,
+      kind: a.kind ?? undefined,
+      durationSecs: a.durationSecs ?? undefined,
+      width: a.width ?? undefined,
+      height: a.height ?? undefined,
     })),
   });
   return normalizeMessage(res.data);
@@ -271,11 +314,76 @@ export const contactStaff = async (userId: number): Promise<ChatChannel> => {
   return normalizeChannel(res.data);
 };
 
-// --- User search (channel creation / DM picker) ---
+// --- User search (channel creation member picker) ---
 
 export const searchUsers = async (search: string, limit = 20): Promise<ChatUserLite[]> => {
   const qs = new URLSearchParams({ limit: String(limit) });
   if (search) qs.append('search', search);
   const res = await apiService.get<{ data: any[] }>(`/users?${qs.toString()}`);
   return (res.data || []).map((u: any) => normalizeUser(u)!);
+};
+
+// --- Universal contact search (role-aware, includes presence + dm reuse) ---
+
+export interface ChatContact extends ChatUserLite {
+  email?: string;
+  phone?: string;
+  lastSeenAt?: string | null;
+  dmChannelId: number | null;
+  presence: PresenceInfo;
+}
+
+export const searchContacts = async (search: string, limit = 20): Promise<ChatContact[]> => {
+  const qs = new URLSearchParams({ limit: String(limit) });
+  if (search) qs.append('search', search);
+  const res = await apiService.get<{ data: any[] }>(`/chat/contacts?${qs.toString()}`);
+  return (res.data || []).map((c: any) => ({
+    ...normalizeUser(c)!,
+    email: c.email,
+    phone: c.phone,
+    lastSeenAt: pick(c, 'lastSeenAt', 'last_seen_at') ?? null,
+    dmChannelId: pick(c, 'dmChannelId', 'dm_channel_id') ?? null,
+    presence: normalizePresence(c.presence),
+  }));
+};
+
+// --- Presence batch lookup ---
+
+export const getPresence = async (userIds: number[]): Promise<Record<number, PresenceInfo>> => {
+  if (userIds.length === 0) return {};
+  const res = await apiService.get<{ data: Record<string, any> }>(`/chat/presence?userIds=${userIds.join(',')}`);
+  const out: Record<number, PresenceInfo> = {};
+  Object.entries(res.data || {}).forEach(([id, p]) => { out[Number(id)] = normalizePresence(p); });
+  return out;
+};
+
+// --- Attachment upload (multipart; apiService is JSON-only so use fetch) ---
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
+
+export const uploadChatFile = async (file: File | Blob, fileName?: string): Promise<ChatAttachment> => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const form = new FormData();
+  if (file instanceof File) form.append('file', file);
+  else form.append('file', file, fileName || `file-${Date.now()}`);
+
+  const res = await fetch(`${API_BASE_URL}/chat/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+  if (res.status === 413) throw new Error('File is too large (max 25 MB).');
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.success === false) {
+    throw new Error(json.error || `Upload failed (${res.status})`);
+  }
+  const d = json.data || {};
+  const mimeType = d.mimeType ?? d.mime_type;
+  return {
+    fileUrl: d.fileUrl ?? d.file_url,
+    fileName: d.fileName ?? d.file_name ?? (file instanceof File ? file.name : fileName || 'file'),
+    mimeType,
+    sizeBytes: d.sizeBytes ?? d.size_bytes,
+    kind: (d.kind as ChatAttachmentKind) || inferKind(mimeType),
+  };
 };

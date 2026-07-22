@@ -13,6 +13,10 @@ import {
   PencilSquareIcon,
   TrashIcon,
   ArrowUpIcon,
+  PaperClipIcon,
+  MicrophoneIcon,
+  StopIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { getChatSocket } from '@/lib/chatSocket';
@@ -20,8 +24,10 @@ import {
   type ChatChannel,
   type ChatMessage,
   type ChatUserLite,
+  type ChatContact,
+  type ChatAttachment,
   type ParentContacts,
-  PARENT_CONTACTABLE_ROLES,
+  type PresenceInfo,
   listChannels,
   createChannel,
   getChannel,
@@ -38,6 +44,9 @@ import {
   listParentContacts,
   contactStaff,
   searchUsers,
+  searchContacts,
+  getPresence,
+  uploadChatFile,
   normalizeMessage,
   normalizeChannel,
 } from '@/lib/chatApi';
@@ -53,6 +62,26 @@ const timeLabel = (iso?: string | null) => {
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+const lastSeenLabel = (iso?: string | null) => {
+  if (!iso) return 'Offline';
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (mins < 60) return `last seen ${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `last seen ${hours}h ago`;
+  return `last seen ${Math.round(hours / 24)}d ago`;
+};
+
+const formatDuration = (secs?: number | null) => {
+  if (!secs) return '';
+  const m = Math.floor(secs / 60);
+  const s = Math.round(secs % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+const PresenceDot = ({ online }: { online?: boolean }) => (
+  <span className={`inline-block w-2 h-2 rounded-full ${online ? 'bg-green-500' : 'bg-gray-300'}`} />
+);
 
 // Shared user-picker (search + selected chips)
 function UserPicker({
@@ -138,6 +167,20 @@ export default function ChatPage() {
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [editing, setEditing] = useState<ChatMessage | null>(null);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Voice recording
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordChunks = useRef<Blob[]>([]);
+  const recordStart = useRef(0);
+
+  // Presence / receipts
+  const [activeDetail, setActiveDetail] = useState<ChatChannel | null>(null);
+  const [presenceMap, setPresenceMap] = useState<Record<number, PresenceInfo>>({});
+  const [deliveredMap, setDeliveredMap] = useState<Record<number, number[]>>({});
 
   // Modals / panels
   const [showNewChannel, setShowNewChannel] = useState(false);
@@ -147,9 +190,10 @@ export default function ChatPage() {
   const [showContacts, setShowContacts] = useState(false);
   const [contacts, setContacts] = useState<ParentContacts | null>(null);
 
-  // Typing indicator
-  const [typingUsers, setTypingUsers] = useState<Record<number, number>>({}); // userId -> expiry ts
+  // Typing indicator: userId -> { name, expiry }
+  const [typingUsers, setTypingUsers] = useState<Record<number, { name?: string; expiry: number }>>({});
   const lastTypingEmit = useRef(0);
+  const TYPING_TTL = 7000; // slightly longer than the server's 6s auto-stop
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const activeIdRef = useRef<number | null>(null);
@@ -182,12 +226,17 @@ export default function ChatPage() {
     setThreadRoot(null);
     setThreadMessages([]);
     setEditing(null);
+    setPendingAttachments([]);
+    setActiveDetail(null);
     setIsLoadingMessages(true);
     try {
       const msgs = await listMessages(channelId, { limit: PAGE_SIZE });
       setMessages(msgs);
       setHasMore(msgs.length >= PAGE_SIZE);
-      markChannelRead(channelId).catch(() => {});
+      // Persist read state (socket variant also broadcasts message.read)
+      const socket = getChatSocket();
+      if (socket?.connected) socket.emit('message.read', { channelId });
+      else markChannelRead(channelId).catch(() => {});
       setChannels(prev => prev.map(c => (c.id === channelId ? { ...c, unreadCount: 0 } : c)));
       scrollToBottom();
     } catch (error: any) {
@@ -195,6 +244,22 @@ export default function ChatPage() {
       setMessages([]);
     } finally {
       setIsLoadingMessages(false);
+    }
+    // Enrich with members + presence (GET /chat/channels/:id includes both)
+    try {
+      const detail = await getChannel(channelId);
+      setActiveDetail(detail);
+      // Seed presence from the enriched member payload, then batch-refresh
+      const seeded: Record<number, PresenceInfo> = {};
+      (detail.members || []).forEach(m => { if (m.presence) seeded[m.userId] = m.presence; });
+      if (Object.keys(seeded).length > 0) setPresenceMap(prev => ({ ...prev, ...seeded }));
+      const ids = (detail.members || []).map(m => m.userId).filter(id => id !== undefined);
+      if (ids.length > 0) {
+        const presence = await getPresence(ids);
+        setPresenceMap(prev => ({ ...prev, ...presence }));
+      }
+    } catch {
+      // presence/members are progressive enhancement — chat still works
     }
   }, []);
 
@@ -230,6 +295,8 @@ export default function ChatPage() {
     const onMessageNew = (raw: any) => {
       const msg = normalizeMessage(raw);
       const visible = msg.channelId === activeIdRef.current;
+      // Ack delivery back to the sender
+      if (msg.senderId !== myId) socket.emit('message.delivered', { messageId: msg.id });
       if (visible) {
         if (msg.parentMessageId) {
           // Reply: bump the parent's counter; append to thread if it's open
@@ -241,7 +308,9 @@ export default function ChatPage() {
           setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
           scrollToBottom();
         }
-        if (msg.senderId !== myId) markChannelRead(msg.channelId, msg.id).catch(() => {});
+        if (msg.senderId !== myId) {
+          socket.emit('message.read', { channelId: msg.channelId, upToMessageId: msg.id });
+        }
       } else if (msg.senderId !== myId && !msg.parentMessageId) {
         setChannels(prev => prev.map(c => (c.id === msg.channelId ? { ...c, unreadCount: c.unreadCount + 1 } : c)));
       }
@@ -296,11 +365,65 @@ export default function ChatPage() {
       setChannels(prev => (prev.some(c => c.id === ch.id) ? prev : [ch, ...prev]));
     };
 
-    const onTyping = (p: any) => {
+    const onTypingStart = (p: any) => {
       const channelId = p?.channelId ?? p?.channel_id;
       const userId = p?.userId ?? p?.user_id;
       if (channelId !== activeIdRef.current || userId === myId) return;
-      setTypingUsers(prev => ({ ...prev, [userId]: Date.now() + 3000 }));
+      setTypingUsers(prev => ({ ...prev, [userId]: { name: p?.userName, expiry: Date.now() + TYPING_TTL } }));
+    };
+
+    const onTypingStop = (p: any) => {
+      const channelId = p?.channelId ?? p?.channel_id;
+      const userId = p?.userId ?? p?.user_id;
+      if (channelId !== activeIdRef.current) return;
+      setTypingUsers(prev => {
+        if (!(userId in prev)) return prev;
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    };
+
+    const onMessageDelivered = (p: any) => {
+      const messageId = p?.messageId ?? p?.message_id;
+      const userId = p?.userId ?? p?.user_id;
+      if (!messageId || !userId) return;
+      setDeliveredMap(prev => {
+        const existing = prev[messageId] || [];
+        return existing.includes(userId) ? prev : { ...prev, [messageId]: [...existing, userId] };
+      });
+    };
+
+    const onMessageRead = (p: any) => {
+      const channelId = p?.channelId ?? p?.channel_id;
+      const userId = p?.userId ?? p?.user_id;
+      const lastReadAt = p?.lastReadAt ?? p?.last_read_at;
+      if (!channelId || !userId || userId === myId) return;
+      // Recompute seen state for my messages in the open channel
+      if (channelId === activeIdRef.current && lastReadAt) {
+        const apply = (m: ChatMessage) =>
+          m.senderId === myId && m.createdAt <= lastReadAt && !m.seenByUserIds.includes(userId)
+            ? { ...m, seenByUserIds: [...m.seenByUserIds, userId], seenCount: m.seenCount + 1 }
+            : m;
+        setMessages(prev => prev.map(apply));
+        setThreadMessages(prev => prev.map(apply));
+      }
+      setActiveDetail(prev =>
+        prev && prev.id === channelId
+          ? { ...prev, members: (prev.members || []).map(m => (m.userId === userId ? { ...m } : m)) }
+          : prev
+      );
+    };
+
+    const onPresenceOnline = (p: any) => {
+      const userId = p?.userId ?? p?.user_id;
+      if (userId) setPresenceMap(prev => ({ ...prev, [userId]: { online: true, lastSeenAt: null } }));
+    };
+
+    const onPresenceOffline = (p: any) => {
+      const userId = p?.userId ?? p?.user_id;
+      const lastSeenAt = p?.lastSeenAt ?? p?.last_seen_at ?? new Date().toISOString();
+      if (userId) setPresenceMap(prev => ({ ...prev, [userId]: { online: false, lastSeenAt } }));
     };
 
     const onReconnect = () => {
@@ -318,7 +441,13 @@ export default function ChatPage() {
     socket.on('reaction.added', onReactionAdded);
     socket.on('reaction.removed', onReactionRemoved);
     socket.on('channel.created', onChannelCreated);
-    socket.on('typing', onTyping);
+    socket.on('typing', onTypingStart); // legacy alias
+    socket.on('typing.start', onTypingStart);
+    socket.on('typing.stop', onTypingStop);
+    socket.on('message.delivered', onMessageDelivered);
+    socket.on('message.read', onMessageRead);
+    socket.on('presence.online', onPresenceOnline);
+    socket.on('presence.offline', onPresenceOffline);
     socket.on('connect', onReconnect);
 
     return () => {
@@ -328,7 +457,13 @@ export default function ChatPage() {
       socket.off('reaction.added', onReactionAdded);
       socket.off('reaction.removed', onReactionRemoved);
       socket.off('channel.created', onChannelCreated);
-      socket.off('typing', onTyping);
+      socket.off('typing', onTypingStart);
+      socket.off('typing.start', onTypingStart);
+      socket.off('typing.stop', onTypingStop);
+      socket.off('message.delivered', onMessageDelivered);
+      socket.off('message.read', onMessageRead);
+      socket.off('presence.online', onPresenceOnline);
+      socket.off('presence.offline', onPresenceOffline);
       socket.off('connect', onReconnect);
     };
   }, [myId, refreshChannels]);
@@ -338,8 +473,8 @@ export default function ChatPage() {
     const t = setInterval(() => {
       setTypingUsers(prev => {
         const now = Date.now();
-        const next: Record<number, number> = {};
-        Object.entries(prev).forEach(([k, v]) => { if (v > now) next[Number(k)] = v; });
+        const next: typeof prev = {};
+        Object.entries(prev).forEach(([k, v]) => { if (v.expiry > now) next[Number(k)] = v; });
         return Object.keys(next).length === Object.keys(prev).length ? prev : next;
       });
     }, 1000);
@@ -351,8 +486,9 @@ export default function ChatPage() {
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const content = draft.trim();
-    if (!content || !activeId) return;
+    if ((!content && pendingAttachments.length === 0) || !activeId) return;
     setIsSending(true);
+    getChatSocket()?.emit('typing.stop', { channelId: activeId });
     try {
       if (editing) {
         const updated = await editMessage(editing.id, content);
@@ -360,15 +496,16 @@ export default function ChatPage() {
         setThreadMessages(prev => prev.map(m => (m.id === updated.id ? updated : m)));
         setEditing(null);
       } else if (threadRoot) {
-        const msg = await postMessage(activeId, { content, parentMessageId: threadRoot.id });
+        const msg = await postMessage(activeId, { content, parentMessageId: threadRoot.id, attachments: pendingAttachments });
         setThreadMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
         setMessages(prev => prev.map(m => (m.id === threadRoot.id ? { ...m, replyCount: m.replyCount + 1 } : m)));
       } else {
-        const msg = await postMessage(activeId, { content });
+        const msg = await postMessage(activeId, { content, attachments: pendingAttachments });
         setMessages(prev => (prev.some(m => m.id === msg.id) ? prev : [...prev, msg]));
         scrollToBottom();
       }
       setDraft('');
+      setPendingAttachments([]);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send message.');
     } finally {
@@ -378,12 +515,92 @@ export default function ChatPage() {
 
   const handleDraftChange = (value: string) => {
     setDraft(value);
-    // Throttled typing emit (~1s)
-    const now = Date.now();
-    if (activeId && now - lastTypingEmit.current > 1000) {
-      lastTypingEmit.current = now;
-      getChatSocket()?.emit('typing', { channelId: activeId });
+    const socket = getChatSocket();
+    if (!activeId || !socket) return;
+    if (value.length === 0) {
+      socket.emit('typing.stop', { channelId: activeId });
+      return;
     }
+    // Throttled typing.start (~1/sec); server auto-stops after 6s of silence
+    const now = Date.now();
+    if (now - lastTypingEmit.current > 1000) {
+      lastTypingEmit.current = now;
+      socket.emit('typing.start', { channelId: activeId });
+    }
+  };
+
+  const handleComposerBlur = () => {
+    if (activeId) getChatSocket()?.emit('typing.stop', { channelId: activeId });
+  };
+
+  // Measure image dimensions so the server can render aspect-correct thumbnails
+  const imageDims = (file: File): Promise<{ width?: number; height?: number }> =>
+    new Promise(resolve => {
+      if (!file.type.startsWith('image/')) return resolve({});
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
+      img.onerror = () => { resolve({}); URL.revokeObjectURL(url); };
+      img.src = url;
+    });
+
+  const handleFilesPicked = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setIsUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const dims = await imageDims(file);
+        const uploaded = await uploadChatFile(file);
+        setPendingAttachments(prev => [...prev, { ...uploaded, ...dims }]);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Upload failed.');
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast.error('Voice recording is not supported in this browser.');
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream, MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : undefined);
+      recordChunks.current = [];
+      rec.ondataavailable = e => { if (e.data.size > 0) recordChunks.current.push(e.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const durationSecs = Math.round((Date.now() - recordStart.current) / 1000);
+        const blob = new Blob(recordChunks.current, { type: rec.mimeType || 'audio/webm' });
+        if (blob.size === 0) return;
+        setIsUploading(true);
+        try {
+          const uploaded = await uploadChatFile(blob, `voice-${Date.now()}.webm`);
+          setPendingAttachments(prev => [...prev, { ...uploaded, kind: 'AUDIO', durationSecs }]);
+        } catch (error: any) {
+          toast.error(error.message || 'Failed to upload voice note.');
+        } finally {
+          setIsUploading(false);
+        }
+      };
+      recorderRef.current = rec;
+      recordStart.current = Date.now();
+      rec.start();
+      setIsRecording(true);
+    } catch {
+      toast.error('Microphone access denied.');
+    }
+  };
+
+  const stopRecording = () => {
+    recorderRef.current?.stop();
+    recorderRef.current = null;
+    setIsRecording(false);
   };
 
   const handleDelete = async (msg: ChatMessage) => {
@@ -456,10 +673,19 @@ export default function ChatPage() {
     }
   };
 
-  const startDmWith = async (u: ChatUserLite, viaParentEndpoint: boolean) => {
+  const startDmWith = async (u: ChatUserLite & { dmChannelId?: number | null }, viaParentEndpoint: boolean) => {
     try {
+      // Reuse the existing 1:1 channel when the contact search already found one
+      if (u.dmChannelId && channels.some(c => c.id === u.dmChannelId)) {
+        setShowContacts(false);
+        setShowNewDm(false);
+        openChannel(u.dmChannelId);
+        return;
+      }
       const ch = viaParentEndpoint ? await contactStaff(u.id) : await openDm([u.id]);
       setChannels(prev => (prev.some(c => c.id === ch.id) ? prev : [ch, ...prev]));
+      // This socket session predates the channel — join its room explicitly
+      getChatSocket()?.emit('subscribe', { channelId: ch.id });
       setShowContacts(false);
       setShowNewDm(false);
       openChannel(ch.id);
@@ -476,16 +702,51 @@ export default function ChatPage() {
   }), [channels]);
 
   const typingNames = useMemo(() => {
-    const ids = Object.keys(typingUsers).map(Number);
-    if (ids.length === 0) return '';
-    const names = ids.map(id => activeChannel?.members?.find(m => m.userId === id)?.user?.name || 'Someone');
+    const entries = Object.entries(typingUsers);
+    if (entries.length === 0) return '';
+    const names = entries.map(([id, v]) =>
+      v.name || activeDetail?.members?.find(m => m.userId === Number(id))?.user?.name || 'Someone');
     return `${names.join(', ')} typing…`;
-  }, [typingUsers, activeChannel]);
+  }, [typingUsers, activeDetail]);
+
+  // Presence line for the header: DM peer's status, or online count for groups
+  const headerPresence = useMemo(() => {
+    const members = activeDetail?.members || [];
+    if (activeDetail?.type === 'DIRECT') {
+      const other = members.find(m => m.userId !== myId);
+      if (!other) return '';
+      const p = presenceMap[other.userId];
+      if (!p) return '';
+      return p.online ? 'Online' : lastSeenLabel(p.lastSeenAt);
+    }
+    const online = members.filter(m => m.userId !== myId && presenceMap[m.userId]?.online).length;
+    return online > 0 ? `${online} online` : '';
+  }, [activeDetail, presenceMap, myId]);
 
   const dmTitle = (c: ChatChannel) => {
     if (c.type !== 'DIRECT') return c.name;
-    const others = (c.members || []).filter(m => m.userId !== myId).map(m => m.user?.name).filter(Boolean);
+    const source = c.id === activeDetail?.id ? activeDetail : c;
+    const others = (source.members || []).filter(m => m.userId !== myId).map(m => m.user?.name).filter(Boolean);
     return others.length > 0 ? others.join(', ') : c.name;
+  };
+
+  // Sender-side delivery ladder: Sent (✓) → Delivered (✓✓) → Read (blue ✓✓)
+  const renderDeliveryStatus = (m: ChatMessage) => {
+    if (m.senderId !== myId || m.deletedAt) return null;
+    const read = m.seenCount > 0 || m.seenByUserIds.length > 0;
+    const delivered = (deliveredMap[m.id] || []).length > 0;
+    const memberTotal = Math.max((activeDetail?.members?.length || 2) - 1, 1);
+    const title = read
+      ? `Read by ${Math.max(m.seenCount, m.seenByUserIds.length)}`
+      : delivered
+        ? `Delivered to ${(deliveredMap[m.id] || []).length} of ${memberTotal}`
+        : 'Sent';
+    return (
+      <span className="inline-flex items-center" title={title}>
+        <CheckIcon className={`w-3 h-3 ${read ? 'text-sky-300' : 'text-blue-200'}`} />
+        {(read || delivered) && <CheckIcon className={`w-3 h-3 -ml-1.5 ${read ? 'text-sky-300' : 'text-blue-200'}`} />}
+      </span>
+    );
   };
 
   const renderChannelButton = (c: ChatChannel) => (
@@ -525,22 +786,63 @@ export default function ChatPage() {
           ) : (
             <>
               {m.content && <p className="text-sm whitespace-pre-wrap break-words">{m.content}</p>}
-              {m.attachments.map((a, i) => (
-                <a
-                  key={a.id ?? i}
-                  href={a.fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={`block text-xs underline mt-1 ${mine ? 'text-blue-100' : 'text-blue-600'}`}
-                >
-                  📎 {a.fileName}
-                </a>
-              ))}
+              {m.attachments.map((a, i) => {
+                const key = a.id ?? i;
+                if (a.kind === 'IMAGE') {
+                  return (
+                    <a key={key} href={a.fileUrl} target="_blank" rel="noreferrer" className="block mt-1">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={a.fileUrl}
+                        alt={a.fileName}
+                        className="rounded-md max-h-64 max-w-full object-contain"
+                        style={a.width && a.height ? { aspectRatio: `${a.width} / ${a.height}` } : undefined}
+                      />
+                    </a>
+                  );
+                }
+                if (a.kind === 'AUDIO') {
+                  return (
+                    <div key={key} className="mt-1">
+                      <audio controls src={a.fileUrl} className="max-w-full h-10" />
+                      {a.durationSecs ? (
+                        <p className={`text-[10px] ${mine ? 'text-blue-200' : 'text-gray-400'}`}>
+                          Voice note · {formatDuration(a.durationSecs)}
+                        </p>
+                      ) : null}
+                    </div>
+                  );
+                }
+                if (a.kind === 'VIDEO') {
+                  return (
+                    <video
+                      key={key}
+                      controls
+                      src={a.fileUrl}
+                      className="rounded-md max-h-64 max-w-full mt-1"
+                      style={a.width && a.height ? { aspectRatio: `${a.width} / ${a.height}` } : undefined}
+                    />
+                  );
+                }
+                return (
+                  <a
+                    key={key}
+                    href={a.fileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`block text-xs underline mt-1 ${mine ? 'text-blue-100' : 'text-blue-600'}`}
+                  >
+                    📎 {a.fileName}
+                    {a.sizeBytes ? ` (${Math.round(a.sizeBytes / 1024)} KB)` : ''}
+                  </a>
+                );
+              })}
             </>
           )}
           <div className={`flex items-center gap-2 mt-1 text-[10px] ${mine ? 'text-blue-200' : 'text-gray-400'}`}>
             <span>{timeLabel(m.createdAt)}</span>
             {m.editedAt && !m.deletedAt && <span>(edited)</span>}
+            {renderDeliveryStatus(m)}
             {!inThread && m.replyCount > 0 && (
               <button onClick={() => openThread(m)} className="underline font-medium">
                 {m.replyCount} repl{m.replyCount === 1 ? 'y' : 'ies'}
@@ -662,10 +964,14 @@ export default function ChatPage() {
                 <ArrowLeftIcon className="w-5 h-5" />
               </button>
               <button onClick={openInfo} className="min-w-0 text-left flex-1">
-                <p className="font-semibold text-gray-900 truncate">{dmTitle(activeChannel)}</p>
+                <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
+                  {dmTitle(activeChannel)}
+                  {activeChannel.type === 'DIRECT' && headerPresence === 'Online' && <PresenceDot online />}
+                </p>
                 <p className="text-xs text-gray-500">
                   {activeChannel.isSystem ? 'System channel' : activeChannel.type === 'DIRECT' ? 'Direct message' : 'Custom channel'}
                   {activeChannel.memberCount ? ` · ${activeChannel.memberCount} members` : ''}
+                  {headerPresence && <span className={headerPresence === 'Online' ? 'text-green-600' : ''}> · {headerPresence}</span>}
                   {typingNames && <span className="text-blue-600"> · {typingNames}</span>}
                 </p>
               </button>
@@ -697,17 +1003,63 @@ export default function ChatPage() {
                     <button type="button" onClick={() => { setEditing(null); setDraft(''); }}><XMarkIcon className="w-4 h-4" /></button>
                   </div>
                 )}
-                <div className="flex gap-2">
+                {pendingAttachments.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {pendingAttachments.map((a, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                        {a.kind === 'IMAGE' ? '🖼️' : a.kind === 'AUDIO' ? '🎤' : a.kind === 'VIDEO' ? '🎬' : '📎'} {a.fileName}
+                        {a.durationSecs ? ` (${formatDuration(a.durationSecs)})` : ''}
+                        <button type="button" onClick={() => setPendingAttachments(prev => prev.filter((_, j) => j !== i))}>
+                          <XMarkIcon className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {isUploading && <p className="text-xs text-gray-400 mb-1">Uploading…</p>}
+                {isRecording && <p className="text-xs text-red-500 mb-1 animate-pulse">● Recording voice note… tap the stop button to attach.</p>}
+                <div className="flex gap-2 items-center">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv"
+                    onChange={e => handleFilesPicked(e.target.files)}
+                  />
+                  {!editing && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-50"
+                        title="Attach file (max 25 MB)"
+                      >
+                        <PaperClipIcon className="w-5 h-5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={isRecording ? stopRecording : startRecording}
+                        disabled={isUploading}
+                        className={`p-2 rounded-full disabled:opacity-50 ${isRecording ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
+                        title={isRecording ? 'Stop recording' : 'Record voice note'}
+                      >
+                        {isRecording ? <StopIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
+                      </button>
+                    </>
+                  )}
                   <input
                     type="text"
                     value={draft}
                     onChange={e => handleDraftChange(e.target.value)}
+                    onBlur={handleComposerBlur}
                     placeholder={threadRoot ? 'Reply in thread…' : 'Type a message…'}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     type="submit"
-                    disabled={isSending || !draft.trim()}
+                    disabled={isSending || isUploading || (!draft.trim() && pendingAttachments.length === 0)}
                     className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50"
                   >
                     <PaperAirplaneIcon className="w-5 h-5" />
@@ -843,15 +1195,63 @@ export default function ChatPage() {
   );
 }
 
-function DmUserSearch({ onPick }: { onPick: (u: ChatUserLite) => void }) {
-  const [selected, setSelected] = useState<ChatUserLite[]>([]);
+// Universal contact search (GET /chat/contacts): presence-aware, role-filtered
+// server-side, and returns dm_channel_id so existing DMs are reused.
+function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
+  const [term, setTerm] = useState('');
+  const [results, setResults] = useState<ChatContact[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        // Empty search returns the first 20 alphabetically — a handy default list
+        setResults(await searchContacts(term, 20));
+      } catch {
+        setResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [term]);
+
   return (
     <div>
-      <UserPicker selected={selected} onChange={users => {
-        setSelected(users);
-        if (users.length === 1) onPick(users[0]);
-      }} />
-      <p className="text-xs text-gray-400 mt-2">Pick a user to open (or resume) a direct conversation.</p>
+      <input
+        type="text"
+        value={term}
+        onChange={e => setTerm(e.target.value)}
+        placeholder="Search by name, matricule or email…"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+        autoFocus
+      />
+      {isSearching && <p className="text-xs text-gray-400 mt-2">Searching…</p>}
+      <div className="mt-2 max-h-72 overflow-y-auto divide-y divide-gray-100">
+        {results.map(c => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => onPick(c)}
+            className="w-full text-left p-2.5 hover:bg-gray-50 flex items-center justify-between gap-2"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 flex items-center gap-2">
+                {c.name} <PresenceDot online={c.presence.online} />
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {(c.roles || []).join(', ')}
+                {c.presence.online ? ' · Online' : c.presence.lastSeenAt ? ` · ${lastSeenLabel(c.presence.lastSeenAt)}` : ''}
+              </p>
+            </div>
+            {c.dmChannelId && <span className="shrink-0 text-[10px] text-gray-400">existing chat</span>}
+          </button>
+        ))}
+        {!isSearching && results.length === 0 && (
+          <p className="text-sm text-gray-400 py-4 text-center">No contacts found.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -968,11 +1368,15 @@ function ChannelInfo({
         {(channel.members || []).map(m => (
           <li key={m.userId} className="py-2 flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-900">
+              <p className="text-sm text-gray-900 flex items-center gap-2">
                 {m.user?.name || `User #${m.userId}`}
-                {m.userId === myId && <span className="text-gray-400"> (you)</span>}
+                {m.userId === myId && <span className="text-gray-400">(you)</span>}
+                <PresenceDot online={m.presence?.online} />
               </p>
-              <p className="text-xs text-gray-400">{m.role === 'ADMIN' ? 'Admin' : (m.user?.roles || []).join(', ') || 'Member'}</p>
+              <p className="text-xs text-gray-400">
+                {m.role === 'ADMIN' ? 'Admin' : (m.user?.roles || []).join(', ') || 'Member'}
+                {m.presence && !m.presence.online && m.presence.lastSeenAt ? ` · ${lastSeenLabel(m.presence.lastSeenAt)}` : ''}
+              </p>
             </div>
             {canManage && m.userId !== myId && (
               <button onClick={() => removeMember(m.userId)} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
