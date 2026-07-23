@@ -223,11 +223,19 @@ export default function LoginPage() {
     }
 
     try {
-      await login(formData.email, formData.password);
+      // Matricule login is parent-only; backend uppercases too, but normalize here
+      const identifier = loginType === 'matricule' ? formData.email.trim().toUpperCase() : formData.email.trim();
+      await login(identifier, formData.password);
       // The useEffect will handle the rest of the flow, no direct redirection here
-    } catch (error) {
-      // Error is already handled by the auth context
-      console.error('Login error:', error);
+    } catch (error: any) {
+      // Staff/students trying matricule login get sent to the email tab with a hint
+      if (String(error?.message || '').includes('Matricule login is only available')) {
+        setLoginType('email');
+        setFormData(prev => ({ ...prev, email: '' }));
+        toast.error('Matricule login is for parents only — please sign in with your email.', { duration: 6000 });
+      } else {
+        console.error('Login error:', error);
+      }
     }
   };
 
@@ -347,7 +355,7 @@ export default function LoginPage() {
                         }`}
                     >
                       <AtSymbolIcon className="h-4 w-4 inline mr-1" />
-                      Email
+                      Email (Staff/Student)
                     </button>
                     <button
                       type="button"
@@ -358,16 +366,16 @@ export default function LoginPage() {
                         }`}
                     >
                       <IdentificationIcon className="h-4 w-4 inline mr-1" />
-                      Matricule
+                      Matricule (Parent)
                     </button>
                   </div>
                 </div>
 
                 <Input
-                  label={loginType === 'email' ? 'Email Address' : 'Matricule Number'}
+                  label={loginType === 'email' ? 'Email Address' : 'Parent Matricule'}
                   name="email"
                   type={loginType === 'email' ? 'email' : 'text'}
-                  placeholder={loginType === 'email' ? 'Enter your email address' : 'Enter your matricule number'}
+                  placeholder={loginType === 'email' ? 'Enter your email address' : 'e.g. SO25PA0001'}
                   value={formData.email}
                   onChange={handleInputChange}
                   leftIcon={
