@@ -797,7 +797,7 @@ export default function ControllerFeeManagementPage() {
                 const lastTx = record.controlPaymentTransactions?.[0];
                 return (
                   <div key={record.id} className="px-3 py-2.5 flex items-center gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       {/* Two names keep the row short so actions sit beside the name */}
                       <p className="text-[13px] font-semibold text-gray-900 truncate" title={student?.name}>
                         {(student?.name || '').trim().split(/\s+/).slice(0, 2).join(' ')}
