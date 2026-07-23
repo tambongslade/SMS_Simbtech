@@ -37,6 +37,8 @@ export default function FeeManagementPage() {
     setPaymentDescription,
     viewMode,
     setViewMode,
+    sortMode,
+    setSortMode,
     students,
     getFilteredStudents,
     handlePayment,
@@ -142,6 +144,8 @@ export default function FeeManagementPage() {
         setSelectedClass={setSelectedClass}
         selectedPaymentStatus={selectedPaymentStatus}
         setSelectedPaymentStatus={setSelectedPaymentStatus}
+        sortMode={sortMode}
+        setSortMode={setSortMode}
         handleExportPDF={handleExportPDF}
         handleExportExcel={handleExportExcel}
         handleExportEnhanced={handleExportEnhanced}

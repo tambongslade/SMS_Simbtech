@@ -41,6 +41,8 @@ export const useFeeManagement = () => {
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  // Sort mode for the list — bursar default is newest registrations first
+  const [sortMode, setSortMode] = useState<'latest' | 'name' | 'balance'>('latest');
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -97,7 +99,7 @@ export const useFeeManagement = () => {
 
   // 4. Fetch Fee Records (Dependent on Current Academic Year and Filters)
   const feeRecordsKey = currentAcademicYear
-    ? `/fees?academicYearId=${currentAcademicYear.id}&page=${currentPage}&limit=${itemsPerPage}${selectedClass !== 'all' ? `&classId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}`
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=${currentPage}&limit=${itemsPerPage}${selectedClass !== 'all' ? `&classId=${selectedClass}` : ''}${selectedPaymentStatus !== 'all' ? `&paymentStatus=${selectedPaymentStatus.toLowerCase()}` : ''}${searchQuery ? `&search=${encodeURIComponent(searchQuery)}` : ''}${sortMode === 'latest' ? '&sortBy=createdAt&sortOrder=desc' : ''}`
     : null;
 
   const {
@@ -154,6 +156,7 @@ export const useFeeManagement = () => {
         parentPhone: studentData?.parent?.phone || '',
         parentContacts: studentData?.parentContacts || [],
         feeId: feeRecord.id,
+        createdAt: feeRecord.createdAt || feeRecord.enrollment?.createdAt || studentData?.createdAt,
       };
     });
 
@@ -188,13 +191,35 @@ export const useFeeManagement = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedClass, selectedPaymentStatus, searchQuery]);
+  }, [selectedClass, selectedPaymentStatus, searchQuery, sortMode]);
 
-  // --- Filtering (Server-side via API, Client-side for sorting only) --- 
+  // --- Filtering (Server-side via API, Client-side for sorting only) ---
   const getFilteredStudents = useCallback(() => {
     let filtered = [...students]; // Use the paginated students from server
-    
-    // Sorting (client-side)
+
+    if (sortMode === 'latest') {
+      // Newest registrations first. Uses createdAt when the API provides it;
+      // falls back to fee-record id (monotonically increasing) otherwise.
+      filtered.sort((a, b) => {
+        const aC = (a as any).createdAt as string | undefined;
+        const bC = (b as any).createdAt as string | undefined;
+        if (aC && bC) return bC.localeCompare(aC);
+        return (Number(b.feeId) || 0) - (Number(a.feeId) || 0);
+      });
+      return filtered;
+    }
+
+    if (sortMode === 'balance') {
+      filtered.sort((a, b) => (b.balance || 0) - (a.balance || 0));
+      return filtered;
+    }
+
+    if (sortMode === 'name') {
+      filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      return filtered;
+    }
+
+    // Legacy generic sorting (kept for compatibility)
     filtered.sort((a, b) => {
       const aValue = a[sortBy as keyof Student];
       const bValue = b[sortBy as keyof Student];
@@ -210,7 +235,7 @@ export const useFeeManagement = () => {
         : (bValue as number) - (aValue as number);
     });
     return filtered;
-  }, [students, sortBy, sortOrder]);
+  }, [students, sortBy, sortOrder, sortMode]);
 
   // --- Placeholder Export Handlers --- (Keep as is for now)
   const handleExport = async (format: 'pdf' | 'excel') => {
@@ -470,6 +495,8 @@ export const useFeeManagement = () => {
     setSortBy,
     sortOrder,
     setSortOrder,
+    sortMode,
+    setSortMode,
     students,
     getFilteredStudents,
     handlePayment,

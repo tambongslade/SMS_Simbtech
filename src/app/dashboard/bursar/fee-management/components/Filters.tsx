@@ -6,6 +6,8 @@ import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/cla
 import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon } from '@heroicons/react/24/outline'; // Import icons
 
 interface FiltersProps {
+  sortMode?: 'latest' | 'name' | 'balance';
+  setSortMode?: (mode: 'latest' | 'name' | 'balance') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedClass: string; // Should hold the selected SubClass ID or 'all'
@@ -29,6 +31,8 @@ export const Filters = ({
   setSelectedClass,
   selectedPaymentStatus, // Destructure status prop
   setSelectedPaymentStatus, // Destructure status setter prop
+  sortMode,
+  setSortMode,
   handleExportPDF, // Destructure PDF handler
   handleExportExcel, // Destructure Excel handler
   handleExportEnhanced, // Enhanced export handler
@@ -60,8 +64,8 @@ export const Filters = ({
         {/* Removed Sequence Filter */}
       </div>
 
-      {/* Filter Row 2 - Class, Status, Search, and View Mode */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Filter Row 2 - Class, Status, Sort, Search, and View Mode */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {/* Search Input */}
         <input
           type="text"
@@ -101,6 +105,20 @@ export const Filters = ({
           <option value="partial">Partial</option>
           <option value="unpaid">Unpaid</option>
         </select>
+
+        {/* Sort */}
+        {setSortMode && (
+          <select
+            value={sortMode || 'latest'}
+            onChange={(e) => setSortMode(e.target.value as 'latest' | 'name' | 'balance')}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Sort order"
+          >
+            <option value="latest">Latest registered first</option>
+            <option value="name">Name (A–Z)</option>
+            <option value="balance">Highest balance first</option>
+          </select>
+        )}
 
         {/* View Mode Toggle (desktop only — phones always show cards) */}
         <div className="hidden md:flex gap-2">
