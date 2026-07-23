@@ -146,22 +146,22 @@ export default function DmRollCallPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-3xl mx-auto overflow-x-clip">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Roll Call</h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Roll Call</h1>
+        <p className="text-xs sm:text-sm text-gray-500 mt-1">
           Record attendance for the three daily control slots. Absences and lateness automatically feed the discipline system.
         </p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div>
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="min-w-0">
           <label className="block text-sm font-medium text-gray-700 mb-1">Sub-class</label>
           <select
             value={subClassId}
             onChange={e => setSubClassId(Number(e.target.value) || '')}
-            className="block w-full rounded-md border-gray-300 border px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+            className="block w-full min-w-0 rounded-md border-gray-300 border px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm bg-white"
           >
             <option value="">Select sub-class</option>
             {subClasses.map(s => (
@@ -171,22 +171,26 @@ export default function DmRollCallPage() {
             ))}
           </select>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="block w-full rounded-md border-gray-300 border px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
-          />
-        </div>
-        <div className="flex items-end">
+        <div className="flex items-end gap-2 sm:col-span-2 min-w-0">
+          <div className="flex-1 min-w-0">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            {/* appearance-none + min-w-0 stop iOS date inputs from forcing the
+                page wider than the screen */}
+            <input
+              type="date"
+              value={date}
+              onChange={e => setDate(e.target.value)}
+              className="block w-full min-w-0 max-w-full appearance-none rounded-md border-gray-300 border px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm bg-white"
+            />
+          </div>
           <button
             onClick={refresh}
             disabled={!subClassId || isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm"
+            title="Refresh"
+            className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm shrink-0"
           >
-            <ArrowPathIcon className="w-4 h-4" /> Refresh
+            <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
@@ -256,7 +260,7 @@ export default function DmRollCallPage() {
                     <button
                       key={opt.value}
                       onClick={() => setStatuses(prev => ({ ...prev, [r.enrollmentId]: opt.value }))}
-                      className={`w-9 sm:w-auto px-0 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition-colors ${
+                      className={`w-10 sm:w-auto px-0 sm:px-3 py-2 sm:py-1.5 rounded-md text-xs font-semibold transition-colors ${
                         statuses[r.enrollmentId] === opt.value ? opt.active : opt.idle
                       }`}
                       title={opt.label}
