@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react';
-import { useParentDashboard } from './hooks/useParentDashboard';
+import { useParentDashboard } from '../hooks/useParentDashboard';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
-import { ChildCard } from './components/ChildCard';
-import { ChildDetails } from './components/ChildDetails';
+import { ChildCard } from '../components/ChildCard';
+import { ChildDetails } from '../components/ChildDetails';
 import {
   UserGroupIcon,
   CurrencyDollarIcon,
