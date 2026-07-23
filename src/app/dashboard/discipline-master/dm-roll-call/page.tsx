@@ -250,9 +250,13 @@ export default function DmRollCallPage() {
 
           <ul className="divide-y divide-gray-100">
             {roster.map(r => (
-              <li key={r.enrollmentId} className="px-3 sm:px-6 py-2 flex items-center justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] sm:text-sm font-medium text-gray-900 truncate">{r.student.name}</p>
+              <li key={r.enrollmentId} className="px-3 sm:px-6 py-2 flex items-center gap-3">
+                <div className="min-w-0">
+                  {/* First two names only — keeps the row short so the action
+                      buttons sit right next to the name */}
+                  <p className="text-[13px] sm:text-sm font-medium text-gray-900 truncate" title={r.student.name}>
+                    {r.student.name.trim().split(/\s+/).slice(0, 2).join(' ')}
+                  </p>
                   <p className="text-[11px] text-gray-500 truncate">{r.student.matricule || '—'}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
