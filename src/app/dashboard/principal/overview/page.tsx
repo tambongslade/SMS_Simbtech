@@ -137,10 +137,10 @@ export default function PrincipalDashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {[...Array(12)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
@@ -170,16 +170,16 @@ export default function PrincipalDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Principal Dashboard</h1>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Principal Dashboard</h1>
         <div className="text-sm text-gray-500">
           Academic Year: {selectedAcademicYear?.name || 'Current'}
         </div>
       </div>
 
       {/* School Analytics Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Total Students"
           value={dashboardData?.schoolAnalytics.totalStudents?.toString() || '0'}
@@ -211,7 +211,7 @@ export default function PrincipalDashboard() {
       </div>
 
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Attendance Rate"
           value={`${dashboardData?.schoolAnalytics.averageAttendanceRate || 0}%`}
@@ -248,7 +248,7 @@ export default function PrincipalDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Academic Performance */}
         <Card>
           <CardHeader>
@@ -318,7 +318,7 @@ export default function PrincipalDashboard() {
                 <ul className="space-y-1">
                   {(dashboardData?.financialOverview.outstandingDebts || []).slice(0, 3).map((debt, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{debt.studentName} ({debt.className})</span>
+                      <span className="min-w-0 truncate">{debt.studentName} ({debt.className})</span>
                       <span className="font-semibold">{formatCurrency(debt.amountOwed)}</span>
                     </li>
                   ))}

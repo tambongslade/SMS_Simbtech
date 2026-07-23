@@ -582,10 +582,10 @@ export default function DisciplineMasterDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
             ))}
@@ -596,11 +596,11 @@ export default function DisciplineMasterDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Discipline Management Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Discipline Management Dashboard</h1>
           <p className="text-gray-600 mt-1">
             Student behavior tracking, incident management and intervention for {selectedAcademicYear?.name}
           </p>
@@ -615,7 +615,7 @@ export default function DisciplineMasterDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Active Issues"
           value={dashboardData?.totalActiveIssues.toString() || '0'}
@@ -643,9 +643,9 @@ export default function DisciplineMasterDashboard() {
       </div>
 
       {/* Behavioral Trends Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Behavioral Trend</p>
@@ -668,7 +668,7 @@ export default function DisciplineMasterDashboard() {
         </Card>
 
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Attendance Rate</p>
@@ -682,7 +682,7 @@ export default function DisciplineMasterDashboard() {
         </Card>
 
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Intervention Success</p>
@@ -698,7 +698,7 @@ export default function DisciplineMasterDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'incidents', label: 'Discipline Issues' },
@@ -723,9 +723,9 @@ export default function DisciplineMasterDashboard() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Issue Types Breakdown
                 </h3>
@@ -752,7 +752,7 @@ export default function DisciplineMasterDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Urgent Interventions Required
                 </h3>
@@ -785,7 +785,7 @@ export default function DisciplineMasterDashboard() {
         <div className="space-y-6">
           {/* Filters */}
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -829,6 +829,7 @@ export default function DisciplineMasterDashboard() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    className="appearance-none min-w-0 w-full"
                   />
                 </div>
 
@@ -840,6 +841,7 @@ export default function DisciplineMasterDashboard() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    className="appearance-none min-w-0 w-full"
                   />
                 </div>
               </div>
@@ -863,10 +865,10 @@ export default function DisciplineMasterDashboard() {
           </Card>
 
           {/* Recent Issues and Classroom Hotspots */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
             <div className="lg:col-span-2">
               <Card>
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                       Recent Issues ({filteredIssues.length})
@@ -883,9 +885,9 @@ export default function DisciplineMasterDashboard() {
                       {filteredIssues.map((issue) => (
                         <div key={issue.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                           <div className="flex justify-between items-start">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-medium text-gray-900">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                                <h4 className="font-medium text-gray-900 truncate">
                                   {issue.student?.name || 'Unknown Student'}
                                 </h4>
                                 <Badge variant="outline" size="sm">
@@ -900,7 +902,7 @@ export default function DisciplineMasterDashboard() {
                                 {issue.description}
                               </p>
 
-                              <div className="flex items-center gap-4 text-xs text-gray-500">
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
                                 <span>{formatDate(issue.createdAt)} • {formatTime(issue.createdAt)}</span>
                                 <span>Reported by: {issue.assignedBy?.name || 'Unknown'}</span>
                               </div>
@@ -936,7 +938,7 @@ export default function DisciplineMasterDashboard() {
 
             <div>
               <Card>
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">
                     Classroom Hotspots
                   </h3>
@@ -983,9 +985,9 @@ export default function DisciplineMasterDashboard() {
 
       {activeTab === 'analytics' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6 text-center">
+              <div className="p-4 sm:p-6 text-center">
                 <p className="text-sm text-gray-600">Total Students</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {behavioralData?.totalStudents || 0}
@@ -993,7 +995,7 @@ export default function DisciplineMasterDashboard() {
               </div>
             </Card>
             <Card>
-              <div className="p-6 text-center">
+              <div className="p-4 sm:p-6 text-center">
                 <p className="text-sm text-gray-600">With Issues</p>
                 <p className="text-2xl font-bold text-red-600">
                   {behavioralData?.studentsWithIssues || 0}
@@ -1001,7 +1003,7 @@ export default function DisciplineMasterDashboard() {
               </div>
             </Card>
             <Card>
-              <div className="p-6 text-center">
+              <div className="p-4 sm:p-6 text-center">
                 <p className="text-sm text-gray-600">Behavior Score</p>
                 <p className="text-2xl font-bold text-blue-600">
                   {behavioralData?.behaviorScore?.toFixed(1) || 0}
@@ -1009,7 +1011,7 @@ export default function DisciplineMasterDashboard() {
               </div>
             </Card>
             <Card>
-              <div className="p-6 text-center">
+              <div className="p-4 sm:p-6 text-center">
                 <p className="text-sm text-gray-600">High Risk</p>
                 <p className="text-2xl font-bold text-orange-600">
                   {behavioralData?.riskDistribution.high || 0}
@@ -1018,9 +1020,9 @@ export default function DisciplineMasterDashboard() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Issue Type Analysis
                 </h3>
@@ -1054,7 +1056,7 @@ export default function DisciplineMasterDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Classroom Hotspots
                 </h3>
@@ -1094,7 +1096,7 @@ export default function DisciplineMasterDashboard() {
       {activeTab === 'warnings' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Critical Students Requiring Immediate Attention
               </h3>
@@ -1152,9 +1154,9 @@ export default function DisciplineMasterDashboard() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Risk Indicators
                 </h3>
@@ -1183,7 +1185,7 @@ export default function DisciplineMasterDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Preventive Recommendations
                 </h3>
@@ -1216,8 +1218,8 @@ export default function DisciplineMasterDashboard() {
       {activeTab === 'interventions' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
                   Active Interventions
                 </h3>
@@ -1239,7 +1241,7 @@ export default function DisciplineMasterDashboard() {
       {/* Create Issue Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 z-40 flex items-center justify-center p-4">
-          <div className="relative bg-white p-8 rounded-lg shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
+          <div className="relative bg-white p-4 sm:p-8 rounded-lg shadow-xl w-full max-w-md mx-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Record New Discipline Issue</h2>
 
             <div className="space-y-4">
@@ -1403,7 +1405,7 @@ export default function DisciplineMasterDashboard() {
       {/* Issue Details Modal */}
       {showIssueModal && selectedIssue && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative bg-white p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto">
+          <div className="relative bg-white p-4 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto">
             <h2 className="text-xl font-semibold mb-4">Issue Details</h2>
 
             <div className="space-y-4">

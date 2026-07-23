@@ -69,10 +69,10 @@ export default function BursarOverviewPage() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
@@ -100,7 +100,7 @@ export default function BursarOverviewPage() {
           <ChevronLeftIcon className="h-4 w-4 mr-1" />
           Back to menu
         </Link>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bursar Overview</h1>
           <div className="text-sm text-gray-500">
             Academic Year: {selectedAcademicYear?.name || 'Current'}
@@ -109,7 +109,7 @@ export default function BursarOverviewPage() {
       </div>
 
       {/* Financial Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:gap-6">
         <StatsCard
           title="Students Owing"
           value={dashboardData?.studentsOwingCount?.toString() || '0'}
@@ -126,7 +126,7 @@ export default function BursarOverviewPage() {
       </div>
 
       {/* Student Management Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="New Students This Month"
           value={dashboardData?.newStudentsThisMonth?.toString() || '0'}
@@ -157,7 +157,7 @@ export default function BursarOverviewPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Payment Methods Breakdown */}
         <Card>
           <CardHeader>
@@ -167,9 +167,9 @@ export default function BursarOverviewPage() {
             {dashboardData?.paymentMethods && dashboardData.paymentMethods.length > 0 ? (
               <div className="space-y-4">
                 {dashboardData.paymentMethods.map((method, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{method.method}</p>
+                  <div key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{method.method}</p>
                       <p className="text-sm text-gray-600">{method.count} transactions</p>
                     </div>
                     <div className="text-right">
@@ -193,10 +193,10 @@ export default function BursarOverviewPage() {
             {dashboardData?.recentRegistrations && dashboardData.recentRegistrations.length > 0 ? (
               <div className="space-y-3">
                 {dashboardData.recentRegistrations.slice(0, 5).map((registration, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{registration.studentName}</p>
-                      <p className="text-sm text-gray-600">Parent: {registration.parentName}</p>
+                  <div key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{registration.studentName}</p>
+                      <p className="text-sm text-gray-600 truncate">Parent: {registration.parentName}</p>
                       <p className="text-xs text-gray-500">{registration.className}</p>
                     </div>
                     <div className="text-right">

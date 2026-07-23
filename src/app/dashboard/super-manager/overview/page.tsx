@@ -93,7 +93,7 @@ export default function SuperManagerDashboard() {
             <div className="flex-1 p-4">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold">Super Manager Dashboard</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold">Super Manager Dashboard</h1>
                     <p className="text-gray-600">
                         Welcome to the Super Manager dashboard. Overview of key school metrics.
                     </p>
@@ -108,14 +108,14 @@ export default function SuperManagerDashboard() {
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-8">
                     {stats.map((stat, index) => (
                         <StatsCard key={index} {...stat} />
                     ))}
                 </div>
 
                 {/* Quick Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                     <Card>
                         <CardHeader>
                             <CardTitle>Quick Actions</CardTitle>

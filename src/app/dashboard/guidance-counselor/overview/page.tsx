@@ -217,10 +217,10 @@ export default function GuidanceCounselorDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
             ))}
@@ -231,16 +231,16 @@ export default function GuidanceCounselorDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Guidance Counselor Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Guidance Counselor Dashboard</h1>
           <p className="text-gray-600 mt-1">
             Student support and intervention tracking for {selectedAcademicYear?.name} {/* Corrected property */}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4" />
             Schedule Session
@@ -253,7 +253,7 @@ export default function GuidanceCounselorDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Students Supported"
           value={dashboardStats?.totalStudentsSupported?.toString() || '0'} // Convert to string
@@ -283,7 +283,7 @@ export default function GuidanceCounselorDashboard() {
       {/* Crisis Alerts */}
       {(dashboardStats?.crisisInterventions || 0) > 0 && (
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center gap-3 mb-4">
               <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
               <h3 className="text-lg font-semibold text-red-900">
@@ -303,7 +303,7 @@ export default function GuidanceCounselorDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'students', label: 'Students' },
@@ -327,9 +327,9 @@ export default function GuidanceCounselorDashboard() {
       {/* Tab Content */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Risk Level Distribution
                 </h3>
@@ -350,7 +350,7 @@ export default function GuidanceCounselorDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Common Issues
                 </h3>
@@ -373,11 +373,11 @@ export default function GuidanceCounselorDashboard() {
           </div>
 
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Intervention Effectiveness
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 {dashboardStats?.interventionEffectiveness?.map((intervention, index) => (
                   <div key={index} className="p-4 border border-gray-200 rounded-lg">
                     <h4 className="font-medium text-gray-900 mb-2">{intervention.type}</h4>
@@ -402,7 +402,7 @@ export default function GuidanceCounselorDashboard() {
       {activeTab === 'students' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Students Under Support ({students.length})
               </h3>
@@ -413,8 +413,8 @@ export default function GuidanceCounselorDashboard() {
                     className={`p-4 border rounded-lg ${getRiskColor(student.riskLevel)}`}
                   >
                     <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h4 className="font-medium text-gray-900">{student.name}</h4>
+                      <div className="min-w-0">
+                        <h4 className="font-medium text-gray-900 truncate">{student.name}</h4>
                         <p className="text-sm text-gray-600">{student.className} - {student.subClassName}</p>
                         <p className="text-xs text-gray-500">{student.matricule}</p>
                       </div>
@@ -459,7 +459,7 @@ export default function GuidanceCounselorDashboard() {
       {activeTab === 'sessions' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Recent Sessions
               </h3>
@@ -476,15 +476,15 @@ export default function GuidanceCounselorDashboard() {
       {activeTab === 'appointments' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Upcoming Appointments
               </h3>
               <div className="space-y-3">
                 {upcomingAppointments.map((appointment) => (
-                  <div key={appointment.id} className="flex justify-between items-start p-4 border border-gray-200 rounded-lg">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
+                  <div key={appointment.id} className="flex flex-wrap justify-between items-start gap-3 p-4 border border-gray-200 rounded-lg">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
                         <h4 className="font-medium text-gray-900">{appointment.studentName}</h4>
                         <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(appointment.priority)}`}>
                           {appointment.priority}

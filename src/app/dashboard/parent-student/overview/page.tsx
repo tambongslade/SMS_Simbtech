@@ -152,12 +152,12 @@ export default function ParentStudentDashboard() {
   ];
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Header */}
       <div className="mb-8">
-        <div className="flex justify-between items-start">
+        <div className="flex flex-wrap justify-between items-start gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
               Welcome back! 👋
             </h1>
             <p className="text-gray-600 mt-1">
@@ -172,7 +172,7 @@ export default function ParentStudentDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-8">
         {stats.map((stat, index) => (
           <Card key={index} className="relative overflow-hidden">
             <CardBody>
@@ -192,7 +192,7 @@ export default function ParentStudentDashboard() {
                       }`} />
                   </div>
                 </div>
-                <div className="ml-4 flex-1">
+                <div className="ml-4 flex-1 min-w-0">
                   <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
                   <div className="text-sm font-medium text-gray-700">{stat.title}</div>
                   <div className="text-xs text-gray-500">{stat.description}</div>
@@ -203,12 +203,12 @@ export default function ParentStudentDashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8">
         {/* My Children Section */}
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
+              <div className="flex flex-wrap justify-between items-center gap-2">
                 <CardTitle className="flex items-center">
                   <UserGroupIcon className="w-5 h-5 mr-2" />
                   My Children
