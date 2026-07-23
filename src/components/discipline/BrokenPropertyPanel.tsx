@@ -139,8 +139,9 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
     e.preventDefault();
     if (!editing && !student) return toast.error('Select the student responsible.');
     if (!itemName.trim()) return toast.error('Item name is required.');
-    const cost = Number(estimatedCost);
-    if (!cost || cost <= 0) return toast.error('Estimated cost must be greater than 0.');
+    // Estimated cost is optional — an empty field logs the damage without a charge yet
+    const cost = estimatedCost.trim() === '' ? 0 : Number(estimatedCost);
+    if (Number.isNaN(cost) || cost < 0) return toast.error('Estimated cost cannot be negative.');
 
     setIsSaving(true);
     try {
@@ -162,7 +163,11 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
           actionTaken: actionTaken.trim() || undefined,
           academicYearId: selectedAcademicYear?.id,
         });
-        toast.success(`Logged — ${fmtMoney(cost)} was added to the student's fee bill automatically.`);
+        toast.success(
+          cost > 0
+            ? `Logged — ${fmtMoney(cost)} was added to the student's fee bill automatically.`
+            : 'Logged — no cost recorded yet; edit later to set the charge.'
+        );
         load();
       }
       setFormOpen(false);
@@ -408,9 +413,9 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
               placeholder="e.g. Window pane"
             />
             <Input
-              label="Estimated cost (XAF) *"
+              label="Estimated cost (XAF) — optional"
               type="number"
-              min={1}
+              min={0}
               value={estimatedCost}
               onChange={(e) => setEstimatedCost(e.target.value)}
             />
