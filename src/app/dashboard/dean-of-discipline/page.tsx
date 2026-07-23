@@ -31,6 +31,13 @@ const quickActions: QuickAction[] = [
     color: 'indigo',
   },
   {
+    label: 'Teacher Attendance',
+    description: 'Per-period teacher conduct check',
+    href: '/dashboard/dean-of-discipline/teacher-attendance',
+    icon: ClipboardDocumentListIcon,
+    color: 'cyan',
+  },
+  {
     label: 'Warnings & Summons',
     description: "Warnings & parent summons",
     href: '/dashboard/dean-of-discipline/warnings-summons',

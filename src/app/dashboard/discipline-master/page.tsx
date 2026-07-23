@@ -30,6 +30,13 @@ const quickActions: QuickAction[] = [
     color: 'blue',
   },
   {
+    label: 'Teacher Attendance',
+    description: 'Per-period teacher conduct check',
+    href: '/dashboard/discipline-master/teacher-attendance',
+    icon: ClipboardDocumentListIcon,
+    color: 'cyan',
+  },
+  {
     label: 'Warnings & Summons',
     description: 'Follow up warnings & parent summons',
     href: '/dashboard/discipline-master/warnings-summons',

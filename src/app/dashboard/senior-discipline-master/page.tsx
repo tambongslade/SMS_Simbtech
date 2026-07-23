@@ -14,6 +14,13 @@ import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickA
 
 const quickActions: QuickAction[] = [
   {
+    label: 'Teacher Attendance',
+    description: 'Per-period teacher conduct check',
+    href: '/dashboard/senior-discipline-master/teacher-attendance',
+    icon: ClipboardDocumentListIcon,
+    color: 'cyan',
+  },
+  {
     label: 'Warnings & Summons',
     description: 'Follow up warnings & parent summons',
     href: '/dashboard/senior-discipline-master/warnings-summons',
