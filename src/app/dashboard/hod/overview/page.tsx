@@ -125,15 +125,15 @@ export default function HODDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
             ))}
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <div className="h-96 bg-gray-200 rounded-lg"></div>
             <div className="h-96 bg-gray-200 rounded-lg"></div>
           </div>
@@ -143,11 +143,11 @@ export default function HODDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">HOD Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">HOD Dashboard</h1>
           <p className="text-gray-600 mt-1">
             Department management and oversight for {academicYear?.name}
           </p>
@@ -155,7 +155,7 @@ export default function HODDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Subjects Managed"
           value={dashboardData?.totalSubjects || 0}
@@ -183,9 +183,9 @@ export default function HODDashboard() {
       </div>
 
       {/* Performance Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Department Average</h3>
@@ -199,7 +199,7 @@ export default function HODDashboard() {
         </Card>
 
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Overall Pass Rate</h3>
@@ -215,7 +215,7 @@ export default function HODDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
           <button
             onClick={() => setActiveTab('overview')}
             className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${activeTab === 'overview'
@@ -250,11 +250,11 @@ export default function HODDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Subjects Managed
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {dashboardData?.subjectsManaged?.map((subject) => (
                   <div
                     key={subject.id}
@@ -275,7 +275,7 @@ export default function HODDashboard() {
       {activeTab === 'teachers' && (
         <div className="space-y-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Teacher Performance Overview
               </h3>
@@ -335,11 +335,11 @@ export default function HODDashboard() {
 
       {activeTab === 'subjects' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             {departmentOverview.map((subject) => (
               <Card key={subject.subjectId}>
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <div className="p-4 sm:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">
                       {subject.subjectName}
                     </h3>
@@ -387,7 +387,7 @@ export default function HODDashboard() {
                             key={teacher.id}
                             className="flex justify-between items-center p-2 bg-gray-50 rounded"
                           >
-                            <span className="text-sm text-gray-900">{teacher.name}</span>
+                            <span className="text-sm text-gray-900 min-w-0 truncate">{teacher.name}</span>
                             <span className="text-sm font-medium text-blue-600">
                               {teacher.averageMarks.toFixed(1)}
                             </span>

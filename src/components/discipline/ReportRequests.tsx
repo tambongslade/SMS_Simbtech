@@ -232,7 +232,7 @@ export function ReportRequestsOutbox() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Report Requests</h2>
           <p className="text-gray-600 mt-1 text-sm">
@@ -293,8 +293,8 @@ export function ReportRequestsOutbox() {
           ) : (
             rows.map((req) => (
               <div key={req.id} className="px-4 py-3 flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{req.subject}</div>
+                <div className="min-w-0 flex-1 basis-56">
+                  <div className="text-sm font-medium text-gray-900 truncate">{req.subject}</div>
                   <div className="text-xs text-gray-500">
                     To {req.requestedFrom?.name || `User #${req.requestedFromId}`} · due{' '}
                     {fmtDateTime(req.dueDate)}
@@ -354,7 +354,7 @@ export function ReportRequestsOutbox() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
             {total} request{total === 1 ? '' : 's'} · Page {page} of {totalPages}
           </span>
@@ -410,7 +410,7 @@ export function ReportRequestsOutbox() {
             rows={3}
             placeholder="What should the report cover?"
           />
-          <Input label="Due *" type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <Input label="Due *" type="datetime-local" className="appearance-none min-w-0 w-full" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
 
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
             <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={isSaving}>
@@ -557,7 +557,7 @@ export function ReportRequestsInbox() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Report Requests Assigned to Me</h2>
           <p className="text-gray-600 mt-1 text-sm">
@@ -604,8 +604,8 @@ export function ReportRequestsInbox() {
           ) : (
             rows.map((req) => (
               <div key={req.id} className="px-4 py-3 flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{req.subject}</div>
+                <div className="min-w-0 flex-1 basis-56">
+                  <div className="text-sm font-medium text-gray-900 truncate">{req.subject}</div>
                   <div className="text-xs text-gray-500">
                     From {req.requestedBy?.name || `User #${req.requestedById}`} · due {fmtDateTime(req.dueDate)}
                   </div>
@@ -639,7 +639,7 @@ export function ReportRequestsInbox() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
             {total} request{total === 1 ? '' : 's'} · Page {page} of {totalPages}
           </span>

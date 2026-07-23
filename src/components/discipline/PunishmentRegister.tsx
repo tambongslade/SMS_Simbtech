@@ -125,7 +125,7 @@ export function PunishmentRegister() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Punishment Register</h2>
           <p className="text-gray-600 mt-1 text-sm">
@@ -157,11 +157,11 @@ export function PunishmentRegister() {
             ]}
           />
         </div>
-        <div className="min-w-[160px]">
-          <Input label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <div className="min-w-[140px] flex-1 sm:flex-none sm:min-w-[160px]">
+          <Input label="From" type="date" className="appearance-none min-w-0 w-full" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
-        <div className="min-w-[160px]">
-          <Input label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+        <div className="min-w-[140px] flex-1 sm:flex-none sm:min-w-[160px]">
+          <Input label="To" type="date" className="appearance-none min-w-0 w-full" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
       </div>
 
@@ -266,7 +266,7 @@ export function PunishmentRegister() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
             {total} punishment{total === 1 ? '' : 's'} · Page {page} of {totalPages}
           </span>

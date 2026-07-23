@@ -72,10 +72,10 @@ export default function VicePrincipalDashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
@@ -97,16 +97,16 @@ export default function VicePrincipalDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Vice Principal Dashboard</h1>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Vice Principal Dashboard</h1>
         <div className="text-sm text-gray-500">
           Academic Year: {selectedAcademicYear?.name || 'Current'}
         </div>
       </div>
 
       {/* Overview Analytics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Total Students"
           value={dashboardData?.totalStudents?.toString() || '0'}
@@ -142,7 +142,7 @@ export default function VicePrincipalDashboard() {
       </div>
 
       {/* Performance Metrics (some are placeholders as data is not in API) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Recent Discipline Issues"
           value={dashboardData?.recentDisciplineIssues?.toString() || '0'}
@@ -177,7 +177,7 @@ export default function VicePrincipalDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Subclass Capacity Utilization */}
         <Card>
           <CardHeader>
@@ -240,7 +240,7 @@ export default function VicePrincipalDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Teachers Under Supervision (Placeholder) */}
         <Card>
           <CardHeader>
@@ -310,7 +310,7 @@ export default function VicePrincipalDashboard() {
                   activity.priority === 'MEDIUM' ? 'bg-yellow-500' :
                     'bg-green-500'
                   }`}></div>
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-900">{activity.description}</p>
                   <p className="text-xs text-gray-500">
                     {new Date(activity.timestamp).toLocaleString()}
@@ -337,7 +337,7 @@ export default function VicePrincipalDashboard() {
           <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
         </CardHeader>
         <CardBody>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <button
               onClick={() => window.location.href = '/dashboard/vice-principal/classes'}
               className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition-colors"

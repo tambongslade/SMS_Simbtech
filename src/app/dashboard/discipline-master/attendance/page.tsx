@@ -868,13 +868,13 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-800">Attendance & Lateness Management</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">Attendance & Lateness Management</h1>
         <p className="text-gray-600 mt-1">Monitor and manage daily school attendance and lateness</p>
       </div>
 
       {/* Dashboard Stats */}
       {dashboardStats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg shadow">
             <div className="flex items-center">
               <CalendarIcon className="h-8 w-8 text-green-500" />
@@ -923,7 +923,7 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {/* Navigation Tabs */}
       <div className="mb-6">
-        <nav className="flex space-x-8" aria-label="Tabs">
+        <nav className="flex space-x-4 sm:space-x-8 overflow-x-auto whitespace-nowrap" aria-label="Tabs">
           {[
             { id: 'overview', name: 'Overview', icon: CalendarIcon },
             { id: 'students', name: 'Student Attendance', icon: UserGroupIcon },
@@ -955,7 +955,7 @@ const AttendanceDashboardPage: React.FC = () => {
             id="start-date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-4 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            className="mt-1 block w-full min-w-0 appearance-none pl-3 pr-4 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           />
         </div>
         <div>
@@ -965,7 +965,7 @@ const AttendanceDashboardPage: React.FC = () => {
             id="end-date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="mt-1 block w-full pl-3 pr-4 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+            className="mt-1 block w-full min-w-0 appearance-none pl-3 pr-4 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
           />
         </div>
         <div>
@@ -1020,8 +1020,8 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">Today's Attendance Summary</h3>
             <div className="space-y-3">
               <div className="flex justify-between">
@@ -1048,7 +1048,7 @@ const AttendanceDashboardPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow">
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
             <h3 className="text-lg font-semibold mb-4">Staff Attendance (Not Implemented)</h3>
             <div className="space-y-3 text-gray-500">
               <p>Staff attendance tracking API is not yet integrated.</p>
@@ -1058,7 +1058,7 @@ const AttendanceDashboardPage: React.FC = () => {
           {/* Quick Stats from Lateness */}
           {latenessStatistics && (
             <div className="lg:col-span-2">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-white p-4 rounded-lg shadow">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1102,7 +1102,7 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {activeTab === 'students' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold">Student Attendance - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}</h3>
             <p className="text-sm text-gray-600">
               Showing {filteredStudentAttendance.length} records
@@ -1201,7 +1201,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Excuse absence modal */}
       {excuseTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative">
             <h3 className="text-lg font-semibold mb-1">Excuse Absence</h3>
             <p className="text-sm text-gray-500 mb-4">
               {excuseTarget.student.name} — {new Date(excuseTarget.date).toLocaleDateString()}.
@@ -1252,7 +1252,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Makeup modal */}
       {makeupTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative">
             <h3 className="text-lg font-semibold mb-1">Makeup Work</h3>
             <p className="text-sm text-gray-500 mb-4">
               {makeupTarget.student.name} — {new Date(makeupTarget.date).toLocaleDateString()}.
@@ -1302,7 +1302,7 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {activeTab === 'teachers' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold">Teacher Attendance - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}</h3>
             <p className="text-sm text-gray-600">
               {teacherAttendance.length} teacher absence records found
@@ -1352,7 +1352,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {activeTab === 'lateness' && (
         <div className="space-y-6">
           {/* Lateness Recording Controls */}
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-2">
             <h3 className="text-lg font-semibold text-gray-900">Lateness Recording</h3>
             <div className="flex gap-2">
               <Button
@@ -1369,7 +1369,7 @@ const AttendanceDashboardPage: React.FC = () => {
           {!showBulkForm ? (
             // Single Record Form
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h4 className="text-md font-semibold text-gray-900 mb-4">
                   Record Single Student Lateness
                 </h4>
@@ -1475,8 +1475,8 @@ const AttendanceDashboardPage: React.FC = () => {
           ) : (
             // Bulk Record Form
             <Card>
-              <div className="p-6">
-                <div className="flex justify-between items-center mb-4">
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
                   <h4 className="text-md font-semibold text-gray-900">
                     Bulk Record Student Lateness
                   </h4>
@@ -1493,8 +1493,8 @@ const AttendanceDashboardPage: React.FC = () => {
 
                 <div className="space-y-3">
                   {bulkRecords.map((record, index) => (
-                    <div key={record.id} className="grid grid-cols-12 gap-2 items-start">
-                      <div className="col-span-4">
+                    <div key={record.id} className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-start">
+                      <div className="sm:col-span-4">
                         {record.selectedStudent ? (
                           <div className="p-2 bg-green-50 border border-green-200 rounded-md h-full flex items-center">
                             <div className="flex justify-between items-center w-full">
@@ -1548,7 +1548,7 @@ const AttendanceDashboardPage: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="col-span-3">
+                      <div className="sm:col-span-3">
                         <Input
                           type="time"
                           placeholder="Arrival Time"
@@ -1556,7 +1556,7 @@ const AttendanceDashboardPage: React.FC = () => {
                           onChange={(e) => updateBulkRecordField(index, 'arrivalTime', e.target.value)}
                         />
                       </div>
-                      <div className="col-span-4">
+                      <div className="sm:col-span-4">
                         <select
                           value={record.reason}
                           onChange={(e) => updateBulkRecordField(index, 'reason', e.target.value)}
@@ -1571,7 +1571,7 @@ const AttendanceDashboardPage: React.FC = () => {
                           <option value="Other">Other</option>
                         </select>
                       </div>
-                      <div className="col-span-1 flex items-center">
+                      <div className="sm:col-span-1 flex items-center">
                         <Button
                           onClick={() => removeBulkRecord(index)}
                           size="sm"
@@ -1603,8 +1603,8 @@ const AttendanceDashboardPage: React.FC = () => {
 
           {/* Daily Lateness Report */}
           <Card>
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
+            <div className="p-4 sm:p-6">
+              <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
                 <h4 className="text-md font-semibold text-gray-900">
                   Daily Lateness Report - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
                 </h4>
@@ -1693,9 +1693,9 @@ const AttendanceDashboardPage: React.FC = () => {
 
       {activeTab === 'reports' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Chronically Late Students
                 </h3>
@@ -1706,9 +1706,9 @@ const AttendanceDashboardPage: React.FC = () => {
                 ) : (
                   <div className="space-y-3">
                     {latenessStatistics.chronicallyLateStudents.map((student, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-red-50 rounded">
-                        <div>
-                          <p className="font-medium text-gray-900">{student.student?.name}</p>
+                      <div key={index} className="flex justify-between items-center gap-2 p-3 bg-red-50 rounded">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{student.student?.name}</p>
                           <p className="text-sm text-gray-600">
                             {student.subclass} ({student.class})
                           </p>
@@ -1726,7 +1726,7 @@ const AttendanceDashboardPage: React.FC = () => {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Lateness by Class
                 </h3>
@@ -1737,9 +1737,9 @@ const AttendanceDashboardPage: React.FC = () => {
                 ) : (
                   <div className="space-y-3">
                     {latenessStatistics.latenessByClass.map((classData, index) => (
-                      <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
-                        <div>
-                          <p className="font-medium text-gray-900">
+                      <div key={index} className="flex justify-between items-center gap-2 p-3 bg-gray-50 rounded">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
                             {classData.className}
                           </p>
                         </div>

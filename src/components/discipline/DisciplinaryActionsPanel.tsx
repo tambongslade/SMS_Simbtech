@@ -257,7 +257,7 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Disciplinary Actions</h2>
           <p className="text-gray-600 mt-1 text-sm">
@@ -396,7 +396,7 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
             {total} action{total === 1 ? '' : 's'} · Page {page} of {totalPages}
           </span>
@@ -447,9 +447,9 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
               </div>
             )}
             {student && (
-              <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
-                <CheckCircleIcon className="h-4 w-4" />
-                Selected: <span className="font-medium">{student.name}</span>
+              <div className="flex items-center gap-2 min-w-0 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
+                <CheckCircleIcon className="h-4 w-4 flex-shrink-0" />
+                Selected: <span className="font-medium truncate">{student.name}</span>
               </div>
             )}
           </div>
@@ -488,7 +488,7 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Start date" type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <Input label="Start date" type="date" className="appearance-none min-w-0 w-full" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             <Input
               label="Reason *"
               value={reason}
@@ -536,10 +536,11 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
                 options={ACTION_STATUSES.map((s) => ({ value: s, label: s.charAt(0) + s.slice(1).toLowerCase() }))}
               />
               <Input label="Days" type="number" min={1} value={editDays} onChange={(e) => setEditDays(e.target.value)} />
-              <Input label="Start date" type="date" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+              <Input label="Start date" type="date" className="appearance-none min-w-0 w-full" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
               <Input
                 label="End date"
                 type="date"
+                className="appearance-none min-w-0 w-full"
                 value={editEnd}
                 onChange={(e) => setEditEnd(e.target.value)}
                 helperText="Leave blank to recompute from start + days"

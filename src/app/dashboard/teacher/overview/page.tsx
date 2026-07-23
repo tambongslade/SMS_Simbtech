@@ -142,10 +142,10 @@ export default function TeacherDashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse space-y-6">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
             ))}
@@ -164,16 +164,16 @@ export default function TeacherDashboard() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
+    <div className="p-4 sm:p-6 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
         <div className="text-sm text-gray-500">
           Academic Year: {selectedAcademicYear?.name || 'Current'}
         </div>
       </div>
 
       {/* Teaching Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Subjects Teaching"
           value={dashboardData?.assignedSubjects?.toString() || '0'}
@@ -205,7 +205,7 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Attendance Rate"
           value={`${dashboardData?.attendanceRate || 0}%`}
@@ -236,7 +236,7 @@ export default function TeacherDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Current and Next Periods */}
         <Card>
           <CardHeader>
@@ -314,7 +314,7 @@ export default function TeacherDashboard() {
               <div className="space-y-3">
                 {subjects.slice(0, 5).map((subject) => (
                   <div key={subject.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
+                    <div className="min-w-0">
                       <p className="font-medium text-gray-900">{subject.name}</p>
                       <p className="text-sm text-gray-600">{subject.category}</p>
                       <div className="mt-2 text-sm text-gray-600">
@@ -350,7 +350,7 @@ export default function TeacherDashboard() {
           <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
         </CardHeader>
         <CardBody>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <button
               onClick={() => window.location.href = '/dashboard/teacher/subjects'}
               className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition-colors"

@@ -197,10 +197,10 @@ export default function ManagerDashboard() {
 
   if (loading) {
     return (
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
             ))}
@@ -211,11 +211,11 @@ export default function ManagerDashboard() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Manager Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Manager Dashboard</h1>
           <p className="text-gray-600 mt-1">
             School operations and financial oversight for {academicYear?.name}
           </p>
@@ -223,7 +223,7 @@ export default function ManagerDashboard() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title="Total Staff"
           value={dashboardData?.totalStaff || 0}
@@ -253,7 +253,7 @@ export default function ManagerDashboard() {
       {/* Alerts Section */}
       {dashboardData?.alerts && dashboardData.alerts.length > 0 && (
         <Card>
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
               System Alerts
@@ -282,7 +282,7 @@ export default function ManagerDashboard() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'financial', label: 'Financial' },
@@ -306,9 +306,9 @@ export default function ManagerDashboard() {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Operational Metrics
               </h3>
@@ -342,14 +342,14 @@ export default function ManagerDashboard() {
           </Card>
 
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Recent Activities
               </h3>
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {dashboardData?.recentActivities?.map((activity) => (
                   <div key={activity.id} className="flex items-start gap-3 p-2 bg-gray-50 rounded">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900">{activity.activity}</p>
                       <p className="text-xs text-gray-600">by {activity.user}</p>
                     </div>
@@ -375,9 +375,9 @@ export default function ManagerDashboard() {
 
       {activeTab === 'financial' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Expected</p>
@@ -391,7 +391,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Total Collected</p>
@@ -405,7 +405,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Pending Payments</p>
@@ -419,9 +419,9 @@ export default function ManagerDashboard() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Payment Methods Breakdown
                 </h3>
@@ -445,15 +445,15 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Outstanding Debts (Top 5)
                 </h3>
                 <div className="space-y-3">
                   {financialData?.outstandingDebts?.slice(0, 5).map((debt, index) => (
                     <div key={index} className="flex justify-between items-center p-2 bg-red-50 rounded">
-                      <div>
-                        <p className="font-medium text-gray-900">{debt.studentName}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate">{debt.studentName}</p>
                         <p className="text-sm text-gray-600">{debt.className}</p>
                       </div>
                       <div className="text-right">
@@ -473,9 +473,9 @@ export default function ManagerDashboard() {
 
       {activeTab === 'operational' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Maintenance</p>
@@ -490,7 +490,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Vehicles</p>
@@ -505,7 +505,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Security</p>
@@ -520,7 +520,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Inventory</p>
@@ -535,9 +535,9 @@ export default function ManagerDashboard() {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Facility Status
                 </h3>
@@ -563,7 +563,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
                   Inventory Alerts
                 </h3>
@@ -596,9 +596,9 @@ export default function ManagerDashboard() {
 
       {activeTab === 'staff' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Present</p>
@@ -612,7 +612,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">Absent</p>
@@ -626,7 +626,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">On Leave</p>
@@ -640,7 +640,7 @@ export default function ManagerDashboard() {
             </Card>
 
             <Card>
-              <div className="p-6">
+              <div className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600">New Requests</p>
@@ -655,7 +655,7 @@ export default function ManagerDashboard() {
           </div>
 
           <Card>
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Today's Schedule
               </h3>
