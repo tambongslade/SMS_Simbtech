@@ -25,10 +25,10 @@ export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardP
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+    <div className="bg-white p-3 sm:p-6 rounded-lg shadow-sm border border-gray-100 min-w-0">
       <div className="flex items-center justify-between">
         <div className={`p-2 rounded-lg ${colorStyles[color]}`}>
-          <Icon className="w-6 h-6" />
+          <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
         </div>
         {trend && (
           <div className={`flex items-center space-x-1 text-sm ${trend.isUpward ? 'text-green-600' : 'text-red-600'
@@ -51,8 +51,8 @@ export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardP
           </div>
         )}
       </div>
-      <h3 className="mt-4 text-sm font-medium text-gray-500">{title}</h3>
-      <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
+      <h3 className="mt-2 sm:mt-4 text-xs sm:text-sm font-medium text-gray-500 truncate" title={title}>{title}</h3>
+      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-semibold text-gray-900 truncate">{value}</p>
     </div>
   );
 }
