@@ -191,20 +191,21 @@ export default function DmRollCallPage() {
         </div>
       </div>
 
-      {/* Slot tabs (traffic-light strip) */}
+      {/* Slot tabs (traffic-light strip) — compact on phones */}
       {subClassId && (
         <div className="flex gap-2">
           {ROLL_CALL_SLOTS.map(s => (
             <button
               key={s.value}
               onClick={() => setSlot(s.value)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium ${
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 rounded-md border text-xs sm:text-sm font-medium ${
                 slot === s.value
                   ? 'bg-blue-600 text-white border-blue-600'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
               }`}
             >
-              {s.label}
+              <span className="sm:hidden">{s.label.split(' (')[0]}</span>
+              <span className="hidden sm:inline">{s.label}</span>
               {slotBadge(s.value)}
             </button>
           ))}
@@ -223,21 +224,21 @@ export default function DmRollCallPage() {
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">Loading roster…</div>
       ) : roster.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-4 sm:px-6 py-4 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-gray-600 flex items-center gap-3">
+          <div className="px-3 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="text-xs sm:text-sm text-gray-600 flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="font-semibold text-gray-900">{roster.length} students</span>
-              <span className="text-green-700">{counts.PRESENT} present</span>
-              <span className="text-yellow-700">{counts.LATE} late</span>
-              <span className="text-red-700">{counts.ABSENT} absent</span>
+              <span className="text-green-700">{counts.PRESENT} P</span>
+              <span className="text-yellow-700">{counts.LATE} L</span>
+              <span className="text-red-700">{counts.ABSENT} A</span>
               {alreadyRecorded && (
-                <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                  <ClockIcon className="w-3 h-3" /> Already recorded — saving replaces it
+                <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                  <ClockIcon className="w-3 h-3" /> recorded — saving replaces
                 </span>
               )}
             </div>
             <button
               onClick={() => setAll('PRESENT')}
-              className="text-sm text-blue-600 hover:text-blue-800"
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
             >
               Mark all present
             </button>
@@ -245,21 +246,23 @@ export default function DmRollCallPage() {
 
           <ul className="divide-y divide-gray-100">
             {roster.map(r => (
-              <li key={r.enrollmentId} className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{r.student.name}</p>
-                  <p className="text-xs text-gray-500">{r.student.matricule || '—'}</p>
+              <li key={r.enrollmentId} className="px-3 sm:px-6 py-2 flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] sm:text-sm font-medium text-gray-900 truncate">{r.student.name}</p>
+                  <p className="text-[11px] text-gray-500 truncate">{r.student.matricule || '—'}</p>
                 </div>
-                <div className="flex gap-1.5 shrink-0">
+                <div className="flex gap-1 shrink-0">
                   {STATUS_OPTIONS.map(opt => (
                     <button
                       key={opt.value}
                       onClick={() => setStatuses(prev => ({ ...prev, [r.enrollmentId]: opt.value }))}
-                      className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                      className={`w-9 sm:w-auto px-0 sm:px-3 py-1.5 rounded-md text-[11px] sm:text-xs font-semibold transition-colors ${
                         statuses[r.enrollmentId] === opt.value ? opt.active : opt.idle
                       }`}
+                      title={opt.label}
                     >
-                      {opt.label}
+                      <span className="sm:hidden">{opt.label.charAt(0)}</span>
+                      <span className="hidden sm:inline">{opt.label}</span>
                     </button>
                   ))}
                 </div>
@@ -267,11 +270,15 @@ export default function DmRollCallPage() {
             ))}
           </ul>
 
-          <div className="px-4 sm:px-6 py-4 border-t border-gray-200 flex justify-end">
+          {/* Sticky save bar — stays visible while scrolling long rosters */}
+          <div className="sticky bottom-0 px-3 sm:px-6 py-3 border-t border-gray-200 bg-white/95 backdrop-blur flex items-center justify-between gap-2">
+            <span className="text-[11px] sm:text-xs text-gray-500">
+              {counts.PRESENT} present · {counts.LATE} late · {counts.ABSENT} absent
+            </span>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium"
+              className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium shrink-0"
             >
               {isSubmitting ? 'Saving…' : alreadyRecorded ? 'Replace Roll Call' : 'Save Roll Call'}
             </button>
