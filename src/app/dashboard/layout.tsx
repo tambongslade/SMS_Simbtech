@@ -320,6 +320,7 @@ const menuItems: MenuItemsStructure = {
   ],
   nurse: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/nurse' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Visits', href: '/dashboard/nurse/visits' },
           ],
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
