@@ -746,7 +746,9 @@ export default function ControllerFeeManagementPage() {
                       <tr key={record.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{student?.name}</p>
+                            <p className="text-sm font-medium text-gray-900" title={student?.name}>
+                              {(student?.name || '').trim().split(/\s+/).slice(0, 2).join(' ')}
+                            </p>
                             <p className="text-xs text-gray-500">{student?.matricule}</p>
                           </div>
                         </td>
@@ -794,31 +796,36 @@ export default function ControllerFeeManagementPage() {
                 const subClass = record.enrollment?.subClass;
                 const lastTx = record.controlPaymentTransactions?.[0];
                 return (
-                  <div key={record.id} className="p-4 space-y-3">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{student?.name}</p>
-                      <p className="text-xs text-gray-500">{student?.matricule}</p>
-                      <p className="text-xs text-gray-600 mt-0.5">{subClass?.class?.name} — {subClass?.name}</p>
+                  <div key={record.id} className="px-3 py-2.5 flex items-center gap-3">
+                    <div className="min-w-0">
+                      {/* Two names keep the row short so actions sit beside the name */}
+                      <p className="text-[13px] font-semibold text-gray-900 truncate" title={student?.name}>
+                        {(student?.name || '').trim().split(/\s+/).slice(0, 2).join(' ')}
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {student?.matricule} · {subClass?.class?.name} {subClass?.name}
+                      </p>
+                      <p className="text-[11px] font-semibold text-green-700">
+                        {formatCurrency(record.amountPaid)}
+                        <span className="text-gray-400 font-normal">
+                          {lastTx ? ` · ${formatDate(lastTx.paymentDate)}` : ' · no payments yet'}
+                        </span>
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">Total paid:</span>
-                      <span className="font-semibold text-green-700">{formatCurrency(record.amountPaid)}</span>
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      {lastTx ? `Last payment: ${formatDate(lastTx.paymentDate)}` : 'No payments yet'}
-                    </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5 shrink-0">
                       <button
                         onClick={() => setHistoryFor(record)}
-                        className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        title="Payment history"
+                        className="p-2 text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 rounded-md"
                       >
-                        History
+                        <ClockIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setSummaryFor({ id: subClass?.id ?? 0, name: subClass?.name ?? '' })}
-                        className="flex-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
+                        title="Subclass summary"
+                        className="p-2 text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-md"
                       >
-                        Summary
+                        <BuildingLibraryIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
