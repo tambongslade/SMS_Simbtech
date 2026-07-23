@@ -148,7 +148,7 @@ export default function DmRollCallPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Slot Roll Call (2 / 5 / 8)</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Roll Call</h1>
         <p className="text-sm text-gray-500 mt-1">
           Record attendance for the three daily control slots. Absences and lateness automatically feed the discipline system.
         </p>

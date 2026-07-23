@@ -24,7 +24,7 @@ const quickActions: QuickAction[] = [
     color: 'blue',
   },
   {
-    label: 'Slot Roll Call (2/5/8)',
+    label: 'Roll Call',
     description: "The three daily control slots",
     href: '/dashboard/dean-of-discipline/dm-roll-call',
     icon: ClockIcon,

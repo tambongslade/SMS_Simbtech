@@ -79,7 +79,7 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
-        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Roll Call', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
         { label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
@@ -113,10 +113,7 @@ const menuItems: MenuItemsStructure = {
   'discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-master' },
     {
-      icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/discipline-master/roll-call'
-    },
-    {
-      icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/discipline-master/dm-roll-call'
+      icon: ClockIcon, label: 'Roll Call', href: '/dashboard/discipline-master/dm-roll-call'
     },
     {
       icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons'
@@ -244,7 +241,7 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
-        { label: 'Slot Roll Call (2/5/8)', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
+        { label: 'Roll Call', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
         { label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
@@ -284,7 +281,7 @@ const menuItems: MenuItemsStructure = {
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
     { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
-    { icon: ClockIcon, label: 'Slot Roll Call (2/5/8)', href: '/dashboard/dean-of-discipline/dm-roll-call' },
+    { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },

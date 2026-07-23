@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  ClipboardDocumentCheckIcon,
   ClipboardDocumentListIcon,
   CalendarDaysIcon,
   BanknotesIcon,
@@ -17,18 +16,18 @@ import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickA
 
 const quickActions: QuickAction[] = [
   {
-    label: 'Morning Roll-Call',
-    description: 'Record the morning roll-call',
-    href: '/dashboard/discipline-master/roll-call',
-    icon: ClipboardDocumentCheckIcon,
-    color: 'blue',
-  },
-  {
-    label: 'Slot Roll Call (2/5/8)',
+    label: 'Roll Call',
     description: 'Record the three daily control slots',
     href: '/dashboard/discipline-master/dm-roll-call',
     icon: ClockIcon,
     color: 'indigo',
+  },
+  {
+    label: 'Student Profiles',
+    description: 'Browse student discipline profiles',
+    href: '/dashboard/discipline-master/students',
+    icon: UserGroupIcon,
+    color: 'blue',
   },
   {
     label: 'Warnings & Summons',
@@ -71,13 +70,6 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/discipline-master/report-requests',
     icon: DocumentChartBarIcon,
     color: 'green',
-  },
-  {
-    label: 'Student Profiles',
-    description: 'Browse student discipline profiles',
-    href: '/dashboard/discipline-master/students',
-    icon: UserGroupIcon,
-    color: 'blue',
   },
   {
     label: 'Reports',
