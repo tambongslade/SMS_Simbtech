@@ -8,6 +8,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 export interface Child {
     id: number;
     name: string;
+    matricule?: string;
     className?: string;
     subclassName?: string;
     enrollmentStatus: string;

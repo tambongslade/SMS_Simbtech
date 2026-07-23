@@ -165,6 +165,7 @@ const menuItems: MenuItemsStructure = {
   'parent-student': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/parent-student' },
     { icon: UserGroupIcon, label: 'My Children', href: '/dashboard/parent-student/children' },
+    { icon: DocumentChartBarIcon, label: 'Results & Report Cards', href: '/dashboard/parent-student/child-snapshot' },
             { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
     { icon: Cog6ToothIcon, label: 'Settings', href: '/dashboard/parent-student/settings' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/parent-student/overview' },

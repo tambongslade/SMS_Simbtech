@@ -19,6 +19,13 @@ const quickActions: QuickAction[] = [
     color: 'blue',
   },
   {
+    label: 'Results & Report Cards',
+    description: "Marks, rankings & report card PDFs",
+    href: '/dashboard/parent-student/child-snapshot',
+    icon: DocumentChartBarIcon,
+    color: 'indigo',
+  },
+  {
     label: 'Chat',
     description: "Message teachers & staff",
     href: '/dashboard/parent-student/chat',
