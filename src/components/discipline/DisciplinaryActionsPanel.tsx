@@ -299,9 +299,63 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table (desktop) / cards (mobile) */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <p className="p-6 text-center text-sm text-gray-500">Loading actions…</p>
+          ) : rows.length === 0 ? (
+            <p className="p-6 text-center text-sm text-gray-500">No disciplinary actions found.</p>
+          ) : (
+            rows.map((row) => {
+              const who = enrollmentStudent(row);
+              return (
+                <div key={row.id} className="p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-gray-900 truncate" title={who.name}>
+                        {(who.name || '').trim().split(/\s+/).slice(0, 2).join(' ')}
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate">
+                        {who.matricule ? `${who.matricule} · ` : ''}{who.className}
+                      </p>
+                    </div>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium shrink-0 ${STATUS_STYLES[row.status]}`}>
+                      {row.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-800 mt-1.5 font-medium">
+                    {ACTION_TYPE_LABELS[row.actionType] || row.actionType}
+                    {row.days != null ? ` · ${row.days} day(s)` : ''}
+                  </p>
+                  {row.reason && <p className="text-[11px] text-gray-500 mt-0.5">{row.reason}</p>}
+                  <p className="text-[11px] text-gray-400 mt-0.5">
+                    {row.startDate ? fmtDate(row.startDate) : '—'}
+                    {row.endDate ? ` → ${fmtDate(row.endDate)}` : ''}
+                    {row.decidedBy?.name ? ` · by ${row.decidedBy.name}` : ''}
+                  </p>
+                  {(decisionAllowed || deleteAllowed) && (
+                    <div className="flex justify-end gap-2 mt-2">
+                      {decisionAllowed && (
+                        <Button size="xs" variant="outline" leftIcon={PencilSquareIcon} onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                      )}
+                      {deleteAllowed && (
+                        <Button size="xs" variant="outline" color="danger" leftIcon={TrashIcon} onClick={() => setDeleting(row)}>
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
