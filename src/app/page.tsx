@@ -154,7 +154,22 @@ export default function LoginPage() {
     password: '',
   });
   const [loginType, setLoginType] = useState<'email' | 'matricule'>('email');
+  const [rememberMe, setRememberMe] = useState(true);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+
+  // Pre-fill the identifier and tab from the last remembered login
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rememberedLogin');
+      if (saved) {
+        const { identifier, type } = JSON.parse(saved);
+        if (identifier) {
+          setFormData(prev => ({ ...prev, email: identifier }));
+          if (type === 'matricule' || type === 'email') setLoginType(type);
+        }
+      }
+    } catch { /* corrupted value — ignore */ }
+  }, []);
 
   // Background image cycling
   const [bgIndex, setBgIndex] = useState(0);
@@ -226,6 +241,14 @@ export default function LoginPage() {
       // Matricule login is parent-only; backend uppercases too, but normalize here
       const identifier = loginType === 'matricule' ? formData.email.trim().toUpperCase() : formData.email.trim();
       await login(identifier, formData.password);
+      // Remember the identifier + tab (never the password) for the next login
+      try {
+        if (rememberMe) {
+          localStorage.setItem('rememberedLogin', JSON.stringify({ identifier, type: loginType }));
+        } else {
+          localStorage.removeItem('rememberedLogin');
+        }
+      } catch { /* storage unavailable — non-fatal */ }
       // The useEffect will handle the rest of the flow, no direct redirection here
     } catch (error: any) {
       // Staff/students trying matricule login get sent to the email tab with a hint
@@ -398,6 +421,16 @@ export default function LoginPage() {
                   required
                   disabled={isLoading}
                 />
+
+                <label className="flex items-center gap-2 text-sm text-gray-600 select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  Remember me on this device
+                </label>
 
                 <Button
                   type="submit"
