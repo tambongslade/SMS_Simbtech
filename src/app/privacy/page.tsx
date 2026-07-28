@@ -1,5 +1,7 @@
 export const metadata = {
-  title: "Privacy Policy - St Stephens International College",
+  title: {
+    absolute: "Privacy Policy - St Stephens International College",
+  },
   description:
     "Privacy Policy for the St Stephens International College school management app.",
 };
