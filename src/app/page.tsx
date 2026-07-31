@@ -137,6 +137,7 @@ export default function LoginPage() {
   const router = useRouter();
   const {
     login,
+    loginParent,
     selectRole,
     user,
     availableRoles,
@@ -157,20 +158,20 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
-  // Remembered parent with stored device credential → one-tap sign-in
-  const [quickLogin, setQuickLogin] = useState<{ identifier: string; secret: string } | null>(null);
+  // Remembered parent → one-tap sign-in (matricule only, no password needed)
+  const [quickLogin, setQuickLogin] = useState<{ identifier: string } | null>(null);
 
   // Pre-fill the identifier and tab from the last remembered login
   useEffect(() => {
     try {
       const saved = localStorage.getItem('rememberedLogin');
       if (saved) {
-        const { identifier, type, secret } = JSON.parse(saved);
+        const { identifier, type } = JSON.parse(saved);
         if (identifier) {
           setFormData(prev => ({ ...prev, email: identifier }));
           if (type === 'matricule' || type === 'email') setLoginType(type);
-          // Parents who chose Remember get password-free sign-in on this device
-          if (type === 'matricule' && secret) setQuickLogin({ identifier, secret });
+          // Parent sign-in is matricule-only — remembered parents get one-tap entry
+          if (type === 'matricule') setQuickLogin({ identifier });
         }
       }
     } catch { /* corrupted value — ignore */ }
@@ -185,12 +186,11 @@ export default function LoginPage() {
   const handleQuickLogin = async () => {
     if (!quickLogin) return;
     try {
-      await login(quickLogin.identifier, atob(quickLogin.secret));
+      await loginParent(quickLogin.identifier);
     } catch {
-      // Password probably changed — clear the stored credential and fall back
+      // Matricule no longer valid — clear it and fall back to the form
       forgetQuickLogin();
       setLoginType('matricule');
-      toast.error('Saved sign-in no longer works — please enter your matricule and password again.', { duration: 6000 });
     }
   };
 
@@ -255,39 +255,47 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Parent access is matricule-only — no password at all
+    if (loginType === 'matricule') {
+      const identifier = formData.email.trim().toUpperCase();
+      if (!identifier) {
+        toast.error("Please enter your child's matricule");
+        return;
+      }
+      try {
+        await loginParent(identifier);
+        try {
+          if (rememberMe) {
+            localStorage.setItem('rememberedLogin', JSON.stringify({ identifier, type: 'matricule' }));
+          } else {
+            localStorage.removeItem('rememberedLogin');
+          }
+        } catch { /* storage unavailable — non-fatal */ }
+      } catch (error) {
+        console.error('Parent login error:', error);
+      }
+      return;
+    }
+
     if (!formData.email || !formData.password) {
       toast.error('Please fill in all fields');
       return;
     }
 
     try {
-      // Matricule login is parent-only; backend uppercases too, but normalize here
-      const identifier = loginType === 'matricule' ? formData.email.trim().toUpperCase() : formData.email.trim();
+      const identifier = formData.email.trim();
       await login(identifier, formData.password);
       // Remember the identifier + tab (never the password) for the next login
       try {
         if (rememberMe) {
-          // Parents also keep a device credential for password-free sign-in;
-          // staff/student passwords are never stored.
-          localStorage.setItem('rememberedLogin', JSON.stringify({
-            identifier,
-            type: loginType,
-            ...(loginType === 'matricule' ? { secret: btoa(formData.password) } : {}),
-          }));
+          localStorage.setItem('rememberedLogin', JSON.stringify({ identifier, type: loginType }));
         } else {
           localStorage.removeItem('rememberedLogin');
         }
       } catch { /* storage unavailable — non-fatal */ }
       // The useEffect will handle the rest of the flow, no direct redirection here
     } catch (error: any) {
-      // Staff/students trying matricule login get sent to the email tab with a hint
-      if (String(error?.message || '').includes('Matricule login is only available')) {
-        setLoginType('email');
-        setFormData(prev => ({ ...prev, email: '' }));
-        toast.error('Matricule login is for parents only — please sign in with your email.', { duration: 6000 });
-      } else {
-        console.error('Login error:', error);
-      }
+      console.error('Login error:', error);
     }
   };
 
@@ -451,10 +459,10 @@ export default function LoginPage() {
                 </div>
 
                 <Input
-                  label={loginType === 'email' ? 'Email Address' : 'Parent Matricule'}
+                  label={loginType === 'email' ? 'Email Address' : "Child's Matricule"}
                   name="email"
                   type={loginType === 'email' ? 'email' : 'text'}
-                  placeholder={loginType === 'email' ? 'Enter your email address' : 'e.g. SO25PA0001'}
+                  placeholder={loginType === 'email' ? 'Enter your email address' : 'e.g. SS24STD0001'}
                   value={formData.email}
                   onChange={handleInputChange}
                   leftIcon={
@@ -462,21 +470,26 @@ export default function LoginPage() {
                       ? <AtSymbolIcon className="h-5 w-5 text-gray-400" />
                       : <IdentificationIcon className="h-5 w-5 text-gray-400" />
                   }
+                  helperText={loginType === 'matricule'
+                    ? "Enter your child's matricule — no password needed."
+                    : undefined}
                   required
                   disabled={isLoading}
                 />
 
-                <Input
-                  label="Password"
-                  name="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={formData.password}
-                  onChange={handleInputChange}
-                  leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
-                  required
-                  disabled={isLoading}
-                />
+                {loginType === 'email' && (
+                  <Input
+                    label="Password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
+                    required
+                    disabled={isLoading}
+                  />
+                )}
 
                 <label className="flex items-center gap-2 text-sm text-gray-600 select-none">
                   <input
@@ -495,9 +508,9 @@ export default function LoginPage() {
                   variant="solid" // Explicitly set variant
                   color="primary" // Explicitly set color
                   className="mt-6 bg-blue-700 hover:bg-blue-800 text-white"
-                  disabled={!formData.email || !formData.password || isLoading}
+                  disabled={!formData.email || (loginType === 'email' && !formData.password) || isLoading}
                 >
-                  {isLoading ? 'Signing in...' : 'Sign In'}
+                  {isLoading ? 'Signing in...' : loginType === 'matricule' ? "View My Child" : 'Sign In'}
                 </Button>
               </form>
               )}

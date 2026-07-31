@@ -73,6 +73,7 @@ interface AuthContextType {
 
     // Actions
     login: (email: string, password: string) => Promise<void>;
+    loginParent: (matricule: string) => Promise<void>;
     logout: () => void;
     selectRole: (role: string) => Promise<void>;
     selectAcademicYear: (academicYear: AcademicYear) => Promise<void>; // Make this async
@@ -147,6 +148,7 @@ const clearAuthData = () => {
         localStorage.removeItem('userData');
         localStorage.removeItem('userRole');
         localStorage.removeItem('academicYear');
+        localStorage.removeItem('parentPortal');
     }
 };
 
@@ -203,6 +205,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     console.error('Failed to refresh user:', error);
                     clearAuthData();
                 }
+            } else {
+                // Parent portal sessions are matricule-based and token-free —
+                // restore the synthetic parent user saved by loginParent.
+                try {
+                    const portal = localStorage.getItem('parentPortal');
+                    const savedUser = localStorage.getItem('userData');
+                    if (portal && savedUser) {
+                        const parsed = JSON.parse(savedUser) as User;
+                        if (parsed?.userRoles?.some(r => r.role === 'PARENT')) {
+                            setUser(parsed);
+                            setAvailableRoles(['PARENT']);
+                        }
+                    }
+                } catch { /* corrupted storage — stay logged out */ }
             }
             setIsLoading(false);
         };
@@ -287,6 +303,58 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         } catch (error) {
             console.error('Login error:', error);
             toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Parent portal sign-in: matricule only, no password and no JWT.
+    // Validates the matricule against the public per-child dashboard endpoint,
+    // then creates a synthetic local PARENT session.
+    const loginParent = async (matricule: string): Promise<void> => {
+        setIsLoading(true);
+        try {
+            const normalized = matricule.trim().toUpperCase();
+            const res = await fetch(`${API_BASE_URL}/parents/${encodeURIComponent(normalized)}/dashboard`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || json?.success === false) {
+                throw new Error(json?.error || 'Student not found for the provided matricule.');
+            }
+            const childName: string = json?.data?.student?.name || json?.data?.name || '';
+
+            const parentUser = {
+                id: -1,
+                name: childName ? `Parent of ${childName}` : 'Parent',
+                email: '',
+                matricule: normalized,
+                gender: 'MALE',
+                dateOfBirth: '',
+                phone: '',
+                address: '',
+                status: 'ACTIVE',
+                createdAt: '',
+                updatedAt: '',
+                userRoles: [{ id: -1, userId: -1, role: 'PARENT', academicYearId: null, createdAt: '', updatedAt: '' }],
+            } as User;
+
+            // Keep a device-local list of children (multi-child parents add more later)
+            let matricules: string[] = [normalized];
+            try {
+                const existing = JSON.parse(localStorage.getItem('parentPortal') || 'null');
+                matricules = Array.from(new Set([...(existing?.matricules || []), normalized]));
+            } catch { /* start fresh */ }
+            localStorage.setItem('parentPortal', JSON.stringify({ matricules, active: normalized }));
+            localStorage.setItem('userData', JSON.stringify(parentUser));
+            localStorage.setItem('userRole', 'PARENT');
+
+            setUser(parentUser);
+            setAvailableRoles(['PARENT']);
+            setSelectedRole('PARENT');
+            toast.success(childName ? `Welcome! Viewing ${childName}.` : 'Welcome!');
+            router.push('/dashboard/parent-student');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Could not find that matricule. Please check and try again.');
             throw error;
         } finally {
             setIsLoading(false);
@@ -508,6 +576,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             currentAcademicYear: selectedAcademicYear, // Provide currentAcademicYear from selectedAcademicYear
 
             login,
+            loginParent,
             logout,
             selectRole,
             selectAcademicYear,
