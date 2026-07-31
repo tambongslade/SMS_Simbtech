@@ -19,6 +19,7 @@ interface FeeStudentRow {
     name: string;
     matricule: string;
     classId: string;
+    subClassId: number | null;
     className: string;
     expected: number;
     paid: number;
@@ -71,7 +72,10 @@ const fetchAllFees = async (academicYearId: number): Promise<FeeStudentRow[]> =>
             name: student?.name || 'Unknown Student',
             matricule: student?.matricule || 'N/A',
             classId: feeRecord.enrollment?.classId ? String(feeRecord.enrollment.classId) : 'unknown',
-            className: feeRecord.enrollment?.class?.name || 'Unassigned',
+            subClassId: feeRecord.enrollment?.subClassId ?? feeRecord.enrollment?.subClass?.id ?? null,
+            // Fee records usually omit the nested class object; the component
+            // resolves missing names from /classes.
+            className: feeRecord.enrollment?.class?.name || '',
             expected,
             paid,
             balance: Math.max(0, expected - paid),
@@ -94,11 +98,36 @@ function FeesOverviewContent() {
     const effectiveYearId = selectedAcademicYear?.id
         ?? yearsResult?.data?.find(y => y.isCurrent)?.id;
 
-    const { data: rows, error, isLoading } = useSWR(
+    const { data: rawRows, error, isLoading } = useSWR(
         effectiveYearId ? ['all-fees', effectiveYearId] : null,
         ([, yearId]) => fetchAllFees(yearId as number),
         { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load fee data'); } }
     );
+
+    // Resolve class names/ids from /classes — fee records usually carry only ids
+    const { data: classesResult } = useSWR<{ data: { id: number; name: string; subClasses?: { id: number }[] }[] }>(
+        '/classes',
+        (url: string) => apiService.get(url)
+    );
+    const rows = useMemo<FeeStudentRow[] | undefined>(() => {
+        if (!rawRows) return rawRows;
+        const nameById = new Map<string, string>();
+        const classBySubClass = new Map<number, { id: string; name: string }>();
+        (classesResult?.data ?? []).forEach(c => {
+            nameById.set(String(c.id), c.name);
+            (c.subClasses ?? []).forEach(sc => classBySubClass.set(sc.id, { id: String(c.id), name: c.name }));
+        });
+        return rawRows.map(row => {
+            if (row.className) return row;
+            let classId = row.classId;
+            let className = classId !== 'unknown' ? nameById.get(classId) : undefined;
+            if (!className && row.subClassId != null) {
+                const viaSub = classBySubClass.get(Number(row.subClassId));
+                if (viaSub) { classId = viaSub.id; className = viaSub.name; }
+            }
+            return { ...row, classId, className: className || 'Unassigned' };
+        });
+    }, [rawRows, classesResult]);
 
     const [showOwingOnly, setShowOwingOnly] = useState(true);
     const [search, setSearch] = useState('');
