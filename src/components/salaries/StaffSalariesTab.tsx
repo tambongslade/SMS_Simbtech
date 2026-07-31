@@ -7,27 +7,43 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { Badge, Button, Input, Modal, Select, TextArea } from '@/components/ui';
 import apiService from '@/lib/apiService';
 
-// Backend model: every staff member has a SalaryProfile that is either
-// TEACHER_HOURLY (paid per hour) or ADMIN_FIXED (fixed monthly salary).
-// Salary changes go through POST /salary/change-requests with the profile id;
-// for the Super Manager the change is auto-approved and applied immediately.
+// Every staff member appears here, whether or not they already have a
+// SalaryProfile (TEACHER_HOURLY or ADMIN_FIXED). Staff without a profile get
+// one created on first "Set Salary"; staff with one go through
+// POST /salary/change-requests (auto-approved for the Super Manager).
+
 interface SalaryProfile {
     id: number;
-    profileType?: string | null; // TEACHER_HOURLY | ADMIN_FIXED
-    type?: string | null;        // tolerated alias
+    profileType?: string | null;
+    type?: string | null;
     hourlyRate?: number | null;
     baseSalary?: number | null;
     user?: { id: number; name?: string; matricule?: string } | null;
-    userName?: string | null;
     userId?: number;
+}
+
+interface StaffRow {
+    userId: number;
+    name: string;
+    matricule?: string;
+    roles: string[];
+    profile: SalaryProfile | null;
 }
 
 type SalaryAction = 'set-salary' | 'allowance' | 'withholding';
 
+const NON_STAFF_ROLES = new Set(['PARENT', 'STUDENT']);
+
 const TYPE_FILTERS = [
-    { value: 'all', label: 'All Profiles' },
+    { value: 'all', label: 'All Staff' },
     { value: 'TEACHER_HOURLY', label: 'Teachers (Hourly)' },
     { value: 'ADMIN_FIXED', label: 'Admin Staff (Fixed)' },
+    { value: 'none', label: 'No Salary Set' },
+];
+
+const PROFILE_TYPE_OPTIONS = [
+    { value: 'ADMIN_FIXED', label: 'Fixed monthly salary (admin staff)' },
+    { value: 'TEACHER_HOURLY', label: 'Hourly rate (teachers)' },
 ];
 
 const fetcher = (url: string) => apiService.get(url);
@@ -38,11 +54,14 @@ const formatMoney = (amount?: number | null) =>
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-const profileType = (p: SalaryProfile) => (p.profileType ?? p.type ?? '').toUpperCase();
-const isHourly = (p: SalaryProfile) => profileType(p).includes('HOURLY');
-const profileName = (p: SalaryProfile) =>
-    p.user?.name ?? p.userName ?? (p.userId ? `User #${p.userId}` : 'Unknown staff');
-const currentPay = (p: SalaryProfile) => (isHourly(p) ? p.hourlyRate : p.baseSalary);
+const profileType = (p?: SalaryProfile | null) => (p?.profileType ?? p?.type ?? '').toUpperCase();
+const isHourly = (p?: SalaryProfile | null) => profileType(p).includes('HOURLY');
+const currentPay = (p?: SalaryProfile | null) =>
+    p ? (isHourly(p) ? p.hourlyRate : p.baseSalary) : null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const unwrapList = (raw: any): any[] =>
+    Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
 
 export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: SalaryAction) => void }) {
     const [search, setSearch] = useState('');
@@ -50,7 +69,8 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
     const [typeFilter, setTypeFilter] = useState('all');
 
     const [action, setAction] = useState<SalaryAction | null>(null);
-    const [selectedProfile, setSelectedProfile] = useState<SalaryProfile | null>(null);
+    const [selectedStaff, setSelectedStaff] = useState<StaffRow | null>(null);
+    const [newProfileType, setNewProfileType] = useState('ADMIN_FIXED');
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,25 +80,52 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
         return () => clearTimeout(handle);
     }, [search]);
 
-    const { data: profilesRes, error, isLoading, mutate } = useSWR('/salary/profiles', fetcher, {
-        onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load salary profiles.'); },
+    // All personnel (parents/students excluded client-side) + existing profiles
+    const { data: usersRes, error: usersError, isLoading: usersLoading, mutate: mutateUsers } = useSWR(
+        '/users?page=1&limit=200',
+        fetcher,
+        { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load personnel.'); } }
+    );
+    const { data: profilesRes, mutate: mutateProfiles } = useSWR('/salary/profiles', fetcher, {
+        onError: () => { /* profiles are optional — staff simply show "no salary set" */ },
     });
 
-    const profiles = useMemo(() => {
-        const raw = profilesRes?.data;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const list: SalaryProfile[] = Array.isArray(raw) ? raw : ((raw as any)?.data ?? []);
-        return (Array.isArray(list) ? list : []).filter((p) => {
-            if (typeFilter !== 'all' && profileType(p) !== typeFilter) return false;
-            if (!debouncedSearch) return true;
-            const haystack = `${profileName(p)} ${p.user?.matricule ?? ''}`.toLowerCase();
-            return haystack.includes(debouncedSearch);
+    const staff = useMemo((): StaffRow[] => {
+        const users = unwrapList(usersRes?.data);
+        const profiles = unwrapList(profilesRes?.data) as SalaryProfile[];
+        const profileByUser = new Map<number, SalaryProfile>();
+        profiles.forEach(p => {
+            const uid = p.user?.id ?? p.userId;
+            if (uid != null) profileByUser.set(uid, p);
         });
-    }, [profilesRes, typeFilter, debouncedSearch]);
 
-    const openModal = (profile: SalaryProfile, nextAction: SalaryAction) => {
-        setSelectedProfile(profile);
+        return users
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((user: any): StaffRow => ({
+                userId: user.id,
+                name: user.name,
+                matricule: user.matricule,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                roles: (user.userRoles?.map((r: any) => r.role) ?? user.roles ?? [])
+                    .filter((r: string) => !NON_STAFF_ROLES.has(r)),
+                profile: profileByUser.get(user.id) ?? null,
+            }))
+            .filter(s => s.roles.length > 0)
+            .filter(s => {
+                if (typeFilter === 'none') return !s.profile;
+                if (typeFilter !== 'all') return profileType(s.profile) === typeFilter;
+                return true;
+            })
+            .filter(s => {
+                if (!debouncedSearch) return true;
+                return `${s.name} ${s.matricule ?? ''}`.toLowerCase().includes(debouncedSearch);
+            });
+    }, [usersRes, profilesRes, typeFilter, debouncedSearch]);
+
+    const openModal = (row: StaffRow, nextAction: SalaryAction) => {
+        setSelectedStaff(row);
         setAction(nextAction);
+        setNewProfileType(row.roles.includes('TEACHER') ? 'TEACHER_HOURLY' : 'ADMIN_FIXED');
         setAmount('');
         setReason('');
     };
@@ -86,11 +133,11 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
     const closeModal = () => {
         if (isSubmitting) return;
         setAction(null);
-        setSelectedProfile(null);
+        setSelectedStaff(null);
     };
 
     const submit = async () => {
-        if (!action || !selectedProfile) return;
+        if (!action || !selectedStaff) return;
         const parsedAmount = Number(amount);
         if (!amount || Number.isNaN(parsedAmount) || parsedAmount < 0) {
             toast.error('Enter a valid amount.');
@@ -99,30 +146,45 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
 
         setIsSubmitting(true);
         try {
+            const profile = selectedStaff.profile;
             if (action === 'set-salary') {
-                // Super Manager requests are auto-approved and applied immediately;
-                // reason is optional and auto-filled server-side when omitted.
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const payload: Record<string, any> = { salaryProfileId: selectedProfile.id };
-                if (isHourly(selectedProfile)) payload.newHourlyRate = parsedAmount;
-                else payload.newBaseSalary = parsedAmount;
-                if (reason.trim()) payload.reason = reason.trim();
-                await apiService.post('/salary/change-requests', payload);
-                toast.success(`Salary updated for ${profileName(selectedProfile)}.`);
+                if (profile) {
+                    // Existing profile → change request (auto-approved for Super Manager)
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const payload: Record<string, any> = { salaryProfileId: profile.id };
+                    if (isHourly(profile)) payload.newHourlyRate = parsedAmount;
+                    else payload.newBaseSalary = parsedAmount;
+                    if (reason.trim()) payload.reason = reason.trim();
+                    await apiService.post('/salary/change-requests', payload);
+                } else {
+                    // First salary for this staff member → create the profile
+                    const hourly = newProfileType === 'TEACHER_HOURLY';
+                    await apiService.post('/salary/profiles', {
+                        userId: selectedStaff.userId,
+                        profileType: newProfileType,
+                        ...(hourly ? { hourlyRate: parsedAmount } : { baseSalary: parsedAmount }),
+                    });
+                }
+                toast.success(`Salary ${profile ? 'updated' : 'set'} for ${selectedStaff.name}.`);
             } else {
+                if (!profile) {
+                    toast.error('Set a salary for this staff member first.');
+                    return;
+                }
                 const base = action === 'allowance' ? '/salary/allowances' : '/salary/withholdings';
                 await apiService.post(base, {
-                    salaryProfileId: selectedProfile.id,
-                    userId: selectedProfile.user?.id ?? selectedProfile.userId,
+                    salaryProfileId: profile.id,
+                    userId: selectedStaff.userId,
                     amount: parsedAmount,
                     description: reason.trim() || undefined,
                     reason: reason.trim() || undefined,
                 });
-                toast.success(`${action === 'allowance' ? 'Allowance' : 'Withholding'} added for ${profileName(selectedProfile)}.`);
+                toast.success(`${action === 'allowance' ? 'Allowance' : 'Withholding'} added for ${selectedStaff.name}.`);
             }
             setAction(null);
-            setSelectedProfile(null);
-            mutate();
+            setSelectedStaff(null);
+            mutateProfiles();
+            mutateUsers();
             onCreated?.(action);
         } catch (err) {
             console.error(`${action} submission failed:`, err);
@@ -131,12 +193,13 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
         }
     };
 
+    const modalProfile = selectedStaff?.profile ?? null;
+    const modalIsHourly = modalProfile ? isHourly(modalProfile) : newProfileType === 'TEACHER_HOURLY';
     const modalTitle = action === 'set-salary'
-        ? (selectedProfile && isHourly(selectedProfile) ? 'Change Hourly Rate' : 'Change Base Salary')
+        ? (modalProfile ? (modalIsHourly ? 'Change Hourly Rate' : 'Change Base Salary') : 'Set Salary')
         : action === 'allowance' ? 'Add Allowance / Bonus' : 'Add Withholding';
-
     const amountLabel = action === 'set-salary'
-        ? (selectedProfile && isHourly(selectedProfile) ? 'New Hourly Rate (FCFA)' : 'New Monthly Salary (FCFA)')
+        ? (modalIsHourly ? 'Hourly Rate (FCFA)' : 'Monthly Salary (FCFA)')
         : action === 'allowance' ? 'Allowance Amount (FCFA)' : 'Withholding Amount (FCFA)';
 
     return (
@@ -160,52 +223,59 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
                 </div>
             </div>
 
-            {/* Salary profiles */}
+            {/* Staff list */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                {isLoading ? (
+                {usersLoading ? (
                     <div className="p-6 space-y-3">
                         {[0, 1, 2, 3].map((i) => <div key={i} className="h-12 rounded bg-gray-100 animate-pulse" />)}
                     </div>
-                ) : error ? (
-                    <p className="p-6 text-sm text-gray-500">Could not load salary profiles. Please try again.</p>
-                ) : profiles.length === 0 ? (
-                    <p className="p-6 text-sm text-gray-500">No salary profiles found.</p>
+                ) : usersError ? (
+                    <p className="p-6 text-sm text-gray-500">Could not load personnel. Please try again.</p>
+                ) : staff.length === 0 ? (
+                    <p className="p-6 text-sm text-gray-500">No staff members found.</p>
                 ) : (
                     <ul className="divide-y divide-gray-100">
-                        {profiles.map((profile) => (
-                            <li key={profile.id} className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+                        {staff.map((row) => (
+                            <li key={row.userId} className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-sm font-medium text-gray-900 truncate">{profileName(profile)}</p>
-                                        {profileType(profile) && (
-                                            <Badge color={isHourly(profile) ? 'blue' : 'purple'} size="sm">
-                                                {formatLabel(profileType(profile))}
+                                        <p className="text-sm font-medium text-gray-900 truncate">{row.name}</p>
+                                        {row.roles.slice(0, 3).map((role) => (
+                                            <Badge key={role} color="gray" size="sm">{formatLabel(role)}</Badge>
+                                        ))}
+                                        {row.profile && (
+                                            <Badge color={isHourly(row.profile) ? 'blue' : 'purple'} size="sm">
+                                                {formatLabel(profileType(row.profile))}
                                             </Badge>
                                         )}
                                     </div>
                                     <p className="mt-0.5 text-xs text-gray-500">
-                                        {profile.user?.matricule ? `${profile.user.matricule} · ` : ''}
-                                        {currentPay(profile) != null
-                                            ? `${formatMoney(currentPay(profile))}${isHourly(profile) ? ' / hour' : ' / month'}`
-                                            : 'Salary not set'}
+                                        {row.matricule ? `${row.matricule} · ` : ''}
+                                        {currentPay(row.profile) != null
+                                            ? `${formatMoney(currentPay(row.profile))}${isHourly(row.profile) ? ' / hour' : ' / month'}`
+                                            : 'No salary set yet'}
                                     </p>
                                 </div>
                                 <div className="flex gap-2 shrink-0">
                                     <button
-                                        onClick={() => openModal(profile, 'set-salary')}
+                                        onClick={() => openModal(row, 'set-salary')}
                                         className="px-2.5 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
                                     >
-                                        {isHourly(profile) ? 'Set Rate' : 'Set Salary'}
+                                        {row.profile ? (isHourly(row.profile) ? 'Change Rate' : 'Change Salary') : 'Set Salary'}
                                     </button>
                                     <button
-                                        onClick={() => openModal(profile, 'allowance')}
-                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                        onClick={() => openModal(row, 'allowance')}
+                                        disabled={!row.profile}
+                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={row.profile ? undefined : 'Set a salary first'}
                                     >
                                         Allowance
                                     </button>
                                     <button
-                                        onClick={() => openModal(profile, 'withholding')}
-                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                        onClick={() => openModal(row, 'withholding')}
+                                        disabled={!row.profile}
+                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        title={row.profile ? undefined : 'Set a salary first'}
                                     >
                                         Withholding
                                     </button>
@@ -217,18 +287,27 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
             </div>
 
             {/* Action modal */}
-            <Modal isOpen={!!action && !!selectedProfile} onClose={closeModal} title={modalTitle} size="sm">
-                {action && selectedProfile && (
+            <Modal isOpen={!!action && !!selectedStaff} onClose={closeModal} title={modalTitle} size="sm">
+                {action && selectedStaff && (
                     <div className="space-y-4">
                         <div className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-sm font-medium text-gray-900">{profileName(selectedProfile)}</p>
+                            <p className="text-sm font-medium text-gray-900">{selectedStaff.name}</p>
                             <p className="text-xs text-gray-500">
-                                {profileType(selectedProfile) ? formatLabel(profileType(selectedProfile)) : 'Staff'}
-                                {currentPay(selectedProfile) != null
-                                    ? ` · Current: ${formatMoney(currentPay(selectedProfile))}${isHourly(selectedProfile) ? ' / hour' : ' / month'}`
-                                    : ''}
+                                {selectedStaff.roles.map(formatLabel).join(', ') || 'Staff'}
+                                {currentPay(modalProfile) != null
+                                    ? ` · Current: ${formatMoney(currentPay(modalProfile))}${isHourly(modalProfile) ? ' / hour' : ' / month'}`
+                                    : ' · No salary set yet'}
                             </p>
                         </div>
+
+                        {action === 'set-salary' && !modalProfile && (
+                            <Select
+                                label="Salary Type"
+                                value={newProfileType}
+                                onChange={(e) => setNewProfileType(e.target.value)}
+                                options={PROFILE_TYPE_OPTIONS}
+                            />
+                        )}
 
                         <Input
                             label={amountLabel}
@@ -236,7 +315,7 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
                             min="0"
                             value={amount}
                             onChange={(e) => setAmount(e.target.value)}
-                            placeholder={isHourly(selectedProfile) && action === 'set-salary' ? 'e.g. 1500' : 'e.g. 150000'}
+                            placeholder={modalIsHourly && action === 'set-salary' ? 'e.g. 1500' : 'e.g. 150000'}
                         />
 
                         <TextArea
@@ -264,7 +343,8 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
                                 Cancel
                             </button>
                             <Button onClick={submit} isLoading={isSubmitting}>
-                                {action === 'set-salary' ? 'Apply Change' : action === 'allowance' ? 'Add Allowance' : 'Add Withholding'}
+                                {action === 'set-salary' ? (modalProfile ? 'Apply Change' : 'Set Salary')
+                                    : action === 'allowance' ? 'Add Allowance' : 'Add Withholding'}
                             </Button>
                         </div>
                     </div>

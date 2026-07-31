@@ -142,6 +142,8 @@ export default function SalariesWorkspace() {
                         <dl className="grid grid-cols-2 md:grid-cols-4 gap-3">
                             {Object.entries(cashSummary)
                                 .filter(([, value]) => typeof value === 'number' || typeof value === 'string')
+                                // Ids and counts are metadata, not money — don't show them as FCFA
+                                .filter(([key]) => !/id$|count$/i.test(key))
                                 .slice(0, 8)
                                 .map(([key, value]) => (
                                     <div key={key} className="bg-gray-50 rounded-lg p-3">
