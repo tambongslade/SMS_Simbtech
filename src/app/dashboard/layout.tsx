@@ -78,6 +78,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
+    { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/principal/defaulters' },
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
         { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
@@ -110,6 +111,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/bursar/broken-property' },
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
+    { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/bursar/defaulters' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
             { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
@@ -190,6 +192,7 @@ const menuItems: MenuItemsStructure = {
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
+    { label: 'Fee Defaulters', href: '/dashboard/super-manager/defaulters', icon: CurrencyDollarIcon },
     { label: 'Expense Requisition', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
     { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
@@ -278,6 +281,7 @@ const menuItems: MenuItemsStructure = {
       ]
     },
             { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
+    { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/manager/defaulters' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
   ],
