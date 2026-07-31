@@ -46,6 +46,7 @@ interface MenuItem {
   label: string;
   href: string;
   subItems?: MenuItem[]; // Optional array for sub-menu items
+  navigates?: boolean; // Parent with subItems that also navigates to its own href on click
 }
 
 // Corrected type definition for the final menuItems object
@@ -174,7 +175,7 @@ const menuItems: MenuItemsStructure = {
   'super-manager': [
     { label: 'Menu', href: '/dashboard/super-manager', icon: HomeIcon },
     {
-      label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, subItems: [
+      label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, navigates: true, subItems: [
         { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon },
         { label: 'Vice Principals', href: '/dashboard/super-manager/vice-principal-management', icon: ChevronRightIcon },
         { label: 'Discipline Masters', href: '/dashboard/super-manager/discipline-master-management', icon: ChevronRightIcon },
@@ -661,7 +662,32 @@ export default function DashboardLayout({
 
           return (
             <div key={item.href}>
-              {hasSubItems ? (
+              {hasSubItems && item.navigates ? (
+                /* Parent that navigates to its own page; the chevron toggles the submenu */
+                <div className={`relative flex items-center w-full rounded-lg transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}>
+                  {accentBar}
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      setIsMobileSidebarOpen(false);
+                      setOpenSubmenus(prev => ({ ...prev, [item.href]: true }));
+                    }}
+                    className="flex items-center flex-1 min-w-0 px-3 py-2 text-sm font-medium"
+                  >
+                    <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                  <button
+                    onClick={() => toggleSubmenu(item.href)}
+                    className="p-2 mr-1 rounded hover:bg-gray-100"
+                    aria-label={`Toggle ${item.label} submenu`}
+                  >
+                    <ChevronRightIcon
+                      className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''}`}
+                    />
+                  </button>
+                </div>
+              ) : hasSubItems ? (
                 <button
                   onClick={() => toggleSubmenu(item.href)}
                   className={`relative flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-lg text-left transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}

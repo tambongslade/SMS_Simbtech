@@ -10,6 +10,7 @@ import { Inter } from 'next/font/google';
 import type { Metadata, Viewport } from 'next';
 import React from 'react';
 import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
+import CapacitorBackButton from '@/components/CapacitorBackButton';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -52,6 +53,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className} suppressHydrationWarning>
         <ServiceWorkerRegister />
+        <CapacitorBackButton />
         <SWRProvider>
           <AuthProvider>
             {children}
