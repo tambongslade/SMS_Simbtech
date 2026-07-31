@@ -288,7 +288,8 @@ export default function SuperManagerDashboard() {
 
     return (
         <div className="flex">
-            <div className="flex-1 p-4 space-y-6">
+            {/* min-w-0 lets the column shrink below content width on phones */}
+            <div className="flex-1 min-w-0 p-4 space-y-6">
                 {/* Header */}
                 <div className="flex flex-wrap items-end justify-between gap-2">
                     <div>
