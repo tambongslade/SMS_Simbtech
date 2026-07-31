@@ -149,6 +149,20 @@ export default function ManagerFinancialReportsPage() {
         { onError: () => { /* section simply stays empty */ } }
     );
 
+    // Classes for name lookups and the export filter. Fee records usually carry
+    // only enrollment.classId / subClassId, so names are resolved from here.
+    const { data: classesResult } = useSWR<{ data: { id: number; name: string; subClasses?: { id: number; classId: number }[] }[] }>('/classes', fetcher);
+    const classNameById = useMemo(() => {
+        const map = new Map<number, string>();
+        (classesResult?.data ?? []).forEach(c => map.set(c.id, c.name));
+        return map;
+    }, [classesResult]);
+    const classIdBySubClassId = useMemo(() => {
+        const map = new Map<number, number>();
+        (classesResult?.data ?? []).forEach(c => (c.subClasses ?? []).forEach(sc => map.set(sc.id, c.id)));
+        return map;
+    }, [classesResult]);
+
     // Per-class fee collection, aggregated from fee records
     const { data: feeRecords, isLoading: isLoadingFees } = useSWR(
         effectiveYear?.id ? ['manager-fee-records', effectiveYear.id] : null,
@@ -159,8 +173,14 @@ export default function ManagerFinancialReportsPage() {
         const byClass = new Map<string, ClassFeeReport>();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (feeRecords ?? []).forEach((record: any) => {
-            const classId = record.enrollment?.classId ? String(record.enrollment.classId) : 'unknown';
-            const className = record.enrollment?.class?.name || 'Unassigned';
+            const enr = record.enrollment ?? {};
+            let cid: number | null = enr.classId ?? enr.class?.id ?? null;
+            if (cid == null && enr.subClassId != null) cid = classIdBySubClassId.get(Number(enr.subClassId)) ?? null;
+            if (cid == null && enr.subClass?.classId != null) cid = enr.subClass.classId;
+            const classId = cid != null ? String(cid) : 'unknown';
+            const className = enr.class?.name
+                || (cid != null ? classNameById.get(Number(cid)) : undefined)
+                || 'Unassigned';
             let agg = byClass.get(classId);
             if (!agg) {
                 agg = { classId, className, totalStudents: 0, totalExpected: 0, totalCollected: 0, outstanding: 0, collectionRate: 0 };
@@ -179,10 +199,9 @@ export default function ManagerFinancialReportsPage() {
                 collectionRate: agg.totalExpected > 0 ? (agg.totalCollected / agg.totalExpected) * 100 : 100,
             }))
             .sort((a, b) => b.outstanding - a.outstanding);
-    }, [feeRecords]);
+    }, [feeRecords, classNameById, classIdBySubClassId]);
 
     // Classes for the export filter
-    const { data: classesResult } = useSWR<{ data: { id: number; name: string }[] }>('/classes', fetcher);
     const classes = useMemo(
         () => sortClassesByLevel(classesResult?.data || []),
         [classesResult]
