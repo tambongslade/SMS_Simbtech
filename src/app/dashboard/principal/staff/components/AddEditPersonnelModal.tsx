@@ -73,10 +73,6 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                         <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email *</label>
                         <input type="email" name="email" id="email" value={formData.email || ''} onChange={handleChange} required className="mt-1 block w-full input-field" disabled={isLoading} />
                     </div>
-                    <div>
-                        <label htmlFor="matricule" className="block text-sm font-medium text-gray-700">Matricule</label>
-                        <input type="text" name="matricule" id="matricule" value={formData.matricule || ''} onChange={handleChange} className="mt-1 block w-full input-field" placeholder="e.g., STF001" disabled={isLoading} />
-                    </div>
                     {!initialData && ( // Only show password for new users
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700">Password *</label>
