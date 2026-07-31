@@ -63,7 +63,15 @@ const currentPay = (p?: SalaryProfile | null) =>
 const unwrapList = (raw: any): any[] =>
     Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
 
-export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: SalaryAction) => void }) {
+export default function StaffSalariesTab({
+    onCreated,
+    requiresApproval = false,
+}: {
+    onCreated?: (action: SalaryAction) => void;
+    // Managers propose changes (reason required, pending approval);
+    // the Super Manager's changes apply immediately.
+    requiresApproval?: boolean;
+}) {
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
@@ -143,6 +151,11 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
             toast.error('Enter a valid amount.');
             return;
         }
+        // The backend requires a reason for manager-submitted change requests
+        if (requiresApproval && action === 'set-salary' && !reason.trim()) {
+            toast.error('Please provide a reason for the salary change.');
+            return;
+        }
 
         setIsSubmitting(true);
         try {
@@ -165,7 +178,9 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
                         ...(hourly ? { hourlyRate: parsedAmount } : { baseSalary: parsedAmount }),
                     });
                 }
-                toast.success(`Salary ${profile ? 'updated' : 'set'} for ${selectedStaff.name}.`);
+                toast.success(requiresApproval
+                    ? `Change request submitted for ${selectedStaff.name} — awaiting Super Manager approval.`
+                    : `Salary ${profile ? 'updated' : 'set'} for ${selectedStaff.name}.`);
             } else {
                 if (!profile) {
                     toast.error('Set a salary for this staff member first.');
@@ -319,7 +334,7 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
                         />
 
                         <TextArea
-                            label={action === 'set-salary' ? 'Reason (optional)' : 'Description'}
+                            label={action === 'set-salary' ? (requiresApproval ? 'Reason' : 'Reason (optional)') : 'Description'}
                             rows={2}
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
@@ -330,7 +345,9 @@ export default function StaffSalariesTab({ onCreated }: { onCreated?: (action: S
 
                         {action === 'set-salary' && (
                             <p className="text-xs text-gray-500">
-                                As Super Manager, this change is applied immediately — no separate approval step.
+                                {requiresApproval
+                                    ? 'Your change will be sent to the Super Manager for approval.'
+                                    : 'As Super Manager, this change is applied immediately — no separate approval step.'}
                             </p>
                         )}
 
