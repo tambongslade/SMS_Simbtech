@@ -86,7 +86,7 @@ const ParentStudentFeesPage: FC = () => {
                         <CardTitle>Payment History</CardTitle>
                     </CardHeader>
                     <CardBody>
-                        <div className="overflow-x-auto">
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -108,6 +108,25 @@ const ParentStudentFeesPage: FC = () => {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {paymentHistory.map((payment) => (
+                                <div key={payment.id} className="p-4 space-y-1.5">
+                                    <p className="text-sm font-semibold text-gray-900 break-words">{payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 'N/A'}</p>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Amount</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{(payment.amount || 0).toLocaleString()} FCFA</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Method</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{payment.paymentMethod}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Receipt</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{payment.receiptNumber}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </CardBody>
                 </Card>
 
@@ -116,7 +135,7 @@ const ParentStudentFeesPage: FC = () => {
                         <CardTitle>Outstanding Fees</CardTitle>
                     </CardHeader>
                     <CardBody>
-                        <div className="overflow-x-auto">
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -135,6 +154,21 @@ const ParentStudentFeesPage: FC = () => {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {outstandingFees.map((fee) => (
+                                <div key={fee.id} className="p-4 space-y-1.5">
+                                    <p className="text-sm font-semibold text-gray-900 break-words">{fee.feeType}</p>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Amount Due</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{(fee.amountDue || 0).toLocaleString()} FCFA</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Due Date</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </CardBody>
                 </Card>

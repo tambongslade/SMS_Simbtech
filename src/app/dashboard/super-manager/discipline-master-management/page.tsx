@@ -215,7 +215,8 @@ export default function DisciplineMasterManagement() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Discipline Master Management</h1>
 
                 {/* DM List/Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+                <div className="bg-white rounded-lg shadow-sm">
+                    <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -272,6 +273,59 @@ export default function DisciplineMasterManagement() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
+
+                    {/* Mobile Card List */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {isLoading && (
+                            <div className="text-center py-4 text-gray-500 italic">Loading...</div>
+                        )}
+                        {!isLoading && disciplineMasters.length === 0 && (
+                            <div className="text-center py-4 text-gray-500">No Discipline Masters found.</div>
+                        )}
+                        {disciplineMasters.map((dm) => (
+                            <div key={dm.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words">{dm.name}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Email</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{dm.email || '-'}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {dm.username ? (
+                                            <span className="text-gray-700">{dm.username}</span>
+                                        ) : (
+                                            <span className="text-gray-500 italic">empty</span>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Subclasses Assigned</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {dm.assignedSubClassIds?.length || 0} subclasses
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    <button
+                                        onClick={() => openAssignmentModal(dm)}
+                                        className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                                        disabled={isLoading}
+                                    >
+                                        Manage Assignments
+                                    </button>
+                                    <button
+                                        onClick={() => openEditDmModal(dm)}
+                                        className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                        disabled={isLoading}
+                                        title="Edit Discipline Master"
+                                    >
+                                        <PencilSquareIcon className="h-4 w-4 inline mr-1" /> Edit
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 

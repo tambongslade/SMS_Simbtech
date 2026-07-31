@@ -552,7 +552,8 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
         ) : transactions.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No transactions found.</div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -654,6 +655,107 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {transactions.map((tx) => (
+              editingId === tx.id ? (
+                <div key={tx.id} className="p-4 space-y-1.5 bg-blue-50">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Amount</span>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editAmount}
+                      onChange={e => setEditAmount(e.target.value)}
+                      className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Date</span>
+                    <input
+                      type="date"
+                      value={editDate}
+                      onChange={e => setEditDate(e.target.value)}
+                      className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Method</span>
+                    <select
+                      value={editMethod}
+                      onChange={e => setEditMethod(e.target.value)}
+                      className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      disabled={isSaving}
+                    >
+                      <option value="">Select Method</option>
+                      {PAYMENT_METHODS.map(m => (
+                        <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Receipt</span>
+                    <input
+                      type="text"
+                      value={editReceipt}
+                      onChange={e => setEditReceipt(e.target.value)}
+                      className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm"
+                      placeholder="Receipt No."
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <button
+                      type="button"
+                      onClick={saveEdit}
+                      disabled={isSaving || !editAmount || parseFloat(editAmount) <= 0}
+                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelEdit}
+                      disabled={isSaving}
+                      className="px-3 py-1 border border-gray-300 text-gray-700 text-sm rounded-md hover:bg-gray-50 disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div key={tx.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Date</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Method</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{tx.paymentMethod || '-'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Receipt</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{tx.receiptNumber || '-'}</span>
+                  </div>
+                  {onUpdatePayment && (
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(tx)}
+                        disabled={editingId != null}
+                        className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            ))}
+          </div>
+          </>
         )}
       </div>
     </div>

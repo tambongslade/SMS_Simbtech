@@ -12,7 +12,7 @@ import {
   CalendarIcon,
   FlagIcon
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table, StudentPhoto } from '@/components/ui';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
@@ -433,7 +433,8 @@ export default function GuidanceCounselorStudentsPage() {
               <p className="text-gray-600">No students found</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -532,6 +533,98 @@ export default function GuidanceCounselorStudentsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {filteredStudents.map((student) => (
+                <div key={student.id} className="p-4 space-y-1.5">
+                  <div className="flex items-center gap-3">
+                    <StudentPhoto
+                      studentId={student.id}
+                      photo={student.photo}
+                      size="sm"
+                      studentName={student.name}
+                      fetchPhoto={!student.photo}
+                      showUploadButton={true}
+                      canUpload={true}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 break-words">{student.name}</p>
+                      <p className="text-sm text-gray-500">{student.matricule}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Class</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <Badge variant="outline">
+                        {student.enrollments?.[0]?.subClass?.class?.name} - {student.enrollments?.[0]?.subClass?.name}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Age</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{getAge(student.dateOfBirth)}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Risk Level</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <Badge
+                        variant="solid"
+                        color={getRiskLevelColor(student.riskLevel || 'LOW')}
+                        size="sm"
+                      >
+                        {student.riskLevel}
+                      </Badge>
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Behavior Records</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <span className="text-gray-900">{student.behaviorRecords?.length || 0} records</span>
+                      {student.behaviorRecords && student.behaviorRecords.length > 0 && (
+                        <span className="flex justify-end space-x-1 mt-1">
+                          {student.behaviorRecords.slice(0, 2).map((record, index) => (
+                            <Badge
+                              key={index}
+                              variant="subtle"
+                              color={getSeverityColor(record.severity)}
+                              size="sm"
+                            >
+                              {record.severity}
+                            </Badge>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Remarks</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {student.remarks?.length || 0} remarks
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleViewStudent(student)}
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      color="primary"
+                      onClick={() => {
+                        setSelectedStudent(student);
+                        handleAddRemark();
+                      }}
+                    >
+                      <ChatBubbleBottomCenterTextIcon className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </CardBody>
       </Card>

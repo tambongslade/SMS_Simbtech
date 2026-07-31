@@ -82,6 +82,11 @@ export default function TeacherTimetablePage() {
 
     useEffect(() => {
         setIsMounted(true);
+        // On phones the weekly grid needs heavy sideways scrolling — default to
+        // the daily view there; desktop keeps the weekly overview.
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setViewMode('daily');
+        }
     }, []);
 
     // Get current day name
@@ -292,9 +297,9 @@ export default function TeacherTimetablePage() {
 
         return (
             <div className="bg-white rounded-lg shadow">
-                <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900">
+                <div className="p-4 sm:p-6">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4 sm:mb-6">
+                        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                             Today's Schedule - {dayName}
                         </h2>
                         <div className="text-sm text-gray-500">
@@ -496,12 +501,12 @@ export default function TeacherTimetablePage() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* Header with View Toggle */}
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <div>
-                    <h1 className="text-3xl font-bold">My Timetable</h1>
-                    <p className="text-gray-600">View your class schedule and teaching assignments</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold">My Timetable</h1>
+                    <p className="text-sm sm:text-base text-gray-600">View your class schedule and teaching assignments</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <Button
@@ -526,7 +531,7 @@ export default function TeacherTimetablePage() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
                 <Card>
                     <CardBody className="flex items-center">
                         <CalendarDaysIcon className="h-8 w-8 text-blue-600 mr-3" />

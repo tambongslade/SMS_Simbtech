@@ -119,7 +119,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
 }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           {/* Table Head */}
           <thead className="bg-gray-50">
@@ -226,6 +226,84 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
             ))}
           </tbody>
         </table>
+      </div>
+      {/* Mobile card list */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {personnel.length === 0 && !isLoading && (
+          <div className="text-center py-12">
+            <div className="flex flex-col items-center">
+              <svg className="h-12 w-12 text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+              </svg>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No personnel found</h3>
+              <p className="text-gray-500 text-sm">Get started by adding your first personnel member</p>
+            </div>
+          </div>
+        )}
+        {isLoading && personnel.length === 0 && (
+          <div className="text-center py-12">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-500">Loading personnel...</p>
+            </div>
+          </div>
+        )}
+        {personnel.map((person) => (
+          <div key={person.id} className="p-4 space-y-1.5">
+            <div className="text-sm font-semibold text-gray-900 break-words">{person.name}</div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Email</span>
+              <span className="text-sm text-gray-900 text-right break-words">{person.email}</span>
+            </div>
+            {person.username && (
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-xs text-gray-500">Username</span>
+                <span className="text-sm text-gray-900 text-right break-words">@{person.username}</span>
+              </div>
+            )}
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Matricule</span>
+              <span className="text-sm text-gray-900 text-right break-words">
+                {person.matricule ? (
+                  <span className="text-gray-700">{person.matricule}</span>
+                ) : (
+                  <span className="text-gray-500 italic">empty</span>
+                )}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Roles</span>
+              <div className="flex flex-wrap justify-end gap-1">
+                {person.roles && person.roles.length > 0 ? (
+                  person.roles.map(roleKey => {
+                    const roleLabel = roles.find(r => r.value === roleKey)?.label || roleKey;
+                    return (
+                      <span
+                        key={roleKey}
+                        className="px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-full"
+                      >
+                        {roleLabel}
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-xs text-gray-500 italic">No roles assigned</span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Status</span>
+              <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${person.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                {person.status}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1.5">
+              <button onClick={() => onEdit(person)} className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50" disabled={isLoading}>Edit</button>
+              <button onClick={() => onManageRoles({ id: person.id, name: person.name, roles: person.roles })} className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50" disabled={isLoading}>Manage Roles</button>
+              <button onClick={() => onDelete({ id: person.id, name: person.name })} className="px-3 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50" disabled={isLoading}>Delete</button>
+            </div>
+          </div>
+        ))}
       </div>
       <PaginationControls
         currentPage={currentPage}

@@ -118,7 +118,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                 </p>
             ) : (
                 <>
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -243,6 +243,143 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {pageRecords.map((record) => (
+                            editingId === record.id ? (
+                                <div key={`${record.feeId}-${record.id}`} className="p-4 space-y-1.5 bg-blue-50">
+                                    <p className="text-sm font-semibold text-gray-900 break-words">{record.studentName}</p>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Matricule</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{record.matricule}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Class</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{record.className}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500 pt-1.5">Date</span>
+                                        <input
+                                            type="date"
+                                            value={editDate}
+                                            onChange={(e) => setEditDate(e.target.value)}
+                                            disabled={isSavingEdit}
+                                            className="w-36 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500 pt-1.5">Amount</span>
+                                        <input
+                                            type="number"
+                                            value={editAmount}
+                                            onChange={(e) => setEditAmount(e.target.value)}
+                                            min="1"
+                                            disabled={isSavingEdit}
+                                            className="w-28 px-2 py-1 text-sm text-right border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500 pt-1.5">Method</span>
+                                        <select
+                                            value={editMethod}
+                                            onChange={(e) => setEditMethod(e.target.value)}
+                                            disabled={isSavingEdit}
+                                            className="px-2 py-1 text-sm border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        >
+                                            <option value="">Select Method</option>
+                                            {PAYMENT_METHODS.map(m => (
+                                                <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500 pt-1.5">Receipt #</span>
+                                        <input
+                                            type="text"
+                                            value={editReceipt}
+                                            onChange={(e) => setEditReceipt(e.target.value)}
+                                            disabled={isSavingEdit}
+                                            className="w-32 px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                        <button
+                                            onClick={() => saveEdit(record)}
+                                            disabled={isSavingEdit || !editAmount || Number(editAmount) <= 0}
+                                            className="px-2.5 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                            {isSavingEdit ? 'Saving…' : 'Save'}
+                                        </button>
+                                        <button
+                                            onClick={cancelEdit}
+                                            disabled={isSavingEdit}
+                                            className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-200 text-gray-800 hover:bg-gray-300 disabled:opacity-50"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                            <div key={`${record.feeId}-${record.id}`} className="p-4 space-y-1.5">
+                                {record.studentId ? (
+                                    <Link
+                                        href={`/dashboard/bursar/student-registration/${record.studentId}`}
+                                        className="block text-sm font-semibold text-gray-900 break-words hover:text-blue-700 hover:underline"
+                                        title="View student profile"
+                                    >
+                                        {record.studentName}
+                                    </Link>
+                                ) : (
+                                    <p className="text-sm font-semibold text-gray-900 break-words">{record.studentName}</p>
+                                )}
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Date</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : '—'}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{record.matricule}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Class</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{record.className}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Amount</span>
+                                    <span className="text-sm font-semibold text-green-700 text-right break-words">{formatMoney(record.amount)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Method</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{record.paymentMethod ? record.paymentMethod.replace(/_/g, ' ') : '—'}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Receipt #</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{record.receiptNumber || '—'}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    {isEditable(record) ? (
+                                        <button
+                                            onClick={() => startEdit(record)}
+                                            title="Edit payment (allowed within 24h of recording)"
+                                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200"
+                                        >
+                                            <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                                        </button>
+                                    ) : (
+                                        <span
+                                            title="Editing is only allowed within 24 hours of recording"
+                                            className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium rounded text-gray-400 bg-gray-100 cursor-not-allowed"
+                                        >
+                                            <PencilIcon className="h-4 w-4 mr-1" /> Locked
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            )
+                        ))}
                     </div>
 
                     {totalPages > 1 && (

@@ -396,7 +396,7 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">📊 Class Fee Summary</h3>
                   <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{reportData.length} classes</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-50">
@@ -434,6 +434,47 @@ const FinancialReportsPage = () => {
                     </tbody>
                   </table>
                 </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {reportData.map((item, index) => (
+                    <div key={item?.className || `row-${index}`} className="p-4 space-y-1.5">
+                      <div className="text-sm font-semibold text-gray-900 break-words">{item?.className || 'N/A'}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Total Students</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{item?.totalStudents || 0}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Expected Amount</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(item?.totalExpected)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Paid Amount</span>
+                        <span className="text-sm text-right break-words text-green-600">{formatCurrency(item?.totalPaid)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Outstanding</span>
+                        <span className="text-sm text-right break-words text-red-600">{formatCurrency(item?.totalOutstanding)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Payment Rate</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          (item?.paymentPercentage || 0) >= 80 ? 'bg-green-100 text-green-800' :
+                          (item?.paymentPercentage || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {(item?.paymentPercentage || 0).toFixed(2)}%
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Students w/ Payments</span>
+                        <span className="text-sm text-right break-words text-green-600">{item?.studentsWithPayments || 0}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Students w/o Payments</span>
+                        <span className="text-sm text-right break-words text-red-600">{item?.studentsWithoutPayments || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -444,7 +485,7 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">👥 Student Fee Details</h3>
                   <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} students</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
@@ -496,6 +537,65 @@ const FinancialReportsPage = () => {
                   </tbody>
                 </table>
                 </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {studentDetailedData.map((student, index) => (
+                    <div key={`student-${index}`} className="p-4 space-y-1.5">
+                      <div className="text-sm font-semibold text-gray-900 break-words">{student?.studentName || 'N/A'}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Matricule</span>
+                        <span className="text-sm text-gray-900 text-right break-words font-mono">{student?.studentMatricule || '-'}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Class</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{student?.className || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Subclass</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{student?.subClassName || '-'}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Expected</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(student?.expectedAmount)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Paid</span>
+                        <span className="text-sm text-right break-words text-green-600">{formatCurrency(student?.paidAmount)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Outstanding</span>
+                        <span className="text-sm text-right break-words text-red-600">{formatCurrency(student?.outstanding)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Status</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          (student?.paymentPercentage || 0) >= 100 ? 'bg-green-100 text-green-800' :
+                          (student?.paymentPercentage || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {(student?.paymentPercentage || 0) >= 100 ? 'Paid' :
+                           (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : 'Unpaid'}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Payments</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{student?.paymentsCount || 0}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Last Payment</span>
+                        <div className="text-sm text-gray-900 text-right break-words">
+                          {student?.lastPaymentDate ?
+                            <div>
+                              <div>{new Date(student.lastPaymentDate).toLocaleDateString()}</div>
+                              {student?.lastPaymentAmount &&
+                                <div className="text-xs text-gray-500">{formatCurrency(student.lastPaymentAmount)}</div>
+                              }
+                            </div>
+                            : '-'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -506,7 +606,7 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">💳 Payment Method Analytics</h3>
                   <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} methods</span>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
@@ -541,6 +641,41 @@ const FinancialReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {paymentAnalyticsData.map((method, index) => (
+                    <div key={method?.paymentMethod || `method-${index}`} className="p-4 space-y-1.5">
+                      <div className="text-sm font-semibold text-gray-900 break-words">{method?.paymentMethod || 'N/A'}</div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Transactions</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{(method?.totalTransactions || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Total Amount</span>
+                        <span className="text-sm text-right break-words text-green-600">{formatCurrency(method?.totalAmount)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Avg Amount</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(method?.averageAmount)}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Unique Students</span>
+                        <span className="text-sm text-gray-900 text-right break-words">{method?.uniqueStudents || 0}</span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Market Share</span>
+                        <div className="flex items-center justify-end">
+                          <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full"
+                              style={{ width: `${Math.min(method?.marketShare || 0, 100)}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-sm font-medium">{(method?.marketShare || 0).toFixed(2)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

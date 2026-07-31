@@ -201,7 +201,7 @@ const ParentStudentResultsPage: FC<ParentStudentResultsPageProps> = ({ studentId
                             <CardTitle>Subject Performance</CardTitle>
                         </CardHeader>
                         <CardBody>
-                            <div className="overflow-x-auto">
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
@@ -254,6 +254,39 @@ const ParentStudentResultsPage: FC<ParentStudentResultsPageProps> = ({ studentId
                                         ))}
                                     </tbody>
                                 </table>
+                            </div>
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {selectedTerm.subjects.map((subject) => (
+                                    <div key={subject.id} className="p-4 space-y-1.5">
+                                        <div className="text-sm font-semibold text-gray-900 break-words">{subject.subjectName}</div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Score</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{subject.score}/{subject.maxScore}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Percentage</span>
+                                            <div className="flex items-center">
+                                                <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-3">
+                                                    <div
+                                                        className="bg-blue-600 h-2.5 rounded-full"
+                                                        style={{ width: `${subject.percentage}%` }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm text-gray-900">{subject.percentage}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Grade</span>
+                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getGradeColor(subject.grade)}`}>
+                                                {subject.grade}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Teacher Comment</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{subject.teacherComment}</span>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </CardBody>
                     </Card>

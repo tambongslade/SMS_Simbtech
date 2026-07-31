@@ -38,7 +38,7 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
       <div className="px-3 pt-2 text-right text-[11px] text-gray-400">Amounts in FCFA</div>
-      <div className="overflow-x-auto">
+      <div className="hidden md:block overflow-x-auto">
       <table className="min-w-full">
         <thead className="bg-gray-50">
           <tr>
@@ -117,6 +117,68 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
           ))}
         </tbody>
       </table>
+      </div>
+      <div className="md:hidden divide-y divide-gray-100">
+        {students.map((student) => (
+          <div key={student.id} className="p-4 space-y-1.5">
+            <Link
+              href={`/dashboard/bursar/student-registration/${student.id}`}
+              className="block text-sm font-semibold text-gray-900 break-words hover:text-blue-700 hover:underline"
+              title="View student profile"
+            >
+              {student.name}
+            </Link>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Class / Subclass</span>
+              <span className={`text-sm text-right break-words ${getEnrollmentStatusStyle(student)}`}>
+                {formatClassDisplay(student)}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Expected</span>
+              <span className="text-sm text-gray-900 text-right break-words">
+                {formatAmount(student.expectedFees)}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Paid</span>
+              <span className="text-sm text-gray-900 text-right break-words">
+                {formatAmount(student.paidFees)}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Balance</span>
+              <span className={`text-sm text-right break-words ${student.balance > 0 ? 'font-semibold text-red-600' : 'text-gray-900'}`}>
+                {formatAmount(student.balance)}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3">
+              <span className="text-xs text-gray-500">Status</span>
+              <span
+                className={`px-2 py-0.5 text-xs font-semibold rounded-full
+                  ${student.status === "Paid" ? "bg-green-100 text-green-800" :
+                    student.status === "Partial" ? "bg-yellow-100 text-yellow-800" :
+                      "bg-red-100 text-red-800"}`}
+              >
+                {student.status}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-1.5">
+              <button
+                onClick={() => onRecordPayment(student)}
+                className="text-sm font-medium text-blue-600 hover:text-blue-900"
+              >
+                Record
+              </button>
+              <button
+                onClick={() => onViewTransactions(student)}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
+              >
+                History
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

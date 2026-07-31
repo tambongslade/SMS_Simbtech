@@ -181,7 +181,7 @@ export default function BursarReportCardReadinessPage() {
 
           {/* Table */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -239,6 +239,61 @@ export default function BursarReportCardReadinessPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {visibleStudents.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-500">
+                  {onlyUnpaid ? 'No outstanding students 🎉' : 'No students match your search.'}
+                </div>
+              ) : (
+                visibleStudents.map((s) => (
+                  <div key={s.studentId} className={`p-4 space-y-1.5 ${s.paidInFull ? '' : 'bg-red-50/40'}`}>
+                    <div className="text-sm font-semibold text-gray-900 break-words">{s.name}</div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Matricule</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{s.matricule}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Expected</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(s.amountExpected)}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Paid</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(s.amountPaid)}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Shortfall</span>
+                      <span className={`text-sm text-right break-words ${s.shortfall > 0 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
+                        {s.shortfall > 0 ? fmtMoney(s.shortfall) : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Status</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {s.paidInFull ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                            <CheckCircleIcon className="h-3.5 w-3.5" /> Cleared
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
+                            <ExclamationTriangleIcon className="h-3.5 w-3.5" /> Outstanding
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        leftIcon={EyeIcon}
+                        onClick={() => router.push(`/dashboard/bursar/student-registration/${s.studentId}`)}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </>

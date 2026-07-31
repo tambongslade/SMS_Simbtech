@@ -408,7 +408,7 @@ export default function BursarFeeItemsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -494,6 +494,79 @@ export default function BursarFeeItemsPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="md:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading fee items…</div>
+          ) : items.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">No fee items found.</div>
+          ) : (
+            items.map((item) => (
+              <div key={item.id} className="p-4 space-y-1.5">
+                <div className="text-sm font-semibold text-gray-900 break-words">{item.name}</div>
+                {item.description && (
+                  <div className="text-xs text-gray-500 break-words">{item.description}</div>
+                )}
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Amount</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(item.amount)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Scope</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    <span className="font-medium">{item.scope}</span>
+                    <span className="text-gray-400"> · </span>
+                    {scopeTarget(item)}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Requires Fees Paid</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {item.requiresSchoolFeesPaid ? (
+                      <span className="inline-flex items-center gap-1 text-amber-700">
+                        <ExclamationTriangleIcon className="h-4 w-4" /> Yes
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">No</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Status</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {item.isActive ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
+                        <CheckCircleIcon className="h-3.5 w-3.5" /> Active
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                        <XCircleIcon className="h-3.5 w-3.5" /> Inactive
+                      </span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1.5">
+                  <Button size="xs" color="primary" leftIcon={BanknotesIcon} onClick={() => openRecord(item)} disabled={!item.isActive}>
+                    Pay
+                  </Button>
+                  <Button size="xs" variant="outline" leftIcon={ListBulletIcon} onClick={() => openPayments(item)}>
+                    Payments
+                  </Button>
+                  <Button size="xs" variant="outline" leftIcon={PencilSquareIcon} onClick={() => openEdit(item)}>
+                    Edit
+                  </Button>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    color={item.isActive ? 'danger' : 'success'}
+                    onClick={() => toggleActive(item)}
+                  >
+                    {item.isActive ? 'Deactivate' : 'Activate'}
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -589,7 +662,8 @@ export default function BursarFeeItemsPage() {
         ) : payments.length === 0 ? (
           <p className="text-sm text-gray-500">No payments recorded for this item.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-400">
@@ -630,6 +704,51 @@ export default function BursarFeeItemsPage() {
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {payments.map((p) => (
+              <div key={p.id} className="p-4 space-y-1.5">
+                <div className="text-sm font-semibold text-gray-900 break-words">
+                  {p.enrollment?.student?.name || `Enrollment ${p.enrollmentId}`}
+                  {p.enrollment?.student?.matricule && (
+                    <span className="text-gray-400 font-normal"> ({p.enrollment.student.matricule})</span>
+                  )}
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Date</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{p.paymentDate?.split('T')[0]}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Amount</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(p.amount)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Method</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{p.paymentMethod}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Receipt</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{p.receiptNumber || '—'}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Recorded By</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{p.recordedBy?.name || '—'}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Cascaded</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {p.cascadedToSchoolFees ? (
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-800">
+                        → School fees
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </Modal>
 
