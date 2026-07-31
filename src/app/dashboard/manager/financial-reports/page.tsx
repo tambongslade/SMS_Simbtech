@@ -315,7 +315,8 @@ export default function ManagerFinancialReportsPage() {
                     ) : classReports.length === 0 ? (
                         <p className="p-6 text-sm text-gray-500">No fee records found for this academic year.</p>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                        <div className="hidden md:block overflow-x-auto">
                             <p className="px-4 pt-2 text-right text-[11px] text-gray-400">Amounts in FCFA</p>
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
@@ -346,6 +347,37 @@ export default function ManagerFinancialReportsPage() {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            <p className="px-4 pt-2 text-right text-[11px] text-gray-400">Amounts in FCFA</p>
+                            {classReports.map((report) => (
+                                <div key={report.classId} className="p-4 space-y-1.5">
+                                    <div className="text-sm font-semibold text-gray-900 break-words">{report.className}</div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Students</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{report.totalStudents}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Expected</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{report.totalExpected.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Collected</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{report.totalCollected.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Outstanding</span>
+                                        <span className="text-sm font-semibold text-red-600 text-right break-words">{report.outstanding.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Rate</span>
+                                        <Badge color={collectionRateColor(report.collectionRate)} size="sm">
+                                            {report.collectionRate.toFixed(1)}%
+                                        </Badge>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        </>
                     )}
                 </CardBody>
             </Card>

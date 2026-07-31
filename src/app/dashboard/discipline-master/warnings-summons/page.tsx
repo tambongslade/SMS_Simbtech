@@ -315,7 +315,8 @@ export default function WarningsSummonsPage() {
           ) : warnings.length === 0 ? (
             <p className="p-6 text-gray-500 text-center">No warnings found.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -360,6 +361,54 @@ export default function WarningsSummonsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {warnings.map(w => (
+                <div key={w.id} className={`p-4 space-y-1.5 ${w.resolved ? 'opacity-60' : ''}`}>
+                  <div className="text-sm font-semibold text-gray-900 break-words">{w.enrollment?.student?.name || '—'}</div>
+                  <div className="text-xs text-gray-500">
+                    {w.enrollment?.student?.matricule || ''}
+                    {w.enrollment?.subClass?.class?.name ? ` · ${w.enrollment.subClass.class.name}${w.enrollment.subClass.name ? ` ${w.enrollment.subClass.name}` : ''}` : ''}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Level</span>
+                    <span className="text-sm text-gray-900 text-right break-words"><WarningLevelDots level={w.warningLevel} /></span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{enumLabel(w.reason)}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Description</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <p className="line-clamp-2">{w.description}</p>
+                      {w.resolved && w.resolvedNotes && (
+                        <p className="text-xs text-green-700 mt-1">Resolved: {w.resolvedNotes}</p>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Issued</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '—'}
+                      {w.issuedBy?.name && <div className="text-xs">{w.issuedBy.name}</div>}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    {w.resolved ? (
+                      <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Resolved</span>
+                    ) : (
+                      <button
+                        onClick={() => { setResolveTarget(w); setResolveNotes(''); }}
+                        className="px-3 py-1 text-sm text-green-700 border border-green-200 rounded-md hover:bg-green-50"
+                      >
+                        Resolve
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       )}
@@ -372,7 +421,8 @@ export default function WarningsSummonsPage() {
           ) : summons.length === 0 ? (
             <p className="p-6 text-gray-500 text-center">No summons found.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -416,6 +466,53 @@ export default function WarningsSummonsPage() {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {summons.map(s => (
+                <div key={s.id} className={`p-4 space-y-1.5 ${s.status === 'CANCELLED' ? 'opacity-60' : ''}`}>
+                  <div className="text-sm font-semibold text-gray-900 break-words">{s.enrollment?.student?.name || '—'}</div>
+                  <div className="text-xs text-gray-500">
+                    {s.enrollment?.student?.matricule || ''}
+                    {s.enrollment?.subClass?.class?.name ? ` · ${s.enrollment.subClass.class.name}${s.enrollment.subClass.name ? ` ${s.enrollment.subClass.name}` : ''}` : ''}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Parent</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {s.parent?.name || '—'}
+                      {s.parent?.phone && <div className="text-xs text-gray-500">{s.parent.phone}</div>}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <p className="line-clamp-2">{s.reason}</p>
+                      <p className="text-xs text-gray-400">{enumLabel(s.triggerType)}</p>
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Status</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{summonsStatusBadge(s.status)}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Scheduled</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString() : '—'}
+                      {s.attended != null && (
+                        <div className="text-xs">{s.attended ? 'Parent attended' : 'Parent did not attend'}</div>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <button
+                      onClick={() => setEditSummons(s)}
+                      className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50"
+                    >
+                      Update
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       )}

@@ -274,7 +274,7 @@ export default function HODStaffManagement() {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                         Department Teachers ({filteredTeachers.length})
                     </h3>
-                    <div className="overflow-x-auto">
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -348,6 +348,67 @@ export default function HODStaffManagement() {
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {filteredTeachers.map((teacher) => (
+                            <div key={teacher.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words">
+                                    {teacher.name}
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{teacher.matricule}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Email</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{teacher.email}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Subjects</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {teacher.subjectsTeaching.length} subjects
+                                        {teacher.subjectsTeaching.length > 0 && (
+                                            <span className="block text-xs text-gray-500">
+                                                {teacher.subjectsTeaching.slice(0, 2).map(s => s.name).join(', ')}
+                                                {teacher.subjectsTeaching.length > 2 && '...'}
+                                            </span>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Students</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {teacher.performanceMetrics.totalStudents}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Performance</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {teacher.performanceMetrics.averageMarks.toFixed(1)} avg
+                                        <span className="block text-xs text-gray-500">
+                                            {teacher.performanceMetrics.passRate.toFixed(1)}% pass rate
+                                        </span>
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Weekly Hours</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {teacher.totalHoursPerWeek}h/week
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    <Button
+                                        onClick={() => handleViewTeacher(teacher)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex items-center gap-1"
+                                    >
+                                        <EyeIcon className="h-4 w-4" />
+                                        View Details
+                                    </Button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </Card>

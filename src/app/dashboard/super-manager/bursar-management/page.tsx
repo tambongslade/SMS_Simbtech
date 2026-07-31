@@ -101,12 +101,13 @@ export default function BursarManagementPage() {
             <div className="max-w-4xl mx-auto">
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Bursar Management</h1>
                 <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        {isLoading && bursars.length === 0 ? (
-                            <div className="p-6 text-center text-gray-500 italic">Loading bursars...</div>
-                        ) : !isLoading && bursars.length === 0 ? (
-                            <div className="p-6 text-center text-gray-500">No bursars found.</div>
-                        ) : (
+                    {isLoading && bursars.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500 italic">Loading bursars...</div>
+                    ) : !isLoading && bursars.length === 0 ? (
+                        <div className="p-6 text-center text-gray-500">No bursars found.</div>
+                    ) : (
+                        <>
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -137,8 +138,37 @@ export default function BursarManagementPage() {
                                     ))}
                                 </tbody>
                             </table>
-                        )}
-                    </div>
+                        </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {bursars.map((bursar) => (
+                                <div key={bursar.id} className="p-4 space-y-1.5">
+                                    <div className="text-sm font-semibold text-gray-900 break-words">{bursar.name}</div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Email</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{bursar.email}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Phone</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{bursar.phone || '-'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Date Joined</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{formatDate(bursar.dateJoined)}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                        <button
+                                            onClick={() => openEditModal(bursar)}
+                                            className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                            disabled={isLoading}
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        </>
+                    )}
                 </div>
             </div>
             {isEditModalOpen && editingBursar && (

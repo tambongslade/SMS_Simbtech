@@ -235,7 +235,7 @@ export default function BursarOverpaymentsPage() {
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -309,6 +309,73 @@ export default function BursarOverpaymentsPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading overpayments…</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">No overpayments found.</div>
+          ) : (
+            rows.map((row) => (
+              <div key={row.enrollmentId} className="p-4 space-y-1.5">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900 break-words">{row.name}</div>
+                  <div className="text-xs text-gray-500">{row.matricule}</div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Class</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {row.className || '—'}
+                    {row.subClassName ? <span className="text-gray-400"> · {row.subClassName}</span> : null}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Expected</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(row.amountExpected)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Paid</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(row.amountPaid)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Refunded</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {row.totalRefunded > 0 ? fmtMoney(row.totalRefunded) : '—'}
+                    {row.refundsCount > 0 && (
+                      <span className="text-xs text-gray-400"> ({row.refundsCount})</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Current Overpayment</span>
+                  <span className="text-sm font-semibold text-emerald-700 text-right break-words">
+                    {fmtMoney(row.currentOverpayment)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 pt-1.5">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    leftIcon={EyeIcon}
+                    onClick={() => router.push(`/dashboard/bursar/student-registration/${row.studentId}`)}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    size="xs"
+                    color="primary"
+                    leftIcon={ArrowUturnLeftIcon}
+                    onClick={() => openRefund(row)}
+                    disabled={row.currentOverpayment <= 0}
+                  >
+                    Refund
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* Pagination */}

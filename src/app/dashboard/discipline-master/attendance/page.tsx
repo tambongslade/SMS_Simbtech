@@ -1119,7 +1119,8 @@ const AttendanceDashboardPage: React.FC = () => {
           )}
 
           {!isLoading && !error && filteredStudentAttendance.length > 0 && (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1194,6 +1195,71 @@ const AttendanceDashboardPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {filteredStudentAttendance.map((record) => (
+                <div key={record.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{record.student.name}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Matricule</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{record.student.matricule}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Class</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {record.subClass?.class?.name} {record.subClass?.name}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Status</span>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${record.status === 'PRESENT' ? 'bg-green-100 text-green-800' :
+                      record.status === 'LATE' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                      {record.status}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{record.reason || 'Not specified'}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    {record.status !== 'PRESENT' && (
+                      <button
+                        onClick={() => handleMarkPresent(record.student.id)}
+                        className="text-sm text-green-600 hover:text-green-900"
+                        title="Mark Present"
+                      >
+                        Mark Present
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleContactParent(record.student.id)}
+                      className="text-sm text-blue-600 hover:text-blue-900"
+                      title="Contact Parent"
+                    >
+                      <PhoneIcon className="h-4 w-4" />
+                    </button>
+                    {record.status !== 'EXCUSED' && (
+                      <button
+                        onClick={() => setExcuseTarget(record)}
+                        className="text-sm text-teal-600 hover:text-teal-900"
+                        title="Excuse this absence (reverses related warnings/summons)"
+                      >
+                        Excuse
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setMakeupTarget(record)}
+                      className="text-sm text-purple-600 hover:text-purple-900"
+                      title="Record makeup work status"
+                    >
+                      Makeup
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       )}
@@ -1312,7 +1378,8 @@ const AttendanceDashboardPage: React.FC = () => {
           {teacherAttendance.length === 0 ? (
             <p className="p-6 text-gray-500 text-center">No teacher absences recorded for this date.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -1345,6 +1412,29 @@ const AttendanceDashboardPage: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {teacherAttendance.map((record) => (
+                <div key={record.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{record.teacher.name}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{record.reason}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Type</span>
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${record.isExcused ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                      }`}>
+                      {record.isExcused ? 'Excused' : 'Unexcused'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Date</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{new Date(record.date).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       )}
@@ -1621,7 +1711,8 @@ const AttendanceDashboardPage: React.FC = () => {
                   No lateness records for the selected criteria.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="hidden md:block overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -1666,6 +1757,40 @@ const AttendanceDashboardPage: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+                <div className="md:hidden divide-y divide-gray-100">
+                  {latenessIssues.map((record) => (
+                    <div key={record.id} className="p-4 space-y-1.5">
+                      <div className="text-sm font-semibold text-gray-900 break-words">
+                        {record.enrollment?.student?.name}
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Matricule</span>
+                        <span className="text-sm text-gray-900 text-right break-words">
+                          {record.enrollment?.student?.matricule}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Class</span>
+                        <span className="text-sm text-gray-900 text-right break-words">
+                          {record.enrollment?.sub_class?.class?.name} - {record.enrollment?.sub_class?.name}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Time Recorded</span>
+                        <span className="text-sm text-gray-900 text-right break-words">
+                          {new Date(record.created_at).toLocaleTimeString()}
+                        </span>
+                      </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-xs text-gray-500">Recorded By</span>
+                        <span className="text-sm text-gray-900 text-right break-words">
+                          {record.assigned_by?.name}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                </>
               )}
               {latenessTotalPages > 1 && (
                 <div className="flex justify-between items-center mt-4">

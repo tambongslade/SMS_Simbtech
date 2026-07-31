@@ -280,7 +280,7 @@ export default function HODDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Teacher Performance Overview
               </h3>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -328,6 +328,43 @@ export default function HODDashboard() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+              <div className="md:hidden divide-y divide-gray-100">
+                {teachers.map((teacher) => (
+                  <div key={teacher.id} className="p-4 space-y-1.5">
+                    <div className="text-sm font-semibold text-gray-900 break-words">
+                      {teacher.name}
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Matricule</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{teacher.matricule}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Subjects</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {teacher.subjectsTeaching.length}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Students</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {teacher.performanceMetrics.totalStudents}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Avg. Marks</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {teacher.performanceMetrics.averageMarks.toFixed(1)}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Pass Rate</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {teacher.performanceMetrics.passRate.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </Card>

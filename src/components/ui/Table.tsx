@@ -93,9 +93,46 @@ export function Table<T extends { id?: string | number }>({
     );
   };
 
+  const renderCell = (column: Column<T>, item: T) =>
+    column.render ? column.render(item[column.key], item) : String(item[column.key] ?? '');
+
   return (
     <div className={className}>
-      <div className="overflow-x-auto">
+      {/* Mobile: stacked cards (first column is the card title) */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {paginatedData.length === 0 ? (
+          <p className="p-4 text-sm text-gray-400 text-center">No data</p>
+        ) : (
+          paginatedData.map((item, index) => (
+            <div key={item.id ?? index} className="p-4 space-y-1.5">
+              <div className="flex items-start gap-2">
+                {selectable && (
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 shrink-0"
+                    checked={selectedItems.includes(item)}
+                    onChange={(e) => handleSelectItem(item, e.target.checked)}
+                  />
+                )}
+                <div className="text-sm font-semibold text-gray-900 min-w-0 flex-1 break-words">
+                  {columns.length > 0 && renderCell(columns[0], item)}
+                </div>
+              </div>
+              {columns.slice(1).map((column) => (
+                <div key={String(column.key)} className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500 shrink-0 pt-0.5">{column.header}</span>
+                  <span className="text-sm text-gray-900 text-right min-w-0 break-words">
+                    {renderCell(column, item)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: full table */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
