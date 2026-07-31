@@ -1,7 +1,5 @@
 'use client';
 
-import { UserGroupIcon } from '@heroicons/react/24/outline';
-
 interface StatsCardProps {
   title: string;
   value: string;
@@ -52,7 +50,19 @@ export function StatsCard({ title, value, icon: Icon, trend, color }: StatsCardP
         )}
       </div>
       <h3 className="mt-2 sm:mt-4 text-xs sm:text-sm font-medium text-gray-500 truncate" title={title}>{title}</h3>
-      <p className="mt-1 sm:mt-2 text-xl sm:text-3xl font-semibold text-gray-900 truncate">{value}</p>
+      {/* Long values (big FCFA amounts) get a smaller font and wrap so the full figure is always visible */}
+      <p
+        className={`mt-1 sm:mt-2 font-semibold text-gray-900 break-words ${
+          value.length > 14
+            ? 'text-base sm:text-xl'
+            : value.length > 9
+              ? 'text-lg sm:text-2xl'
+              : 'text-xl sm:text-3xl'
+        }`}
+        title={value}
+      >
+        {value}
+      </p>
     </div>
   );
 }

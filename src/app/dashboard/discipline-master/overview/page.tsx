@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { useAuth } from '@/components/context/AuthContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import {
   ExclamationTriangleIcon,
   ClockIcon,
@@ -1479,6 +1480,7 @@ export default function DisciplineMasterDashboard() {
           </div>
         </div>
       )}
+      <TasksNotificationsSection />
     </div>
   );
 } 

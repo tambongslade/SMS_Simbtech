@@ -444,6 +444,7 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">👥 Student Fee Details</h3>
                   <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} students</span>
                 </div>
+                <div className="overflow-x-auto">
                 <table className="w-full min-w-max">
                   <thead>
                     <tr className="bg-gray-50">
@@ -494,6 +495,7 @@ const FinancialReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
@@ -504,6 +506,7 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">💳 Payment Method Analytics</h3>
                   <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} methods</span>
                 </div>
+                <div className="overflow-x-auto">
                 <table className="w-full min-w-max">
                   <thead>
                     <tr className="bg-gray-50">
@@ -538,6 +541,7 @@ const FinancialReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

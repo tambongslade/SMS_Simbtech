@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Class, SubClass } from './types/class';
 import { ClassForm } from './components/ClassForm';
 import { SubClassForm } from './components/SubClassForm';
@@ -10,6 +12,7 @@ import { useClassManagement } from './hooks/useClassManagement';
 
 // --- Main Page Component ---
 export default function ClassManagementPage() {
+  const pathname = usePathname();
   const {
     classes,
     teachers,
@@ -99,10 +102,12 @@ export default function ClassManagementPage() {
           return (
             <div key={cls.id} className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-bold text-indigo-700">{cls.name} </h2>
-                  <p className="text-sm text-gray-500">ID: {cls.id}</p>
-                </div>
+                <Link href={`${pathname}/${cls.id}`} className="group flex-1 min-w-0" title="View class breakdown">
+                  <h2 className="text-xl font-bold text-indigo-700 group-hover:text-indigo-900 group-hover:underline">{cls.name}</h2>
+                  <p className="text-sm text-gray-500">
+                    {cls.studentCount != null ? `${cls.studentCount} students · ` : ''}View breakdown →
+                  </p>
+                </Link>
                 <div className="flex space-x-2 flex-shrink-0">
                   <button onClick={() => cls.id && openSubjectManagementModal({ type: 'class', id: cls.id, name: cls.name })} className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50" title="Manage Subjects" disabled={isLoadingMutation || !cls.id}>
                     <BookOpenIcon className="h-5 w-5" />
@@ -229,7 +234,7 @@ export default function ClassManagementPage() {
 
       <Modal isOpen={isConfirmDeleteModalOpen} onClose={closeModals}>
         <h3 className="text-lg font-semibold mb-2 text-red-700">Confirm Deletion</h3>
-        <p className="mb-6 text-gray-600">Are you sure you want to delete '{(classToDelete?.name || subClassToDelete?.name)}'? This action cannot be undone.</p>
+        <p className="mb-6 text-gray-600">Are you sure you want to delete &apos;{(classToDelete?.name || subClassToDelete?.name)}&apos;? This action cannot be undone.</p>
         <div className="flex justify-end space-x-3">
           <button onClick={closeModals} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" disabled={isLoadingMutation}>Cancel</button>
           <button onClick={classToDelete ? handleDeleteClass : handleDeleteSubclass} className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700" disabled={isLoadingMutation}>{isLoadingMutation ? 'Deleting...' : 'Confirm Delete'}</button>

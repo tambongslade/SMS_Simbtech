@@ -10,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { StatsCard } from '@/components/ui';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import { fetchStudents, fetchTeachers, fetchClasses } from '../lib/secretaryApi';
 
 export default function SecretaryOverviewPage() {
@@ -77,6 +78,7 @@ export default function SecretaryOverviewPage() {
           color="secondary"
         />
       </div>
+      <TasksNotificationsSection />
     </div>
   );
 }

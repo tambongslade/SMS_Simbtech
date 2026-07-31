@@ -1,53 +1,37 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import {
-    CurrencyDollarIcon,
-    ChartBarIcon,
-    DocumentChartBarIcon,
-    CalendarIcon,
-    ArrowTrendingUpIcon,
-    ArrowTrendingDownIcon,
     BanknotesIcon,
-    ReceiptPercentIcon,
+    CurrencyDollarIcon,
     PrinterIcon,
-    FunnelIcon
+    ReceiptPercentIcon,
+    ReceiptRefundIcon,
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, Button, Badge } from '@/components/ui';
+import Link from 'next/link';
+import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge } from '@/components/ui';
 import { toast } from 'react-hot-toast';
+import { useAuth } from '@/components/context/AuthContext';
+import apiService from '@/lib/apiService';
+import { getExpenditureSummary, CATEGORY_LABELS, ExpenditureSummary } from '@/lib/expendituresApi';
 
-// API Configuration
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
-const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
-// Types
+// ── GET /dashboard/financial-overview ──
 interface FinancialOverview {
-    totalRevenue: number;
-    totalExpenses: number;
-    netIncome: number;
-    outstandingFees: number;
+    collected: number;
+    expected: number;
+    outstanding: number;
     collectionRate: number;
-    currentAcademicYear: string;
+    expenditures: number;
+    netCash: number;
+    byMethod: { method: string; amount: number }[];
+    monthlyTrend: { month: string; collected: number }[];
 }
 
-interface MonthlyReport {
-    month: string;
-    revenue: number;
-    expenses: number;
-    netIncome: number;
-    feeCollection: number;
-}
-
-interface ExpenseCategory {
-    category: string;
-    amount: number;
-    percentage: number;
-    color: string;
-}
-
-interface FeeReport {
-    class: string;
+interface ClassFeeReport {
+    classId: string;
+    className: string;
     totalStudents: number;
     totalExpected: number;
     totalCollected: number;
@@ -55,233 +39,156 @@ interface FeeReport {
     collectionRate: number;
 }
 
+const formatCurrency = (amount?: number | null) =>
+    `FCFA ${(amount ?? 0).toLocaleString()}`;
+
+const formatLabel = (value: string) =>
+    value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+
+const collectionRateColor = (rate: number): 'green' | 'yellow' | 'red' => {
+    if (rate >= 90) return 'green';
+    if (rate >= 75) return 'yellow';
+    return 'red';
+};
+
+const fetcher = (url: string) => apiService.get(url);
+
+// Pull every fee record for the year (paged) to build the per-class table
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fetchAllFees = async (academicYearId: number): Promise<any[]> => {
+    const limit = 500;
+    const maxPages = 20;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let records: any[] = [];
+    for (let page = 1; page <= maxPages; page++) {
+        const res = await apiService.get(`/fees?academicYearId=${academicYearId}&page=${page}&limit=${limit}`);
+        const batch = res?.data?.data ?? [];
+        records = records.concat(batch);
+        const total = res?.data?.meta?.total ?? records.length;
+        if (batch.length === 0 || records.length >= total) break;
+    }
+    return records;
+};
+
+function ProgressBar({ rate }: { rate: number }) {
+    const clamped = Math.min(100, Math.max(0, rate));
+    return (
+        <div className="h-2 w-full rounded-full bg-gray-100">
+            <div className="h-2 rounded-full bg-blue-600" style={{ width: `${clamped}%` }} />
+        </div>
+    );
+}
+
+function BarListRow({ label, value, max, display }: { label: string; value: number; max: number; display?: string }) {
+    const width = max > 0 ? Math.max(2, (value / max) * 100) : 0;
+    return (
+        <div className="flex items-center gap-3">
+            <span className="w-32 shrink-0 text-sm text-gray-600 truncate" title={label}>{label}</span>
+            <div className="flex-1 h-2 rounded-full bg-gray-100">
+                <div className="h-2 rounded-full bg-blue-600" style={{ width: `${width}%` }} />
+            </div>
+            <span className="w-32 text-right text-sm font-medium text-gray-900 truncate">{display ?? value}</span>
+        </div>
+    );
+}
+
 export default function ManagerFinancialReportsPage() {
-    const [overview, setOverview] = useState<FinancialOverview>({
-        totalRevenue: 0,
-        totalExpenses: 0,
-        netIncome: 0,
-        outstandingFees: 0,
-        collectionRate: 0,
-        currentAcademicYear: ''
-    });
+    const { selectedAcademicYear } = useAuth();
 
-    const [monthlyReports, setMonthlyReports] = useState<MonthlyReport[]>([]);
-    const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
-    const [feeReports, setFeeReports] = useState<FeeReport[]>([]);
-    const [selectedPeriod, setSelectedPeriod] = useState<string>('current-year');
-    const [isLoading, setIsLoading] = useState(true);
-    const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
+    // Fall back to the current academic year when none is selected in the sidebar
+    const { data: yearsResult } = useSWR<{ data: { id: number; name: string; isCurrent: boolean }[] }>(
+        selectedAcademicYear ? null : '/academic-years',
+        fetcher
+    );
+    const effectiveYear = selectedAcademicYear ?? yearsResult?.data?.find(y => y.isCurrent) ?? null;
+    const yearParam = effectiveYear?.id ? `?academicYearId=${effectiveYear.id}` : '';
 
-    useEffect(() => {
-        fetchFinancialData();
-        fetchClasses();
-    }, [selectedPeriod]);
+    // Financial overview (collected / expected / outstanding / expenditures / net cash)
+    const { data: overviewRes, error: overviewError, isLoading: isLoadingOverview } = useSWR<{ data?: FinancialOverview }>(
+        `/dashboard/financial-overview${yearParam}`,
+        fetcher,
+        { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load financial overview'); } }
+    );
+    const overview = overviewRes?.data;
 
-    const fetchFinancialData = async () => {
-        setIsLoading(true);
-        const token = getAuthToken();
-        if (!token) {
-            toast.error('Authentication required');
-            return;
-        }
+    // This month's expenditures by category
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const { data: expenditureSummary } = useSWR<ExpenditureSummary>(
+        ['expenditure-summary', currentMonth],
+        () => getExpenditureSummary(currentMonth),
+        { onError: () => { /* section simply stays empty */ } }
+    );
 
-        const headers = { 'Authorization': `Bearer ${token}` };
+    // Per-class fee collection, aggregated from fee records
+    const { data: feeRecords, isLoading: isLoadingFees } = useSWR(
+        effectiveYear?.id ? ['manager-fee-records', effectiveYear.id] : null,
+        ([, yearId]) => fetchAllFees(yearId as number)
+    );
 
-        try {
-            // This would normally fetch from multiple endpoints
-            // For now, using mock data to demonstrate functionality
-            await Promise.all([
-                fetchOverview(),
-                fetchMonthlyReports(),
-                fetchExpenseCategories(),
-                fetchFeeReports()
-            ]);
-        } catch (error) {
-            console.error('Error fetching financial data:', error);
-            toast.error('Failed to load financial data');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const fetchOverview = async () => {
-        // Mock data - replace with actual API call
-        setOverview({
-            totalRevenue: 125000000, // 125M FCFA
-            totalExpenses: 95000000,  // 95M FCFA
-            netIncome: 30000000,     // 30M FCFA
-            outstandingFees: 25000000, // 25M FCFA
-            collectionRate: 85.5,
-            currentAcademicYear: '2024/2025'
-        });
-    };
-
-    const fetchMonthlyReports = async () => {
-        // Mock monthly data
-        const months = [
-            'Sep 2024', 'Oct 2024', 'Nov 2024', 'Dec 2024', 'Jan 2025', 'Feb 2025'
-        ];
-
-        const mockData = months.map(month => ({
-            month,
-            revenue: Math.floor(Math.random() * 20000000) + 15000000,
-            expenses: Math.floor(Math.random() * 15000000) + 10000000,
-            netIncome: 0,
-            feeCollection: Math.floor(Math.random() * 18000000) + 12000000
-        }));
-
-        mockData.forEach(item => {
-            item.netIncome = item.revenue - item.expenses;
-        });
-
-        setMonthlyReports(mockData);
-    };
-
-    const fetchExpenseCategories = async () => {
-        // Mock expense categories
-        const categories = [
-            { category: 'Salaries & Benefits', amount: 45000000, percentage: 47.4, color: 'bg-blue-500' },
-            { category: 'Infrastructure', amount: 18000000, percentage: 18.9, color: 'bg-green-500' },
-            { category: 'Utilities', amount: 12000000, percentage: 12.6, color: 'bg-yellow-500' },
-            { category: 'Supplies & Materials', amount: 8000000, percentage: 8.4, color: 'bg-purple-500' },
-            { category: 'Transportation', amount: 6000000, percentage: 6.3, color: 'bg-red-500' },
-            { category: 'Other', amount: 6000000, percentage: 6.3, color: 'bg-gray-500' }
-        ];
-
-        setExpenseCategories(categories);
-    };
-
-    const fetchClasses = async () => {
-        const token = getAuthToken();
-        if (!token) return;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/classes`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setClasses(sortClassesByLevel(data.data || []));
+    const classReports = useMemo<ClassFeeReport[]>(() => {
+        const byClass = new Map<string, ClassFeeReport>();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (feeRecords ?? []).forEach((record: any) => {
+            const classId = record.enrollment?.classId ? String(record.enrollment.classId) : 'unknown';
+            const className = record.enrollment?.class?.name || 'Unassigned';
+            let agg = byClass.get(classId);
+            if (!agg) {
+                agg = { classId, className, totalStudents: 0, totalExpected: 0, totalCollected: 0, outstanding: 0, collectionRate: 0 };
+                byClass.set(classId, agg);
             }
-        } catch (error) {
-            console.error('Error fetching classes:', error);
-            // Use fallback mock data if API fails
-            setClasses([
-                { id: 1, name: 'Form 1' },
-                { id: 2, name: 'Form 2' },
-                { id: 3, name: 'Form 3' },
-                { id: 4, name: 'Form 4' },
-                { id: 5, name: 'Form 5' }
-            ]);
-        }
-    };
-
-    const fetchFeeReports = async () => {
-        // Mock fee collection data by class
-        const classNames = ['Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5'];
-
-        const mockData = classNames.map(className => {
-            const totalStudents = Math.floor(Math.random() * 150) + 100;
-            const totalExpected = totalStudents * 1500000; // 1.5M FCFA per student
-            const totalCollected = Math.floor(totalExpected * (Math.random() * 0.3 + 0.7)); // 70-100%
-            const outstanding = totalExpected - totalCollected;
-            const collectionRate = (totalCollected / totalExpected) * 100;
-
-            return {
-                class: className,
-                totalStudents,
-                totalExpected,
-                totalCollected,
-                outstanding,
-                collectionRate
-            };
+            const expected = record.amountExpected || 0;
+            const paid = record.amountPaid || 0;
+            agg.totalStudents += 1;
+            agg.totalExpected += expected;
+            agg.totalCollected += paid;
+            agg.outstanding += Math.max(0, expected - paid);
         });
+        return Array.from(byClass.values())
+            .map(agg => ({
+                ...agg,
+                collectionRate: agg.totalExpected > 0 ? (agg.totalCollected / agg.totalExpected) * 100 : 100,
+            }))
+            .sort((a, b) => b.outstanding - a.outstanding);
+    }, [feeRecords]);
 
-        setFeeReports(mockData);
-    };
+    // Classes for the export filter
+    const { data: classesResult } = useSWR<{ data: { id: number; name: string }[] }>('/classes', fetcher);
+    const classes = useMemo(
+        () => sortClassesByLevel(classesResult?.data || []),
+        [classesResult]
+    );
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('fr-FR', {
-            style: 'currency',
-            currency: 'XAF',
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0
-        }).format(amount);
-    };
-
-    const formatPercentage = (value: number) => {
-        return `${value.toFixed(1)}%`;
-    };
-
-    const getCollectionRateColor = (rate: number) => {
-        if (rate >= 90) return 'green';
-        if (rate >= 75) return 'yellow';
-        return 'red';
-    };
-
-    // Enhanced report generation with multiple report types
+    // ── Export panel state ──
     const [reportType, setReportType] = useState<'summary' | 'detailed' | 'analytics'>('detailed');
-    const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf'>('xlsx');
+    const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf' | 'docx'>('xlsx');
     const [selectedClass, setSelectedClass] = useState<string>('all');
     const [isExporting, setIsExporting] = useState(false);
 
     const generateReport = async () => {
-        setIsExporting(true);
-        const token = getAuthToken();
-
-        if (!token) {
-            toast.error('Authentication required');
-            setIsExporting(false);
+        if (!effectiveYear?.id) {
+            toast.error('No academic year available.');
             return;
         }
-
+        setIsExporting(true);
         try {
-            // Build export URL with new parameters
             const params = new URLSearchParams({
                 reportType,
                 format: exportFormat,
-                period: selectedPeriod
+                academicYearId: String(effectiveYear.id),
             });
+            if (selectedClass !== 'all') params.append('classId', selectedClass);
 
-            // Add class filter if specific class is selected
-            if (selectedClass !== 'all') {
-                params.append('classId', selectedClass);
-            }
-
-            const exportUrl = `${API_BASE_URL}/fees/export?${params.toString()}`;
-
-            // Create and trigger download
-            const response = await fetch(exportUrl, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Export failed');
-            }
-
-            const blob = await response.blob();
+            const blob = await apiService.get(`/fees/export?${params.toString()}`, {}, 'blob');
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-
-            // Generate filename based on report type and format
-            const timestamp = new Date().toISOString().split('T')[0];
-            const reportTypeNames = {
-                summary: 'Fee-Summary',
-                detailed: 'Detailed-Fees',
-                analytics: 'Payment-Analytics'
-            };
-
-            link.download = `${reportTypeNames[reportType]}_${timestamp}.${exportFormat}`;
+            const reportTypeNames = { summary: 'Fee-Summary', detailed: 'Detailed-Fees', analytics: 'Payment-Analytics' };
+            link.download = `${reportTypeNames[reportType]}_${new Date().toISOString().split('T')[0]}.${exportFormat}`;
             document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
+            link.remove();
             window.URL.revokeObjectURL(url);
-
-            toast.success(`${reportTypeNames[reportType]} report exported successfully as ${exportFormat.toUpperCase()}`);
+            toast.success(`${reportTypeNames[reportType]} exported as ${exportFormat.toUpperCase()}`);
         } catch (error) {
             console.error('Export error:', error);
             toast.error('Failed to export report. Please try again.');
@@ -290,273 +197,149 @@ export default function ManagerFinancialReportsPage() {
         }
     };
 
+    const maxMethodAmount = Math.max(0, ...(overview?.byMethod ?? []).map(m => m.amount));
+    const maxMonthAmount = Math.max(0, ...(overview?.monthlyTrend ?? []).map(m => m.collected));
+    const maxCategoryAmount = Math.max(0, ...(expenditureSummary?.byCategory ?? []).map(c => c.amount));
+
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6">
             {/* Header */}
-            <div className="flex justify-between items-start">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
-                    <p className="text-gray-600">Comprehensive financial analysis and reporting</p>
-                </div>
-                <div className="flex flex-col space-y-2">
-                    {/* Period Selector */}
-                    <select
-                        value={selectedPeriod}
-                        onChange={(e) => setSelectedPeriod(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="current-year">Current Academic Year</option>
-                        <option value="last-year">Previous Academic Year</option>
-                        <option value="current-month">Current Month</option>
-                        <option value="last-quarter">Last Quarter</option>
-                    </select>
-                </div>
+            <div>
+                <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
+                <p className="text-gray-600">
+                    Live financial position
+                    {effectiveYear ? ` · ${effectiveYear.name}` : ''}
+                </p>
             </div>
 
-            {/* Export Controls Panel */}
+            {overviewError && overviewError.message !== 'Unauthorized' && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
+                    <strong className="font-bold">Error!</strong>
+                    <span className="block sm:inline"> Failed to load financial data. Please try again.</span>
+                </div>
+            )}
+
+            {/* Overview cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                <StatsCard title="Fees Collected" value={isLoadingOverview ? '...' : formatCurrency(overview?.collected)} icon={BanknotesIcon} color="success" />
+                <StatsCard title="Outstanding Fees" value={isLoadingOverview ? '...' : formatCurrency(overview?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
+                <StatsCard title="Expenditures" value={isLoadingOverview ? '...' : formatCurrency(overview?.expenditures)} icon={ReceiptRefundIcon} color="warning" />
+                <StatsCard title="Net Cash" value={isLoadingOverview ? '...' : formatCurrency(overview?.netCash)} icon={ReceiptPercentIcon} color="primary" />
+            </div>
+
+            {/* Collection rate */}
             <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <PrinterIcon className="h-5 w-5 mr-2" />
-                        Export Financial Reports
-                    </CardTitle>
-                </CardHeader>
                 <CardBody>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Report Type Selection */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Report Type
-                            </label>
-                            <select
-                                value={reportType}
-                                onChange={(e) => setReportType(e.target.value as 'summary' | 'detailed' | 'analytics')}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="detailed">By Student (Detailed Fees)</option>
-                                <option value="summary">By Class (Fee Summary)</option>
-                                <option value="analytics">By Payment Method (Analytics)</option>
-                            </select>
-                        </div>
-
-                        {/* Export Format */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Format
-                            </label>
-                            <select
-                                value={exportFormat}
-                                onChange={(e) => setExportFormat(e.target.value as 'csv' | 'xlsx' | 'pdf')}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="xlsx">Excel (.xlsx)</option>
-                                <option value="csv">CSV (.csv)</option>
-                                <option value="pdf">PDF (.pdf)</option>
-                            </select>
-                        </div>
-
-                        {/* Class Filter */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Class Filter
-                            </label>
-                            <select
-                                value={selectedClass}
-                                onChange={(e) => setSelectedClass(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="all">All Classes</option>
-                                {classes.map((cls) => (
-                                    <option key={cls.id} value={cls.id.toString()}>
-                                        {cls.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Export Button */}
-                        <div className="flex items-end">
-                            <Button
-                                onClick={generateReport}
-                                disabled={isExporting}
-                                className={`w-full flex items-center justify-center ${exportFormat === 'xlsx' ? 'bg-green-600 hover:bg-green-700' :
-                                    exportFormat === 'csv' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-red-600 hover:bg-red-700'}`}
-                            >
-                                {isExporting ? (
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                ) : (
-                                    <PrinterIcon className="h-4 w-4 mr-2" />
-                                )}
-                                {isExporting ? 'Exporting...' : 'Export Report'}
-                            </Button>
-                        </div>
+                    <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium text-gray-500">
+                            Collection rate · {formatCurrency(overview?.collected)} of {formatCurrency(overview?.expected)} expected
+                        </span>
+                        <span className="text-sm font-semibold text-gray-900">{(overview?.collectionRate ?? 0).toFixed(1)}%</span>
                     </div>
-
-                    {/* Report Type Descriptions & Preview */}
-                    <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="p-3 bg-gray-50 rounded-md">
-                            <h4 className="text-sm font-medium text-gray-700 mb-2">Report Description:</h4>
-                            <div className="text-xs text-gray-600">
-                                {reportType === 'detailed' && (
-                                    <div>
-                                        <p><strong>By Student (Detailed Fees):</strong></p>
-                                        <p>Individual student fee records with payment history, balances, and transaction details.</p>
-                                        <p className="mt-1"><strong>Includes:</strong> Student name, class, matricule, expected fees, paid amount, balance, payment dates, transaction IDs</p>
-                                    </div>
-                                )}
-                                {reportType === 'summary' && (
-                                    <div>
-                                        <p><strong>By Class (Fee Summary):</strong></p>
-                                        <p>Aggregated fee collection statistics grouped by class, showing totals and collection rates.</p>
-                                        <p className="mt-1"><strong>Includes:</strong> Class name, total students, expected fees, collected amount, outstanding balance, collection percentage</p>
-                                    </div>
-                                )}
-                                {reportType === 'analytics' && (
-                                    <div>
-                                        <p><strong>By Payment Method (Analytics):</strong></p>
-                                        <p>Payment method analysis showing transaction volumes, trends, and preferred payment channels.</p>
-                                        <p className="mt-1"><strong>Includes:</strong> Payment method, transaction count, total amount, average transaction size, usage trends</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="p-3 bg-blue-50 rounded-md">
-                            <h4 className="text-sm font-medium text-blue-800 mb-2">Export Preview:</h4>
-                            <div className="text-xs text-blue-700">
-                                <p><strong>Format:</strong> {exportFormat.toUpperCase()}</p>
-                                <p><strong>Period:</strong> {selectedPeriod.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
-                                <p><strong>Classes:</strong> {selectedClass === 'all' ? 'All Classes' : classes.find(c => c.id.toString() === selectedClass)?.name || 'Selected Class'}</p>
-                                <p><strong>Report Type:</strong> {reportType === 'detailed' ? 'Student Details' : reportType === 'summary' ? 'Class Summary' : 'Payment Analytics'}</p>
-                                <div className="mt-2 p-2 bg-white rounded border border-blue-200">
-                                    <p className="text-xs text-blue-600">
-                                        📊 Estimated data rows: {reportType === 'detailed' ? '500-2000' : reportType === 'summary' ? '5-20' : '3-10'} records
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
+                    <div className="mt-2">
+                        <ProgressBar rate={overview?.collectionRate ?? 0} />
                     </div>
                 </CardBody>
             </Card>
 
-            {/* Financial Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Monthly trend + method breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                 <Card>
-                    <CardBody className="flex items-center">
-                        <BanknotesIcon className="h-8 w-8 text-green-600 mr-3" />
-                        <div>
-                            <p className="text-sm text-gray-600">Total Revenue</p>
-                            <p className="text-lg font-bold text-green-600">
-                                {formatCurrency(overview.totalRevenue)}
-                            </p>
-                        </div>
+                    <CardHeader>
+                        <CardTitle>Monthly Collections</CardTitle>
+                    </CardHeader>
+                    <CardBody className="space-y-2">
+                        {(overview?.monthlyTrend?.length ?? 0) === 0 ? (
+                            <p className="text-sm text-gray-500">{isLoadingOverview ? 'Loading…' : 'No monthly data yet.'}</p>
+                        ) : (
+                            overview!.monthlyTrend.map((m) => (
+                                <BarListRow key={m.month} label={m.month} value={m.collected} max={maxMonthAmount} display={formatCurrency(m.collected)} />
+                            ))
+                        )}
                     </CardBody>
                 </Card>
 
                 <Card>
-                    <CardBody className="flex items-center">
-                        <ReceiptPercentIcon className="h-8 w-8 text-red-600 mr-3" />
-                        <div>
-                            <p className="text-sm text-gray-600">Total Expenses</p>
-                            <p className="text-lg font-bold text-red-600">
-                                {formatCurrency(overview.totalExpenses)}
-                            </p>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody className="flex items-center">
-                        <ArrowTrendingUpIcon className="h-8 w-8 text-blue-600 mr-3" />
-                        <div>
-                            <p className="text-sm text-gray-600">Net Income</p>
-                            <p className="text-lg font-bold text-blue-600">
-                                {formatCurrency(overview.netIncome)}
-                            </p>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody className="flex items-center">
-                        <CurrencyDollarIcon className="h-8 w-8 text-orange-600 mr-3" />
-                        <div>
-                            <p className="text-sm text-gray-600">Outstanding Fees</p>
-                            <p className="text-lg font-bold text-orange-600">
-                                {formatCurrency(overview.outstandingFees)}
-                            </p>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody className="flex items-center">
-                        <ChartBarIcon className="h-8 w-8 text-purple-600 mr-3" />
-                        <div>
-                            <p className="text-sm text-gray-600">Collection Rate</p>
-                            <p className="text-lg font-bold text-purple-600">
-                                {formatPercentage(overview.collectionRate)}
-                            </p>
-                        </div>
+                    <CardHeader>
+                        <CardTitle>Collections by Payment Method</CardTitle>
+                    </CardHeader>
+                    <CardBody className="space-y-2">
+                        {(overview?.byMethod?.length ?? 0) === 0 ? (
+                            <p className="text-sm text-gray-500">{isLoadingOverview ? 'Loading…' : 'No payment data yet.'}</p>
+                        ) : (
+                            overview!.byMethod.map((m) => (
+                                <BarListRow key={m.method} label={formatLabel(m.method)} value={m.amount} max={maxMethodAmount} display={formatCurrency(m.amount)} />
+                            ))
+                        )}
                     </CardBody>
                 </Card>
             </div>
 
-            {/* Monthly Trends */}
+            {/* This month's expenditures by category */}
+            <Card>
+                <CardHeader className="flex items-center justify-between">
+                    <CardTitle>Expenditures This Month ({currentMonth})</CardTitle>
+                    <Link href="/dashboard/manager/expenditures" className="text-xs font-medium text-blue-600 hover:text-blue-800">View ledger →</Link>
+                </CardHeader>
+                <CardBody className="space-y-2">
+                    {(expenditureSummary?.byCategory?.length ?? 0) === 0 ? (
+                        <p className="text-sm text-gray-500">No expenditures recorded this month.</p>
+                    ) : (
+                        <>
+                            {expenditureSummary!.byCategory.map((cat) => (
+                                <BarListRow
+                                    key={cat.category}
+                                    label={CATEGORY_LABELS[cat.category] ?? formatLabel(cat.category)}
+                                    value={cat.amount}
+                                    max={maxCategoryAmount}
+                                    display={formatCurrency(cat.amount)}
+                                />
+                            ))}
+                            <p className="pt-2 text-sm text-gray-600 text-right">
+                                Total: <span className="font-semibold text-gray-900">{formatCurrency(expenditureSummary!.totalAmount)}</span>
+                                {' '}across {expenditureSummary!.count} entries
+                            </p>
+                        </>
+                    )}
+                </CardBody>
+            </Card>
+
+            {/* Fee collection by class */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <ChartBarIcon className="h-5 w-5 mr-2" />
-                        Monthly Financial Trends
-                    </CardTitle>
+                    <CardTitle>Fee Collection by Class</CardTitle>
                 </CardHeader>
-                <CardBody>
-                    {isLoading ? (
-                        <div className="text-center py-8">
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                            <p className="mt-2 text-gray-600">Loading monthly data...</p>
-                        </div>
+                <CardBody className="p-0">
+                    {isLoadingFees ? (
+                        <p className="p-6 text-sm text-gray-500">Loading fee data…</p>
+                    ) : classReports.length === 0 ? (
+                        <p className="p-6 text-sm text-gray-500">No fee records found for this academic year.</p>
                     ) : (
                         <div className="overflow-x-auto">
+                            <p className="px-4 pt-2 text-right text-[11px] text-gray-400">Amounts in FCFA</p>
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Month
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Revenue
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Expenses
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Net Income
-                                        </th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Fee Collection
-                                        </th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Students</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Expected</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Collected</th>
+                                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
+                                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {monthlyReports.map((report, index) => (
-                                        <tr key={index}>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                {report.month}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                                                {formatCurrency(report.revenue)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600 font-medium">
-                                                {formatCurrency(report.expenses)}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                <span className={report.netIncome >= 0 ? 'text-blue-600' : 'text-red-600'}>
-                                                    {formatCurrency(report.netIncome)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-purple-600 font-medium">
-                                                {formatCurrency(report.feeCollection)}
+                                <tbody className="divide-y divide-gray-100">
+                                    {classReports.map((report) => (
+                                        <tr key={report.classId} className="hover:bg-gray-50">
+                                            <td className="px-3 py-2.5 text-sm font-medium text-gray-900 whitespace-nowrap">{report.className}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-600 text-right">{report.totalStudents}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-900 text-right whitespace-nowrap">{report.totalExpected.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 text-sm text-gray-900 text-right whitespace-nowrap">{report.totalCollected.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 text-sm font-semibold text-red-600 text-right whitespace-nowrap">{report.outstanding.toLocaleString()}</td>
+                                            <td className="px-3 py-2.5 whitespace-nowrap">
+                                                <Badge color={collectionRateColor(report.collectionRate)} size="sm">
+                                                    {report.collectionRate.toFixed(1)}%
+                                                </Badge>
                                             </td>
                                         </tr>
                                     ))}
@@ -567,130 +350,62 @@ export default function ManagerFinancialReportsPage() {
                 </CardBody>
             </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Expense Categories */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center">
-                            <ReceiptPercentIcon className="h-5 w-5 mr-2" />
-                            Expense Breakdown
-                        </CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-4">
-                            {expenseCategories.map((category, index) => (
-                                <div key={index} className="flex items-center justify-between">
-                                    <div className="flex items-center">
-                                        <div className={`w-4 h-4 rounded ${category.color} mr-3`}></div>
-                                        <span className="text-sm font-medium">{category.category}</span>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-sm font-bold">{formatCurrency(category.amount)}</p>
-                                        <p className="text-xs text-gray-500">{formatPercentage(category.percentage)}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardBody>
-                </Card>
-
-                {/* Fee Collection by Class */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center">
-                            <CurrencyDollarIcon className="h-5 w-5 mr-2" />
-                            Fee Collection by Class
-                        </CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-4">
-                            {feeReports.map((report, index) => (
-                                <div key={index} className="border-b border-gray-200 last:border-b-0 pb-4 last:pb-0">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <h4 className="font-medium">{report.class}</h4>
-                                            <p className="text-sm text-gray-600">{report.totalStudents} students</p>
-                                        </div>
-                                        <Badge
-                                            variant="solid"
-                                            color={getCollectionRateColor(report.collectionRate)}
-                                            size="sm"
-                                        >
-                                            {formatPercentage(report.collectionRate)}
-                                        </Badge>
-                                    </div>
-
-                                    <div className="mt-2 space-y-1">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Expected:</span>
-                                            <span className="font-medium">{formatCurrency(report.totalExpected)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Collected:</span>
-                                            <span className="font-medium text-green-600">{formatCurrency(report.totalCollected)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Outstanding:</span>
-                                            <span className="font-medium text-red-600">{formatCurrency(report.outstanding)}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Progress Bar */}
-                                    <div className="mt-2">
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className={`h-2 rounded-full ${getCollectionRateColor(report.collectionRate) === 'green' ? 'bg-green-600' :
-                                                    getCollectionRateColor(report.collectionRate) === 'yellow' ? 'bg-yellow-600' : 'bg-red-600'
-                                                    }`}
-                                                style={{ width: `${report.collectionRate}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardBody>
-                </Card>
-            </div>
-
-            {/* Key Financial Metrics */}
+            {/* Export panel */}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
-                        <DocumentChartBarIcon className="h-5 w-5 mr-2" />
-                        Key Performance Indicators
+                        <PrinterIcon className="h-5 w-5 mr-2" />
+                        Export Financial Reports
                     </CardTitle>
                 </CardHeader>
                 <CardBody>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-blue-600 mb-2">
-                                {formatPercentage(overview.collectionRate)}
-                            </div>
-                            <div className="text-sm text-gray-600">Overall Collection Rate</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                                Target: 90% | Current: {formatPercentage(overview.collectionRate)}
-                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Report Type</label>
+                            <select
+                                value={reportType}
+                                onChange={(e) => setReportType(e.target.value as typeof reportType)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="detailed">By Student (Detailed Fees)</option>
+                                <option value="summary">By Class (Fee Summary)</option>
+                                <option value="analytics">By Payment Method (Analytics)</option>
+                            </select>
                         </div>
-
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-green-600 mb-2">
-                                {formatPercentage((overview.totalRevenue - overview.totalExpenses) / overview.totalRevenue * 100)}
-                            </div>
-                            <div className="text-sm text-gray-600">Profit Margin</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                                Revenue - Expenses / Revenue
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Format</label>
+                            <select
+                                value={exportFormat}
+                                onChange={(e) => setExportFormat(e.target.value as typeof exportFormat)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="xlsx">Excel (.xlsx)</option>
+                                <option value="pdf">PDF (.pdf)</option>
+                                <option value="docx">Word (.docx)</option>
+                                <option value="csv">CSV (.csv)</option>
+                            </select>
                         </div>
-
-                        <div className="text-center">
-                            <div className="text-3xl font-bold text-orange-600 mb-2">
-                                {Math.ceil(overview.outstandingFees / (overview.totalRevenue / 12))}
-                            </div>
-                            <div className="text-sm text-gray-600">Months to Collect Outstanding</div>
-                            <div className="text-xs text-gray-500 mt-1">
-                                At current collection rate
-                            </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Class</label>
+                            <select
+                                value={selectedClass}
+                                onChange={(e) => setSelectedClass(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                                <option value="all">All Classes</option>
+                                {classes.map((cls) => (
+                                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex items-end">
+                            <button
+                                onClick={generateReport}
+                                disabled={isExporting}
+                                className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                            >
+                                {isExporting ? 'Exporting…' : 'Export Report'}
+                            </button>
                         </div>
                     </div>
                 </CardBody>

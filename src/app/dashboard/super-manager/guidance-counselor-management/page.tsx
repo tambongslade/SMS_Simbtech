@@ -286,7 +286,7 @@ export default function GuidanceCounselorManagement() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Guidance Counselor Management</h1>
 
                 {/* Counselor List/Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>

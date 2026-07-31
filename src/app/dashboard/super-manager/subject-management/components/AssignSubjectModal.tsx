@@ -40,7 +40,6 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
 }) => {
     const [classes, setClasses] = useState<ClassBrief[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(subject ? subject.id : null);
-    const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
     const [selectedSubclassIds, setSelectedSubclassIds] = useState<number[]>([]);
     const [coefficient, setCoefficient] = useState<number | null>(subject ? subject.coefficient || null : null);
     const [isFetchingClasses, setIsFetchingClasses] = useState(false);
@@ -49,7 +48,6 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
     useEffect(() => {
         if (isOpen) {
             fetchClassesAndSubclasses();
-            setSelectedClassId(null);
             setSelectedSubclassIds([]);
             setCoefficient(null);
             if (!subject) {
@@ -78,10 +76,14 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
         }
     };
 
-    const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const classId = e.target.value ? Number(e.target.value) : null;
-        setSelectedClassId(classId);
-        setSelectedSubclassIds([]);
+    // Ticking a class selects ALL of its subclasses — subjects apply class-wide by
+    // default; individual subclasses can still be unticked afterwards.
+    const handleClassCheckboxChange = (cls: ClassBrief, isChecked: boolean) => {
+        const subIds = cls.subClasses.map(s => s.id);
+        setSelectedSubclassIds(prevIds => {
+            const withoutClass = prevIds.filter(id => !subIds.includes(id));
+            return isChecked ? [...withoutClass, ...subIds] : withoutClass;
+        });
     };
 
     // Handle checkbox change for subclasses
@@ -148,11 +150,8 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
         }
     };
 
-    const availableSubclasses = classes.find(c => c.id === selectedClassId)?.subClasses || [];
-
     const isFormIncomplete = (
         selectedSubjectId === null ||
-        selectedClassId === null ||
         selectedSubclassIds.length === 0 ||
         coefficient === null ||
         Number(coefficient) <= 0
@@ -189,52 +188,68 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                     )}
 
                     <div>
-                        <label htmlFor="classSelect" className="block text-sm font-medium text-gray-700">Select Class</label>
-                        <select
-                            id="classSelect"
-                            value={selectedClassId || ''}
-                            onChange={handleClassChange}
-                            disabled={isFetchingClasses || isSubmitting || isOverallLoading}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
-                        >
-                            <option value="" disabled>{isFetchingClasses ? 'Loading Classes...' : '-- Select a Class --'}</option>
-                            {classes.map((cls) => (
-                                <option key={cls.id} value={cls.id}>{cls.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Subclass Multi-Selection (Checkboxes) */}
-                    {selectedClassId !== null && (
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Select Subclass(es)</label>
-                            {availableSubclasses.length === 0 ? (
-                                <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">This class has no subclasses defined.</p>
-                            ) : (
-                                <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1 bg-white">
-                                    {availableSubclasses.map((sub) => (
-                                        <div key={sub.id} className="flex items-center">
-                                            <input
-                                                type="checkbox"
-                                                id={`subclass-${sub.id}`}
-                                                value={sub.id}
-                                                checked={selectedSubclassIds.includes(sub.id)}
-                                                onChange={(e) => handleSubclassCheckboxChange(sub.id, e.target.checked)}
-                                                disabled={isSubmitting || isOverallLoading}
-                                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            />
-                                            <label
-                                                htmlFor={`subclass-${sub.id}`}
-                                                className="ml-2 block text-sm text-gray-700 cursor-pointer"
-                                            >
-                                                {sub.name}
-                                            </label>
+                        <label className="block text-sm font-medium text-gray-700">Select Class(es)</label>
+                        <p className="text-xs text-gray-500 mb-1">
+                            Ticking a class applies the subject to <span className="font-medium">all its subclasses</span> — untick individual subclasses below if needed. You can select several classes (e.g. Forms 1–4) at once.
+                        </p>
+                        {isFetchingClasses ? (
+                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">Loading classes...</p>
+                        ) : classes.length === 0 ? (
+                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">No classes found.</p>
+                        ) : (
+                            <div className="max-h-56 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-2 bg-white">
+                                {classes.map((cls) => {
+                                    const subIds = cls.subClasses.map(s => s.id);
+                                    const selectedCount = subIds.filter(id => selectedSubclassIds.includes(id)).length;
+                                    const allSelected = subIds.length > 0 && selectedCount === subIds.length;
+                                    const partiallySelected = selectedCount > 0 && !allSelected;
+                                    return (
+                                        <div key={cls.id}>
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id={`class-${cls.id}`}
+                                                    checked={allSelected}
+                                                    ref={(el) => { if (el) el.indeterminate = partiallySelected; }}
+                                                    onChange={(e) => handleClassCheckboxChange(cls, e.target.checked)}
+                                                    disabled={isSubmitting || isOverallLoading || subIds.length === 0}
+                                                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                />
+                                                <label htmlFor={`class-${cls.id}`} className="ml-2 block text-sm font-medium text-gray-800 cursor-pointer">
+                                                    {cls.name}
+                                                    <span className="ml-1.5 text-xs font-normal text-gray-500">
+                                                        {subIds.length === 0
+                                                            ? '(no subclasses)'
+                                                            : `(${selectedCount}/${subIds.length} subclasses)`}
+                                                    </span>
+                                                </label>
+                                            </div>
+                                            {selectedCount > 0 && (
+                                                <div className="ml-6 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                                    {cls.subClasses.map((sub) => (
+                                                        <div key={sub.id} className="flex items-center">
+                                                            <input
+                                                                type="checkbox"
+                                                                id={`subclass-${sub.id}`}
+                                                                value={sub.id}
+                                                                checked={selectedSubclassIds.includes(sub.id)}
+                                                                onChange={(e) => handleSubclassCheckboxChange(sub.id, e.target.checked)}
+                                                                disabled={isSubmitting || isOverallLoading}
+                                                                className="h-3.5 w-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            />
+                                                            <label htmlFor={`subclass-${sub.id}`} className="ml-1.5 block text-xs text-gray-600 cursor-pointer">
+                                                                {sub.name}
+                                                            </label>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
 
                     <div>
                         <label htmlFor="coefficient" className="block text-sm font-medium text-gray-700">Coefficient</label>

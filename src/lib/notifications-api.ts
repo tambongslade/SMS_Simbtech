@@ -2,13 +2,27 @@ import { getAuthToken } from './auth';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+export type NotificationCategory =
+    | 'GENERAL' | 'ANNOUNCEMENT' | 'TASK_ASSIGNED' | 'TASK_UPDATE'
+    | 'APPROVAL_NEEDED' | 'APPROVAL_APPROVED' | 'APPROVAL_REJECTED'
+    | 'SALARY_UPDATE' | 'FEE_UPDATE' | 'DISCIPLINE' | 'SYSTEM';
+
 export interface Notification {
     id: number;
+    userId?: number;
+    senderId?: number | null;
+    title?: string | null;
     message: string;
+    category?: NotificationCategory;
+    entityType?: string | null;
+    entityId?: number | null;
+    actionUrl?: string | null;
     status: 'SENT' | 'DELIVERED' | 'READ';
     dateSent: string;
-    type: 'ANNOUNCEMENT' | 'MESSAGE';
-    relatedId: number;
+    readAt?: string | null;
+    // Legacy fields kept for older payloads
+    type?: 'ANNOUNCEMENT' | 'MESSAGE';
+    relatedId?: number;
 }
 
 export interface NotificationsResponse {
@@ -108,7 +122,7 @@ export async function getUnreadNotificationCount(): Promise<{ success: boolean; 
 export async function markNotificationAsRead(notificationId: number): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
         const response = await fetch(`${API_BASE_URL}/notifications/${notificationId}/read`, {
-            method: 'PATCH',
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${getAuthToken()}`,
             },
@@ -131,7 +145,7 @@ export async function markNotificationAsRead(notificationId: number): Promise<{ 
 export async function markAllNotificationsAsRead(): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
         const response = await fetch(`${API_BASE_URL}/notifications/mark-all-read`, {
-            method: 'PATCH',
+            method: 'PUT',
             headers: {
                 'Authorization': `Bearer ${getAuthToken()}`,
             },

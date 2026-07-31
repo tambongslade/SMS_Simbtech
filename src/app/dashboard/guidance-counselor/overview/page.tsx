@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import {
   UserGroupIcon,
   HeartIcon,
@@ -601,6 +602,7 @@ export default function GuidanceCounselorDashboard() {
           </div>
         )}
       </Modal>
+      <TasksNotificationsSection />
     </div>
   );
 } 

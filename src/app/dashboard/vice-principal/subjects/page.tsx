@@ -68,7 +68,7 @@ export default function SubjectManagementPage() {
       const subjectsPromise = fetch(subjectsUrl, { headers: { 'Authorization': `Bearer ${token}` } });
 
       // Fetch classes (includes subclasses)
-      const classesUrl = `${API_BASE_URL}/classes`;
+      const classesUrl = `${API_BASE_URL}/classes?includeSubClasses=true`;
       const classesPromise = fetch(classesUrl, { headers: { 'Authorization': `Bearer ${token}` } });
 
       const [subjectsResponse, classesResponse] = await Promise.all([subjectsPromise, classesPromise]);
@@ -310,11 +310,10 @@ export default function SubjectManagementPage() {
   };
 
   // --- New Handler for Subject Assignment ---
-  const handleAssignSubject = async (subjectId: number, subClassId: number, coefficient: number) => {
-        setIsLoading(true);
+  // Returns true/false per subclass; the modal aggregates results into one toast.
+  const handleAssignSubject = async (subjectId: number, subClassId: number, coefficient: number): Promise<boolean> => {
         const token = getAuthToken();
     const payload = { sub_class_id: subClassId, coefficient };
-    console.log(`Assigning Subject ${subjectId} to Subclass ${subClassId} with Coeff ${coefficient}`);
     try {
         const response = await fetch(`${API_BASE_URL}/subjects/${subjectId}/sub-classes`, {
             method: 'POST',
@@ -330,83 +329,131 @@ export default function SubjectManagementPage() {
                 const errorData = await response.json();
                 errorMessage = errorData.error || errorData.message || errorMessage;
              } catch (e) { /* Ignore */ }
-             // Check for specific duplicate assignment error message from backend (adjust if needed)
-             if (errorMessage.includes('already assigned')) {
-                 errorMessage = "This subject is already assigned to this subclass.";
-             }
              throw new Error(errorMessage);
         }
-        toast.success('Subject assigned successfully to subclass.');
-        closeAssignModal();
-        // Refresh subjects list to potentially update assignment view
+        // Refresh subjects list to update the assignment view
         fetchSubjectsAndClasses();
+        return true;
     } catch (error: any) {
-        toast.error(`Assignment failed: ${error.message}`);
-    } finally {
-        setIsLoading(false);
+        console.error(`Assignment failed for subclass ${subClassId}:`, error);
+        return false;
     }
   };
 
+  // --- Update Coefficient (re-assign with the new value) ---
+  // No dedicated update endpoint exists, so each target subclass is removed and
+  // re-assigned with the new coefficient.
+  const handleUpdateCoefficient = async (subjectId: number, subClassIds: number[], coefficient: number) => {
+    setIsLoading(true);
+    const token = getAuthToken();
+    let successCount = 0;
+    let failedCount = 0;
+    for (const subClassId of subClassIds) {
+        try {
+            await fetch(`${API_BASE_URL}/subjects/${subjectId}/sub-classes/${subClassId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            const response = await fetch(`${API_BASE_URL}/subjects/${subjectId}/sub-classes`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ sub_class_id: subClassId, coefficient })
+            });
+            if (!response.ok) throw new Error(`Re-assign failed (${response.status})`);
+            successCount++;
+        } catch (error) {
+            console.error(`Coefficient update failed for subclass ${subClassId}:`, error);
+            failedCount++;
+        }
+    }
+    if (successCount > 0) toast.success(`Coefficient updated for ${successCount} subclass(es).`);
+    if (failedCount > 0) toast.error(`Failed to update ${failedCount} subclass(es).`);
+    fetchSubjectsAndClasses();
+    setIsLoading(false);
+  };
+
   // --- New Handler for Removing an Assignment ---
+  // Subjects are shared by all subclasses of a class, so the confirmation offers a
+  // class-wide removal alongside the single-subclass one.
   const handleRemoveAssignment = async (subjectId: number, subClassId: number) => {
-    // Confirmation Toast
-    const toastId = toast((t) => (
+    const subject = subjects.find(s => s.id === subjectId);
+    const assignment = subject?.assignments?.find(a => a.subClassId === subClassId);
+    const classAssignments = (subject?.assignments || []).filter(a => a.classId === assignment?.classId);
+    const className = assignment?.className || 'this class';
+
+    toast((t) => (
         <div className="flex flex-col items-start">
             <p className="font-medium mb-2">
                 Remove assignment?
             </p>
             <p className="text-sm text-gray-600 mb-4">
-                Are you sure you want to remove this subject assignment from the subclass?
+                Remove <span className="font-medium">{subject?.name}</span> from {assignment?.subClassName} only, or from all {classAssignments.length} {className} subclass(es)?
             </p>
-            <div className="flex w-full justify-end space-x-3">
+            <div className="flex w-full flex-wrap justify-end gap-2">
                 <button onClick={() => toast.dismiss(t.id)} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
                     Cancel
                 </button>
                 <button
                     onClick={() => {
                         toast.dismiss(t.id);
-                        executeRemoveAssignment(subjectId, subClassId);
+                        executeRemoveAssignment(subjectId, [subClassId]);
                     }}
                     className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
-                    Confirm Remove
+                    This subclass only
                 </button>
+                {classAssignments.length > 1 && (
+                    <button
+                        onClick={() => {
+                            toast.dismiss(t.id);
+                            executeRemoveAssignment(subjectId, classAssignments.map(a => a.subClassId));
+                        }}
+                        className="px-3 py-1.5 text-sm bg-red-700 text-white rounded-md hover:bg-red-800"
+                    >
+                        All {className} subclasses
+                    </button>
+                )}
             </div>
         </div>
     ), { duration: Infinity });
   };
 
-  const executeRemoveAssignment = async (subjectId: number, subClassId: number) => {
+  const executeRemoveAssignment = async (subjectId: number, subClassIds: number[]) => {
     setIsLoading(true);
     const token = getAuthToken();
-    // IMPORTANT: Verify this endpoint structure with the backend API documentation.
-    // Assuming DELETE /subjects/{subjectId}/sub-classes/{subClassId} pattern.
-    const url = `${API_BASE_URL}/subjects/${subjectId}/sub-classes/${subClassId}`;
-    console.log(`Attempting to remove assignment: DELETE ${url}`);
+    let successCount = 0;
+    let failedCount = 0;
 
-    try {
-      const response = await fetch(url, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+    for (const subClassId of subClassIds) {
+      const url = `${API_BASE_URL}/subjects/${subjectId}/sub-classes/${subClassId}`;
+      try {
+        const response = await fetch(url, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
 
-      if (!response.ok) {
-        let errorMessage = `Failed to remove assignment (${response.status})`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (e) { /* Ignore */ }
-        throw new Error(errorMessage);
+        if (!response.ok) {
+          let errorMessage = `Failed to remove assignment (${response.status})`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorData.message || errorMessage;
+          } catch (e) { /* Ignore */ }
+          throw new Error(errorMessage);
+        }
+        successCount++;
+      } catch (error: any) {
+        console.error(`Assignment removal failed for subclass ${subClassId}:`, error);
+        failedCount++;
       }
-
-      toast.success('Assignment removed successfully.');
-      fetchSubjectsAndClasses(); // Refresh the subjects list to update assignments
-    } catch (error: any) {
-      console.error("Assignment removal failed:", error);
-      toast.error(`Assignment removal failed: ${error.message}`);
-    } finally {
-      setIsLoading(false);
     }
+
+    if (successCount > 0) toast.success(`Removed assignment from ${successCount} subclass(es).`);
+    if (failedCount > 0) toast.error(`Failed to remove from ${failedCount} subclass(es).`);
+    fetchSubjectsAndClasses(); // Refresh the subjects list to update assignments
+    setIsLoading(false);
   };
 
   const formatCategory = (categoryKey: string) => {
@@ -462,7 +509,7 @@ export default function SubjectManagementPage() {
             {!subjects.length ? (
                 <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">No subjects found. Add one to get started.</p>
             ) : (
-              <div className="bg-white shadow-md rounded-lg overflow-hidden">
+              <div className="bg-white shadow-md rounded-lg overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                   {/* Table Head */}
                             <thead className="bg-gray-50">
@@ -538,6 +585,7 @@ export default function SubjectManagementPage() {
                 allClasses={allClasses}
                 isLoading={isLoading}
                 onRemoveAssignment={handleRemoveAssignment}
+                onUpdateCoefficient={handleUpdateCoefficient}
                 filterSubjectId={filterSubjectId}
                 allSubjects={subjects}
                 onAssignSubject={handleAssignSubject}

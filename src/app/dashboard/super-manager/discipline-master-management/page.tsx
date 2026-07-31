@@ -215,7 +215,7 @@ export default function DisciplineMasterManagement() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Discipline Master Management</h1>
 
                 {/* DM List/Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>

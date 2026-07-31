@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 // Assuming Class and Term types are available or imported
 import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/class"; // Assuming SubClass is exported here
 import { AcademicYear, ExamSequence } from "@/app/dashboard/super-manager/academic-years/types/academic-year";
-import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon } from '@heroicons/react/24/outline'; // Import icons
+import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon, ChevronDownIcon } from '@heroicons/react/24/outline'; // Import icons
 
 interface FiltersProps {
   searchQuery: string;
@@ -17,7 +17,7 @@ interface FiltersProps {
   setSelectedPaymentStatus: (status: string) => void; // Add status setter prop
   handleExportPDF: () => void; // Add PDF handler prop
   handleExportExcel: () => void; // Add Excel handler prop
-  handleExportEnhanced?: (format: 'csv' | 'pdf' | 'docx') => void; // Enhanced export handler
+  handleExportEnhanced?: (format: 'csv' | 'pdf' | 'xlsx' | 'docx', reportType?: 'detailed' | 'summary' | 'analytics') => void; // Fee report export handler
   onShowSubclassSummary?: (subClassId: string) => void; // Subclass summary handler
   viewMode: "list" | "cards";
   setViewMode: (mode: "list" | "cards") => void;
@@ -35,8 +35,6 @@ export const Filters = ({
   setSelectedAcademicYear,
   selectedPaymentStatus, // Destructure status prop
   setSelectedPaymentStatus, // Destructure status setter prop
-  handleExportPDF, // Destructure PDF handler
-  handleExportExcel, // Destructure Excel handler
   handleExportEnhanced, // Enhanced export handler
   onShowSubclassSummary, // Subclass summary handler
   viewMode,
@@ -46,6 +44,18 @@ export const Filters = ({
   isLoadingClasses,
 }: FiltersProps) => {
   const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  // Close the export menu when clicking outside it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(event.target as Node)) {
+        setShowExportDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Prepare class options (top-level classes only)
   const allClasses = classes;
@@ -158,44 +168,40 @@ export const Filters = ({
           )}
         </div>
 
-        {/* Right side - Export Options */}
-        <div className="flex gap-3">
-
-          {/* Legacy Export Buttons */}
+        {/* Right side - single Export button with a format menu */}
+        <div ref={exportRef} className="relative">
           <button
-            // onClick={handleExportExcel}
-            onClick={() => {
-              handleExportEnhanced?.('docx');
-              setShowExportDropdown(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            <DocumentTextIcon className="h-5 w-5" />
-            Export Word
-          </button>
-          {/* Legacy Export Buttons */}
-          <button
-            // onClick={handleExportExcel}
-            onClick={() => {
-              handleExportEnhanced?.('docx');
-              setShowExportDropdown(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          >
-            <DocumentTextIcon className="h-5 w-5" />
-            Export DOCX
-          </button>
-          <button
-            // onClick={handleExportPDF}
-            onClick={() => {
-              handleExportEnhanced?.('pdf');
-              setShowExportDropdown(false);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+            onClick={() => setShowExportDropdown(prev => !prev)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
             <DocumentArrowDownIcon className="h-5 w-5" />
-            Export PDF
+            Export
+            <ChevronDownIcon className={`h-4 w-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
           </button>
+          {showExportDropdown && (
+            <div className="absolute right-0 z-30 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              {([
+                { format: 'xlsx' as const, reportType: 'detailed' as const, label: 'Student list — Excel', Icon: TableCellsIcon },
+                { format: 'pdf' as const, reportType: 'detailed' as const, label: 'Student list — PDF', Icon: DocumentArrowDownIcon },
+                { format: 'docx' as const, reportType: 'detailed' as const, label: 'Student list — Word', Icon: DocumentTextIcon },
+                { format: 'csv' as const, reportType: 'detailed' as const, label: 'Student list — CSV', Icon: DocumentTextIcon },
+                { format: 'xlsx' as const, reportType: 'summary' as const, label: 'Class summary — Excel', Icon: TableCellsIcon },
+                { format: 'xlsx' as const, reportType: 'analytics' as const, label: 'Payment methods — Excel', Icon: TableCellsIcon },
+              ]).map(({ format, reportType, label, Icon }, index) => (
+                <button
+                  key={`${reportType}-${format}`}
+                  onClick={() => {
+                    handleExportEnhanced?.(format, reportType);
+                    setShowExportDropdown(false);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left ${index === 4 ? 'border-t border-gray-100' : ''}`}
+                >
+                  <Icon className="h-4 w-4 text-gray-400" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

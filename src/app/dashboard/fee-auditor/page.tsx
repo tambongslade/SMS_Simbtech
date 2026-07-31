@@ -12,7 +12,7 @@ import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickA
 
 const quickActions: QuickAction[] = [
   {
-    label: 'Finance Requests',
+    label: 'Expense Requisition',
     description: "Approvals & verifications",
     href: '/dashboard/fee-auditor/finance-requests',
     icon: BanknotesIcon,

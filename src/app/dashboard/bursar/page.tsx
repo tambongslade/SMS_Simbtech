@@ -42,7 +42,7 @@ const quickActions: QuickAction[] = [
     color: 'cyan',
   },
   {
-    label: 'Finance Requests',
+    label: 'Expense Requisition',
     description: 'Approvals & bank verifications',
     href: '/dashboard/bursar/finance-requests',
     icon: BanknotesIcon,

@@ -25,7 +25,11 @@
       "Bash(gh repo *)",
       "Bash(grep -rn \"link-parent\\\\|linkParent\\\\|link_parent\\\\|/parents\\\\b\\\\|parents\\\\`\" src --include=\"*.ts\" --include=\"*.tsx\")",
       "Bash(curl -s -m 5 -X POST http://localhost:4000/api/v1/auth/register -H \"Content-Type: application/json\" -d '{}')",
-      "Bash(curl -s -m 8 -X POST https://api.ssiccmr.com/api/v1/auth/register -H \"Content-Type: application/json\" -d '{}')"
+      "Bash(curl -s -m 8 -X POST https://api.ssiccmr.com/api/v1/auth/register -H \"Content-Type: application/json\" -d '{}')",
+      "Bash(git -C \"/Users/user/Documents/School Management/SMS_Simbtech-main\" log --oneline -15)",
+      "Bash(mkdir -p src/app/dashboard/principal/overview src/app/dashboard/vice-principal/overview)",
+      "Bash(git mv *)",
+      "Bash(grep -n \"apiService\\\\.\\\\|'/users\\\\|\\\\`/users\\\\|interface Personnel\" -A2 src/app/dashboard/super-manager/personnel-management/hooks/usePersonnelManagement.ts)"
     ],
     "deny": []
   }

@@ -79,39 +79,27 @@ export const CardView: React.FC<CardViewProps> = ({
 
           <div className="mt-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Expected Fees:</span>
+              <span className="text-sm text-gray-600">Expected (FCFA):</span>
               <span className="text-sm font-medium">
-                {student.expectedFees.toLocaleString('en-US', {
-                  style: 'currency',
-                  currency: 'XAF',
-                  minimumFractionDigits: 0,
-                })}
+                {student.expectedFees.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Paid:</span>
+              <span className="text-sm text-gray-600">Paid (FCFA):</span>
               <span className="text-sm font-medium">
-                {student.paidFees.toLocaleString('en-US', {
-                  style: 'currency',
-                  currency: 'XAF',
-                  minimumFractionDigits: 0,
-                })}
+                {student.paidFees.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Balance:</span>
+              <span className="text-sm text-gray-600">Balance (FCFA):</span>
               <span className="text-sm font-medium">
-                {student.balance.toLocaleString('en-US', {
-                  style: 'currency',
-                  currency: 'XAF',
-                  minimumFractionDigits: 0,
-                })}
+                {student.balance.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Last Payment:</span>
               <span>
-                {new Date(student.lastPaymentDate).toLocaleDateString()}
+                {student.lastPaymentDate ? new Date(student.lastPaymentDate).toLocaleDateString() : '—'}
               </span>
             </div>
           </div>

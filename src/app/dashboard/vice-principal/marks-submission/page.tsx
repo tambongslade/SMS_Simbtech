@@ -421,7 +421,7 @@ export default function MarksSubmissionPage() {
 
                     {/* Expanded Subject Detail */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100 p-4">
+                      <div className="border-t border-gray-100 p-4 overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                           <thead className="bg-gray-50">
                             <tr>
@@ -540,7 +540,7 @@ export default function MarksSubmissionPage() {
                       </div>
 
                       {/* Subjects pending */}
-                      <div className="mt-3 border-t border-gray-100 pt-3">
+                      <div className="mt-3 border-t border-gray-100 pt-3 overflow-x-auto">
                         <table className="min-w-full text-sm">
                           <thead>
                             <tr className="text-xs text-gray-500 uppercase">
