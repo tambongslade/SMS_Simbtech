@@ -29,7 +29,24 @@
       "Bash(git -C \"/Users/user/Documents/School Management/SMS_Simbtech-main\" log --oneline -15)",
       "Bash(mkdir -p src/app/dashboard/principal/overview src/app/dashboard/vice-principal/overview)",
       "Bash(git mv *)",
-      "Bash(grep -n \"apiService\\\\.\\\\|'/users\\\\|\\\\`/users\\\\|interface Personnel\" -A2 src/app/dashboard/super-manager/personnel-management/hooks/usePersonnelManagement.ts)"
+      "Bash(grep -n \"apiService\\\\.\\\\|'/users\\\\|\\\\`/users\\\\|interface Personnel\" -A2 src/app/dashboard/super-manager/personnel-management/hooks/usePersonnelManagement.ts)",
+      "Bash(npx tsc *)",
+      "Bash(grep -E \"secretary/|app/page.tsx\" /tmp_check.txt)",
+      "Bash(rm -f /tmp_check.txt)",
+      "Bash(mkdir -p .tmp_check)",
+      "Bash(rm -rf .tmp_check)",
+      "Bash(grep -n \"useRouter\\\\|router.push\\\\|student-management/\\\\${\\\\|EyeIcon\\\\|View Profile\\\\|/\\\\${student.id}\\\\|next/navigation\" src/app/dashboard/super-manager/student-management/page.tsx)",
+      "Bash(sed -n '1,80p' src/components/ui/Button.tsx)",
+      "Bash(sed -n '1,120p' src/components/ui/Tabs.tsx)",
+      "Bash(tee /tmp/tsc.txt)",
+      "Read(//tmp/**)",
+      "Bash(npx eslint *)",
+      "Bash(tee /tmp/tsc2.txt)",
+      "Bash(tee /tmp/tsc3.txt)",
+      "Bash(tee /tmp/tsc4.txt)",
+      "Bash(sed -n '440,470p' src/app/dashboard/principal/students/page.tsx)",
+      "Bash(sed -n '655,675p' src/app/dashboard/super-manager/student-management/page.tsx)",
+      "Bash(git add *)"
     ],
     "deny": []
   }

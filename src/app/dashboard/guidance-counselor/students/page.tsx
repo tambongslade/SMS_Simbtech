@@ -12,7 +12,7 @@ import {
   CalendarIcon,
   FlagIcon
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table, StudentPhoto } from '@/components/ui';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 
