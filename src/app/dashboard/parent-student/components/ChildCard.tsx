@@ -27,20 +27,22 @@ export const ChildCard: FC<ChildCardProps> = ({ child, onViewDetails, compact = 
     if (compact) {
         return (
             <div className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <StudentPhoto
-                            studentId={child.id}
-                            photo={child.photo}
-                            size="sm"
-                            studentName={child.name}
-                            fetchPhoto={!child.photo}
-                        />
-                        <div>
-                            <h3 className="font-medium text-gray-900">{child.name}</h3>
-                            <div className="flex items-center space-x-2">
-                                <p className="text-sm text-gray-500">{child.className} - {child.subclassName}</p>
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getEnrollmentStatusDisplay(child.enrollmentStatus).colorClasses}`}>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="shrink-0">
+                            <StudentPhoto
+                                studentId={child.id}
+                                photo={child.photo}
+                                size="sm"
+                                studentName={child.name}
+                                fetchPhoto={!child.photo}
+                            />
+                        </div>
+                        <div className="min-w-0">
+                            <h3 className="font-medium text-gray-900 truncate">{child.name}</h3>
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                <p className="text-sm text-gray-500 truncate">{child.className} - {child.subclassName}</p>
+                                <span className={`px-2 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${getEnrollmentStatusDisplay(child.enrollmentStatus).colorClasses}`}>
                                     {getEnrollmentStatusDisplay(child.enrollmentStatus).text}
                                 </span>
                             </div>
@@ -49,6 +51,7 @@ export const ChildCard: FC<ChildCardProps> = ({ child, onViewDetails, compact = 
                     <Button
                         size="sm"
                         variant="outline"
+                        className="shrink-0"
                         onClick={() => onViewDetails(child.id)}
                     >
                         View
@@ -72,8 +75,8 @@ export const ChildCard: FC<ChildCardProps> = ({ child, onViewDetails, compact = 
     return (
         <div className="bg-white rounded-lg shadow-md p-4 flex flex-col justify-between">
             <div>
-                <div className="flex items-center mb-4">
-                    <div className="mr-4">
+                <div className="flex items-start mb-4">
+                    <div className="mr-3 sm:mr-4 shrink-0">
                         <StudentPhoto
                             studentId={child.id}
                             photo={child.photo}
@@ -82,11 +85,11 @@ export const ChildCard: FC<ChildCardProps> = ({ child, onViewDetails, compact = 
                             fetchPhoto={!child.photo}
                         />
                     </div>
-                    <div>
-                        <h3 className="text-lg font-semibold">{child.name}</h3>
-                        <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-base sm:text-lg font-semibold break-words leading-snug">{child.name}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                             <p className="text-sm text-gray-500">{child.className} - {child.subclassName}</p>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getEnrollmentStatusDisplay(child.enrollmentStatus).colorClasses}`}>
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border whitespace-nowrap ${getEnrollmentStatusDisplay(child.enrollmentStatus).colorClasses}`}>
                                 {getEnrollmentStatusDisplay(child.enrollmentStatus).text}
                             </span>
                         </div>

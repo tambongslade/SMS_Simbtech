@@ -63,10 +63,10 @@ export default function MyChildrenPage() {
     const uniqueClasses = [...new Set(children.map(child => child.className).filter(Boolean))];
 
     return (
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
             <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                    <UserGroupIcon className="w-7 h-7 mr-2" />
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
+                    <UserGroupIcon className="w-6 h-6 sm:w-7 sm:h-7 mr-2 shrink-0" />
                     My Children
                 </h1>
                 <p className="text-gray-600">Manage and monitor all your children's academic progress</p>
@@ -109,16 +109,16 @@ export default function MyChildrenPage() {
             </Card>
 
             {/* Children Overview Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
                 <Card>
                     <CardBody>
                         <div className="flex items-center">
                             <div className="flex-shrink-0">
                                 <UserGroupIcon className="h-8 w-8 text-blue-600" />
                             </div>
-                            <div className="ml-4">
-                                <div className="text-2xl font-bold text-gray-900">{children.length}</div>
-                                <div className="text-sm text-gray-500">Total Children</div>
+                            <div className="ml-3 sm:ml-4 min-w-0">
+                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{children.length}</div>
+                                <div className="text-xs sm:text-sm text-gray-500">Total Children</div>
                             </div>
                         </div>
                     </CardBody>
@@ -132,11 +132,11 @@ export default function MyChildrenPage() {
                                     <span className="text-green-600 font-bold">✓</span>
                                 </div>
                             </div>
-                            <div className="ml-4">
-                                <div className="text-2xl font-bold text-gray-900">
+                            <div className="ml-3 sm:ml-4 min-w-0">
+                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                                     {children.filter(c => c.enrollmentStatus === 'ACTIVE').length}
                                 </div>
-                                <div className="text-sm text-gray-500">Active Enrollments</div>
+                                <div className="text-xs sm:text-sm text-gray-500">Active Enrollments</div>
                             </div>
                         </div>
                     </CardBody>
@@ -150,11 +150,11 @@ export default function MyChildrenPage() {
                                     <span className="text-yellow-600 font-bold">⚠</span>
                                 </div>
                             </div>
-                            <div className="ml-4">
-                                <div className="text-2xl font-bold text-gray-900">
+                            <div className="ml-3 sm:ml-4 min-w-0">
+                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                                     {children.reduce((total, child) => total + child.disciplineIssues, 0)}
                                 </div>
-                                <div className="text-sm text-gray-500">Discipline Issues</div>
+                                <div className="text-xs sm:text-sm text-gray-500">Discipline Issues</div>
                             </div>
                         </div>
                     </CardBody>
@@ -168,11 +168,11 @@ export default function MyChildrenPage() {
                                     <span className="text-red-600 font-bold">₣</span>
                                 </div>
                             </div>
-                            <div className="ml-4">
-                                <div className="text-2xl font-bold text-gray-900">
+                            <div className="ml-3 sm:ml-4 min-w-0">
+                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
                                     {children.reduce((total, child) => total + child.pendingFees, 0).toLocaleString()}
                                 </div>
-                                <div className="text-sm text-gray-500">Pending Fees (FCFA)</div>
+                                <div className="text-xs sm:text-sm text-gray-500">Pending Fees (FCFA)</div>
                             </div>
                         </div>
                     </CardBody>
@@ -181,7 +181,7 @@ export default function MyChildrenPage() {
 
             {/* Children Grid */}
             {filteredChildren.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {filteredChildren.map((child) => (
                         <ChildCard
                             key={child.id}
