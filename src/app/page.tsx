@@ -154,7 +154,45 @@ export default function LoginPage() {
     password: '',
   });
   const [loginType, setLoginType] = useState<'email' | 'matricule'>('email');
+  const [rememberMe, setRememberMe] = useState(true);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+
+  // Remembered parent with stored device credential → one-tap sign-in
+  const [quickLogin, setQuickLogin] = useState<{ identifier: string; secret: string } | null>(null);
+
+  // Pre-fill the identifier and tab from the last remembered login
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('rememberedLogin');
+      if (saved) {
+        const { identifier, type, secret } = JSON.parse(saved);
+        if (identifier) {
+          setFormData(prev => ({ ...prev, email: identifier }));
+          if (type === 'matricule' || type === 'email') setLoginType(type);
+          // Parents who chose Remember get password-free sign-in on this device
+          if (type === 'matricule' && secret) setQuickLogin({ identifier, secret });
+        }
+      }
+    } catch { /* corrupted value — ignore */ }
+  }, []);
+
+  const forgetQuickLogin = () => {
+    setQuickLogin(null);
+    setFormData({ email: '', password: '' });
+    try { localStorage.removeItem('rememberedLogin'); } catch { /* ignore */ }
+  };
+
+  const handleQuickLogin = async () => {
+    if (!quickLogin) return;
+    try {
+      await login(quickLogin.identifier, atob(quickLogin.secret));
+    } catch {
+      // Password probably changed — clear the stored credential and fall back
+      forgetQuickLogin();
+      setLoginType('matricule');
+      toast.error('Saved sign-in no longer works — please enter your matricule and password again.', { duration: 6000 });
+    }
+  };
 
   // Background image cycling
   const [bgIndex, setBgIndex] = useState(0);
@@ -226,6 +264,20 @@ export default function LoginPage() {
       // Matricule login is parent-only; backend uppercases too, but normalize here
       const identifier = loginType === 'matricule' ? formData.email.trim().toUpperCase() : formData.email.trim();
       await login(identifier, formData.password);
+      // Remember the identifier + tab (never the password) for the next login
+      try {
+        if (rememberMe) {
+          // Parents also keep a device credential for password-free sign-in;
+          // staff/student passwords are never stored.
+          localStorage.setItem('rememberedLogin', JSON.stringify({
+            identifier,
+            type: loginType,
+            ...(loginType === 'matricule' ? { secret: btoa(formData.password) } : {}),
+          }));
+        } else {
+          localStorage.removeItem('rememberedLogin');
+        }
+      } catch { /* storage unavailable — non-fatal */ }
       // The useEffect will handle the rest of the flow, no direct redirection here
     } catch (error: any) {
       // Staff/students trying matricule login get sent to the email tab with a hint
@@ -342,6 +394,33 @@ export default function LoginPage() {
             </CardHeader>
 
             <CardBody>
+              {quickLogin ? (
+                /* Remembered parent — password-free sign-in on this device */
+                <div className="space-y-4 text-center">
+                  <div className="mx-auto w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center">
+                    <IdentificationIcon className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Welcome back</p>
+                    <p className="text-lg font-semibold text-gray-900">{quickLogin.identifier}</p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleQuickLogin}
+                    disabled={isLoading}
+                    className="w-full justify-center"
+                  >
+                    {isLoading ? 'Signing in…' : 'Sign In'}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={forgetQuickLogin}
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                  >
+                    Use a different account
+                  </button>
+                </div>
+              ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Login Type Toggle */}
                 <div className="flex items-center justify-center mb-4">
@@ -399,6 +478,16 @@ export default function LoginPage() {
                   disabled={isLoading}
                 />
 
+                <label className="flex items-center gap-2 text-sm text-gray-600 select-none">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={e => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  Remember me on this device
+                </label>
+
                 <Button
                   type="submit"
                   isFullWidth
@@ -411,6 +500,7 @@ export default function LoginPage() {
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
               </form>
+              )}
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
