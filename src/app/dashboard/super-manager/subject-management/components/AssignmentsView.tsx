@@ -251,7 +251,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
             {/* Edit Coefficient Modal */}
             {editingAssignment && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-                    <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
+                    <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         <button onClick={closeEditModal} disabled={isSavingCoefficient} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50">&times;</button>
                         <h2 className="text-lg font-semibold mb-1">Edit Coefficient</h2>
                         <p className="text-sm text-gray-600 mb-4">

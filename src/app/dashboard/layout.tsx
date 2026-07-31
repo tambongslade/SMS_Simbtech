@@ -854,8 +854,8 @@ export default function DashboardLayout({
         )}
 
         {/* Main Content Area - Adjust margin based on desktop sidebar visibility */}
-        {/* min-w-0 stops wide content (tables) from stretching the page; overflow-x-auto keeps it reachable by scrolling within the content pane */}
-        <main className={`flex-1 min-w-0 max-w-full overflow-x-auto pt-8 px-4 sm:px-8 pb-8 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
+        {/* min-w-0 stops wide content (tables) from stretching the page; wide content scrolls in its own overflow-x-auto wrapper, not here */}
+        <main className={`flex-1 min-w-0 max-w-full pt-8 px-4 sm:px-8 pb-8 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
           {children}
         </main>
 

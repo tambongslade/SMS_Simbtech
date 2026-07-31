@@ -486,7 +486,7 @@ export default function ClassDetailPage() {
             {/* Assign teacher modal */}
             {assigningSubject && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-                    <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white">
+                    <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         <button
                             onClick={() => setAssigningSubject(null)}
                             disabled={isAssigningTeacher}

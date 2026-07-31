@@ -1667,7 +1667,7 @@ export default function StudentManagement() {
             {/* Assign to Class Modal */}
             {isAssignClassModalOpen && assignClassStudent && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-                    <div className="relative mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-lg bg-white">
+                    <div className="relative mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-medium leading-6 text-gray-900">
                                 Assign Student to Class: {assignClassStudent.name}
@@ -2252,7 +2252,7 @@ export default function StudentManagement() {
             {/* Delete Confirmation Modal */}
             {deleteTarget && (
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-                    <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md p-6">
+                    <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md p-6 max-h-[90vh] overflow-y-auto">
                         <div className="flex items-start gap-4">
                             <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100">
                                 <TrashIcon className="h-5 w-5 text-red-600" />

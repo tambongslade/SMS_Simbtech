@@ -1405,8 +1405,8 @@ export default function DisciplineMasterDashboard() {
 
       {/* Issue Details Modal */}
       {showIssueModal && selectedIssue && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-          <div className="relative bg-white p-4 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+          <div className="relative bg-white p-4 sm:p-8 rounded-lg shadow-xl w-full max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold mb-4">Issue Details</h2>
 
             <div className="space-y-4">

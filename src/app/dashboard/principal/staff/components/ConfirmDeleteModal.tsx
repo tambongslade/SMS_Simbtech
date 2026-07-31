@@ -13,8 +13,8 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({ isOpen, 
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-            <div className="relative mx-auto p-8 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+            <div className="relative mx-auto p-8 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                 <h3 className="text-lg font-medium leading-6 text-red-600 mb-4">Confirm Deletion</h3>
                 <p className="text-sm text-gray-600 mb-6">
                     Are you sure you want to delete {itemName ? `'${itemName}'` : 'this item'}? This action cannot be undone.

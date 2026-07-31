@@ -167,7 +167,7 @@ export default function FeeManagementPage() {
 
             {/* View tabs: payment records ledger (default) or the student roster */}
             <div className="border-b border-gray-200">
-                <nav className="-mb-px flex gap-6">
+                <nav className="-mb-px flex gap-6 overflow-x-auto">
                     {([
                         { key: 'records', label: 'Payment Records' },
                         { key: 'students', label: 'Students' },

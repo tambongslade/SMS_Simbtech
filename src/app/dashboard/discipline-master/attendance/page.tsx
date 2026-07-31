@@ -1201,7 +1201,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Excuse absence modal */}
       {excuseTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-1">Excuse Absence</h3>
             <p className="text-sm text-gray-500 mb-4">
               {excuseTarget.student.name} — {new Date(excuseTarget.date).toLocaleDateString()}.
@@ -1252,7 +1252,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {/* Makeup modal */}
       {makeupTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-1">Makeup Work</h3>
             <p className="text-sm text-gray-500 mb-4">
               {makeupTarget.student.name} — {new Date(makeupTarget.date).toLocaleDateString()}.
