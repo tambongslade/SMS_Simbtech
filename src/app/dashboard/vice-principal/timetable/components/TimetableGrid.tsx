@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui";
 import { Select } from "@/components/ui";
@@ -29,6 +29,14 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     getTeachersBySubject,
     isTeacherAssignedElsewhere
   } = useTimetable();
+
+  // Mobile: show one day at a time. Defaults to Monday, then jumps to today's
+  // weekday client-side (in an effect to avoid SSR hydration mismatch).
+  const [activeDay, setActiveDay] = useState('MONDAY');
+  useEffect(() => {
+    const todayIndex = new Date().getDay() - 1; // 0 = Monday
+    if (todayIndex >= 0 && todayIndex < DAYS_ORDER.length) setActiveDay(DAYS_ORDER[todayIndex]);
+  }, []);
 
   // State for the manage slot modal
   const [manageModalOpen, setManageModalOpen] = useState(false);
@@ -209,6 +217,80 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     );
   };
 
+  // Mobile row: one period of the active day as a tappable list item
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const renderMobileRow = (timeSlot: any, index: number) => {
+    const periodNumber = index + 1;
+    const timeRange = `${timeSlot.startTime?.substring(0, 5) || ''} - ${timeSlot.endTime?.substring(0, 5) || ''}`;
+    const dayPeriod = allWeeklySlots.find(slot =>
+      slot.dayOfWeek === activeDay &&
+      slot.startTime === timeSlot.startTime &&
+      slot.endTime === timeSlot.endTime
+    );
+
+    const timeCol = (
+      <div className="w-20 shrink-0 text-center">
+        <div className="text-xs font-semibold text-gray-800">P{periodNumber}</div>
+        <div className="text-[10px] text-gray-500">{timeRange}</div>
+      </div>
+    );
+
+    if (!dayPeriod) {
+      return (
+        <li key={timeSlot.timeRange} className="flex items-center gap-3 px-3 py-2.5">
+          {timeCol}
+          <div className="text-xs text-gray-300">—</div>
+        </li>
+      );
+    }
+
+    if (dayPeriod.isBreak) {
+      return (
+        <li key={timeSlot.timeRange} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50">
+          {timeCol}
+          <div className="text-xs font-medium text-gray-500">Break</div>
+        </li>
+      );
+    }
+
+    const slot = getSlot(activeDay, dayPeriod.name);
+    const assignments = slot?.assignments || [];
+    const hasAnyConflict = assignments.some(a =>
+      a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, activeDay, dayPeriod.name, selectedSubClassId) : false
+    );
+    const bg = assignments.length === 0
+      ? 'bg-white active:bg-blue-50'
+      : hasAnyConflict ? 'bg-red-100 active:bg-red-200' : 'bg-blue-50 active:bg-blue-100';
+
+    return (
+      <li key={timeSlot.timeRange}>
+        <button
+          onClick={() => handleManageSlot(activeDay, dayPeriod.name)}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 text-left ${bg}`}
+        >
+          {timeCol}
+          <div className="min-w-0 flex-1">
+            {assignments.length === 0 ? (
+              <span className="text-xs text-gray-400">Tap to assign</span>
+            ) : (
+              <div className="space-y-1">
+                {assignments.map((a, i) => (
+                  <div key={i} className="min-w-0">
+                    <div className="text-xs font-semibold text-gray-900 truncate">{a.subjectName || '(No Subject)'}</div>
+                    <div className="text-[11px] text-gray-600 truncate">{a.teacherName || '(No Teacher)'}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {hasAnyConflict && (
+            <span className="shrink-0 text-[10px] font-medium text-red-700 bg-red-200 rounded-full px-2 py-0.5">Conflict</span>
+          )}
+        </button>
+      </li>
+    );
+  };
+
   // If essential data hasn't loaded
   if (allPeriods.length === 0) {
     return <div className="p-4 text-center text-gray-500">Loading timetable structure...</div>;
@@ -220,8 +302,28 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
 
   return (
     <div className="space-y-4 w-full">
-      {/* Timetable Grid */}
-      <div className="bg-white rounded-lg shadow w-full">
+      {/* Mobile: one day at a time */}
+      <div className="md:hidden bg-white rounded-lg shadow w-full p-3">
+        <div className="flex gap-1.5 overflow-x-auto pb-2">
+          {DAYS_ORDER.map(day => (
+            <button
+              key={day}
+              onClick={() => setActiveDay(day)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                activeDay === day ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {day.charAt(0) + day.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+        <ul className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
+          {allPeriods.map((timeSlot, index) => renderMobileRow(timeSlot, index))}
+        </ul>
+      </div>
+
+      {/* Desktop: full weekly grid */}
+      <div className="hidden md:block bg-white rounded-lg shadow w-full">
         <div className="p-4">
           <div className="w-full border rounded-lg">
             <div className="overflow-x-auto">
