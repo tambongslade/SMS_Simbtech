@@ -21,12 +21,13 @@ import {
   Bars3Icon,
   ArchiveBoxIcon,
   XMarkIcon,
-  ChevronDownIcon,
   ChevronRightIcon,
   CalendarDaysIcon,
   UsersIcon,
   MegaphoneIcon,
   ChevronUpDownIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
   ClockIcon,
   BanknotesIcon,
   ReceiptRefundIcon,
@@ -74,7 +75,7 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
-    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/principal/finance-requests' },
+    { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
@@ -103,7 +104,7 @@ const menuItems: MenuItemsStructure = {
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
     { icon: BanknotesIcon, label: 'Fee Items', href: '/dashboard/bursar/fee-items' },
     { icon: ReceiptRefundIcon, label: 'Overpayments & Refunds', href: '/dashboard/bursar/overpayments' },
-    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/bursar/finance-requests' },
+    { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/bursar/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/bursar/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/bursar/broken-property' },
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
@@ -188,7 +189,8 @@ const menuItems: MenuItemsStructure = {
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
-    { label: 'Finance Requests', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
+    { label: 'Expense Requisition', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
+    { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
     {
       label: 'Discipline', href: '/dashboard/super-manager/discipline', icon: ClipboardDocumentListIcon, subItems: [
@@ -241,7 +243,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/vice-principal/teacher-logbook' },
     { icon: ClipboardDocumentListIcon, label: 'Marks Submission', href: '/dashboard/vice-principal/marks-submission' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/vice-principal/report-card-management' },
-    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/vice-principal/finance-requests' },
+    { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/vice-principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/vice-principal/expenditures' },
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
@@ -262,7 +264,8 @@ const menuItems: MenuItemsStructure = {
   manager: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/manager/financial-reports' },
-    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/manager/finance-requests' },
+    { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/manager/finance-requests' },
+    { icon: BanknotesIcon, label: 'Salary Management', href: '/dashboard/manager/salaries' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/manager/expenditures' },
     {
       icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/manager/discipline', subItems: [
@@ -313,7 +316,7 @@ const menuItems: MenuItemsStructure = {
           ],
   'fee-auditor': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/fee-auditor' },
-    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/fee-auditor/finance-requests' },
+    { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/fee-auditor/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/fee-auditor/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/fee-auditor/broken-property' },
           ],
@@ -375,6 +378,22 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Desktop sidebar collapsed (icon rail) state, persisted across sessions
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('sidebar-collapsed') === 'true') {
+        setIsSidebarCollapsed(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  const toggleSidebarCollapsed = () => {
+    setIsSidebarCollapsed(prev => {
+      try { localStorage.setItem('sidebar-collapsed', String(!prev)); } catch { /* ignore */ }
+      return !prev;
+    });
+  };
 
   // State to manage open submenus { [href]: boolean }
   const [openSubmenus, setOpenSubmenus] = useState<{ [key: string]: boolean }>({});
@@ -566,89 +585,129 @@ export default function DashboardLayout({
     }
   };
 
+  // --- Active-link helper ---
+  // The role root ("Menu") only matches exactly; every other entry is active on
+  // its own page and any nested page under it.
+  const roleRootHref = roleFromPath ? `/dashboard/${roleFromPath}` : '';
+  const isLinkActive = (href: string) =>
+    href === roleRootHref
+      ? pathname === href
+      : pathname === href || pathname.startsWith(href + '/');
+
   // --- Sidebar Component Logic (with Role Switcher and Logout) ---
-  const SidebarContent = (
-    <div className="flex flex-col h-full"> {/* Make sidebar flex column */}
-      <div className="p-4 border-b border-gray-200">
-        {/* Use role from path for the title */}
-        <h2 className="text-lg font-medium text-gray-800">
-          {roleFromPath ? roleTitle[roleFromPath] || formatRoleName(roleFromPath) : 'Dashboard'}
-        </h2>
+  // `collapsed` renders the desktop icon rail; mobile always renders expanded.
+  const renderSidebar = (collapsed: boolean, isDesktop: boolean) => (
+    <div className="flex flex-col h-full">
+      <div className={`flex items-center border-b border-gray-200 ${collapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'}`}>
+        {!collapsed && (
+          <h2 className="text-base font-semibold text-gray-800 truncate">
+            {roleFromPath ? roleTitle[roleFromPath] || formatRoleName(roleFromPath) : 'Dashboard'}
+          </h2>
+        )}
+        {isDesktop && (
+          <button
+            onClick={toggleSidebarCollapsed}
+            className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronDoubleRightIcon className="h-5 w-5" /> : <ChevronDoubleLeftIcon className="h-5 w-5" />}
+          </button>
+        )}
       </div>
+
       {/* Main navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+      <nav className={`flex-1 py-3 space-y-0.5 overflow-y-auto overflow-x-hidden ${collapsed ? 'px-2' : 'px-3'}`}>
         {currentMenuItems.map((item) => {
           const hasSubItems = item.subItems && item.subItems.length > 0;
           const isSubmenuOpen = openSubmenus[item.href] || false;
-          const isParentActive = pathname === item.href || (hasSubItems && item.subItems?.some(sub => pathname.startsWith(sub.href)));
+          const isParentActive = isLinkActive(item.href)
+            || (hasSubItems && item.subItems!.some(sub => isLinkActive(sub.href)));
+
+          const activeClasses = 'bg-blue-50 text-blue-700 font-semibold';
+          const inactiveClasses = 'text-gray-600 hover:bg-gray-50 hover:text-gray-900';
+          const iconClasses = isParentActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600';
+          const accentBar = isParentActive && (
+            <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-blue-600" aria-hidden="true" />
+          );
+
+          if (collapsed) {
+            // Icon rail: parents with submenus expand the sidebar and open their submenu.
+            return hasSubItems ? (
+              <button
+                key={item.href}
+                onClick={() => {
+                  toggleSidebarCollapsed();
+                  setOpenSubmenus(prev => ({ ...prev, [item.href]: true }));
+                }}
+                className={`relative flex items-center justify-center w-full p-2.5 rounded-lg transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}
+                title={item.label}
+                aria-label={item.label}
+              >
+                {accentBar}
+                <item.icon className={`h-5 w-5 flex-shrink-0 ${iconClasses}`} />
+              </button>
+            ) : (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex items-center justify-center p-2.5 rounded-lg transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}
+                title={item.label}
+                aria-label={item.label}
+              >
+                {accentBar}
+                <item.icon className={`h-5 w-5 flex-shrink-0 ${iconClasses}`} />
+              </Link>
+            );
+          }
 
           return (
             <div key={item.href}>
               {hasSubItems ? (
                 <button
                   onClick={() => toggleSubmenu(item.href)}
-                  className={`
-                    flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium rounded-lg text-left
-                    transition-colors duration-200 group
-                    ${isParentActive
-                      ? 'bg-blue-100 text-blue-800' // Active style for parent (Dark Blue)
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' // Inactive style
-                    }
-                  `}
+                  className={`relative flex items-center justify-between w-full px-3 py-2 text-sm font-medium rounded-lg text-left transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}
                 >
-                  <span className="flex items-center">
-                    <item.icon
-                      className={`h-5 w-5 mr-3 flex-shrink-0 ${isParentActive ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`}
-                    />
+                  {accentBar}
+                  <span className="flex items-center min-w-0">
+                    <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
                     <span className="truncate">{item.label}</span>
                   </span>
-                  {isSubmenuOpen ? (
-                    <ChevronDownIcon className="h-4 w-4 text-gray-400" />
-                  ) : (
-                    <ChevronRightIcon className="h-4 w-4 text-gray-400" />
-                  )}
+                  <ChevronRightIcon
+                    className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''}`}
+                  />
                 </button>
               ) : (
                 <Link
                   href={item.href}
-                  className={`
-                    flex items-center px-4 py-2.5 text-sm font-medium rounded-lg group
-                    transition-colors duration-200
-                    ${pathname === item.href
-                      ? 'bg-blue-100 text-blue-800' // Active style (Dark Blue)
-                      : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900' // Inactive style
-                    }
-                  `}
-                  onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
+                  className={`relative flex items-center px-3 py-2 text-sm font-medium rounded-lg group transition-colors duration-200 ${isParentActive ? activeClasses : inactiveClasses}`}
+                  onClick={() => setIsMobileSidebarOpen(false)}
                 >
-                  <item.icon
-                    className={`h-5 w-5 mr-3 flex-shrink-0 ${pathname === item.href ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'}`}
-                  />
+                  {accentBar}
+                  <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
                   <span className="truncate">{item.label}</span>
                 </Link>
               )}
 
               {/* Render Submenu Items if open */}
               {hasSubItems && isSubmenuOpen && (
-                <div className="mt-1 ml-5 pl-4 border-l border-gray-200 space-y-1">
-                  {item.subItems?.map((subItem) => {
-                    const isSubItemActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/'); // Active if path matches exactly or starts with it
+                <div className="mt-0.5 ml-5 pl-3 border-l border-gray-200 space-y-0.5">
+                  {item.subItems!.map((subItem) => {
+                    const isSubItemActive = isLinkActive(subItem.href);
                     return (
                       <Link
                         key={subItem.href}
                         href={subItem.href}
                         className={`
-                          flex items-center px-4 py-2 text-sm font-medium rounded-lg group
+                          flex items-center px-3 py-1.5 text-sm rounded-md group
                           transition-colors duration-200
                           ${isSubItemActive
-                            ? 'bg-blue-100 text-blue-800' // Active style for sub-item (Dark Blue)
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' // Inactive style for sub-item
+                            ? 'bg-blue-50 text-blue-700 font-semibold'
+                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                           }
                         `}
-                        onClick={() => setIsMobileSidebarOpen(false)} // Close mobile on navigation
+                        onClick={() => setIsMobileSidebarOpen(false)}
                       >
-                        {/* Optional: Add icon for sub-items if needed, or just text */}
-                        {/* <subItem.icon className={`h-4 w-4 mr-2 flex-shrink-0 ${isSubItemActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500'}`} /> */}
                         <span className="truncate">{subItem.label}</span>
                       </Link>
                     );
@@ -661,9 +720,8 @@ export default function DashboardLayout({
       </nav>
 
       {/* Role Switcher and Logout Section */}
-      <div className="p-4 mt-auto border-t border-gray-200 space-y-4">
-        {/* Role Switcher */}
-        {availableRoles.length > 1 && !isLoading && (
+      <div className={`mt-auto border-t border-gray-200 ${collapsed ? 'p-2 space-y-2' : 'p-4 space-y-4'}`}>
+        {!collapsed && availableRoles.length > 1 && !isLoading && (
           <div className="relative">
             <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
               Switch Role
@@ -672,7 +730,7 @@ export default function DashboardLayout({
               id="role-switcher"
               value={selectedRole || ''}
               onChange={handleRoleChange}
-              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none" // Changed focus ring to blue-500
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
             >
               {availableRoles.map(roleValue => (
                 <option key={roleValue} value={roleValue}>
@@ -686,12 +744,12 @@ export default function DashboardLayout({
             </div>
           </div>
         )}
-        {isLoading && availableRoles.length <= 1 && (
-          <div className="text-xs text-gray-400">Loading roles...</div> // Placeholder while loading
+        {!collapsed && isLoading && availableRoles.length <= 1 && (
+          <div className="text-xs text-gray-400">Loading roles...</div>
         )}
 
         {/* Academic Year Selector */}
-        {allAcademicYears.length > 1 && (
+        {!collapsed && allAcademicYears.length > 1 && (
           <div className="relative">
             <label htmlFor="academic-year-switcher" className="block text-xs font-medium text-gray-500 mb-1">
               Academic Year
@@ -719,10 +777,12 @@ export default function DashboardLayout({
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-lg group transition-colors duration-200" // Use Red colors
+          className={`w-full flex items-center justify-center py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg group transition-colors duration-200 ${collapsed ? 'px-2' : 'px-4'}`}
+          title="Logout"
+          aria-label="Logout"
         >
-          <ArrowRightOnRectangleIcon className="h-5 w-5 mr-3 text-red-600 group-hover:text-red-700" /> {/* Use Red colors */}
-          Logout
+          <ArrowRightOnRectangleIcon className={`h-5 w-5 text-red-600 group-hover:text-red-700 ${collapsed ? '' : 'mr-3'}`} />
+          {!collapsed && 'Logout'}
         </button>
       </div>
     </div>
@@ -757,33 +817,15 @@ export default function DashboardLayout({
                   className="h-10 w-auto" // Tailwind class for height
                 />
                 <span className="ml-3 text-xl font-semibold text-blue-900 hidden sm:inline"> {/* Dark blue text, hidden on mobile */}
-                  St. Stephen's International College
+                  St. Stephen&apos;s International College
                 </span>
               </div>
             </div>
             {/* Chat + Notification Indicators */}
             <div className="flex items-center">
               <ChatIndicator className="mr-1" />
-              <NotificationIndicator
-                onClick={() => {
-                  const currentMenuItems = roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]
-                    ? menuItems[roleFromPath as keyof typeof menuItems]
-                    : [];
-
-                  // Find messaging or communication link
-                  const communicationLink = currentMenuItems.find(item =>
-                    item.href.includes('/communication') ||
-                    item.href.includes('/messages') ||
-                    item.href.includes('/messaging') ||
-                    item.href.includes('/announcements')
-                  );
-
-                  if (communicationLink) {
-                    router.push(`${communicationLink.href}?tab=notifications`);
-                  }
-                }}
-                className="mr-2"
-              />
+              {/* Bell opens its own notifications panel (works for every role) */}
+              <NotificationIndicator className="mr-2" />
             </div>
           </div>
         </div>
@@ -792,8 +834,8 @@ export default function DashboardLayout({
       {/* Sidebar and Main Content */}
       <div className="flex pt-16">
         {/* Desktop Sidebar (Fixed) - Hidden below lg */}
-        <aside className="fixed hidden lg:flex lg:flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-sm border-r border-gray-200">
-          {SidebarContent}
+        <aside className={`fixed hidden lg:flex lg:flex-col h-[calc(100vh-4rem)] bg-white shadow-sm border-r border-gray-200 transition-[width] duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
+          {renderSidebar(isSidebarCollapsed, true)}
         </aside>
 
         {/* Mobile Sidebar (Slide-in) - Conditional rendering */}
@@ -805,14 +847,15 @@ export default function DashboardLayout({
               className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             />
             {/* Mobile Sidebar Content */}
-            <aside className="fixed flex flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden transform transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'}">
-              {SidebarContent}
+            <aside className="fixed flex flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden">
+              {renderSidebar(false, false)}
             </aside>
           </>
         )}
 
         {/* Main Content Area - Adjust margin based on desktop sidebar visibility */}
-        <main className={`flex-1 pt-8 px-4 sm:px-8 pb-8 lg:ml-64 transition-all duration-300 ease-in-out`}>
+        {/* min-w-0 stops wide content (tables) from stretching the page; overflow-x-auto keeps it reachable by scrolling within the content pane */}
+        <main className={`flex-1 min-w-0 max-w-full overflow-x-auto pt-8 px-4 sm:px-8 pb-8 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'}`}>
           {children}
         </main>
 
