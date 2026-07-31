@@ -3,7 +3,7 @@
 import { useState, Fragment, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Card, CardHeader, CardTitle, CardBody, Input, Button, Fade } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, Input, Button } from '@/components/ui';
 import { UserIcon, LockClosedIcon, CheckCircleIcon, AtSymbolIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import AcademicYearSelector from '@/components/auth/AcademicYearSelector';
@@ -379,7 +379,9 @@ export default function LoginPage() {
 
       {/* Main Content Container */}
       <div className="relative min-h-screen flex items-center justify-center p-4">
-        <Fade>
+        {/* CSS-only fade: the login must stay visible even if JS fails to run
+            (old Android WebViews) — a JS-driven fade left it at opacity 0. */}
+        <div className="animate-fade-in">
           <Card className="w-full max-w-md bg-white/95 backdrop-blur-sm rounded-lg shadow-xl">
             {/* Logo */}
             <div className="flex justify-center pt-8 mb-4">
@@ -525,7 +527,7 @@ export default function LoginPage() {
               </div>
             </CardBody>
           </Card>
-        </Fade>
+        </div>
       </div>
 
       {/* Role Selection Modal */}

@@ -55,6 +55,15 @@
     @apply bg-white rounded-lg shadow-md p-6;
   }
 
+  /* CSS-only entrance fade — works even when JavaScript never runs */
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-in;
+  }
+
   .table-container {
     @apply bg-white shadow-md rounded-lg overflow-x-auto;
   }

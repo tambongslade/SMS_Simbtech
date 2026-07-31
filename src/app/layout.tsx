@@ -11,6 +11,7 @@ import type { Metadata, Viewport } from 'next';
 import React from 'react';
 import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
 import CapacitorBackButton from '@/components/CapacitorBackButton';
+import OneSignalInit from '@/components/OneSignalInit';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -54,6 +55,7 @@ export default function RootLayout({
       <body className={inter.className} suppressHydrationWarning>
         <ServiceWorkerRegister />
         <CapacitorBackButton />
+        <OneSignalInit />
         <SWRProvider>
           <AuthProvider>
             {children}
