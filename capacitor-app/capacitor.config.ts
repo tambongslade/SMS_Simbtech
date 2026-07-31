@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.simbtech.sms',
-  appName: 'SMS Simbtech',
+  appName: 'St Stephens',
   // webDir is required by Capacitor CLI even when using server.url
   webDir: 'www',
   server: {
