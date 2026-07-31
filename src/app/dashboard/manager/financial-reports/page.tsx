@@ -193,12 +193,20 @@ export default function ManagerFinancialReportsPage() {
             agg.totalCollected += paid;
             agg.outstanding += Math.max(0, expected - paid);
         });
+        // Classes with no fee records at all still get a zero-row, so nothing
+        // silently disappears from the report.
+        classNameById.forEach((name, id) => {
+            const key = String(id);
+            if (!byClass.has(key)) {
+                byClass.set(key, { classId: key, className: name, totalStudents: 0, totalExpected: 0, totalCollected: 0, outstanding: 0, collectionRate: 0 });
+            }
+        });
         return Array.from(byClass.values())
             .map(agg => ({
                 ...agg,
-                collectionRate: agg.totalExpected > 0 ? (agg.totalCollected / agg.totalExpected) * 100 : 100,
+                collectionRate: agg.totalExpected > 0 ? (agg.totalCollected / agg.totalExpected) * 100 : 0,
             }))
-            .sort((a, b) => b.outstanding - a.outstanding);
+            .sort((a, b) => b.outstanding - a.outstanding || b.totalExpected - a.totalExpected);
     }, [feeRecords, classNameById, classIdBySubClassId]);
 
     // Classes for the export filter
@@ -418,8 +426,8 @@ export default function ManagerFinancialReportsPage() {
                                             <td className="px-3 py-2.5 text-sm text-gray-900 text-right whitespace-nowrap">{report.totalCollected.toLocaleString()}</td>
                                             <td className="px-3 py-2.5 text-sm font-semibold text-red-600 text-right whitespace-nowrap">{report.outstanding.toLocaleString()}</td>
                                             <td className="px-3 py-2.5 whitespace-nowrap">
-                                                <Badge color={collectionRateColor(report.collectionRate)} size="sm">
-                                                    {report.collectionRate.toFixed(1)}%
+                                                <Badge color={report.totalExpected === 0 ? 'gray' : collectionRateColor(report.collectionRate)} size="sm">
+                                                    {report.totalExpected === 0 ? 'No fee records' : `${report.collectionRate.toFixed(1)}%`}
                                                 </Badge>
                                             </td>
                                         </tr>
@@ -450,8 +458,8 @@ export default function ManagerFinancialReportsPage() {
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">Rate</span>
-                                        <Badge color={collectionRateColor(report.collectionRate)} size="sm">
-                                            {report.collectionRate.toFixed(1)}%
+                                        <Badge color={report.totalExpected === 0 ? 'gray' : collectionRateColor(report.collectionRate)} size="sm">
+                                            {report.totalExpected === 0 ? 'No fee records' : `${report.collectionRate.toFixed(1)}%`}
                                         </Badge>
                                     </div>
                                 </div>
