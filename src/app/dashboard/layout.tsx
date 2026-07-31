@@ -276,8 +276,6 @@ const menuItems: MenuItemsStructure = {
         { label: 'Report Requests', href: '/dashboard/manager/report-requests', icon: ChevronRightIcon },
       ]
     },
-    { icon: AcademicCapIcon, label: 'Academic Reports', href: '/dashboard/manager/academic-reports' },
-    { icon: BuildingLibraryIcon, label: 'Departments', href: '/dashboard/manager/departments' },
             { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
