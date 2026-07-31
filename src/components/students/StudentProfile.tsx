@@ -358,7 +358,7 @@ export default function StudentProfile({
               <StatBox label="Balance" value={fmtMoney(balance)} tone={balance > 0 ? 'danger' : 'success'} />
             </div>
             {allTransactions.length > 0 && (
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs uppercase text-gray-400">
@@ -381,6 +381,29 @@ export default function StudentProfile({
                 </table>
               </div>
             )}
+            {allTransactions.length > 0 && (
+              <div className="md:hidden divide-y divide-gray-100">
+                {allTransactions.map((t, i) => (
+                  <div key={i} className="p-4 space-y-1.5">
+                    <div className="text-sm font-semibold text-gray-900 break-words">
+                      {txDate(t)?.split?.('T')?.[0] || '—'}
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Amount</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(txAmount(t))}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Method</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{txMethod(t) || '—'}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Reference</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{txRef(t) ?? '—'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-sm text-gray-500">No fees recorded.</p>
@@ -390,7 +413,7 @@ export default function StudentProfile({
       {/* Refunds */}
       {refunds.length > 0 && (
         <Section title="Refunds" icon={ReceiptRefundIcon}>
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-400">
@@ -417,13 +440,42 @@ export default function StudentProfile({
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {refunds.map((r) => (
+              <div key={r.id} className="p-4 space-y-1.5">
+                <div className="text-sm font-semibold text-gray-900 break-words">{r.refundDate?.split('T')[0]}</div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Amount</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(r.amount)}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Method</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {String(r.refundMethod).replace(/_/g, ' ')}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Reason</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    {r.reason}
+                    {r.notes ? <span className="text-gray-400"> · {r.notes}</span> : null}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Recorded By</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{r.recordedBy?.name || '—'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </Section>
       )}
 
       {/* Discipline */}
       <Section title="Discipline Records" icon={ExclamationTriangleIcon}>
         {discipline.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-400">
@@ -461,6 +513,50 @@ export default function StudentProfile({
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {discipline.map((d, i) => {
+              const e = d?.enrollment;
+              const classCtx = [e?.class?.name, e?.sub_class?.name ?? e?.subClass?.name]
+                .filter(Boolean)
+                .join(' · ');
+              return (
+                <div key={d?.id ?? i} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">
+                    {(d?.created_at ?? d?.createdAt)?.split?.('T')?.[0] || '—'}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Issue</span>
+                    <span className="text-sm text-right">
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
+                        {d?.issue_type ?? d?.issueType ?? 'Issue'}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Description</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{d?.description || '—'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reported By</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {personLabel(d?.assigned_by ?? d?.assignedBy)}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reviewed By</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {personLabel(d?.reviewed_by ?? d?.reviewedBy)}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Class</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{classCtx || '—'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </>
         ) : (
           <p className="text-sm text-gray-500">No discipline records.</p>
         )}
@@ -469,7 +565,8 @@ export default function StudentProfile({
       {/* Parents */}
       <Section title="Parents / Guardians" icon={UserGroupIcon}>
         {parents.length > 0 ? (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead>
                 <tr className="text-left text-xs uppercase text-gray-400">
@@ -494,6 +591,29 @@ export default function StudentProfile({
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {parents.map((p, i) => {
+              const pr = p?.parent ?? p;
+              return (
+                <div key={i} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{pr?.name || '—'}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Phone</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{pr?.phone || '—'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Email</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{pr?.email || '—'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Matricule</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{pr?.matricule || '—'}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </>
         ) : (
           <p className="text-sm text-gray-500">No parents linked.</p>
         )}
@@ -526,7 +646,8 @@ export default function StudentProfile({
                       </div>
                     </div>
                     {averages.length > 0 ? (
-                      <div className="overflow-x-auto mt-3">
+                      <>
+                      <div className="hidden md:block overflow-x-auto mt-3">
                         <table className="min-w-full text-sm">
                           <thead>
                             <tr className="text-left text-xs uppercase text-gray-400">
@@ -550,6 +671,28 @@ export default function StudentProfile({
                           </tbody>
                         </table>
                       </div>
+                      <div className="md:hidden divide-y divide-gray-100">
+                        {averages.map((a, i) => (
+                          <div key={i} className="p-4 space-y-1.5">
+                            <div className="text-sm font-semibold text-gray-900 break-words">{seqLabel(a)}</div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Term</span>
+                              <span className="text-sm text-gray-900 text-right break-words">{seqTerm(a) || '—'}</span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Average</span>
+                              <span className="text-sm text-gray-900 text-right break-words">
+                                {seqAvg(a) != null ? Number(seqAvg(a)).toFixed(2) : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Rank</span>
+                              <span className="text-sm text-gray-900 text-right break-words">{seqRank(a) ?? '—'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      </>
                     ) : (
                       <p className="text-xs text-gray-400 mt-2">No sequence averages recorded.</p>
                     )}

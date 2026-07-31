@@ -286,7 +286,8 @@ export default function GuidanceCounselorManagement() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Guidance Counselor Management</h1>
 
                 {/* Counselor List/Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
+                <div className="bg-white rounded-lg shadow-sm">
+                    <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -342,6 +343,58 @@ export default function GuidanceCounselorManagement() {
                             ))}
                         </tbody>
                     </table>
+                    </div>
+                    {/* Mobile Card List */}
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {isLoading && (
+                            <div className="p-4 text-center text-gray-500 italic">Loading...</div>
+                        )}
+                        {!isLoading && counselors.length === 0 && (
+                            <div className="p-4 text-center text-gray-500">No Guidance Counselors found.</div>
+                        )}
+                        {counselors.map((counselor) => (
+                            <div key={counselor.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words">{counselor.name}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Email</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{counselor.email || '-'}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {counselor.matricule ? (
+                                            <span className="text-gray-700">{counselor.matricule}</span>
+                                        ) : (
+                                            <span className="text-gray-500 italic">empty</span>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Subclasses Assigned</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {counselor.assignedSubClassIds?.length || 0} subclasses
+                                    </span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    <button
+                                        onClick={() => openAssignmentModal(counselor)}
+                                        className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                                        disabled={isLoading}
+                                    >
+                                        Manage Assignments
+                                    </button>
+                                    <button
+                                        onClick={() => openEditCounselorModal(counselor)}
+                                        className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                        disabled={isLoading}
+                                        title="Edit Guidance Counselor"
+                                    >
+                                        <PencilSquareIcon className="h-4 w-4 inline mr-1" /> Edit
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 

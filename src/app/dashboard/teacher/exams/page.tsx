@@ -369,7 +369,8 @@ export default function Exams() {
                         <p className="text-sm text-gray-500">Create your first exam paper by clicking the "Create Exam Paper" button</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -449,6 +450,61 @@ export default function Exams() {
                             </tbody>
                         </table>
                     </div>
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {examPapers.map((paper) => (
+                            <div key={paper.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words">{paper.name}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Subject</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {paper.subject?.name || 'N/A'}
+                                        <span className="block text-sm text-gray-500">{paper.subject?.category || 'Uncategorized'}</span>
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Exam Date</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{formatDateTime(paper.examDate)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Duration</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{paper.duration} mins</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Questions</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        {paper.questions ? paper.questions.length : 'Not loaded'}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Created</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{formatDate(paper.createdAt)}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    <button
+                                        onClick={() => handleViewQuestions(paper)}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="View/Add Questions"
+                                    >
+                                        <QuestionMarkCircleIcon className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        className="text-green-600 hover:text-green-900"
+                                        title="Edit"
+                                    >
+                                        <PencilIcon className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteExamPaper(paper.id)}
+                                        className="text-red-600 hover:text-red-900"
+                                        title="Delete"
+                                    >
+                                        <TrashIcon className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    </>
                 )}
             </div>
 

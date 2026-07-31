@@ -36,7 +36,7 @@ export const ParentsTable: React.FC<ParentsTableProps> = ({
 
     return (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
@@ -95,6 +95,60 @@ export const ParentsTable: React.FC<ParentsTableProps> = ({
                         ))}
                     </tbody>
                 </table>
+            </div>
+            <div className="md:hidden divide-y divide-gray-100">
+                {parents.map((parent) => (
+                    <div key={parent.id} className="p-4 space-y-1.5">
+                        <div className="flex items-center">
+                            <UserCircleIcon className="h-8 w-8 text-gray-400 mr-3" />
+                            <div className="text-sm font-semibold text-gray-900 break-words">{parent.name}</div>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                            <span className="text-xs text-gray-500">Email</span>
+                            <span className="text-sm text-gray-900 text-right break-words">{parent.email}</span>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                            <span className="text-xs text-gray-500">Phone</span>
+                            <span className="text-sm text-gray-900 text-right break-words">{parent.phone || '-'}</span>
+                        </div>
+                        <div className="flex items-start justify-between gap-3">
+                            <span className="text-xs text-gray-500">Username</span>
+                            <span className="text-sm text-gray-900 text-right break-words">
+                                {parent.username ? (
+                                    <span className="text-gray-700">{parent.username}</span>
+                                ) : (
+                                    <span className="text-gray-500 italic">empty</span>
+                                )}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-1.5">
+                            <button
+                                onClick={() => onEditParent(parent)}
+                                className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                                disabled={isLoading}
+                                title="Edit Parent Details"
+                            >
+                                Edit
+                            </button>
+                            <button
+                                onClick={() => onViewStudents(parent)}
+                                className="px-3 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                                disabled={isLoading}
+                                title="View Linked Students"
+                            >
+                                View Students
+                            </button>
+                            <button
+                                onClick={() => onLinkToStudent(parent)}
+                                className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
+                                disabled={isLoading}
+                                title="Link Parent to a Student"
+                            >
+                                Link Student
+                            </button>
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );

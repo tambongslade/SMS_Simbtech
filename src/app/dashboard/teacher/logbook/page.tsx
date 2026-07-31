@@ -157,7 +157,8 @@ export default function TeacherLogbookPage() {
           ) : entries.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">No entries yet.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
@@ -199,6 +200,45 @@ export default function TeacherLogbookPage() {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {entries.map((e) => (
+                <div key={e.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{e.dateTaught?.split('T')[0]}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Class · Subject</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {e.teacherPeriod?.subClass?.name || '—'}
+                      {e.teacherPeriod?.subject?.name ? ` · ${e.teacherPeriod.subject.name}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Lesson</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{e.lesson?.title || `Lesson #${e.lessonId}`}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Status</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      <Badge color={statusColor(e.status)} variant="subtle">{e.status.replace('_', ' ')}</Badge>
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reviewed</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {e.reviewedAt ? <Badge color="green" variant="subtle">Reviewed</Badge> : <span className="text-xs text-gray-400">—</span>}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <button type="button" title="Edit" onClick={() => setEditTarget(e)} className="p-1 text-gray-400 hover:text-blue-600">
+                      <PencilSquareIcon className="h-4 w-4" />
+                    </button>
+                    <button type="button" title="Delete" onClick={() => setDeleteTarget(e)} className="p-1 text-gray-400 hover:text-red-600">
+                      <TrashIcon className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       </div>

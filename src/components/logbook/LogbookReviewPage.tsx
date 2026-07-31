@@ -114,7 +114,8 @@ export function LogbookReviewPage() {
           ) : entries.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">No entries match these filters.</div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
@@ -151,6 +152,44 @@ export function LogbookReviewPage() {
                 </tbody>
               </table>
             </div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {entries.map((e) => (
+                <div key={e.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">
+                    {e.dateTaught?.split('T')[0]}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Teacher</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{e.teacherPeriod?.teacher?.name || '—'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Class · Subject</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {e.teacherPeriod?.subClass?.name || '—'}
+                      {e.teacherPeriod?.subject?.name ? ` · ${e.teacherPeriod.subject.name}` : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Lesson</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{e.lesson?.title || `Lesson #${e.lessonId}`}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Status</span>
+                    <Badge color={statusColor(e.status)} variant="subtle">{e.status.replace('_', ' ')}</Badge>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reviewed</span>
+                    {e.reviewedAt ? <Badge color="green" variant="subtle">Reviewed</Badge> : <span className="text-xs text-gray-400">Pending</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <Button size="xs" variant="outline" color="primary" onClick={() => openReview(e)}>
+                      {e.reviewedAt ? 'View' : 'Review'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            </>
           )}
         </div>
       </div>

@@ -159,7 +159,7 @@ export function ManageSubjectsModal({
                                 Assigned Subjects ({assignedCount})
                             </h3>
                             <div className="bg-green-50 border border-green-200 rounded-lg overflow-hidden">
-                                <div className="overflow-x-auto">
+                                <div className="hidden md:block overflow-x-auto">
                                     <table className="min-w-full">
                                         <thead className="bg-green-100">
                                             <tr>
@@ -229,6 +229,69 @@ export function ManageSubjectsModal({
                                         </tbody>
                                     </table>
                                 </div>
+                                <div className="md:hidden divide-y divide-gray-100">
+                                    {sortedSubjects
+                                        .filter(subject => selected.get(subject.id)?.selected)
+                                        .map(subject => {
+                                            const currentSelection = selected.get(subject.id);
+                                            return (
+                                                <div key={subject.id} className="p-4 space-y-1.5 bg-white">
+                                                    <div className="text-sm font-semibold text-gray-900 break-words">{subject.name}</div>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <span className="text-xs text-gray-500">Coefficient</span>
+                                                        <div className="flex items-center space-x-1 bg-gray-50 rounded-md p-1 border border-gray-200">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = currentSelection?.coefficient || 1;
+                                                                    if (current > 1) {
+                                                                        handleCoefficientChange(subject.id, (current - 1).toString());
+                                                                    }
+                                                                }}
+                                                                disabled={!currentSelection?.selected || (currentSelection?.coefficient || 1) <= 1}
+                                                                className="w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                title="Decrease coefficient"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                                                </svg>
+                                                            </button>
+                                                            <span className="w-8 text-center text-sm font-semibold text-gray-900 bg-white rounded border px-1 py-0.5">
+                                                                {currentSelection?.coefficient || 1}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const current = currentSelection?.coefficient || 1;
+                                                                    if (current < 10) {
+                                                                        handleCoefficientChange(subject.id, (current + 1).toString());
+                                                                    }
+                                                                }}
+                                                                disabled={!currentSelection?.selected || (currentSelection?.coefficient || 1) >= 10}
+                                                                className="w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                                                title="Increase coefficient"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                                        <label className="flex items-center gap-2 text-sm text-gray-900">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={true}
+                                                                onChange={() => handleToggle(subject.id)}
+                                                                className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                                                            />
+                                                            Assigned
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
                             </div>
                         </div>
                     )}
@@ -243,7 +306,7 @@ export function ManageSubjectsModal({
                                 Available Subjects ({totalCount - assignedCount})
                             </h3>
                             <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
-                                <div className="overflow-x-auto">
+                                <div className="hidden md:block overflow-x-auto">
                                     <table className="min-w-full">
                                         <thead className="bg-gray-100">
                                             <tr>
@@ -300,6 +363,57 @@ export function ManageSubjectsModal({
                                                 })}
                                         </tbody>
                                     </table>
+                                </div>
+                                <div className="md:hidden divide-y divide-gray-100">
+                                    {sortedSubjects
+                                        .filter(subject => !selected.get(subject.id)?.selected)
+                                        .map(subject => {
+                                            const currentSelection = selected.get(subject.id);
+                                            return (
+                                                <div key={subject.id} className="p-4 space-y-1.5 bg-white">
+                                                    <div className="text-sm font-semibold text-gray-900 break-words">{subject.name}</div>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <span className="text-xs text-gray-500">Coefficient</span>
+                                                        <div className="flex items-center space-x-1 bg-gray-100 rounded-md p-1 border border-gray-200 opacity-60">
+                                                            <button
+                                                                type="button"
+                                                                disabled
+                                                                className="w-6 h-6 flex items-center justify-center rounded text-gray-400 cursor-not-allowed"
+                                                                title="Select subject to change coefficient"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                                                                </svg>
+                                                            </button>
+                                                            <span className="w-8 text-center text-sm font-semibold text-gray-500 bg-white rounded border px-1 py-0.5">
+                                                                {currentSelection?.coefficient || 1}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                disabled
+                                                                className="w-6 h-6 flex items-center justify-center rounded text-gray-400 cursor-not-allowed"
+                                                                title="Select subject to change coefficient"
+                                                            >
+                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                                                </svg>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={false}
+                                                                onChange={() => handleToggle(subject.id)}
+                                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                                            />
+                                                            Select
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                 </div>
                             </div>
                         </div>

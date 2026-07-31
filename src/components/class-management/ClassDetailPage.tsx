@@ -307,7 +307,8 @@ export default function ClassDetailPage() {
                         {(classInfo?.subClasses.length ?? 0) === 0 ? (
                             <p className="p-6 text-sm text-gray-500">{isLoadingClass ? 'Loading…' : 'No subclasses defined.'}</p>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <>
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
@@ -327,6 +328,22 @@ export default function ClassDetailPage() {
                                     </tbody>
                                 </table>
                             </div>
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {classInfo!.subClasses.map((sub) => (
+                                    <div key={sub.id} className="p-4 space-y-1.5">
+                                        <p className="text-sm font-semibold text-gray-900 break-words">{sub.name}</p>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Students</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{sub.studentCount}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Class Master</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{sub.classMasterName || <span className="italic text-gray-400">Not assigned</span>}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            </>
                         )}
                     </div>
 
@@ -368,7 +385,8 @@ export default function ClassDetailPage() {
                     ) : subjectRows.length === 0 ? (
                         <p className="p-6 text-sm text-gray-500">No subjects assigned to this class yet.</p>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -413,6 +431,48 @@ export default function ClassDetailPage() {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {subjectRows.map((subject) => (
+                                <div key={subject.id} className="p-4 space-y-1.5">
+                                    <p className="text-sm font-semibold text-gray-900 break-words">{subject.name}</p>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Category</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{subject.category ? formatCategory(subject.category) : '—'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Coefficient</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{subject.coefficient ?? '—'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Teacher(s)</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">
+                                            {subject.teachers.length > 0 ? (
+                                                <span className="flex flex-wrap justify-end gap-1.5">
+                                                    {subject.teachers.map((t) => (
+                                                        <Badge key={t.id} color="blue" size="sm">{t.name}</Badge>
+                                                    ))}
+                                                </span>
+                                            ) : (
+                                                <Badge color="red" size="sm">No teacher</Badge>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                        <button
+                                            onClick={() => openAssignTeacher(subject)}
+                                            className={`inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                                                subject.teachers.length === 0
+                                                    ? 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500'
+                                                    : 'text-blue-700 bg-blue-100 hover:bg-blue-200 focus:ring-blue-500'
+                                            }`}
+                                        >
+                                            {subject.teachers.length === 0 ? 'Assign Teacher' : 'Add Teacher'}
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        </>
                     )}
                 </div>
             )}
@@ -454,7 +514,8 @@ export default function ClassDetailPage() {
                         ) : classFees.owingRows.length === 0 ? (
                             <p className="p-6 text-sm text-gray-500">No students owing in this class. 🎉</p>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <>
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
@@ -478,6 +539,30 @@ export default function ClassDetailPage() {
                                     </tbody>
                                 </table>
                             </div>
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {classFees.owingRows.map((row, i) => (
+                                    <div key={`${row.matricule}-${i}`} className="p-4 space-y-1.5">
+                                        <p className="text-sm font-semibold text-gray-900 break-words">{row.studentName}</p>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Matricule</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{row.matricule}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Expected</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{formatMoney(row.expected)}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Paid</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{formatMoney(row.paid)}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Owing</span>
+                                            <span className="text-sm font-semibold text-red-600 text-right break-words">{formatMoney(row.balance)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            </>
                         )}
                     </div>
                 </div>

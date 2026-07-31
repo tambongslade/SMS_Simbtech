@@ -69,13 +69,15 @@ const itemAmount = (item: SalaryItem) => item.amount ?? item.newSalary ?? null;
 export default function SalariesWorkspace() {
     const pathname = usePathname();
     const canApprove = pathname.includes('/super-manager/');
+    // Managers also manage staff salaries, but their changes need approval
+    const canManage = canApprove || pathname.includes('/manager/');
     const { selectedAcademicYear } = useAuth();
 
-    const [activeTab, setActiveTab] = useState<SalaryTab>(canApprove ? 'staff' : 'change-requests');
+    const [activeTab, setActiveTab] = useState<SalaryTab>(canManage ? 'staff' : 'change-requests');
     const [statusFilter, setStatusFilter] = useState<(typeof STATUS_FILTERS)[number]>('PENDING');
     const [actingId, setActingId] = useState<number | null>(null);
 
-    const visibleTabs = canApprove ? [STAFF_TAB, ...LIST_TABS] : LIST_TABS;
+    const visibleTabs = canManage ? [STAFF_TAB, ...LIST_TABS] : LIST_TABS;
     // Fall back to change-requests for the fetch key while the staff tab is active.
     const tab = LIST_TABS.find(t => t.key === activeTab) ?? LIST_TABS[0];
 
@@ -124,7 +126,9 @@ export default function SalariesWorkspace() {
                 <p className="text-gray-600">
                     {canApprove
                         ? 'Configure staff salaries, allowances and withholdings, and approve change requests.'
-                        : 'Track salary change requests, allowances and withholdings.'}
+                        : canManage
+                            ? 'Propose staff salary changes, allowances and withholdings — the Super Manager approves them.'
+                            : 'Track salary change requests, allowances and withholdings.'}
                     {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
                 </p>
             </div>
@@ -179,11 +183,17 @@ export default function SalariesWorkspace() {
 
             {activeTab === 'staff' ? (
                 <StaffSalariesTab
+                    requiresApproval={!canApprove}
                     onCreated={(created) => {
                         // Super Manager salary changes are auto-approved and applied
-                        // immediately, so stay on the staff list. For allowances and
-                        // withholdings, jump to the matching tab to show the new item.
-                        if (created === 'set-salary') return;
+                        // immediately, so stay on the staff list. Manager changes are
+                        // pending — jump to the matching tab to show the new item.
+                        if (created === 'set-salary') {
+                            if (canApprove) return;
+                            setStatusFilter('PENDING');
+                            setActiveTab('change-requests');
+                            return;
+                        }
                         setStatusFilter('PENDING');
                         setActiveTab(created === 'allowance' ? 'allowances' : 'withholdings');
                     }}
@@ -271,7 +281,7 @@ export default function SalariesWorkspace() {
                 </>
             )}
 
-            {!canApprove && (
+            {!canManage && (
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                     <PlusIcon className="h-3.5 w-3.5" />
                     New salary items are created from staff workflows; the Super Manager approves them and you&apos;ll be notified of the outcome.

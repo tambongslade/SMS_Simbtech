@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">SMS Simbtech</string>
-    <string name="title_activity_main">SMS Simbtech</string>
+    <string name="app_name">St Stephen International</string>
+    <string name="title_activity_main">St Stephen International</string>
     <string name="package_name">com.simbtech.sms</string>
     <string name="custom_url_scheme">com.simbtech.sms</string>
 </resources>

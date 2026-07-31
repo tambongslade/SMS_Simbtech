@@ -209,7 +209,7 @@ export default function TeacherManagementPage() {
         {isLoading && <p className="text-center text-gray-500 py-4">Loading teachers...</p>}
 
         {!isLoading && (
-          <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+          <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -274,6 +274,68 @@ export default function TeacherManagementPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {!isLoading && (
+          <div className="md:hidden divide-y divide-gray-100 bg-white shadow-md rounded-lg">
+            {teachers.length === 0 && !isLoading ? (
+              <div className="px-4 py-8 text-center text-gray-500">
+                No teachers found matching your criteria
+              </div>
+            ) : (
+              teachers.map((teacher) => (
+                <div key={teacher.id} className="p-4 space-y-1.5">
+                  <div className="flex items-center">
+                    <span className="inline-block h-8 w-8 rounded-full overflow-hidden bg-gray-100 mr-3 flex-shrink-0">
+                      {teacher.photo ? (
+                        <img className="h-full w-full object-cover" src={teacher.photo} alt="" />
+                      ) : (
+                        <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900 break-words">{teacher.name}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Email</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{teacher.email}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Phone</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{teacher.phone || '-'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Assigned Subjects</span>
+                    <span className="text-sm text-gray-900 text-right break-words">
+                      {teacher.subjects && teacher.subjects.length > 0 ? (
+                        <ul className="space-y-1 max-w-xs">
+                          {teacher.subjects.map(s => (
+                            <li key={s.id} className="truncate text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full inline-block mr-1 mb-1" title={s.name}>
+                              {s.name}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <span className="text-gray-400 italic">None</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <button
+                      onClick={() => openAssignSubjectsModal(teacher)}
+                      disabled={isLoading}
+                      title="Manage Assigned Subjects"
+                      className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                    >
+                      <BookOpenIcon className="h-4 w-4 mr-1" /> Manage Subjects
+                    </button>
+                    {/* TODO: Add Edit/Delete Teacher buttons */}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         )}
       </div>

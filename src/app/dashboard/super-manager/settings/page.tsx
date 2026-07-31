@@ -149,7 +149,8 @@ export default function SettingsPage() {
                     ) : academicYears.length === 0 ? (
                         <div className="text-center py-8 text-gray-500">No academic years found. Add one to get started.</div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <>
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -190,6 +191,42 @@ export default function SettingsPage() {
                                 </tbody>
                             </table>
                         </div>
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {academicYears.map((year) => (
+                                <div key={year.id} className={`p-4 space-y-1.5 ${year.isCurrent ? 'bg-blue-50' : ''}`}>
+                                    <div className="text-sm font-semibold text-gray-900 break-words">{year.name}</div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Start Date</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.startDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">End Date</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.endDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Status</span>
+                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${year.isCurrent ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                                            }`}>
+                                            {year.isCurrent ? 'Current' : 'Archived'}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                        {!year.isCurrent && (
+                                            <Button size="sm" variant="outline" onClick={() => handleSetCurrent(year.id)}>
+                                                Set Current
+                                            </Button>
+                                        )}
+                                        <Button size="sm" onClick={() => handleAddEdit(year)}>
+                                            Edit
+                                        </Button>
+                                        <Button size="sm" color="danger" onClick={() => handleDelete(year.id)}>
+                                            Delete
+                                        </Button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        </>
                     )}
                 </CardBody>
             </Card>

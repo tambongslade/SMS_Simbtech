@@ -339,7 +339,8 @@ export default function TeacherStudents() {
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -458,6 +459,68 @@ export default function TeacherStudents() {
               </tbody>
             </table>
           </div>
+          <div className="md:hidden divide-y divide-gray-100">
+            {sortedStudents.map((student) => (
+              <div key={student.id} className="p-4 space-y-1.5">
+                <div className="flex items-start gap-3">
+                  <StudentPhoto
+                    studentId={student.id}
+                    photo={student.photo}
+                    size="sm"
+                    studentName={student.name}
+                    fetchPhoto={!student.photo}
+                    showUploadButton={true}
+                    canUpload={true}
+                  />
+                  <div className="text-sm font-semibold text-gray-900 break-words">{student.name}</div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Matricule</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{student.matricule || 'N/A'}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Class</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{student.class}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Sub-Class</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{student.subClassName}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Your Subjects</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    <span className="flex flex-wrap justify-end gap-1">
+                      {student.teacherSubjects?.map(subject => (
+                        <span
+                          key={subject.subjectId}
+                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
+                          title={`Coefficient: ${subject.coefficient}`}
+                        >
+                          {subject.subjectName}
+                        </span>
+                      )) || <span className="text-xs text-gray-400">None</span>}
+                    </span>
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Performance</span>
+                  <span className="text-sm text-gray-900 text-right break-words">
+                    <span className="font-medium">{student.performance}%</span>
+                    <span className="ml-2">{renderPerformanceIndicator(student.performance || 0)}</span>
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Attendance</span>
+                  <span className="text-sm font-medium text-gray-900 text-right break-words">{student.attendance}%</span>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="text-xs text-gray-500">Status</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{renderAttendanceStatus(student.lastAttendance || 'Unknown')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </div>
 

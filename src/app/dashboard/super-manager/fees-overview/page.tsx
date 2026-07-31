@@ -220,7 +220,8 @@ function FeesOverviewContent() {
                         ) : classAggregates.length === 0 ? (
                             <p className="p-6 text-sm text-gray-500">No fee records found for this academic year.</p>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <>
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
@@ -264,6 +265,50 @@ function FeesOverviewContent() {
                                     </tbody>
                                 </table>
                             </div>
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {classAggregates.map((agg) => {
+                                    const rate = Math.min(100, Math.max(0, agg.collectionRate));
+                                    return (
+                                        <div
+                                            key={agg.classId}
+                                            onClick={() => router.push(`/dashboard/super-manager/fees-overview?classId=${agg.classId}`)}
+                                            className="p-4 space-y-1.5 cursor-pointer hover:bg-blue-50/50 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-sm font-semibold text-gray-900 break-words">{agg.className}</span>
+                                                <ChevronRightIcon className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Students</span>
+                                                <span className="text-sm text-gray-900 text-right break-words">{agg.studentCount}</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Owing Students</span>
+                                                <span className="text-sm text-gray-900 text-right break-words">{agg.owingCount}</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Expected</span>
+                                                <span className="text-sm text-gray-900 text-right break-words">{formatMoney(agg.expected)}</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Collected</span>
+                                                <span className="text-sm text-gray-900 text-right break-words">{formatMoney(agg.collected)}</span>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Owing</span>
+                                                <span className="text-sm font-semibold text-red-600 text-right break-words">{formatMoney(agg.owing)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 h-2 rounded-full bg-gray-100">
+                                                    <div className="h-2 rounded-full bg-blue-600" style={{ width: `${rate}%` }} />
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-700 w-11 text-right">{rate.toFixed(1)}%</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            </>
                         )}
                     </div>
                 </>
@@ -312,7 +357,8 @@ function FeesOverviewContent() {
                                 {showOwingOnly ? 'No students owing in this class.' : 'No students found.'}
                             </p>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <>
+                            <div className="hidden md:block overflow-x-auto">
                                 <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                         <tr>
@@ -342,6 +388,36 @@ function FeesOverviewContent() {
                                     </tbody>
                                 </table>
                             </div>
+                            <div className="md:hidden divide-y divide-gray-100">
+                                {classStudents.map((row) => (
+                                    <div key={`${row.studentId}-${row.matricule}`} className="p-4 space-y-1.5">
+                                        <div className="text-sm font-semibold text-gray-900 break-words">{row.name}</div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Matricule</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{row.matricule}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Expected</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{formatMoney(row.expected)}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Paid</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{formatMoney(row.paid)}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Owing</span>
+                                            <span className={`text-sm text-right break-words ${row.balance > 0 ? 'font-semibold text-red-600' : 'text-gray-500'}`}>
+                                                {formatMoney(row.balance)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Status</span>
+                                            <Badge color={statusColor(row.status)} size="sm">{row.status}</Badge>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            </>
                         )}
                     </div>
                 </>

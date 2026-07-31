@@ -379,7 +379,7 @@ export default function TeacherSubjects() {
 
             <div>
               <h3 className="text-lg font-medium mb-4">Assigned Classes</h3>
-              <div className="overflow-x-auto">
+              <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
@@ -445,6 +445,47 @@ export default function TeacherSubjects() {
                     )) || null}
                   </tbody>
                 </table>
+              </div>
+              <div className="md:hidden divide-y divide-gray-100">
+                {selectedSubject.subClasses?.map(subClass => (
+                  <div key={subClass.id} className="p-4 space-y-1.5">
+                    <div className="text-sm font-semibold text-gray-900 break-words">
+                      {subClass.className} - {subClass.name}
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Students</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{subClass.studentCount || 0}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Periods/Week</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{subClass.periodsPerWeek}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Coefficient</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{subClass.coefficient}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      <button
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          navigateToStudents(subClass.id);
+                        }}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-900"
+                      >
+                        View Students
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowDetailModal(false);
+                          navigateToSubmitMarks(selectedSubject.id, subClass.id);
+                        }}
+                        className="text-sm font-medium text-green-600 hover:text-green-900"
+                      >
+                        Submit Marks
+                      </button>
+                    </div>
+                  </div>
+                )) || null}
               </div>
             </div>
 

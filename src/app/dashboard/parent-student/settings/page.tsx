@@ -17,6 +17,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { useParentSettings } from '../hooks/useParentSettings';
+import PortalSettings from '../components/PortalSettings';
 
 interface ParentProfile {
   id: number;
@@ -61,7 +62,10 @@ interface NotificationPreferences {
   digestFrequency: 'IMMEDIATE' | 'HOURLY' | 'DAILY' | 'WEEKLY' | 'DISABLED';
 }
 
-export default function ParentSettingsPage() {
+// Account settings need a JWT (students and legacy accounts). Password-free
+// matricule parents get the device-based PortalSettings instead — see the
+// default export at the bottom of this file.
+function AccountSettingsPage() {
   const { profile, preferences, isLoading, error, updateProfile, updatePreferences } = useParentSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
@@ -783,3 +787,18 @@ export default function ParentSettingsPage() {
     </div>
   );
 } 
+// Route entry: matricule-based parent sessions (no JWT) manage this device's
+// children and sign-in; token-holding users keep the full account settings.
+export default function ParentSettingsPage() {
+  const [mode, setMode] = useState<'loading' | 'portal' | 'account'>('loading');
+
+  useEffect(() => {
+    const hasToken = !!localStorage.getItem('token');
+    const hasPortal = !!localStorage.getItem('parentPortal');
+    setMode(!hasToken && hasPortal ? 'portal' : 'account');
+  }, []);
+
+  if (mode === 'loading') return null;
+  if (mode === 'portal') return <PortalSettings />;
+  return <AccountSettingsPage />;
+}

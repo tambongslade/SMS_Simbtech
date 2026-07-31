@@ -312,7 +312,7 @@ export default function MarksManagementPage() {
                 {/* Simplified Condition: Check for loading state and if data exists */}
                 {!isLoadingStudentsAndMarks && studentsWithMarks.length > 0 && (
                     <>
-                        <div className="overflow-x-auto shadow border-b border-gray-200 sm:rounded-lg mb-6">
+                        <div className="hidden md:block overflow-x-auto shadow border-b border-gray-200 sm:rounded-lg mb-6">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -360,6 +360,44 @@ export default function MarksManagementPage() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Mobile Card List */}
+                        <div className="md:hidden divide-y divide-gray-100 bg-white shadow rounded-md mb-6">
+                            {studentsWithMarks.map((student, index) => (
+                                <div key={student.id} className="p-4 space-y-1.5">
+                                    <div className="text-sm font-semibold text-gray-900 break-words">{student.name}</div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">#</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{index + 1 + (currentPage - 1) * limit}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Matricule</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.matricule || 'N/A'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Mark</span>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            min="0"
+                                            max="20"
+                                            value={student.currentScore}
+                                            onChange={(e) => handleMarkChange(student.id, e.target.value)}
+                                            className={`w-24 p-1.5 border rounded text-sm ${
+                                                (() => {
+                                                    const currentScoreStr = String(student.currentScore).trim();
+                                                    const currentScoreNumeric = currentScoreStr === '' ? null : parseFloat(currentScoreStr);
+                                                    return currentScoreNumeric !== student.originalScore;
+                                                })()
+                                                ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50'
+                                                : 'border-gray-300'
+                                            } focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed`}
+                                            disabled={isSavingMarks}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* --- Pagination Controls --- */}

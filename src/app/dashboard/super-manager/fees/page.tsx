@@ -298,7 +298,7 @@ export default function FeesPaymentManagement() {
 
             {/* Payment Records Table */}
             <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="hidden md:block overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -341,6 +341,51 @@ export default function FeesPaymentManagement() {
                             )}
                         </tbody>
                     </table>
+                </div>
+                {/* Mobile Card List */}
+                <div className="md:hidden divide-y divide-gray-100">
+                    {isLoading ? (
+                        <div className="text-center py-4 text-gray-500 italic">Loading payment records...</div>
+                    ) : filteredPayments.length === 0 ? (
+                        <div className="text-center py-4 text-gray-500">No matching payment records found.</div>
+                    ) : (
+                        filteredPayments.map((payment) => (
+                            <div key={payment.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words" title={payment.student.name}>{payment.student.name}</div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{payment.student.matricule || `ID: ${payment.student.id}`}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Class</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{payment.classInfo.name}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Expected</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(payment.amountExpected)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Paid</span>
+                                    <span className="text-sm text-green-700 text-right break-words">{formatCurrency(payment.amountPaid)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Balance</span>
+                                    <span className={`text-sm text-right break-words font-medium ${payment.balance > 0 ? 'text-red-700' : 'text-gray-700'}`}>{formatCurrency(payment.balance)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Status</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{getStatusBadge(payment.status)}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Relevant Date</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">
+                                        <span className="text-xs text-gray-400 mr-1">{payment.status === 'Paid' ? 'Paid:' : payment.dueDate ? 'Due:' : ''}</span>
+                                        {formatDate(payment.status === 'Paid' ? payment.lastPaymentDate : payment.dueDate)}
+                                    </span>
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
         </div>

@@ -167,7 +167,7 @@ export function PunishmentRegister() {
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -263,6 +263,93 @@ export function PunishmentRegister() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading punishments…</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">No punishments found.</div>
+          ) : (
+            rows.map((row) => {
+              const who = enrollmentStudent(row);
+              return (
+                <div key={row.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{who.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {who.matricule ? `${who.matricule} · ` : ''}
+                    {who.className}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Reason</span>
+                    <div className="text-sm text-gray-900 text-right break-words">
+                      <span className="text-sm text-gray-700">{row.reason}</span>
+                      {row.notes && <div className="text-xs text-gray-400 italic">“{row.notes}”</div>}
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Saturday</span>
+                    <div className="text-sm text-gray-900 text-right break-words">
+                      {fmtDate(row.scheduledDate)}
+                      {row.servedDate && (
+                        <div className="text-xs text-emerald-600">served {fmtDate(row.servedDate)}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Status</span>
+                    <span
+                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[row.status]}`}
+                    >
+                      {row.status}
+                    </span>
+                  </div>
+                  {(row.status === 'PENDING' || canAdminDelete(selectedRole)) && (
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      {row.status === 'PENDING' && (
+                        <>
+                          <Button
+                            size="xs"
+                            color="success"
+                            leftIcon={CheckIcon}
+                            onClick={() => {
+                              setMarking({ row, status: 'SERVED' });
+                              setMarkNotes('');
+                            }}
+                          >
+                            Served
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            leftIcon={ForwardIcon}
+                            onClick={() => {
+                              setMarking({ row, status: 'SKIPPED' });
+                              setMarkNotes('');
+                            }}
+                          >
+                            Skipped
+                          </Button>
+                        </>
+                      )}
+                      {canAdminDelete(selectedRole) && (
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          color="danger"
+                          leftIcon={TrashIcon}
+                          onClick={() => setDeleting(row)}
+                        >
+                          Delete
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination */}

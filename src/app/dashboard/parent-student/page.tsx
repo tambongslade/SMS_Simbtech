@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
@@ -9,6 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
+import ChildPicker from './components/ChildPicker';
 
 const quickActions: QuickAction[] = [
   {
@@ -57,6 +59,17 @@ const quickActions: QuickAction[] = [
 
 export default function ParentStudentMenu() {
   const { selectedAcademicYear, user } = useAuth();
+
+  // Matricule-based parents (no JWT) land on the full-screen child picker —
+  // one profile card per child, like a streaming app. Students and legacy
+  // token-holding accounts keep the quick-action menu.
+  const [isPortalParent, setIsPortalParent] = useState<boolean | null>(null);
+  useEffect(() => {
+    setIsPortalParent(!localStorage.getItem('token') && !!localStorage.getItem('parentPortal'));
+  }, []);
+
+  if (isPortalParent === null) return null;
+  if (isPortalParent) return <ChildPicker />;
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">

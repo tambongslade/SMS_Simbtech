@@ -1437,7 +1437,7 @@ export default function StudentManagement() {
 
                     {/* Student Table with Proper Z-index */}
                     <div className="bg-white rounded-lg shadow-sm overflow-hidden relative z-10">
-                        <div className="overflow-x-auto">
+                        <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50 sticky top-0 z-10">
                                     <tr>
@@ -1663,6 +1663,196 @@ export default function StudentManagement() {
                                     ))}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Mobile Card List */}
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {isLoading && students.length === 0 && (
+                                <div className="text-center py-8">
+                                    <div className="flex flex-col items-center">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+                                        <p className="text-gray-500">Loading students...</p>
+                                    </div>
+                                </div>
+                            )}
+                            {!isLoading && filteredStudents.length === 0 && (
+                                <div className="text-center py-8">
+                                    <div className="flex flex-col items-center">
+                                        <svg className="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                                        </svg>
+                                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                                            {searchTerm || enrollmentFilter !== 'all' || subClassFilter !== 'all'
+                                                ? 'No students match the current filters'
+                                                : 'No students found'
+                                            }
+                                        </h3>
+                                        <p className="text-gray-500 text-sm">
+                                            {searchTerm || enrollmentFilter !== 'all' || subClassFilter !== 'all'
+                                                ? 'Try adjusting your search or filter criteria'
+                                                : 'Get started by adding your first student'
+                                            }
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            {filteredStudents.map((student) => (
+                                <div key={student.id} className="p-4 space-y-1.5">
+                                    <div className="flex items-start gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedStudentIds.has(student.id)}
+                                            onChange={(e) => handleSelectStudent(student.id, e.target.checked)}
+                                            className="h-4 w-4 mt-1 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <StudentPhoto
+                                            studentId={student.id}
+                                            photo={student.photo}
+                                            size="sm"
+                                            showUploadButton={true}
+                                            canUpload={true}
+                                            studentName={student.name}
+                                            fetchPhoto={!student.photo}
+                                            onPhotoUpdate={(filename) => {
+                                                // Update the student in the list
+                                                setStudents(prev => prev.map(s =>
+                                                    s.id === student.id
+                                                        ? { ...s, photo: `/uploads/students/${filename}` }
+                                                        : s
+                                                ));
+                                            }}
+                                        />
+                                        <button
+                                            onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
+                                            className="text-sm font-semibold text-blue-700 break-words text-left hover:text-blue-900 hover:underline"
+                                        >
+                                            {student.name}
+                                        </button>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Matricule</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.matricule || 'Not assigned'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Enrollment</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">
+                                            {(() => {
+                                                const resolvedClassName =
+                                                    student.className ||
+                                                    classes.find(c => c.id === student.classId)?.name;
+                                                if (!resolvedClassName && !student.subClassName) {
+                                                    return <span className="text-gray-500">Not Enrolled</span>;
+                                                }
+                                                return (
+                                                    <>
+                                                        <span className="font-medium text-gray-800">
+                                                            {resolvedClassName || 'Class not set'}
+                                                        </span>
+                                                        {' - '}
+                                                        <span className="text-gray-600">
+                                                            {student.subClassName || 'Subclass not assigned'}
+                                                        </span>
+                                                    </>
+                                                );
+                                            })()}
+                                            {student.academicYearName && (
+                                                <span className="block text-xs text-gray-500">
+                                                    {student.academicYearName}
+                                                </span>
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">DOB</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.date_of_birth?.split('T')[0] || '-'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Gender</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.gender || '-'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Residence</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.residence || '-'}</span>
+                                    </div>
+                                    <div className="flex items-start justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Former School</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{student.former_school || '-'}</span>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-1.5">
+                                        <button
+                                            onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
+                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-gray-600 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                            title="View Full Profile"
+                                        >
+                                            <EyeIcon className="h-3 w-3 mr-1" />
+                                            <span>Profile</span>
+                                        </button>
+                                        <button
+                                            onClick={() => openEditModal(student)}
+                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                            disabled={isLoading}
+                                            title="Edit Student Details"
+                                        >
+                                            <PencilSquareIcon className="h-3 w-3 mr-1" />
+                                            <span>Edit</span>
+                                        </button>
+
+                                        <button
+                                            onClick={() => openEnrollmentModal(student)}
+                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                            disabled={isLoading}
+                                            title="Enroll/Manage Student"
+                                        >
+                                            <ClipboardDocumentListIcon className="h-3 w-3 mr-1" />
+                                            <span>Enroll</span>
+                                        </button>
+
+                                        {!student.subClassName && (
+                                            <button
+                                                onClick={() => openAssignToClassModal(student)}
+                                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-orange-600 rounded hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                disabled={isLoading}
+                                                title="Assign Student to Class"
+                                            >
+                                                <ClipboardDocumentListIcon className="h-3 w-3 mr-1" />
+                                                <span>Assign Class</span>
+                                            </button>
+                                        )}
+
+                                        <button
+                                            onClick={() => openManageParentsModal(student)}
+                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-purple-600 rounded hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                            disabled={isLoading}
+                                            title="Manage Student's Parents"
+                                        >
+                                            <UserGroupIcon className="h-3 w-3 mr-1" />
+                                            <span>Parents</span>
+                                        </button>
+
+                                        {student.subClassName && (
+                                            <button
+                                                onClick={() => openUnenrollModal(student)}
+                                                className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-amber-600 rounded hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                disabled={isLoading}
+                                                title="Unenroll Student from current academic year"
+                                            >
+                                                <UserMinusIcon className="h-3 w-3 mr-1" />
+                                                <span>Unenroll</span>
+                                            </button>
+                                        )}
+
+                                        <button
+                                            onClick={() => openDeleteModal(student)}
+                                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                            disabled={isLoading}
+                                            title="Permanently delete student"
+                                        >
+                                            <TrashIcon className="h-3 w-3 mr-1" />
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
 
                         {/* Pagination Controls */}
