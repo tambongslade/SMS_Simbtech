@@ -113,6 +113,11 @@ async function request<T = any>(
         });
 
         if (response.status === 401) {
+            // Parent portal sessions are matricule-based with no JWT — a 401 from
+            // a staff-only endpoint must not log the parent out or redirect.
+            if (typeof window !== 'undefined' && !getAuthToken() && localStorage.getItem('parentPortal')) {
+                throw new Error('Unauthorized');
+            }
             // Unauthorized — server details ("jwt expired", "invalid token"…) are
             // never useful to the user mid-session.
             clearAuthData();

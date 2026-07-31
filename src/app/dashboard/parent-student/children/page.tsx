@@ -1,29 +1,40 @@
 'use client'
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useParentDashboard } from '../hooks/useParentDashboard';
 import { Card, CardHeader, CardTitle, CardBody, Button, Input } from '@/components/ui';
 import { ChildCard } from '../components/ChildCard';
-import { ChildDetails } from '../components/ChildDetails';
 import {
     UserGroupIcon,
     MagnifyingGlassIcon,
     FunnelIcon,
-    ExclamationCircleIcon
+    ExclamationCircleIcon,
+    PlusIcon
 } from '@heroicons/react/24/outline';
 
 export default function MyChildrenPage() {
-    const { data, isLoading, error } = useParentDashboard();
-    const [selectedChildId, setSelectedChildId] = useState<number | null>(null);
+    const router = useRouter();
+    const { data, isLoading, error, addChild } = useParentDashboard();
     const [searchTerm, setSearchTerm] = useState('');
     const [classFilter, setClassFilter] = useState('');
+    const [newMatricule, setNewMatricule] = useState('');
+    const [isAdding, setIsAdding] = useState(false);
 
+    // Details are served by the public matricule-based snapshot page
     const handleViewDetails = (childId: number) => {
-        setSelectedChildId(childId);
+        const child = data?.children?.find(c => c.id === childId);
+        if (child?.matricule) {
+            router.push(`/dashboard/parent-student/child-snapshot?matricule=${encodeURIComponent(child.matricule)}`);
+        }
     };
 
-    const handleBackToOverview = () => {
-        setSelectedChildId(null);
+    const handleAddChild = async () => {
+        if (!newMatricule.trim()) return;
+        setIsAdding(true);
+        const ok = await addChild(newMatricule);
+        setIsAdding(false);
+        if (ok) setNewMatricule('');
     };
 
     if (isLoading) {
@@ -44,10 +55,6 @@ export default function MyChildrenPage() {
                 </div>
             </div>
         );
-    }
-
-    if (selectedChildId) {
-        return <ChildDetails childId={selectedChildId} onBack={handleBackToOverview} />;
     }
 
     const children = data?.children || [];
@@ -71,6 +78,30 @@ export default function MyChildrenPage() {
                 </h1>
                 <p className="text-gray-600">Manage and monitor all your children's academic progress</p>
             </div>
+
+            {/* Add another child by matricule (device-local list, no login needed) */}
+            <Card className="mb-6">
+                <CardBody>
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
+                        <div className="flex-1">
+                            <Input
+                                label="Add a child"
+                                placeholder="Enter another child's matricule, e.g. SS24STD0002"
+                                value={newMatricule}
+                                onChange={(e) => setNewMatricule(e.target.value)}
+                            />
+                        </div>
+                        <Button
+                            onClick={handleAddChild}
+                            disabled={!newMatricule.trim() || isAdding}
+                            className="shrink-0"
+                        >
+                            <PlusIcon className="w-4 h-4 mr-1" />
+                            {isAdding ? 'Checking…' : 'Add Child'}
+                        </Button>
+                    </div>
+                </CardBody>
+            </Card>
 
             {/* Filters and Search */}
             <Card className="mb-6">

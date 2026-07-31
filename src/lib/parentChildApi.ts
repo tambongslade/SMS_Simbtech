@@ -1,5 +1,6 @@
 // Parent portal: child lookup by matricule — combined snapshot, report card
-// listing and PDF download. PARENT role only; camelCase on the wire.
+// listing and PDF download. Public per-matricule endpoints (no JWT);
+// camelCase on the wire.
 
 import apiService from './apiService';
 
@@ -98,7 +99,7 @@ export interface ChildReportCard {
 export const getChildSnapshot = async (matricule: string, academicYearId?: number): Promise<ChildSnapshot> => {
   const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
   const res = await apiService.get<{ data: ChildSnapshot }>(
-    `/parents/children/by-matricule/${encodeURIComponent(matricule)}${qs}`
+    `/parents/${encodeURIComponent(matricule)}/overview${qs}`
   );
   return res.data;
 };
@@ -109,7 +110,7 @@ export const listChildReportCards = async (
 ): Promise<{ student: { id: number; matricule: string; name: string }; reports: ChildReportCard[] }> => {
   const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
   const res = await apiService.get<{ data: any }>(
-    `/parents/children/by-matricule/${encodeURIComponent(matricule)}/report-cards${qs}`
+    `/parents/${encodeURIComponent(matricule)}/report-cards${qs}`
   );
   return { student: res.data?.student, reports: res.data?.reports || [] };
 };
@@ -127,9 +128,8 @@ export const downloadChildReportCard = async (
   academicYearId: number,
   examSequenceId: number
 ): Promise<ReportDownloadResult> => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  const url = `${API_BASE_URL}/parents/children/by-matricule/${encodeURIComponent(matricule)}/report-card?academicYearId=${academicYearId}&examSequenceId=${examSequenceId}`;
-  const res = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : undefined });
+  const url = `${API_BASE_URL}/parents/${encodeURIComponent(matricule)}/report-card?academicYearId=${academicYearId}&examSequenceId=${examSequenceId}`;
+  const res = await fetch(url); // public endpoint — no auth header
 
   if (res.status === 202) {
     const j = await res.json().catch(() => ({}));
