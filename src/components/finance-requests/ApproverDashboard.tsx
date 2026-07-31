@@ -67,7 +67,7 @@ export function ApproverDashboard({ heading }: { heading: string }) {
               label: 'All Requests',
               content: (
                 <FinanceRequestsPanel
-                  title="All Finance Requests"
+                  title="All Expense Requisitions"
                   description="Every request across the school."
                   showCreate
                   showTypeFilter

@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import { listOverpaid } from '@/lib/refundsApi';
 import { toast } from 'react-hot-toast';
 
@@ -108,60 +109,70 @@ export default function BursarOverviewPage() {
         </div>
       </div>
 
-      {/* Financial Overview Stats */}
+      {/* Financial Overview Stats — cards navigate to the relevant page */}
       <div className="grid grid-cols-2 gap-3 sm:gap-6">
-        <StatsCard
-          title="Students Owing"
-          value={dashboardData?.studentsOwingCount?.toString() || '0'}
-          icon={ClockIcon}
-          color="warning"
-        />
-        <StatsCard
-          title="Total Amount Owed"
-          value={formatCurrency(dashboardData?.totalAmountOwed || 0)}
-          icon={CurrencyDollarIcon}
-          color="danger"
-          className="bg-red-50 border-red-200"
-        />
+        <Link href="/dashboard/bursar/fee-management" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="Students Owing"
+            value={dashboardData?.studentsOwingCount?.toString() || '0'}
+            icon={ClockIcon}
+            color="warning"
+          />
+        </Link>
+        <Link href="/dashboard/bursar/fee-management" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="Total Amount Owed"
+            value={formatCurrency(dashboardData?.totalAmountOwed || 0)}
+            icon={CurrencyDollarIcon}
+            color="danger"
+          />
+        </Link>
       </div>
 
       {/* Student Management Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        <StatsCard
-          title="New Students This Month"
-          value={dashboardData?.newStudentsThisMonth?.toString() || '0'}
-          icon={UserPlusIcon}
-          color="success"
-          className="bg-purple-50 border-purple-200"
-        />
-        <StatsCard
-          title="Students with Parents"
-          value={dashboardData?.studentsWithParents?.toString() || '0'}
-          icon={UsersIcon}
-          color="success"
-          className="bg-indigo-50 border-indigo-200"
-        />
-        <StatsCard
-          title="Students without Parents"
-          value={dashboardData?.studentsWithoutParents?.toString() || '0'}
-          icon={UsersIcon}
-          color="danger"
-          className="bg-orange-50 border-orange-200"
-        />
-        <StatsCard
-          title="Recent Transactions"
-          value={dashboardData?.recentTransactions?.toString() || '0'}
-          icon={ChartBarIcon}
-          color="primary"
-          className="bg-teal-50 border-teal-200"
-        />
+        <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="New Students This Month"
+            value={dashboardData?.newStudentsThisMonth?.toString() || '0'}
+            icon={UserPlusIcon}
+            color="success"
+          />
+        </Link>
+        <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="Students with Parents"
+            value={dashboardData?.studentsWithParents?.toString() || '0'}
+            icon={UsersIcon}
+            color="success"
+          />
+        </Link>
+        <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="Students without Parents"
+            value={dashboardData?.studentsWithoutParents?.toString() || '0'}
+            icon={UsersIcon}
+            color="danger"
+          />
+        </Link>
+        <Link href="/dashboard/bursar/reports" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+          <StatsCard
+            title="Recent Transactions"
+            value={dashboardData?.recentTransactions?.toString() || '0'}
+            icon={ChartBarIcon}
+            color="primary"
+          />
+        </Link>
       </div>
+
+      <TasksNotificationsSection />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
         {/* Payment Methods Breakdown */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Payment Methods</h3>
+            <Link href="/dashboard/bursar/reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">View reports →</Link>
           </CardHeader>
           <CardBody>
             {dashboardData?.paymentMethods && dashboardData.paymentMethods.length > 0 ? (
@@ -186,8 +197,9 @@ export default function BursarOverviewPage() {
 
         {/* Recent Registrations */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Recent Registrations</h3>
+            <Link href="/dashboard/bursar/student-registration" className="text-xs font-medium text-blue-600 hover:text-blue-800">Register →</Link>
           </CardHeader>
           <CardBody>
             {dashboardData?.recentRegistrations && dashboardData.recentRegistrations.length > 0 ? (

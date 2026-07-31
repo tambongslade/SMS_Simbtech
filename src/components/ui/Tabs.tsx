@@ -79,7 +79,7 @@ export function Tabs({
       {/* Tab List */}
       <div
         role="tablist"
-        className={`flex ${variants[variant].list}`}
+        className={`flex overflow-x-auto ${variants[variant].list}`}
       >
         {tabs.map((tab, index) => (
           <button
@@ -90,7 +90,7 @@ export function Tabs({
             disabled={tab.disabled}
             onClick={() => handleTabClick(index)}
             className={`
-              relative
+              relative shrink-0 whitespace-nowrap
               ${variants[variant].tab.base}
               ${sizes[size]}
               ${activeIndex === index

@@ -87,7 +87,7 @@ const quickActions: QuickAction[] = [
     color: 'purple',
   },
   {
-    label: 'Finance Requests',
+    label: 'Expense Requisition',
     description: 'Approve requests & verifications',
     href: '/dashboard/vice-principal/finance-requests',
     icon: BanknotesIcon,

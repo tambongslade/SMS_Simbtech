@@ -24,7 +24,7 @@ const quickActions: QuickAction[] = [
     color: 'blue',
   },
   {
-    label: 'Finance Requests',
+    label: 'Expense Requisition',
     description: "Approvals & verifications",
     href: '/dashboard/manager/finance-requests',
     icon: BanknotesIcon,

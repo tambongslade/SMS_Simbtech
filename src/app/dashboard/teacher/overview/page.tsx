@@ -15,6 +15,7 @@ import {
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { toast } from 'react-hot-toast';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 
 interface TeacherDashboardData {
   assignedSubjects: number;
@@ -386,6 +387,7 @@ export default function TeacherDashboard() {
           </div>
         </CardBody>
       </Card>
+      <TasksNotificationsSection />
     </div>
   );
 } 

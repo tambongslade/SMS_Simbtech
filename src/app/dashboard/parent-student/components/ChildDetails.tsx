@@ -38,25 +38,25 @@ interface Quiz {
 // Overview Tab Component
 const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
     return (
-        <div className="p-6 space-y-6">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
             {/* Student Information */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="flex items-center space-x-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div className="flex items-start gap-3 sm:gap-4">
                         {childData?.photo ? (
-                            <img src={childData.photo} alt={childData.name} className="w-16 h-16 rounded-full" />
+                            <img src={childData.photo} alt={childData.name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shrink-0" />
                         ) : (
-                            <UserCircleIcon className="w-16 h-16 text-gray-400" />
+                            <UserCircleIcon className="w-14 h-14 sm:w-16 sm:h-16 text-gray-400 shrink-0" />
                         )}
-                        <div>
-                            <h4 className="text-xl font-bold text-gray-900">{childData?.name}</h4>
-                            <p className="text-gray-600">Matricule: {childData?.matricule || 'N/A'}</p>
-                            <p className="text-gray-600">Class: {childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
+                        <div className="min-w-0">
+                            <h4 className="text-lg sm:text-xl font-bold text-gray-900 break-words leading-snug">{childData?.name}</h4>
+                            <p className="text-sm sm:text-base text-gray-600 break-words">Matricule: {childData?.matricule || 'N/A'}</p>
+                            <p className="text-sm sm:text-base text-gray-600 break-words">Class: {childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <p><span className="font-medium">Class Master:</span> {childData?.classInfo?.classMaster || 'N/A'}</p>
+                    <div className="space-y-2 text-sm sm:text-base">
+                        <p className="break-words"><span className="font-medium">Class Master:</span> {childData?.classInfo?.classMaster || 'N/A'}</p>
                         <p><span className="font-medium">Date of Birth:</span> {childData?.dateOfBirth ? new Date(childData.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
                         <p><span className="font-medium">Enrollment Status:</span>
                             <span className={`ml-2 px-2 py-1 rounded-full text-xs ${childData?.enrollmentStatus === 'ACTIVE'
@@ -71,13 +71,13 @@ const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
             </div>
 
             {/* Quick Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
                 <div className="bg-blue-50 rounded-lg p-4">
                     <div className="flex items-center">
                         <AcademicCapIcon className="w-8 h-8 text-blue-600" />
-                        <div className="ml-3">
-                            <div className="text-2xl font-bold text-blue-900">{childData?.academicPerformance?.overallAverage || 'N/A'}</div>
-                            <div className="text-sm text-blue-600">Overall Average</div>
+                        <div className="ml-2.5 sm:ml-3 min-w-0">
+                            <div className="text-lg sm:text-2xl font-bold text-blue-900 truncate">{childData?.academicPerformance?.overallAverage || 'N/A'}</div>
+                            <div className="text-xs sm:text-sm text-blue-600">Overall Average</div>
                         </div>
                     </div>
                 </div>
@@ -87,9 +87,9 @@ const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
                         <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                             <span className="text-green-600 font-bold">✓</span>
                         </div>
-                        <div className="ml-3">
-                            <div className="text-2xl font-bold text-green-900">{childData?.attendance?.attendanceRate || 0}%</div>
-                            <div className="text-sm text-green-600">Attendance Rate</div>
+                        <div className="ml-2.5 sm:ml-3 min-w-0">
+                            <div className="text-lg sm:text-2xl font-bold text-green-900 truncate">{childData?.attendance?.attendanceRate || 0}%</div>
+                            <div className="text-xs sm:text-sm text-green-600">Attendance Rate</div>
                         </div>
                     </div>
                 </div>
@@ -99,9 +99,9 @@ const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
                         <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                             <span className="text-purple-600 font-bold">#</span>
                         </div>
-                        <div className="ml-3">
-                            <div className="text-2xl font-bold text-purple-900">{childData?.academicPerformance?.positionInClass || 'N/A'}</div>
-                            <div className="text-sm text-purple-600">Class Rank</div>
+                        <div className="ml-2.5 sm:ml-3 min-w-0">
+                            <div className="text-lg sm:text-2xl font-bold text-purple-900 truncate">{childData?.academicPerformance?.positionInClass || 'N/A'}</div>
+                            <div className="text-xs sm:text-sm text-purple-600">Class Rank</div>
                         </div>
                     </div>
                 </div>
@@ -109,9 +109,9 @@ const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
                 <div className="bg-red-50 rounded-lg p-4">
                     <div className="flex items-center">
                         <CurrencyDollarIcon className="w-8 h-8 text-red-600" />
-                        <div className="ml-3">
-                            <div className="text-2xl font-bold text-red-900">{(childData?.fees?.outstandingBalance || 0).toLocaleString()}</div>
-                            <div className="text-sm text-red-600">Pending Fees (FCFA)</div>
+                        <div className="ml-2.5 sm:ml-3 min-w-0">
+                            <div className="text-lg sm:text-2xl font-bold text-red-900 truncate">{(childData?.fees?.outstandingBalance || 0).toLocaleString()}</div>
+                            <div className="text-xs sm:text-sm text-red-600">Pending Fees (FCFA)</div>
                         </div>
                     </div>
                 </div>
@@ -482,19 +482,19 @@ export const ChildDetails: FC<ChildDetailsProps> = ({ childId, onBack }) => {
     return (
         <div className="h-full flex flex-col">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
-                <div className="flex items-center mb-4">
-                    <Button variant="ghost" onClick={onBack} className="mr-4">
+            <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
+                <div className="flex items-center">
+                    <Button variant="ghost" onClick={onBack} className="mr-1 sm:mr-4 shrink-0 px-2">
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Button>
                     {childData?.photo ? (
-                        <img src={childData.photo} alt={childData.name} className="w-12 h-12 rounded-full mr-4" />
+                        <img src={childData.photo} alt={childData.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mr-3 sm:mr-4 shrink-0" />
                     ) : (
-                        <UserCircleIcon className="w-12 h-12 text-gray-400 mr-4" />
+                        <UserCircleIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mr-3 sm:mr-4 shrink-0" />
                     )}
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">{childData?.name}</h1>
-                        <p className="text-gray-600">{childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 leading-tight break-words">{childData?.name}</h1>
+                        <p className="text-sm sm:text-base text-gray-600 truncate">{childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
                     </div>
                 </div>
             </div>

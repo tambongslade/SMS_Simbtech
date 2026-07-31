@@ -397,7 +397,7 @@ const FinancialReportsPage = () => {
                   <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{reportData.length} classes</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-max">
+                  <table className="w-full">
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="text-left py-3 px-4 font-medium text-gray-700">Class Name</th>
@@ -444,7 +444,8 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">👥 Student Fee Details</h3>
                   <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} students</span>
                 </div>
-                <table className="w-full min-w-max">
+                <div className="overflow-x-auto">
+                <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Student Name</th>
@@ -494,6 +495,7 @@ const FinancialReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 
@@ -504,7 +506,8 @@ const FinancialReportsPage = () => {
                   <h3 className="text-md font-medium text-gray-700">💳 Payment Method Analytics</h3>
                   <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} methods</span>
                 </div>
-                <table className="w-full min-w-max">
+                <div className="overflow-x-auto">
+                <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
                       <th className="text-left py-3 px-4 font-medium text-gray-700">Payment Method</th>
@@ -538,6 +541,7 @@ const FinancialReportsPage = () => {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             )}
 

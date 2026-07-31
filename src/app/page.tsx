@@ -63,8 +63,8 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-      <div className="relative mx-auto p-6 border w-full max-w-lg shadow-lg rounded-lg bg-white">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+      <div className="relative mx-auto p-6 border w-full max-w-lg shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
             Select Your Role

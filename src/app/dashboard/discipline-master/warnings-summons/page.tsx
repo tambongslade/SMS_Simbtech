@@ -443,7 +443,7 @@ export default function WarningsSummonsPage() {
       {/* Resolve warning modal */}
       {resolveTarget && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
             <button onClick={() => setResolveTarget(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>

@@ -65,7 +65,7 @@ const quickActions: QuickAction[] = [
     color: 'cyan',
   },
   {
-    label: 'Finance Requests',
+    label: 'Expense Requisition',
     description: "Approvals & verifications",
     href: '/dashboard/super-manager/finance-requests',
     icon: BanknotesIcon,

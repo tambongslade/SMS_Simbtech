@@ -19,6 +19,41 @@ const clearAuthData = () => {
     }
 };
 
+// ── User-friendly error messages ──
+// Backend error bodies range from clean sentences to Prisma dumps, validation
+// arrays and whole HTML pages. Only clean, short server messages are shown to
+// the user; everything else falls back to a friendly status-based message.
+const FRIENDLY_BY_STATUS: Record<number, string> = {
+    400: 'Some of the information sent was not valid. Please check and try again.',
+    403: "You don't have permission to perform this action.",
+    404: 'The requested information could not be found.',
+    408: 'The request took too long. Please try again.',
+    409: 'This conflicts with information that already exists.',
+    422: 'Some of the information sent was not valid. Please check and try again.',
+    429: 'Too many requests at once. Please wait a moment and try again.',
+};
+
+const friendlyStatusMessage = (status: number): string =>
+    FRIENDLY_BY_STATUS[status] ?? (status >= 500
+        ? 'Something went wrong on the server. Please try again in a moment.'
+        : 'The request could not be completed. Please try again.');
+
+// Heuristics for messages that should never reach a user's screen.
+const looksTechnical = (message: string): boolean =>
+    message.length > 160
+    || /<\/?[a-z][^>]*>/i.test(message) // HTML fragments / error pages
+    || /\b(prisma|sql|query|traceback|stack|exception|econn|etimedout|enotfound|typeerror|referenceerror|undefined|null|jwt|token)\b/i.test(message)
+    || /\n\s+at\s/.test(message); // stack traces
+
+const humanizeServerMessage = (raw: unknown, status: number): string => {
+    // NestJS-style validation errors arrive as an array of strings.
+    const message = Array.isArray(raw)
+        ? raw.filter((m): m is string => typeof m === 'string').slice(0, 3).join('. ')
+        : typeof raw === 'string' ? raw.trim() : '';
+    if (!message || looksTechnical(message)) return friendlyStatusMessage(status);
+    return message.charAt(0).toUpperCase() + message.slice(1);
+};
+
 interface RequestOptions extends RequestInit {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     body?: any; // Allow any body type for flexibility, will be stringified if object
@@ -78,20 +113,10 @@ async function request<T = any>(
         });
 
         if (response.status === 401) {
-            // Unauthorized
+            // Unauthorized — server details ("jwt expired", "invalid token"…) are
+            // never useful to the user mid-session.
             clearAuthData();
-            let errorMessage = 'Your session has expired. Please log in again.';
-            try {
-                const errorData = await response.clone().json(); // Clone to read body again if needed
-                if (errorData && errorData.message) {
-                    errorMessage = errorData.message;
-                } else if (errorData && errorData.error) { // Handle cases like {"error":"Token expired"}
-                    errorMessage = errorData.error;
-                }
-            } catch (e) {
-                // Ignore if error response is not JSON
-            }
-            toast.error(errorMessage);
+            toast.error('Your session has expired. Please log in again.', { id: 'api-error' });
             if (typeof window !== 'undefined') {
                 // Ensure this only runs client-side
                 window.location.href = '/'; // Redirect to login
@@ -102,16 +127,16 @@ async function request<T = any>(
 
         if (!response.ok) {
             // Handle other errors (4xx, 5xx)
-            let errorMessage = `Request failed with status ${response.status}`;
+            let serverMessage: unknown;
             try {
                 const errorData = await response.json();
-                errorMessage = errorData.message || errorData.error || errorMessage;
-            } catch (e) {
-                // Ignore if error response is not JSON
-                const textError = await response.text();
-                errorMessage = textError || errorMessage;
+                serverMessage = errorData?.message ?? errorData?.error;
+            } catch {
+                // Non-JSON body (e.g. an HTML error page) — never show it to the user.
             }
-            toast.error(errorMessage);
+            const errorMessage = humanizeServerMessage(serverMessage, response.status);
+            // A shared toast id keeps repeated/parallel failures from stacking.
+            toast.error(errorMessage, { id: 'api-error' });
             throw new Error(errorMessage);
         }
 
@@ -135,8 +160,13 @@ async function request<T = any>(
     } catch (error) {
         // Log network errors or errors from response.json()
         console.error('API Service Error:', error);
-        if (!(error instanceof Error && error.message === 'Unauthorized')) { // Don't double-toast for 401
-            // toast.error(error instanceof Error ? error.message : 'An unexpected error occurred.');
+        // fetch throws TypeError when the server is unreachable — the raw
+        // "Failed to fetch" message means nothing to users. Re-throw with the
+        // friendly text so components that toast error.message stay readable.
+        if (error instanceof TypeError) {
+            const friendly = 'Could not reach the server. Please check your internet connection and try again.';
+            toast.error(friendly, { id: 'api-error' });
+            throw new Error(friendly);
         }
         throw error; // Re-throw the error so the calling component can handle it if needed
     }

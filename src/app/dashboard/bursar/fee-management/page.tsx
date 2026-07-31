@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useFeeManagement } from "./hooks/useFeeManagement";
 import { Header } from "./components/Header";
 import { Filters } from "./components/Filters";
@@ -10,11 +11,20 @@ import { PaymentModal } from "./components/ui/PaymentModal";
 import { StudentModal } from "./components/ui/StudentModal";
 import { TransactionsModal } from "./components/ui/PaymentModal";
 import { SubclassSummaryModal } from "./components/ui/SubclassSummaryModal";
+import { RecordPaymentSearch } from "./components/ui/RecordPaymentSearch";
+import { PaymentRecordsView } from "./components/ui/PaymentRecordsView";
 import { Student, NewStudent } from './types';
 import { toast } from "react-hot-toast";
 
 export default function FeeManagementPage() {
+  const [viewTab, setViewTab] = useState<'records' | 'students'>('records');
   const {
+    paymentRecords,
+    isLoadingPaymentRecords,
+    studentSearchTerm,
+    setStudentSearchTerm,
+    studentSearchResults,
+    isSearchingStudents,
     selectedClass,
     setSelectedClass,
     selectedPaymentStatus,
@@ -43,8 +53,6 @@ export default function FeeManagementPage() {
     getFilteredStudents,
     handlePayment,
     handleAddStudent,
-    handleExportPDF,
-    handleExportExcel,
     isLoading,
     isLoadingClasses,
     fetchError,
@@ -77,6 +85,13 @@ export default function FeeManagementPage() {
   } = useFeeManagement();
 
   const handleRecordPaymentClick = (student: Student) => {
+    setSelectedStudent(student);
+    setShowPaymentModal(true);
+  };
+
+  // Chosen from the search popup → open the normal record-payment modal
+  const handleSearchSelectStudent = (student: Student) => {
+    setStudentSearchTerm('');
     setSelectedStudent(student);
     setShowPaymentModal(true);
   };
@@ -137,69 +152,111 @@ export default function FeeManagementPage() {
         setShowStudentModal={setShowStudentModal}
         setShowPaymentModal={setShowPaymentModal}
       />
-      <Filters
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        selectedClass={selectedClass}
-        setSelectedClass={setSelectedClass}
-        selectedPaymentStatus={selectedPaymentStatus}
-        setSelectedPaymentStatus={setSelectedPaymentStatus}
-        sortMode={sortMode}
-        setSortMode={setSortMode}
-        handleExportPDF={handleExportPDF}
-        handleExportExcel={handleExportExcel}
-        handleExportEnhanced={handleExportEnhanced}
-        onShowSubclassSummary={handleShowSubclassSummary}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        classes={classesList}
-        isLoadingClasses={isLoadingClasses}
+
+      {/* Search a student → popup with matches → pick one → record payment */}
+      <RecordPaymentSearch
+        searchTerm={studentSearchTerm}
+        setSearchTerm={setStudentSearchTerm}
+        results={studentSearchResults}
+        isSearching={isSearchingStudents}
+        onSelectStudent={handleSearchSelectStudent}
       />
+
+      {/* View tabs: payment records ledger (default) or the student roster */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6 overflow-x-auto">
+          {([
+            { key: 'records', label: 'Payment Records' },
+            { key: 'students', label: 'Students' },
+          ] as const).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setViewTab(tab.key)}
+              className={`whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+                viewTab === tab.key
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
 
       {fetchError && <div className="text-red-600 text-center p-2">Error: {fetchError}</div>}
 
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <p className="text-gray-600">Loading Students...</p>
-        </div>
-      ) : (
+      {viewTab === 'records' && (
+        <PaymentRecordsView
+          records={paymentRecords}
+          isLoading={isLoadingPaymentRecords}
+          onUpdatePayment={handleUpdatePayment}
+        />
+      )}
+
+      {viewTab === 'students' && (
         <>
-          {viewMode === "list" ? (
+          <Filters
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            selectedClass={selectedClass}
+            setSelectedClass={setSelectedClass}
+            selectedPaymentStatus={selectedPaymentStatus}
+            setSelectedPaymentStatus={setSelectedPaymentStatus}
+            sortMode={sortMode}
+            setSortMode={setSortMode}
+            handleExportEnhanced={handleExportEnhanced}
+            onShowSubclassSummary={handleShowSubclassSummary}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            classes={classesList}
+            isLoadingClasses={isLoadingClasses}
+          />
+
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <p className="text-gray-600">Loading Students...</p>
+            </div>
+          ) : (
             <>
-              {/* List view is desktop-only; phones always get the card layout. */}
-              <div className="hidden md:block">
-                <ListView
-                  students={getFilteredStudents()}
-                  onRecordPayment={handleRecordPaymentClick}
-                  onViewTransactions={handleViewTransactions}
-                />
-              </div>
-              <div className="md:hidden">
+              {viewMode === "list" ? (
+                <>
+                  {/* List view is desktop-only; phones always get the card layout. */}
+                  <div className="hidden md:block">
+                    <ListView
+                      students={getFilteredStudents()}
+                      onRecordPayment={handleRecordPaymentClick}
+                      onViewTransactions={handleViewTransactions}
+                    />
+                  </div>
+                  <div className="md:hidden">
+                    <CardView
+                      students={getFilteredStudents()}
+                      onRecordPayment={handleRecordPaymentClick}
+                      onViewHistory={handleViewHistory}
+                      onViewTransactions={handleViewTransactions}
+                    />
+                  </div>
+                </>
+              ) : (
                 <CardView
                   students={getFilteredStudents()}
                   onRecordPayment={handleRecordPaymentClick}
                   onViewHistory={handleViewHistory}
                   onViewTransactions={handleViewTransactions}
                 />
-              </div>
+              )}
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+              />
             </>
-          ) : (
-            <CardView
-              students={getFilteredStudents()}
-              onRecordPayment={handleRecordPaymentClick}
-              onViewHistory={handleViewHistory}
-              onViewTransactions={handleViewTransactions}
-            />
           )}
-          
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-            onItemsPerPageChange={setItemsPerPage}
-          />
         </>
       )}
 

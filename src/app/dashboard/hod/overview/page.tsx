@@ -6,6 +6,7 @@ import { StatsCard } from '@/components/ui/StatsCard';
 import { useAuth } from '@/components/context/AuthContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import {
   AcademicCapIcon,
   UserGroupIcon,
@@ -401,6 +402,7 @@ export default function HODDashboard() {
           </div>
         </div>
       )}
+      <TasksNotificationsSection />
     </div>
   );
 } 

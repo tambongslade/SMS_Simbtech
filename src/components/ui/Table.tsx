@@ -94,74 +94,76 @@ export function Table<T extends { id?: string | number }>({
   };
 
   return (
-    <div className={`overflow-x-auto ${className}`}>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {selectable && (
-              <th scope="col" className="px-6 py-3 w-12">
-                <input
-                  type="checkbox"
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  checked={selectedItems.length === paginatedData.length}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                />
-              </th>
-            )}
-            {columns.map((column) => (
-              <th
-                key={String(column.key)}
-                scope="col"
-                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-              >
-                {column.sortable ? (
-                  <button
-                    className="group inline-flex items-center space-x-1"
-                    onClick={() => handleSort(column.key)}
-                  >
-                    <span>{column.header}</span>
-                    <span className="text-gray-400 group-hover:text-gray-500">
-                      {getSortIcon(column.key)}
-                    </span>
-                  </button>
-                ) : (
-                  column.header
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {paginatedData.map((item, index) => (
-            <tr key={item.id ?? index} className="hover:bg-gray-50">
+    <div className={className}>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
               {selectable && (
-                <td className="px-6 py-4 whitespace-nowrap w-12">
+                <th scope="col" className="px-6 py-3 w-12">
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    checked={selectedItems.includes(item)}
-                    onChange={(e) => handleSelectItem(item, e.target.checked)}
+                    checked={selectedItems.length === paginatedData.length}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
                   />
-                </td>
+                </th>
               )}
               {columns.map((column) => (
-                <td
+                <th
                   key={String(column.key)}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                 >
-                  {column.render
-                    ? column.render(item[column.key], item)
-                    : String(item[column.key] ?? '')}
-                </td>
+                  {column.sortable ? (
+                    <button
+                      className="group inline-flex items-center space-x-1"
+                      onClick={() => handleSort(column.key)}
+                    >
+                      <span>{column.header}</span>
+                      <span className="text-gray-400 group-hover:text-gray-500">
+                        {getSortIcon(column.key)}
+                      </span>
+                    </button>
+                  ) : (
+                    column.header
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {paginatedData.map((item, index) => (
+              <tr key={item.id ?? index} className="hover:bg-gray-50">
+                {selectable && (
+                  <td className="px-6 py-4 whitespace-nowrap w-12">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={selectedItems.includes(item)}
+                      onChange={(e) => handleSelectItem(item, e.target.checked)}
+                    />
+                  </td>
+                )}
+                {columns.map((column) => (
+                  <td
+                    key={String(column.key)}
+                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                  >
+                    {column.render
+                      ? column.render(item[column.key], item)
+                      : String(item[column.key] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between px-6 py-3 bg-white border-t border-gray-200">
+        <div className="flex flex-wrap gap-2 items-center justify-between px-4 sm:px-6 py-3 bg-white border-t border-gray-200">
           <div className="flex items-center">
             <p className="text-sm text-gray-700">
               Showing{' '}

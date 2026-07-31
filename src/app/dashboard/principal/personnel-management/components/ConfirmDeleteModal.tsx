@@ -14,7 +14,7 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({ isOpen, 
 
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
-            <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-lg bg-white">
+            <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
                 <div className="flex items-center mb-4">
                     <div className="flex-shrink-0">
                         <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">

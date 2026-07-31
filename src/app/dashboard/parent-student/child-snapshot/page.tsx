@@ -143,7 +143,7 @@ function ChildSnapshotInner() {
         <>
           {/* Student header */}
           <div className="bg-white rounded-lg shadow p-4">
-            <h1 className="text-lg font-bold text-gray-900">{snapshot.student.name}</h1>
+            <h1 className="text-lg font-bold text-gray-900 break-words leading-snug">{snapshot.student.name}</h1>
             <p className="text-xs text-gray-500 mt-0.5">
               {snapshot.student.matricule}
               {snapshot.enrollment?.className ? ` · ${snapshot.enrollment.className}${snapshot.enrollment.subclassName ? ` ${snapshot.enrollment.subclassName}` : ''}` : ''}

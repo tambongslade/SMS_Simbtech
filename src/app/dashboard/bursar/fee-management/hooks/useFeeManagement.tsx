@@ -14,6 +14,22 @@ import { useAuth } from '@/components/context/AuthContext';
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
+// One recorded payment transaction, flattened with its student/class context
+export interface PaymentRecord {
+  id: number | string;
+  feeId: number | string;
+  studentId?: number | string;
+  studentName: string;
+  matricule: string;
+  className: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  receiptNumber: string;
+  /** When the payment was recorded — drives the 24h edit window */
+  createdAt: string;
+}
+
 // SWR fetcher using apiService with error handling
 const fetcher = async (url: string) => {
   try {
@@ -116,24 +132,14 @@ export const useFeeManagement = () => {
     return found?.name;
   }, [classesList]);
 
-  // Process Fee Records Data and Pagination Info
-  const { students, totalPages, totalItems } = useMemo(() => {
-    // Fix: API returns { success: true, data: { data: [...], meta: {...} } }
-    // So we need to access the nested data.data property
-    const records = feeRecordsResult?.data?.data;
-    const meta = feeRecordsResult?.data?.meta;
-    
-    if (!Array.isArray(records)) {
-      return { students: [], totalPages: 0, totalItems: 0 };
-    }
-
-    const studentsData = records.map((feeRecord: any): Student => {
+  // Shared mapper: raw fee record -> Student (used for the main list and the quick-search)
+  const mapFeeRecordToStudent = useCallback((feeRecord: any): Student => {
       const studentData = feeRecord.enrollment?.student;
       const classId = feeRecord.enrollment?.classId;
       const className = feeRecord.enrollment?.class?.name || findClassNameById(classId) || 'N/A';
       const subclassId = feeRecord.enrollment?.subClassId;
       const subclassName = feeRecord.enrollment?.subClass?.name;
-      
+
       return {
         id: studentData?.id?.toString() || feeRecord.id.toString(),
         name: studentData?.name || 'Unknown Student',
@@ -158,17 +164,91 @@ export const useFeeManagement = () => {
         feeId: feeRecord.id,
         createdAt: feeRecord.createdAt || feeRecord.enrollment?.createdAt || studentData?.createdAt,
       };
-    });
+  }, [findClassNameById]);
+
+  // Process Fee Records Data and Pagination Info
+  const { students, totalPages, totalItems } = useMemo(() => {
+    // Fix: API returns { success: true, data: { data: [...], meta: {...} } }
+    // So we need to access the nested data.data property
+    const records = feeRecordsResult?.data?.data;
+    const meta = feeRecordsResult?.data?.meta;
+
+    if (!Array.isArray(records)) {
+      return { students: [], totalPages: 0, totalItems: 0 };
+    }
+
+    const studentsData = records.map(mapFeeRecordToStudent);
 
     const total = meta?.total || 0;
     const calculatedTotalPages = Math.ceil(total / itemsPerPage);
 
-    return { 
-      students: studentsData, 
-      totalPages: calculatedTotalPages, 
-      totalItems: total 
+    return {
+      students: studentsData,
+      totalPages: calculatedTotalPages,
+      totalItems: total
     };
-  }, [feeRecordsResult, findClassNameById, itemsPerPage]);
+  }, [feeRecordsResult, mapFeeRecordToStudent, itemsPerPage]);
+
+  // --- Payment Records Ledger (every recorded transaction, newest first) ---
+  const { data: ledgerFeeRecords, isLoading: isLoadingPaymentRecords, mutate: mutatePaymentRecords } = useSWR(
+    currentAcademicYear ? ['bursar-fee-ledger', currentAcademicYear.id] : null,
+    async ([, yearId]) => {
+      const limit = 500;
+      const maxPages = 20;
+      let records: any[] = [];
+      for (let page = 1; page <= maxPages; page++) {
+        const res = await apiService.get(`/fees?academicYearId=${yearId}&page=${page}&limit=${limit}`);
+        const batch = res?.data?.data ?? [];
+        records = records.concat(batch);
+        const total = res?.data?.meta?.total ?? records.length;
+        if (batch.length === 0 || records.length >= total) break;
+      }
+      return records;
+    }
+  );
+
+  const paymentRecords = useMemo((): PaymentRecord[] => {
+    const out: PaymentRecord[] = [];
+    (ledgerFeeRecords ?? []).forEach((feeRecord: any) => {
+      const studentData = feeRecord.enrollment?.student;
+      const className = feeRecord.enrollment?.class?.name || findClassNameById(feeRecord.enrollment?.classId) || 'N/A';
+      const subclassName = feeRecord.enrollment?.subClass?.name;
+      (feeRecord.paymentTransactions || []).forEach((tx: any) => {
+        out.push({
+          id: tx.id,
+          feeId: feeRecord.id,
+          studentId: studentData?.id,
+          studentName: studentData?.name || 'Unknown Student',
+          matricule: studentData?.matricule || 'N/A',
+          className: subclassName || className,
+          amount: tx.amount || 0,
+          paymentDate: tx.paymentDate || '',
+          paymentMethod: tx.paymentMethod || '',
+          receiptNumber: tx.receiptNumber || '',
+          createdAt: tx.createdAt || tx.created_at || tx.paymentDate || '',
+        });
+      });
+    });
+    return out.sort((a, b) => (b.paymentDate || '').localeCompare(a.paymentDate || ''));
+  }, [ledgerFeeRecords, findClassNameById]);
+
+  // --- Student quick-search (drives the record-payment search bar) ---
+  const [studentSearchTerm, setStudentSearchTerm] = useState('');
+  const [debouncedStudentSearch, setDebouncedStudentSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedStudentSearch(studentSearchTerm.trim()), 350);
+    return () => clearTimeout(t);
+  }, [studentSearchTerm]);
+
+  const studentSearchKey = currentAcademicYear && debouncedStudentSearch.length >= 2
+    ? `/fees?academicYearId=${currentAcademicYear.id}&page=1&limit=20&search=${encodeURIComponent(debouncedStudentSearch)}`
+    : null;
+  const { data: studentSearchResult, isLoading: isSearchingStudents } = useSWR<{ data: { data: any[] } }>(studentSearchKey, fetcher);
+  const studentSearchResults = useMemo((): Student[] => {
+    const records = studentSearchResult?.data?.data;
+    if (!Array.isArray(records)) return [];
+    return records.map(mapFeeRecordToStudent);
+  }, [studentSearchResult, mapFeeRecordToStudent]);
 
   // --- Consolidated Loading and Error State --- 
   const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || !currentAcademicYear;
@@ -310,6 +390,7 @@ export const useFeeManagement = () => {
       }
 
       mutateFeeRecords(); // Revalidate fee records after payment
+      mutatePaymentRecords(); // Refresh the payment records ledger
       resetPaymentForm();
       setShowPaymentModal(false);
     } catch (error: any) {
@@ -412,6 +493,7 @@ export const useFeeManagement = () => {
       toast.success('Payment updated successfully!');
       await fetchFeeTransactions(feeId); // Refresh the transactions list
       mutateFeeRecords(); // Refresh balances/paid amounts in the main list
+      mutatePaymentRecords(); // Refresh the payment records ledger
       return true;
     } catch (error: any) {
       console.error('Error updating payment:', error);
@@ -433,25 +515,34 @@ export const useFeeManagement = () => {
     }
   };
 
-  const handleExportEnhanced = async (format: 'csv' | 'pdf' | 'xlsx' = 'csv') => {
+  // Fee report export — GET /fees/export with format + reportType + current filters
+  const handleExportEnhanced = async (
+    format: 'csv' | 'pdf' | 'xlsx' | 'docx' = 'xlsx',
+    reportType: 'detailed' | 'summary' | 'analytics' = 'detailed'
+  ) => {
+    const yearId = currentAcademicYear?.id ?? activeAcademicYear?.id;
+    if (!yearId) {
+      toast.error('No academic year selected.');
+      return;
+    }
     const params = new URLSearchParams({
-      format: format,
-      academicYearId: activeAcademicYear?.id?.toString() || '',
-      subClassId: selectedClass === 'all' ? '' : selectedClass,
-      termId: selectedTerm === 'all' ? '' : selectedTerm,
-      status: selectedPaymentStatus === 'all' ? '' : selectedPaymentStatus,
-      search: searchQuery,
+      format,
+      reportType,
+      academicYearId: String(yearId),
     });
-    const exportUrl = `/fees/export-enhanced?${params.toString()}`;
+    if (selectedClass !== 'all') params.append('classId', selectedClass);
+    if (selectedPaymentStatus !== 'all') params.append('paymentStatus', selectedPaymentStatus.toLowerCase());
+    if (searchQuery && reportType === 'detailed') params.append('studentIdentifier', searchQuery);
+    const exportUrl = `/fees/export?${params.toString()}`;
 
     try {
-      toast.loading(`Preparing ${format.toUpperCase()} export...`, { id: 'export-enhanced-toast' });
+      toast.loading(`Preparing ${reportType} ${format.toUpperCase()} export...`, { id: 'export-enhanced-toast' });
       const response = await apiService.get(exportUrl, {}, 'blob');
 
       const downloadUrl = window.URL.createObjectURL(response);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      const filename = `fees_export_enhanced_${new Date().toISOString().split('T')[0]}.${format}`;
+      const filename = `fees_${reportType}_${new Date().toISOString().split('T')[0]}.${format}`;
       link.setAttribute('download', filename);
       document.body.appendChild(link);
       link.click();
@@ -459,12 +550,19 @@ export const useFeeManagement = () => {
       window.URL.revokeObjectURL(downloadUrl);
       toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-enhanced-toast' });
     } catch (error: any) {
-      console.error(`Enhanced export failed for ${format}:`, error);
-      toast.error(`Enhanced export failed: ${error.message || 'Please try again.'}`, { id: 'export-enhanced-toast' });
+      console.error(`Export failed for ${format}:`, error);
+      toast.error(`Export failed: ${error.message || 'Please try again.'}`, { id: 'export-enhanced-toast' });
     }
   };
 
   return {
+    // Payment records ledger + student quick-search
+    paymentRecords,
+    isLoadingPaymentRecords,
+    studentSearchTerm,
+    setStudentSearchTerm,
+    studentSearchResults,
+    isSearchingStudents,
     selectedClass,
     setSelectedClass,
     selectedTerm,

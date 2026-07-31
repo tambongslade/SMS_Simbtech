@@ -215,7 +215,7 @@ export default function DisciplineMasterManagement() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-6">Discipline Master Management</h1>
 
                 {/* DM List/Table */}
-                <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
@@ -277,8 +277,8 @@ export default function DisciplineMasterManagement() {
 
             {/* Assignment Modal */}
             {isAssignmentModalOpen && selectedDm && (
-                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-                    <div className="relative mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+                <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+                    <div className="relative mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         {/* Updated Title */}
                         <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Assign Subclasses to: {selectedDm.name}</h3>
 

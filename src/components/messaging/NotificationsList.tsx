@@ -287,16 +287,16 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                         >
                             <div className="flex items-start space-x-3">
                                 <div className="flex-shrink-0 mt-1">
-                                    {getNotificationIcon(notification.type)}
+                                    {getNotificationIcon(notification.type ?? notification.category ?? 'MESSAGE')}
                                 </div>
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center space-x-2">
                                             <span
-                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getNotificationTypeColor(notification.type)}`}
+                                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getNotificationTypeColor(notification.type ?? notification.category ?? 'MESSAGE')}`}
                                             >
-                                                {notification.type ? notification.type.charAt(0).toUpperCase() + notification.type.slice(1).toLowerCase() : ''}
+                                                {(notification.type ?? notification.category ?? '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                                             </span>
                                             {notification.status !== 'READ' && (
                                                 <span className="w-2 h-2 bg-blue-500 rounded-full"></span>

@@ -1,687 +1,521 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { Card } from '@/components/ui/Card';
-import { StatsCard } from '@/components/ui/StatsCard';
-import { Button } from '@/components/ui/Button';
-import { useAuth } from '@/components/context/AuthContext';
-import { apiService } from '@/lib/apiService';
-import toast from 'react-hot-toast';
-import { 
-  UsersIcon,
-  CurrencyDollarIcon,
-  ClipboardDocumentListIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-  ArrowTrendingUpIcon,
-  BuildingOfficeIcon,
-  WrenchScrewdriverIcon,
-  DocumentTextIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  ClockIcon
+'use client'
+import { useEffect, useMemo } from 'react';
+import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import useSWR from 'swr';
+import {
+    AcademicCapIcon,
+    BanknotesIcon,
+    CheckCircleIcon,
+    ClipboardDocumentListIcon,
+    DocumentChartBarIcon,
+    IdentificationIcon,
+    UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { StatsCard, Card, CardHeader, CardTitle, CardBody, Badge } from '@/components/ui';
+import { useAuth } from '@/components/context/AuthContext';
+import apiService from '@/lib/apiService';
+import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 
-interface DashboardData {
-  totalStaff: number;
-  totalStudents: number;
-  totalParents: number;
-  activeClasses: number;
-  pendingTasks: number;
-  todaysSchedule: Array<{
-    id: number;
-    time: string;
-    activity: string;
-    location: string;
-    attendees: Array<string>;
-    status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-  }>;
-  operationalMetrics: {
-    attendanceRate: number;
-    disciplineIssues: number;
-    feeCollection: number;
-    maintenanceRequests: number;
-  };
-  staffOverview: {
-    present: number;
-    absent: number;
-    onLeave: number;
-    newRequests: number;
-  };
-  recentActivities: Array<{
-    id: number;
-    activity: string;
-    user: string;
-    timestamp: string;
-    category: "ACADEMIC" | "ADMINISTRATIVE" | "OPERATIONAL" | "FINANCIAL";
-    priority: "LOW" | "MEDIUM" | "HIGH";
-  }>;
-  alerts: Array<{
-    id: number;
-    type: "WARNING" | "INFO" | "URGENT";
-    message: string;
-    timestamp: string;
-    actionRequired: boolean;
-  }>;
+// ── GET /manager/dashboard (operational KPIs) ──
+interface OperationalDashboard {
+    overview: {
+        totalStaff: number;
+        activeStaff: number;
+        onLeaveToday: number;
+        pendingLeaveRequests: number;
+    };
+    attendance: {
+        overallAttendanceRate: number;
+        departmentBreakdown: { department: string; attendanceRate: number; presentCount: number; absentCount: number }[];
+        weeklyTrend: { date: string; attendanceRate: number }[];
+    };
+    performance: {
+        staffPerformanceScore: number;
+        topPerformers: { userId: number; name: string; role: string; performanceScore: number }[];
+        improvementAreas: string[];
+    };
+    tasks: {
+        totalActiveTasks: number;
+        completedThisWeek: number;
+        overdueTasks: number;
+        upcomingDeadlines: { id: number; title: string; assignedTo: string; deadline: string; priority: string }[];
+    };
 }
 
+// ── GET /dashboard/financial-overview ──
 interface FinancialOverview {
-  totalExpectedRevenue: number;
-  totalCollectedRevenue: number;
-  collectionRate: number;
-  pendingPayments: number;
-  monthlyCollectionTrends: Array<{
-    month: string;
     collected: number;
     expected: number;
+    outstanding: number;
     collectionRate: number;
-  }>;
-  paymentMethodBreakdown: Array<{
-    method: string;
-    amount: number;
-    percentage: number;
-    transactionCount: number;
-  }>;
-  outstandingDebts: Array<{
-    studentName: string;
-    className: string;
-    amountOwed: number;
-    daysOverdue: number;
-  }>;
+    expenditures: number;
+    netCash: number;
+    byMethod: { method: string; amount: number }[];
+    monthlyTrend: { month: string; collected: number }[];
 }
 
+// ── GET /dashboard/teacher-analytics ──
+interface TeacherAnalytics {
+    totalTeachers: number;
+    attendanceRate: number;
+    hoursScheduled: number;
+    hoursTaught: number;
+    topPerformers: { userId: number; name: string; score: number }[];
+    underperformers: { userId: number; name: string; score: number }[];
+}
+
+// ── GET /manager/operational-support ──
 interface OperationalSupport {
-  maintenanceRequests: {
-    total: number;
-    pending: number;
-    inProgress: number;
-    completed: number;
-    urgent: number;
-  };
-  facilityStatus: Array<{
-    facility: string;
-    status: "OPERATIONAL" | "MAINTENANCE" | "OUT_OF_ORDER";
-    lastChecked: string;
-    nextMaintenance: string;
-    urgency: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  }>;
-  inventoryAlerts: Array<{
-    item: string;
-    currentStock: number;
-    minimumRequired: number;
-    status: "LOW_STOCK" | "OUT_OF_STOCK" | "REORDER_NEEDED";
-    supplier: string;
-    lastOrdered: string;
-  }>;
-  transportManagement: {
-    totalVehicles: number;
-    operational: number;
-    maintenance: number;
-    routesActive: number;
-    studentsTransported: number;
-  };
-  securityOverview: {
-    incidentsToday: number;
-    visitorsRegistered: number;
-    securityAlerts: number;
-    accessControlStatus: "NORMAL" | "ALERT" | "LOCKDOWN";
-  };
+    maintenance: {
+        openRequests: number;
+        byPriority: { priority: string; count: number }[];
+        recent: { id: number; location: string; issue: string; status: string }[];
+    };
+    facilities: { facilityId: number; name: string; status: string; lastInspection: string }[];
+    inventoryAlerts: { item: string; quantity: number; threshold: number }[];
 }
 
-export default function ManagerDashboard() {
-  const { user, academicYear } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [financialData, setFinancialData] = useState<FinancialOverview | null>(null);
-  const [operationalData, setOperationalData] = useState<OperationalSupport | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'financial' | 'operational' | 'staff'>('overview');
+// ── GET /dashboard/manager/enhanced (analytics) ──
+interface EnhancedDashboard {
+    schoolOverview: {
+        totalStudents: number;
+        totalTeachers: number;
+        totalEnrollments: number;
+        openDisciplineIssues: number;
+    };
+    reportAnalytics: {
+        totalReports: number;
+        generated: number;
+        pending: number;
+        generationRate: number;
+    };
+    formManagement: {
+        totalForms: number;
+        openSubmissions: number;
+    };
+}
 
-  useEffect(() => {
-    if (academicYear?.id) {
-      fetchDashboardData();
-    }
-  }, [academicYear?.id]);
+const formatMoney = (amount?: number | null) =>
+    `FCFA ${(amount ?? 0).toLocaleString()}`;
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      const [dashboardResponse, financialResponse, operationalResponse] = await Promise.all([
-        apiService.get('/manager/dashboard', {
-          params: { academicYearId: academicYear?.id }
-        }),
-        apiService.get('/principal/analytics/financial', {
-          params: { academicYearId: academicYear?.id }
-        }),
-        apiService.get('/manager/operational-support')
-      ]);
+const formatLabel = (value: string) =>
+    value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-      setDashboardData(dashboardResponse.data);
-      setFinancialData(financialResponse.data);
-      setOperationalData(operationalResponse.data);
-    } catch (error) {
-      console.error('Error fetching manager dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
+const priorityColor = (priority: string): 'red' | 'yellow' | 'gray' => {
+    if (priority === 'HIGH' || priority === 'URGENT') return 'red';
+    if (priority === 'MEDIUM') return 'yellow';
+    return 'gray';
+};
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED': return 'text-green-600 bg-green-100';
-      case 'IN_PROGRESS': return 'text-blue-600 bg-blue-100';
-      case 'PENDING': return 'text-yellow-600 bg-yellow-100';
-      case 'CANCELLED': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getAlertColor = (type: string) => {
-    switch (type) {
-      case 'URGENT': return 'border-red-200 bg-red-50';
-      case 'WARNING': return 'border-yellow-200 bg-yellow-50';
-      case 'INFO': return 'border-blue-200 bg-blue-50';
-      default: return 'border-gray-200 bg-gray-50';
-    }
-  };
-
-  const getFacilityStatusColor = (status: string) => {
-    switch (status) {
-      case 'OPERATIONAL': return 'text-green-600 bg-green-100';
-      case 'MAINTENANCE': return 'text-yellow-600 bg-yellow-100';
-      case 'OUT_OF_ORDER': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  if (loading) {
+function ProgressBar({ rate }: { rate: number }) {
+    const clamped = Math.min(100, Math.max(0, rate));
     return (
-      <div className="p-4 sm:p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-6"></div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded-lg"></div>
-            ))}
-          </div>
+        <div className="h-2 w-full rounded-full bg-gray-100">
+            <div className="h-2 rounded-full bg-blue-600" style={{ width: `${clamped}%` }} />
         </div>
-      </div>
     );
-  }
+}
 
-  return (
-    <div className="p-4 sm:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Manager Dashboard</h1>
-          <p className="text-gray-600 mt-1">
-            School operations and financial oversight for {academicYear?.name}
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-        <StatsCard
-          title="Total Staff"
-          value={dashboardData?.totalStaff || 0}
-          icon={UsersIcon}
-          color="blue"
-        />
-        <StatsCard
-          title="Total Students"
-          value={dashboardData?.totalStudents || 0}
-          icon={BuildingOfficeIcon}
-          color="green"
-        />
-        <StatsCard
-          title="Collection Rate"
-          value={`${financialData?.collectionRate?.toFixed(1) || 0}%`}
-          icon={CurrencyDollarIcon}
-          color="purple"
-        />
-        <StatsCard
-          title="Pending Tasks"
-          value={dashboardData?.pendingTasks || 0}
-          icon={ClipboardDocumentListIcon}
-          color="orange"
-        />
-      </div>
-
-      {/* Alerts Section */}
-      {dashboardData?.alerts && dashboardData.alerts.length > 0 && (
-        <Card>
-          <div className="p-4 sm:p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500" />
-              System Alerts
-            </h3>
-            <div className="space-y-3">
-              {dashboardData.alerts.slice(0, 5).map((alert) => (
-                <div
-                  key={alert.id}
-                  className={`p-3 border rounded-lg ${getAlertColor(alert.type)}`}
-                >
-                  <div className="flex justify-between items-start">
-                    <p className="text-sm font-medium text-gray-900">{alert.message}</p>
-                    <span className="text-xs text-gray-500">
-                      {new Date(alert.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  {alert.actionRequired && (
-                    <p className="text-xs text-gray-600 mt-1">Action required</p>
-                  )}
-                </div>
-              ))}
+function BarListRow({ label, value, max, display }: { label: string; value: number; max: number; display?: string }) {
+    const width = max > 0 ? Math.max(2, (value / max) * 100) : 0;
+    return (
+        <div className="flex items-center gap-3">
+            <span className="w-28 shrink-0 text-sm text-gray-600 truncate" title={label}>{label}</span>
+            <div className="flex-1 h-2 rounded-full bg-gray-100">
+                <div className="h-2 rounded-full bg-blue-600" style={{ width: `${width}%` }} />
             </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto">
-          {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'financial', label: 'Financial' },
-            { id: 'operational', label: 'Operational' },
-            { id: 'staff', label: 'Staff Management' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-          <Card>
-            <div className="p-4 sm:p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Operational Metrics
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Attendance Rate</p>
-                  <p className="text-2xl font-bold text-green-600">
-                    {dashboardData?.operationalMetrics.attendanceRate?.toFixed(1) || 0}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Discipline Issues</p>
-                  <p className="text-2xl font-bold text-red-600">
-                    {dashboardData?.operationalMetrics.disciplineIssues || 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Fee Collection</p>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {dashboardData?.operationalMetrics.feeCollection?.toFixed(1) || 0}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Maintenance</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {dashboardData?.operationalMetrics.maintenanceRequests || 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="p-4 sm:p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Recent Activities
-              </h3>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {dashboardData?.recentActivities?.map((activity) => (
-                  <div key={activity.id} className="flex items-start gap-3 p-2 bg-gray-50 rounded">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">{activity.activity}</p>
-                      <p className="text-xs text-gray-600">by {activity.user}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        activity.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
-                        activity.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {activity.priority}
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
+            <span className="w-28 text-right text-sm font-medium text-gray-900 truncate">{display ?? value}</span>
         </div>
-      )}
+    );
+}
 
-      {activeTab === 'financial' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Expected</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {financialData?.totalExpectedRevenue?.toLocaleString() || 0} FCFA
-                    </p>
-                  </div>
-                  <CurrencyDollarIcon className="h-8 w-8 text-blue-500" />
+const fetcher = (url: string) => apiService.get(url);
+
+export default function ManagerOverviewPage() {
+    const { selectedAcademicYear } = useAuth();
+    const yearParam = selectedAcademicYear?.id ? `?academicYearId=${selectedAcademicYear.id}` : '';
+
+    const { data: opsRes, error: opsError, isLoading: isLoadingOps } = useSWR<{ data?: OperationalDashboard }>(`/manager/dashboard${yearParam}`, fetcher);
+    const { data: financeRes, error: financeError, isLoading: isLoadingFinance } = useSWR<{ data?: FinancialOverview }>(`/dashboard/financial-overview${yearParam}`, fetcher);
+    const { data: teacherRes } = useSWR<{ data?: TeacherAnalytics }>(`/dashboard/teacher-analytics${yearParam}`, fetcher);
+    const { data: supportRes } = useSWR<{ data?: OperationalSupport }>('/manager/operational-support', fetcher);
+    const { data: enhancedRes, isLoading: isLoadingEnhanced } = useSWR<{ data?: EnhancedDashboard }>(`/dashboard/manager/enhanced${yearParam}`, fetcher);
+
+    const ops = opsRes?.data;
+    const finance = financeRes?.data;
+    const teachers = teacherRes?.data;
+    const support = supportRes?.data;
+    const analytics = enhancedRes?.data;
+
+    useEffect(() => {
+        const err = opsError || financeError;
+        if (err && err.message !== 'Unauthorized') {
+            console.error('Manager dashboard fetch error:', err);
+            toast.error('Failed to load some dashboard data');
+        }
+    }, [opsError, financeError]);
+
+    const maxMethodAmount = Math.max(0, ...(finance?.byMethod ?? []).map(m => m.amount));
+    const maxMonthAmount = Math.max(0, ...(finance?.monthlyTrend ?? []).map(m => m.collected));
+    const maxDeptRate = Math.max(0, ...(ops?.attendance?.departmentBreakdown ?? []).map(d => d.attendanceRate));
+
+    const schoolStats = useMemo(() => ([
+        {
+            title: 'Students',
+            value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.totalStudents ?? 0),
+            icon: IdentificationIcon,
+            color: 'primary' as const,
+            href: '/dashboard/manager/academic-reports',
+        },
+        {
+            title: 'Teachers',
+            value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.totalTeachers ?? teachers?.totalTeachers ?? 0),
+            icon: AcademicCapIcon,
+            color: 'secondary' as const,
+            href: '/dashboard/manager/departments',
+        },
+        {
+            title: 'Open Discipline Issues',
+            value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.openDisciplineIssues ?? 0),
+            icon: ClipboardDocumentListIcon,
+            color: 'warning' as const,
+            href: '/dashboard/manager/disciplinary-actions',
+        },
+        {
+            title: 'Pending Reports',
+            value: isLoadingEnhanced ? '...' : String(analytics?.reportAnalytics?.pending ?? 0),
+            icon: DocumentChartBarIcon,
+            color: 'neutral' as const,
+            href: '/dashboard/manager/academic-reports',
+        },
+    ]), [analytics, teachers, isLoadingEnhanced]);
+
+    return (
+        <div className="flex-1 p-4 space-y-6">
+            <div>
+                <h1 className="text-xl sm:text-2xl font-bold">Manager Dashboard</h1>
+                <p className="text-gray-600">
+                    School operations overview
+                    {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
+                </p>
+            </div>
+
+            {/* ── Finances first ── */}
+            <section>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Finances</h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                    {([
+                        { title: 'Expected', value: finance?.expected, color: 'primary' as const },
+                        { title: 'Collected', value: finance?.collected, color: 'success' as const },
+                        { title: 'Outstanding', value: finance?.outstanding, color: 'danger' as const },
+                        { title: 'Net Cash', value: finance?.netCash, color: 'secondary' as const },
+                    ]).map((card) => (
+                        <Link key={card.title} href="/dashboard/manager/financial-reports" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+                            <StatsCard
+                                title={card.title}
+                                value={isLoadingFinance ? '...' : formatMoney(card.value)}
+                                icon={BanknotesIcon}
+                                color={card.color}
+                            />
+                        </Link>
+                    ))}
                 </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Collected</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {financialData?.totalCollectedRevenue?.toLocaleString() || 0} FCFA
-                    </p>
-                  </div>
-                  <CheckCircleIcon className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Pending Payments</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {financialData?.pendingPayments?.toLocaleString() || 0} FCFA
-                    </p>
-                  </div>
-                  <ClockIcon className="h-8 w-8 text-orange-500" />
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Payment Methods Breakdown
-                </h3>
-                <div className="space-y-3">
-                  {financialData?.paymentMethodBreakdown?.map((method, index) => (
-                    <div key={index} className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium text-gray-900">{method.method}</p>
-                        <p className="text-sm text-gray-600">{method.transactionCount} transactions</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-gray-900">
-                          {method.amount.toLocaleString()} FCFA
-                        </p>
-                        <p className="text-sm text-gray-600">{method.percentage.toFixed(1)}%</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Outstanding Debts (Top 5)
-                </h3>
-                <div className="space-y-3">
-                  {financialData?.outstandingDebts?.slice(0, 5).map((debt, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-red-50 rounded">
-                      <div className="min-w-0">
-                        <p className="font-medium text-gray-900 truncate">{debt.studentName}</p>
-                        <p className="text-sm text-gray-600">{debt.className}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-red-600">
-                          {debt.amountOwed.toLocaleString()} FCFA
-                        </p>
-                        <p className="text-sm text-red-500">{debt.daysOverdue} days overdue</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'operational' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Maintenance</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {operationalData?.maintenanceRequests.pending || 0}
-                    </p>
-                    <p className="text-xs text-gray-500">pending</p>
-                  </div>
-                  <WrenchScrewdriverIcon className="h-8 w-8 text-orange-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Vehicles</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {operationalData?.transportManagement.operational || 0}
-                    </p>
-                    <p className="text-xs text-gray-500">operational</p>
-                  </div>
-                  <BuildingOfficeIcon className="h-8 w-8 text-blue-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Security</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {operationalData?.securityOverview.incidentsToday || 0}
-                    </p>
-                    <p className="text-xs text-gray-500">incidents today</p>
-                  </div>
-                  <ExclamationTriangleIcon className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Inventory</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {operationalData?.inventoryAlerts.length || 0}
-                    </p>
-                    <p className="text-xs text-gray-500">alerts</p>
-                  </div>
-                  <ClipboardDocumentListIcon className="h-8 w-8 text-red-500" />
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-6">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Facility Status
-                </h3>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {operationalData?.facilityStatus?.map((facility, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 border border-gray-200 rounded">
-                      <div>
-                        <p className="font-medium text-gray-900">{facility.facility}</p>
-                        <p className="text-sm text-gray-600">
-                          Last checked: {new Date(facility.lastChecked).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getFacilityStatusColor(facility.status)}`}>
-                          {facility.status}
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">{facility.urgency}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Inventory Alerts
-                </h3>
-                <div className="space-y-3 max-h-64 overflow-y-auto">
-                  {operationalData?.inventoryAlerts?.map((alert, index) => (
-                    <div key={index} className="p-2 bg-yellow-50 border border-yellow-200 rounded">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium text-gray-900">{alert.item}</p>
-                          <p className="text-sm text-gray-600">
-                            Stock: {alert.currentStock} / Required: {alert.minimumRequired}
-                          </p>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium text-gray-500">Collection rate</span>
+                            <span className="text-sm font-semibold text-gray-900">{(finance?.collectionRate ?? 0).toFixed(1)}%</span>
                         </div>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          alert.status === 'OUT_OF_STOCK' ? 'bg-red-100 text-red-800' :
-                          alert.status === 'LOW_STOCK' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-orange-100 text-orange-800'
-                        }`}>
-                          {alert.status.replace('_', ' ')}
-                        </span>
-                      </div>
+                        <div className="mt-2">
+                            <ProgressBar rate={finance?.collectionRate ?? 0} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+                            <span className="text-gray-500">Expenditures</span>
+                            <span className="font-medium text-gray-900">{formatMoney(finance?.expenditures)}</span>
+                        </div>
+                        {(finance?.byMethod?.length ?? 0) > 0 && (
+                            <div className="mt-4 space-y-2">
+                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Collected by method</p>
+                                {finance!.byMethod.map((m) => (
+                                    <BarListRow key={m.method} label={formatLabel(m.method)} value={m.amount} max={maxMethodAmount} display={formatMoney(m.amount)} />
+                                ))}
+                            </div>
+                        )}
                     </div>
-                  ))}
+                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                        <p className="text-sm font-medium text-gray-500">Monthly collections</p>
+                        {(finance?.monthlyTrend?.length ?? 0) === 0 ? (
+                            <p className="mt-2 text-sm text-gray-500">{isLoadingFinance ? 'Loading…' : 'No trend data yet.'}</p>
+                        ) : (
+                            <div className="mt-3 space-y-2">
+                                {finance!.monthlyTrend.map((m) => (
+                                    <BarListRow key={m.month} label={m.month} value={m.collected} max={maxMonthAmount} display={formatMoney(m.collected)} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
-              </div>
-            </Card>
-          </div>
+            </section>
+
+            {/* ── Staff KPIs ── */}
+            <section>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">Staff</h2>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                    <StatsCard title="Total Staff" value={isLoadingOps ? '...' : String(ops?.overview?.totalStaff ?? 0)} icon={UserGroupIcon} color="primary" />
+                    <StatsCard title="Active Staff" value={isLoadingOps ? '...' : String(ops?.overview?.activeStaff ?? 0)} icon={CheckCircleIcon} color="success" />
+                    <StatsCard title="On Leave Today" value={isLoadingOps ? '...' : String(ops?.overview?.onLeaveToday ?? 0)} icon={UserGroupIcon} color="warning" />
+                    <StatsCard title="Pending Leave Requests" value={isLoadingOps ? '...' : String(ops?.overview?.pendingLeaveRequests ?? 0)} icon={ClipboardDocumentListIcon} color="neutral" />
+                </div>
+            </section>
+
+            <TasksNotificationsSection />
+
+            {/* ── School stats (clickable) ── */}
+            <section>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+                    {schoolStats.map(({ href, ...stat }) => (
+                        <Link key={stat.title} href={href} className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
+                            <StatsCard {...stat} />
+                        </Link>
+                    ))}
+                </div>
+            </section>
+
+            {/* ── Attendance + Teacher analytics ── */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Staff Attendance</CardTitle>
+                        <span className="text-sm font-semibold text-gray-900">{(ops?.attendance?.overallAttendanceRate ?? 0).toFixed(1)}%</span>
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        <ProgressBar rate={ops?.attendance?.overallAttendanceRate ?? 0} />
+                        {(ops?.attendance?.departmentBreakdown?.length ?? 0) > 0 ? (
+                            <div className="space-y-2 pt-1">
+                                {ops!.attendance.departmentBreakdown.map((dept) => (
+                                    <BarListRow
+                                        key={dept.department}
+                                        label={formatLabel(dept.department)}
+                                        value={dept.attendanceRate}
+                                        max={maxDeptRate}
+                                        display={`${dept.attendanceRate.toFixed(1)}%`}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">{isLoadingOps ? 'Loading…' : 'No attendance data.'}</p>
+                        )}
+                    </CardBody>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Teachers</CardTitle>
+                        <span className="text-sm font-semibold text-gray-900">{(teachers?.attendanceRate ?? 0).toFixed(1)}% attendance</span>
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <p className="text-xs text-gray-500">Hours Scheduled</p>
+                                <p className="text-lg font-semibold text-gray-900">{(teachers?.hoursScheduled ?? 0).toLocaleString()}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Hours Taught</p>
+                                <p className="text-lg font-semibold text-gray-900">{(teachers?.hoursTaught ?? 0).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        {(teachers?.topPerformers?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Top Performers</p>
+                                <ul className="divide-y divide-gray-100">
+                                    {teachers!.topPerformers.slice(0, 3).map((t) => (
+                                        <li key={t.userId} className="py-1.5 flex items-center justify-between gap-2">
+                                            <span className="text-sm text-gray-700 truncate min-w-0">{t.name}</span>
+                                            <span className="text-sm font-medium text-green-700 shrink-0">{t.score}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {(teachers?.underperformers?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Needs Attention</p>
+                                <ul className="divide-y divide-gray-100">
+                                    {teachers!.underperformers.slice(0, 3).map((t) => (
+                                        <li key={t.userId} className="py-1.5 flex items-center justify-between gap-2">
+                                            <span className="text-sm text-gray-700 truncate min-w-0">{t.name}</span>
+                                            <span className="text-sm font-medium text-red-600 shrink-0">{t.score}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+            </section>
+
+            {/* ── Maintenance + Tasks ── */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Maintenance & Inventory</CardTitle>
+                        {(support?.maintenance?.openRequests ?? 0) > 0 && (
+                            <Badge color="yellow" size="sm">{support!.maintenance.openRequests} open</Badge>
+                        )}
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        {(support?.maintenance?.byPriority?.length ?? 0) > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {support!.maintenance.byPriority.map((p) => (
+                                    <Badge key={p.priority} color={priorityColor(p.priority)} size="sm">
+                                        {formatLabel(p.priority)}: {p.count}
+                                    </Badge>
+                                ))}
+                            </div>
+                        )}
+                        {(support?.maintenance?.recent?.length ?? 0) > 0 && (
+                            <ul className="divide-y divide-gray-100">
+                                {support!.maintenance.recent.slice(0, 4).map((r) => (
+                                    <li key={r.id} className="py-1.5 flex items-center justify-between gap-2">
+                                        <span className="text-sm text-gray-700 truncate min-w-0">{r.location} — {r.issue}</span>
+                                        <Badge color={r.status === 'PENDING' ? 'yellow' : 'green'} size="sm">{formatLabel(r.status)}</Badge>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {(support?.inventoryAlerts?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Low Stock</p>
+                                <ul className="divide-y divide-gray-100">
+                                    {support!.inventoryAlerts.slice(0, 4).map((alert) => (
+                                        <li key={alert.item} className="py-1.5 flex items-center justify-between gap-2">
+                                            <span className="text-sm text-gray-700 truncate min-w-0">{alert.item}</span>
+                                            <span className="text-sm font-medium text-red-600 shrink-0">{alert.quantity} / {alert.threshold}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {!support && <p className="text-sm text-gray-500">Loading…</p>}
+                    </CardBody>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Tasks</CardTitle>
+                        {(ops?.tasks?.overdueTasks ?? 0) > 0 && (
+                            <Badge color="red" size="sm">{ops!.tasks.overdueTasks} overdue</Badge>
+                        )}
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        <div className="flex flex-wrap gap-x-6 gap-y-2">
+                            <div>
+                                <p className="text-xs text-gray-500">Active</p>
+                                <p className="text-lg font-semibold text-gray-900">{ops?.tasks?.totalActiveTasks ?? 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Completed This Week</p>
+                                <p className="text-lg font-semibold text-gray-900">{ops?.tasks?.completedThisWeek ?? 0}</p>
+                            </div>
+                        </div>
+                        {(ops?.tasks?.upcomingDeadlines?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Upcoming Deadlines</p>
+                                <ul className="divide-y divide-gray-100">
+                                    {ops!.tasks.upcomingDeadlines.slice(0, 5).map((task) => (
+                                        <li key={task.id} className="py-1.5 flex items-center justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="text-sm text-gray-900 truncate">{task.title}</p>
+                                                <p className="text-xs text-gray-500 truncate">
+                                                    {task.assignedTo} · due {new Date(task.deadline).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <Badge color={priorityColor(task.priority)} size="sm">{formatLabel(task.priority)}</Badge>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+            </section>
+
+            {/* ── Performance + Reports ── */}
+            <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Staff Performance</CardTitle>
+                        <span className="text-sm font-semibold text-gray-900">{(ops?.performance?.staffPerformanceScore ?? 0).toFixed(1)} / 100</span>
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        <ProgressBar rate={ops?.performance?.staffPerformanceScore ?? 0} />
+                        {(ops?.performance?.topPerformers?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Top Performers</p>
+                                <ul className="divide-y divide-gray-100">
+                                    {ops!.performance.topPerformers.slice(0, 5).map((p) => (
+                                        <li key={p.userId} className="py-1.5 flex items-center justify-between gap-2">
+                                            <span className="text-sm text-gray-700 truncate min-w-0">
+                                                {p.name} <span className="text-xs text-gray-400">({formatLabel(p.role)})</span>
+                                            </span>
+                                            <span className="text-sm font-medium text-green-700 shrink-0">{p.performanceScore}</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        {(ops?.performance?.improvementAreas?.length ?? 0) > 0 && (
+                            <div>
+                                <p className="text-xs font-medium text-gray-500 mb-1">Improvement Areas</p>
+                                <div className="flex flex-wrap gap-2">
+                                    {ops!.performance.improvementAreas.map((area) => (
+                                        <Badge key={area} color="yellow" size="sm">{area}</Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </CardBody>
+                </Card>
+
+                <Card>
+                    <CardHeader className="flex items-center justify-between">
+                        <CardTitle>Report Cards & Forms</CardTitle>
+                        <Link href="/dashboard/manager/academic-reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</Link>
+                    </CardHeader>
+                    <CardBody className="space-y-3">
+                        <div className="flex flex-wrap gap-x-6 gap-y-2">
+                            <div>
+                                <p className="text-xs text-gray-500">Total Reports</p>
+                                <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.totalReports ?? 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Generated</p>
+                                <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.generated ?? 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Pending</p>
+                                <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.pending ?? 0}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm text-gray-500">Generation rate</span>
+                            <span className="text-sm font-semibold text-gray-900">{(analytics?.reportAnalytics?.generationRate ?? 0).toFixed(1)}%</span>
+                        </div>
+                        <ProgressBar rate={analytics?.reportAnalytics?.generationRate ?? 0} />
+                        <div className="pt-1 flex flex-wrap gap-x-6 gap-y-2">
+                            <div>
+                                <p className="text-xs text-gray-500">Active Forms</p>
+                                <p className="text-lg font-semibold text-gray-900">{analytics?.formManagement?.totalForms ?? 0}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Open Submissions</p>
+                                <p className="text-lg font-semibold text-gray-900">{analytics?.formManagement?.openSubmissions ?? 0}</p>
+                            </div>
+                        </div>
+                    </CardBody>
+                </Card>
+            </section>
         </div>
-      )}
-
-      {activeTab === 'staff' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Present</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {dashboardData?.staffOverview.present || 0}
-                    </p>
-                  </div>
-                  <CheckCircleIcon className="h-8 w-8 text-green-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Absent</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {dashboardData?.staffOverview.absent || 0}
-                    </p>
-                  </div>
-                  <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">On Leave</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {dashboardData?.staffOverview.onLeave || 0}
-                    </p>
-                  </div>
-                  <CalendarIcon className="h-8 w-8 text-blue-500" />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <div className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">New Requests</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {dashboardData?.staffOverview.newRequests || 0}
-                    </p>
-                  </div>
-                  <DocumentTextIcon className="h-8 w-8 text-orange-500" />
-                </div>
-              </div>
-            </Card>
-          </div>
-
-          <Card>
-            <div className="p-4 sm:p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Today's Schedule
-              </h3>
-              <div className="space-y-3">
-                {dashboardData?.todaysSchedule?.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{item.activity}</p>
-                      <p className="text-sm text-gray-600">{item.location}</p>
-                      <p className="text-xs text-gray-500">
-                        Attendees: {item.attendees.join(', ')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-gray-900">{item.time}</p>
-                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card>
-      </div>
-      )}
-    </div>
-  );
-} 
+    );
+}
