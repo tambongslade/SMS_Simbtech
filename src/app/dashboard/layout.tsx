@@ -719,8 +719,8 @@ export default function DashboardLayout({
         })}
       </nav>
 
-      {/* Role Switcher and Logout Section */}
-      <div className={`mt-auto border-t border-gray-200 ${collapsed ? 'p-2 space-y-2' : 'p-4 space-y-4'}`}>
+      {/* Role Switcher and Logout Section — shrink-0 keeps it visible however long the menu is */}
+      <div className={`mt-auto shrink-0 border-t border-gray-200 ${collapsed ? 'p-2 space-y-2' : 'p-4 space-y-3 pb-[max(1rem,env(safe-area-inset-bottom))]'}`}>
         {!collapsed && availableRoles.length > 1 && !isLoading && (
           <div className="relative">
             <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
@@ -834,7 +834,7 @@ export default function DashboardLayout({
       {/* Sidebar and Main Content */}
       <div className="flex pt-16">
         {/* Desktop Sidebar (Fixed) - Hidden below lg */}
-        <aside className={`fixed hidden lg:flex lg:flex-col h-[calc(100vh-4rem)] bg-white shadow-sm border-r border-gray-200 transition-[width] duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <aside className={`fixed top-16 bottom-0 hidden lg:flex lg:flex-col bg-white shadow-sm border-r border-gray-200 transition-[width] duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
           {renderSidebar(isSidebarCollapsed, true)}
         </aside>
 
@@ -847,7 +847,8 @@ export default function DashboardLayout({
               className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             />
             {/* Mobile Sidebar Content */}
-            <aside className="fixed flex flex-col w-64 h-[calc(100vh-4rem)] bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden">
+            {/* top-16 bottom-0 (not 100vh) so the footer stays above mobile browser toolbars */}
+            <aside className="fixed top-16 bottom-0 left-0 flex flex-col w-64 bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden">
               {renderSidebar(false, false)}
             </aside>
           </>
