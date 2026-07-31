@@ -251,7 +251,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
 
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="hidden md:block overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -330,6 +330,76 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card list */}
+        <div className="md:hidden divide-y divide-gray-100">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading…</div>
+          ) : rows.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">
+              No broken property records found.
+            </div>
+          ) : (
+            rows.map((row) => {
+              const who = enrollmentStudent(row);
+              return (
+                <div key={row.id} className="p-4 space-y-1.5">
+                  <div className="text-sm font-semibold text-gray-900 break-words">{who.name}</div>
+                  <div className="text-xs text-gray-500">
+                    {who.matricule ? `${who.matricule} · ` : ''}
+                    {who.className}
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Item</span>
+                    <div className="text-sm text-gray-900 text-right break-words">
+                      <div>{row.itemName}</div>
+                      {row.description && <div className="text-xs text-gray-500">{row.description}</div>}
+                      {row.actionTaken && (
+                        <div className="text-xs text-gray-400 italic">Action: {row.actionTaken}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Cost</span>
+                    <span className="text-sm font-semibold text-gray-900 text-right break-words">
+                      {fmtMoney(row.estimatedCost)}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="text-xs text-gray-500">Logged</span>
+                    <div className="text-sm text-gray-900 text-right break-words">
+                      {fmtDate(row.createdAt)}
+                      {row.reportedBy?.name && (
+                        <div className="text-xs text-gray-400">by {row.reportedBy.name}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1.5">
+                    <Button size="xs" variant="outline" leftIcon={EyeIcon} onClick={() => openDetail(row)}>
+                      View
+                    </Button>
+                    {!readOnly && (
+                      <Button size="xs" variant="outline" leftIcon={PencilSquareIcon} onClick={() => openEdit(row)}>
+                        Edit
+                      </Button>
+                    )}
+                    {!readOnly && canAdminDelete(selectedRole) && (
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        color="danger"
+                        leftIcon={TrashIcon}
+                        onClick={() => setDeleting(row)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination */}

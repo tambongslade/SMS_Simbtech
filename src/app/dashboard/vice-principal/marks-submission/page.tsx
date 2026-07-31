@@ -421,7 +421,7 @@ export default function MarksSubmissionPage() {
 
                     {/* Expanded Subject Detail */}
                     {isExpanded && (
-                      <div className="border-t border-gray-100 p-4 overflow-x-auto">
+                      <div className="hidden md:block border-t border-gray-100 p-4 overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                           <thead className="bg-gray-50">
                             <tr>
@@ -474,6 +474,63 @@ export default function MarksSubmissionPage() {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                    )}
+
+                    {/* Expanded Subject Detail (mobile cards) */}
+                    {isExpanded && (
+                      <div className="md:hidden border-t border-gray-100 divide-y divide-gray-100">
+                        {cls.subjects.map(subject => {
+                          const pct = Math.round(subject.completionPercentage);
+                          return (
+                            <div key={subject.subjectId} className="p-4 space-y-1.5">
+                              <p className="text-sm font-semibold text-gray-900 break-words">{subject.subjectName}</p>
+                              <div className="flex items-start justify-between gap-3">
+                                <span className="text-xs text-gray-500">Teacher</span>
+                                <span className="text-sm text-gray-900 text-right break-words">
+                                  {subject.assignedTeacher || subject.submittedBy || (
+                                    <span className="italic text-gray-400">Unassigned</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <span className="text-xs text-gray-500">Status</span>
+                                <span className="text-sm text-gray-900 text-right break-words">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(subject.status)}`}>
+                                    <StatusIcon status={subject.status} />
+                                    <StatusLabel status={subject.status} />
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <span className="text-xs text-gray-500">Submitted</span>
+                                <span className="text-sm text-gray-900 text-right break-words">
+                                  {subject.submittedCount} / {subject.totalStudents}
+                                  {subject.missingCount > 0 && (
+                                    <span className="text-red-500 text-xs ml-1">({subject.missingCount} missing)</span>
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex items-start justify-between gap-3">
+                                <span className="text-xs text-gray-500">Progress</span>
+                                <span className="text-sm text-gray-900 text-right break-words">
+                                  <span className="flex items-center gap-2">
+                                    <span className="flex-1 bg-gray-200 rounded-full h-2 min-w-[80px] block">
+                                      <span
+                                        className={`h-2 rounded-full block ${
+                                          subject.status === 'complete' ? 'bg-green-500' :
+                                          subject.status === 'partial' ? 'bg-yellow-500' : 'bg-red-400'
+                                        }`}
+                                        style={{ width: `${pct}%` }}
+                                      />
+                                    </span>
+                                    <span className="text-xs text-gray-500">{pct}%</span>
+                                  </span>
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -540,7 +597,7 @@ export default function MarksSubmissionPage() {
                       </div>
 
                       {/* Subjects pending */}
-                      <div className="mt-3 border-t border-gray-100 pt-3 overflow-x-auto">
+                      <div className="hidden md:block mt-3 border-t border-gray-100 pt-3 overflow-x-auto">
                         <table className="min-w-full text-sm">
                           <thead>
                             <tr className="text-xs text-gray-500 uppercase">
@@ -563,6 +620,29 @@ export default function MarksSubmissionPage() {
                             ))}
                           </tbody>
                         </table>
+                      </div>
+
+                      {/* Subjects pending (mobile cards) */}
+                      <div className="md:hidden mt-3 border-t border-gray-100 divide-y divide-gray-100">
+                        {teacher.subjects.map((subj, i) => (
+                          <div key={i} className="p-4 space-y-1.5">
+                            <p className="text-sm font-semibold text-gray-900 break-words">{subj.subjectName}</p>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Class</span>
+                              <span className="text-sm text-gray-900 text-right break-words">{subj.subClassName}</span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Submitted</span>
+                              <span className="text-sm text-gray-900 text-right break-words">{subj.submittedCount} / {subj.totalStudents}</span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-xs text-gray-500">Missing</span>
+                              <span className="text-sm text-gray-900 text-right break-words">
+                                <span className="text-red-600 font-medium">{subj.missingCount}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

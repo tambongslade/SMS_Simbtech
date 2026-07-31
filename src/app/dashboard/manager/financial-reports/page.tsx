@@ -18,15 +18,21 @@ import apiService from '@/lib/apiService';
 import { getExpenditureSummary, CATEGORY_LABELS, ExpenditureSummary } from '@/lib/expendituresApi';
 
 // ── GET /dashboard/financial-overview ──
-interface FinancialOverview {
-    collected: number;
-    expected: number;
-    outstanding: number;
-    collectionRate: number;
-    expenditures: number;
-    netCash: number;
-    byMethod: { method: string; amount: number }[];
-    monthlyTrend: { month: string; collected: number }[];
+// Actual shape: { schoolOverview: { totalExpected, totalCollected,
+// collectionRate, totalAccounts }, detailedFinancials: { studentsOwingCount,
+// totalAmountOwed, recentPayments[] }, paymentAnalytics:
+// { paymentMethodBreakdown[], totalTransactions, totalAmount } }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type FinancialOverviewResponse = Record<string, any>;
+
+interface RecentPayment {
+    id: number;
+    amount: number;
+    paymentMethod?: string;
+    paymentDate?: string;
+    receiptNumber?: string;
+    studentName?: string;
+    studentMatricule?: string;
 }
 
 interface ClassFeeReport {
@@ -103,13 +109,37 @@ export default function ManagerFinancialReportsPage() {
     const effectiveYear = selectedAcademicYear ?? yearsResult?.data?.find(y => y.isCurrent) ?? null;
     const yearParam = effectiveYear?.id ? `?academicYearId=${effectiveYear.id}` : '';
 
-    // Financial overview (collected / expected / outstanding / expenditures / net cash)
-    const { data: overviewRes, error: overviewError, isLoading: isLoadingOverview } = useSWR<{ data?: FinancialOverview }>(
+    // Financial overview — mapped tolerantly from the nested backend shape
+    const { data: overviewRes, error: overviewError, isLoading: isLoadingOverview } = useSWR<{ data?: FinancialOverviewResponse }>(
         `/dashboard/financial-overview${yearParam}`,
         fetcher,
         { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load financial overview'); } }
     );
-    const overview = overviewRes?.data;
+    const overview = useMemo(() => {
+        const raw = overviewRes?.data;
+        if (!raw) return null;
+        const so = raw.schoolOverview ?? raw;
+        const df = raw.detailedFinancials ?? {};
+        const pa = raw.paymentAnalytics ?? {};
+        const collected = so.totalCollected ?? raw.collected ?? 0;
+        const expected = so.totalExpected ?? raw.expected ?? 0;
+        return {
+            collected,
+            expected,
+            outstanding: df.totalAmountOwed ?? raw.outstanding ?? Math.max(0, expected - collected),
+            collectionRate: so.collectionRate ?? raw.collectionRate ?? (expected > 0 ? (collected / expected) * 100 : 0),
+            studentsOwing: df.studentsOwingCount ?? null,
+            totalAccounts: so.totalAccounts ?? df.totalAccounts ?? null,
+            totalTransactions: pa.totalTransactions ?? null,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            byMethod: (pa.paymentMethodBreakdown ?? raw.byMethod ?? []).map((m: any) => ({
+                method: m.method,
+                amount: m.totalAmount ?? m.amount ?? 0,
+                count: m.transactionCount ?? null,
+            })) as { method: string; amount: number; count: number | null }[],
+            recentPayments: (df.recentPayments ?? []) as RecentPayment[],
+        };
+    }, [overviewRes]);
 
     // This month's expenditures by category
     const currentMonth = new Date().toISOString().slice(0, 7);
@@ -198,7 +228,6 @@ export default function ManagerFinancialReportsPage() {
     };
 
     const maxMethodAmount = Math.max(0, ...(overview?.byMethod ?? []).map(m => m.amount));
-    const maxMonthAmount = Math.max(0, ...(overview?.monthlyTrend ?? []).map(m => m.collected));
     const maxCategoryAmount = Math.max(0, ...(expenditureSummary?.byCategory ?? []).map(c => c.amount));
 
     return (
@@ -223,8 +252,15 @@ export default function ManagerFinancialReportsPage() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                 <StatsCard title="Fees Collected" value={isLoadingOverview ? '...' : formatCurrency(overview?.collected)} icon={BanknotesIcon} color="success" />
                 <StatsCard title="Outstanding Fees" value={isLoadingOverview ? '...' : formatCurrency(overview?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
-                <StatsCard title="Expenditures" value={isLoadingOverview ? '...' : formatCurrency(overview?.expenditures)} icon={ReceiptRefundIcon} color="warning" />
-                <StatsCard title="Net Cash" value={isLoadingOverview ? '...' : formatCurrency(overview?.netCash)} icon={ReceiptPercentIcon} color="primary" />
+                <StatsCard
+                    title="Students Owing"
+                    value={isLoadingOverview ? '...' : overview?.studentsOwing != null
+                        ? `${overview.studentsOwing.toLocaleString()}${overview.totalAccounts ? ` / ${overview.totalAccounts.toLocaleString()}` : ''}`
+                        : '—'}
+                    icon={ReceiptPercentIcon}
+                    color="warning"
+                />
+                <StatsCard title="Spent This Month" value={formatCurrency(expenditureSummary?.totalAmount)} icon={ReceiptRefundIcon} color="primary" />
             </div>
 
             {/* Collection rate */}
@@ -242,19 +278,31 @@ export default function ManagerFinancialReportsPage() {
                 </CardBody>
             </Card>
 
-            {/* Monthly trend + method breakdown */}
+            {/* Recent payments + method breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Monthly Collections</CardTitle>
+                        <CardTitle>Recent Payments</CardTitle>
                     </CardHeader>
-                    <CardBody className="space-y-2">
-                        {(overview?.monthlyTrend?.length ?? 0) === 0 ? (
-                            <p className="text-sm text-gray-500">{isLoadingOverview ? 'Loading…' : 'No monthly data yet.'}</p>
+                    <CardBody>
+                        {(overview?.recentPayments?.length ?? 0) === 0 ? (
+                            <p className="text-sm text-gray-500">{isLoadingOverview ? 'Loading…' : 'No recent payments.'}</p>
                         ) : (
-                            overview!.monthlyTrend.map((m) => (
-                                <BarListRow key={m.month} label={m.month} value={m.collected} max={maxMonthAmount} display={formatCurrency(m.collected)} />
-                            ))
+                            <ul className="divide-y divide-gray-100">
+                                {overview!.recentPayments.slice(0, 8).map((p) => (
+                                    <li key={p.id} className="py-2 flex items-center justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-medium text-gray-900 truncate">{p.studentName || p.studentMatricule || 'Unknown student'}</p>
+                                            <p className="text-[11px] text-gray-500 truncate">
+                                                {p.paymentMethod ? formatLabel(p.paymentMethod) : ''}
+                                                {p.paymentDate ? ` · ${new Date(p.paymentDate).toLocaleDateString()}` : ''}
+                                                {p.receiptNumber ? ` · ${p.receiptNumber}` : ''}
+                                            </p>
+                                        </div>
+                                        <span className="text-sm font-semibold text-gray-900 shrink-0">{formatCurrency(p.amount)}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         )}
                     </CardBody>
                 </Card>
@@ -267,9 +315,22 @@ export default function ManagerFinancialReportsPage() {
                         {(overview?.byMethod?.length ?? 0) === 0 ? (
                             <p className="text-sm text-gray-500">{isLoadingOverview ? 'Loading…' : 'No payment data yet.'}</p>
                         ) : (
-                            overview!.byMethod.map((m) => (
-                                <BarListRow key={m.method} label={formatLabel(m.method)} value={m.amount} max={maxMethodAmount} display={formatCurrency(m.amount)} />
-                            ))
+                            <>
+                                {overview!.byMethod.map((m) => (
+                                    <BarListRow
+                                        key={m.method}
+                                        label={`${formatLabel(m.method)}${m.count != null ? ` (${m.count})` : ''}`}
+                                        value={m.amount}
+                                        max={maxMethodAmount}
+                                        display={formatCurrency(m.amount)}
+                                    />
+                                ))}
+                                {overview?.totalTransactions != null && (
+                                    <p className="pt-2 text-xs text-gray-500 border-t border-gray-100">
+                                        {overview.totalTransactions.toLocaleString()} transactions · {formatCurrency(overview.collected)} total
+                                    </p>
+                                )}
+                            </>
                         )}
                     </CardBody>
                 </Card>

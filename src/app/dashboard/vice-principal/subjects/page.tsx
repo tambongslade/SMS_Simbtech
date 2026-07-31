@@ -509,7 +509,8 @@ export default function SubjectManagementPage() {
             {!subjects.length ? (
                 <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">No subjects found. Add one to get started.</p>
             ) : (
-              <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+              <>
+              <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                   {/* Table Head */}
                             <thead className="bg-gray-50">
@@ -575,6 +576,64 @@ export default function SubjectManagementPage() {
                             </tbody>
                         </table>
                     </div>
+              {/* Mobile Card List */}
+              <div className="md:hidden divide-y divide-gray-100 bg-white shadow-md rounded-lg">
+                {subjects.map((subject) => (
+                  <div key={subject.id} className="p-4 space-y-1.5">
+                    <p className="text-sm font-semibold text-gray-900 break-words">{subject.name}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Category</span>
+                      <span className="text-sm text-gray-900 text-right break-words">{formatCategory(subject.category)}</span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-xs text-gray-500">Assignments</span>
+                      <span className="text-sm text-gray-900 text-right break-words">
+                        {subject.assignments && subject.assignments.length > 0 ? (
+                          <ul className="space-y-1">
+                            {subject.assignments.slice(0, 2).map(a => ( // Show first 2
+                              <li key={a.subClassId} title={`${a.className} - ${a.subClassName} (Coeff: ${a.coefficient})`}>
+                                <span className="font-medium">{a.subClassName}</span> (Coeff: {a.coefficient})
+                              </li>
+                            ))}
+                            {subject.assignments.length > 2 && (
+                              <li className="text-xs italic text-gray-400">+ {subject.assignments.length - 2} more...</li>
+                            )}
+                          </ul>
+                        ) : (
+                          <span className="text-gray-400 italic">Not assigned</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1.5">
+                      <button
+                        onClick={() => handleViewSubjectAssignments(subject.id)}
+                        disabled={isLoading}
+                        title="View Subject Assignments"
+                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
+                      >
+                        <EyeIcon className="h-4 w-4 mr-1" /> View
+                      </button>
+                      <button
+                        onClick={() => openEditModal(subject)}
+                        disabled={isLoading}
+                        title="Edit Subject"
+                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                      >
+                        <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSubject(subject)}
+                        disabled={isLoading}
+                        title="Delete Subject"
+                        className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                      >
+                        <TrashIcon className="h-4 w-4 mr-1" /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              </>
             )}
           </>
         )}

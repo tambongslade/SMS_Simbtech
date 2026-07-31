@@ -205,7 +205,8 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                   </p>
              ) : (
                   // Render the table only if there are assignments
-                  <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                  <>
+                  <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
                      <table className="min-w-full divide-y divide-gray-200">
                          <thead className="bg-gray-100">
                              <tr>
@@ -246,6 +247,45 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                          </tbody>
                      </table>
                   </div>
+                  {/* Mobile card list */}
+                  <div className="md:hidden divide-y divide-gray-100 bg-white shadow-md rounded-lg">
+                     {filteredAssignments.map((assignment) => (
+                         <div key={`${assignment.subjectId}-${assignment.subClassId}`} className="p-4 space-y-1.5">
+                             <div className="text-sm font-semibold text-gray-900 break-words">{assignment.subjectName}</div>
+                             <div className="flex items-start justify-between gap-3">
+                                 <span className="text-xs text-gray-500">Class</span>
+                                 <span className="text-sm text-gray-900 text-right break-words">{assignment.className}</span>
+                             </div>
+                             <div className="flex items-start justify-between gap-3">
+                                 <span className="text-xs text-gray-500">Subclass</span>
+                                 <span className="text-sm text-gray-900 text-right break-words">{assignment.subClassName}</span>
+                             </div>
+                             <div className="flex items-start justify-between gap-3">
+                                 <span className="text-xs text-gray-500">Coefficient</span>
+                                 <span className="text-sm text-gray-900 text-right break-words">{assignment.coefficient}</span>
+                             </div>
+                             <div className="flex flex-wrap gap-2 pt-1.5">
+                                 <button
+                                     onClick={() => openEditModal(assignment)}
+                                     disabled={isLoading}
+                                     title="Edit Coefficient"
+                                     className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                 >
+                                     <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                                 </button>
+                                 <button
+                                     onClick={() => onRemoveAssignment(assignment.subjectId, assignment.subClassId)}
+                                     disabled={isLoading}
+                                     title="Remove Assignment"
+                                     className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                                 >
+                                     <TrashIcon className="h-4 w-4 mr-1" /> Remove
+                                 </button>
+                             </div>
+                         </div>
+                     ))}
+                  </div>
+                  </>
              )}
 
             {/* Edit Coefficient Modal */}

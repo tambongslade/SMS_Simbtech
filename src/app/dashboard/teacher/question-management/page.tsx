@@ -381,7 +381,8 @@ export default function QuestionManagement() {
                         </button>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -441,6 +442,43 @@ export default function QuestionManagement() {
                             </tbody>
                         </table>
                     </div>
+                    <div className="md:hidden divide-y divide-gray-100">
+                        {filteredQuestions.map((question, index) => (
+                            <div key={question.id} className="p-4 space-y-1.5">
+                                <div className="text-sm font-semibold text-gray-900 break-words">
+                                    <span className="text-gray-500 mr-2">Q{index + 1}.</span>
+                                    {question.questionText.length > 100
+                                        ? `${question.questionText.substring(0, 100)}...`
+                                        : question.questionText
+                                    }
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Type</span>
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        {formatQuestionType(question.questionType)}
+                                    </span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Marks</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{question.marks}</span>
+                                </div>
+                                <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs text-gray-500">Created</span>
+                                    <span className="text-sm text-gray-900 text-right break-words">{formatDate(question.createdAt)}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1.5">
+                                    <button
+                                        onClick={() => handleViewQuestion(question)}
+                                        className="text-blue-600 hover:text-blue-900"
+                                        title="View Details"
+                                    >
+                                        <EyeIcon className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    </>
                 )}
             </div>
 

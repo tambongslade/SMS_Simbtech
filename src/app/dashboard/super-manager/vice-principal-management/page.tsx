@@ -238,7 +238,7 @@ export default function VicePrincipalManagement() {
                 {isLoading && <p className="text-center text-gray-500 py-4">Loading vice principals...</p>}
 
                 {!isLoading && (
-                    <div className="bg-white shadow-md rounded-lg overflow-x-auto">
+                    <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
@@ -302,6 +302,70 @@ export default function VicePrincipalManagement() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+                )}
+
+                {!isLoading && (
+                    <div className="md:hidden bg-white shadow-md rounded-lg">
+                        <div className="md:hidden divide-y divide-gray-100">
+                            {vicePrincipals.length === 0 && !isLoading ? (
+                                <div className="px-4 py-8 text-center text-gray-500">
+                                    No vice principals found matching your criteria
+                                </div>
+                            ) : (
+                                vicePrincipals.map((vp) => (
+                                    <div key={vp.id} className="p-4 space-y-1.5">
+                                        <div className="text-sm font-semibold text-gray-900 break-words">{vp.name}</div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Email</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{vp.email || '-'}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Phone</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">{vp.phone || '-'}</span>
+                                        </div>
+                                        <div className="flex items-start justify-between gap-3">
+                                            <span className="text-xs text-gray-500">Assigned Subclasses</span>
+                                            <span className="text-sm text-gray-900 text-right break-words">
+                                                {vp.assignedSubClassIds && vp.assignedSubClassIds.length > 0 ? (
+                                                    <ul className="space-y-1">
+                                                        {vp.assignedSubClassIds.map(subClassId => {
+                                                            const subClass = subClasses.find(sc => sc.id === subClassId);
+                                                            return (
+                                                                <li key={subClassId} className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full inline-block mr-1 mb-1" title={subClass ? `${subClass.name} (${subClass.className})` : `SubClass ${subClassId}`}>
+                                                                    {subClass ? `${subClass.name} (${subClass.className})` : `SubClass ${subClassId}`}
+                                                                </li>
+                                                            );
+                                                        })}
+                                                    </ul>
+                                                ) : (
+                                                    <span className="text-gray-400 italic">None</span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 pt-1.5">
+                                            <button
+                                                onClick={() => openAssignmentModal(vp)}
+                                                disabled={isLoading}
+                                                title="Manage Subclass Assignments"
+                                                className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                                            >
+                                                Manage Assignments
+                                            </button>
+                                            <button
+                                                onClick={() => openEditVpModal(vp)}
+                                                disabled={isLoading}
+                                                title="Edit Vice Principal Details"
+                                                className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
+                                            >
+                                                <PencilSquareIcon className="h-4 w-4 mr-1" />
+                                                Edit
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 )}
             </div>
