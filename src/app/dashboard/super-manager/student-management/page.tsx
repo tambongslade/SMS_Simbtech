@@ -810,40 +810,6 @@ export default function StudentManagement() {
         setAssignClassFormData({ classId: '', academicYearId: '', repeater: false, photo: '' });
     };
 
-    const openAddEnrollModal = () => {
-        setAddEnrollFormData({
-            name: '',
-            matricule: '',
-            date_of_birth: '',
-            place_of_birth: '',
-            gender: '',
-            residence: '',
-            former_school: '',
-            subClassId: '',
-            academicYearId: academicYearFilter || '',
-            repeater: false,
-            photo: '',
-        });
-        setIsAddEnrollModalOpen(true);
-    };
-
-    const openAddAssignModal = () => {
-        setAddAssignFormData({
-            name: '',
-            matricule: '',
-            date_of_birth: '',
-            place_of_birth: '',
-            gender: '',
-            residence: '',
-            former_school: '',
-            classId: '',
-            academicYearId: academicYearFilter || '',
-            repeater: false,
-            photo: '',
-        });
-        setIsAddAssignModalOpen(true);
-    };
-
     const handleEnrollmentInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
         const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
@@ -1216,7 +1182,7 @@ export default function StudentManagement() {
                     <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
-                            <p className="text-gray-600 mt-1">View, add, and enroll student records.</p>
+                            <p className="text-gray-600 mt-1">View student records.</p>
                             <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
                                 <span>Total Students: {totalStudents}</span>
                                 <span>•</span>
@@ -1228,50 +1194,6 @@ export default function StudentManagement() {
                                     </>
                                 )}
                             </div>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-2">
-                            <button
-                                onClick={openAddEnrollModal}
-                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                        Processing...
-                                    </>
-                                ) : (
-                                    'Add & Enroll Student'
-                                )}
-                            </button>
-                            <button
-                                onClick={openAddAssignModal}
-                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                        Processing...
-                                    </>
-                                ) : (
-                                    'Add & Assign Student'
-                                )}
-                            </button>
-                            <button
-                                onClick={() => setIsAddStudentParentModalOpen(true)}
-                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
-                                disabled={isLoading}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                        Processing...
-                                    </>
-                                ) : (
-                                    'Add Student & Parent'
-                                )}
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -2115,7 +2037,6 @@ export default function StudentManagement() {
                                 setIsAddAssignModalOpen(false);
                                 setAddAssignFormData({
                                     name: '',
-                                    matricule: '',
                                     date_of_birth: '',
                                     place_of_birth: '',
                                     gender: '',
@@ -2125,6 +2046,7 @@ export default function StudentManagement() {
                                     academicYearId: '',
                                     repeater: false,
                                     photo: '',
+                                    is_new_student: true,
                                 });
                                 fetchStudents();
                             } catch (error: any) {
