@@ -1,5 +1,9 @@
 "use client";
 
+// Super Manager fee management is read-only for payments (view + search) —
+// recording payments is the Bursar's job. This page adds the Class Fees tab
+// where the fee structure of each class is configured.
+
 import { useState } from "react";
 import { useFeeManagement } from "./hooks/useFeeManagement";
 import { Header } from "./components/Header";
@@ -7,17 +11,15 @@ import { Filters } from "./components/Filters";
 import { ListView } from "./components/ui/ListView";
 import { CardView } from "./components/ui/CardView";
 import { Pagination } from "./components/ui/Pagination";
-import { PaymentModal } from "./components/ui/PaymentModal";
-import { StudentModal } from "./components/ui/StudentModal";
 import { TransactionsModal } from "./components/ui/PaymentModal";
 import { SubclassSummaryModal } from "./components/ui/SubclassSummaryModal";
 import { RecordPaymentSearch } from "./components/ui/RecordPaymentSearch";
 import { PaymentRecordsView } from "./components/ui/PaymentRecordsView";
-import { Student, NewStudent } from './types';
-import { toast } from "react-hot-toast";
+import { ClassFeesEditor } from "./components/ui/ClassFeesEditor";
+import { Student } from './types';
 
 export default function FeeManagementPage() {
-    const [viewTab, setViewTab] = useState<'records' | 'students'>('records');
+    const [viewTab, setViewTab] = useState<'class-fees' | 'records' | 'students'>('class-fees');
     const {
         paymentRecords,
         isLoadingPaymentRecords,
@@ -25,42 +27,20 @@ export default function FeeManagementPage() {
         setStudentSearchTerm,
         studentSearchResults,
         isSearchingStudents,
-        handleUpdatePayment,
         selectedClass,
         setSelectedClass,
         selectedPaymentStatus,
         setSelectedPaymentStatus,
-        showPaymentModal,
-        setShowPaymentModal,
-        showStudentModal,
-        setShowStudentModal,
         searchQuery,
         setSearchQuery,
-        selectedStudent,
-        setSelectedStudent,
-        selectedPaymentType,
-        setSelectedPaymentType,
-        paymentAmount,
-        setPaymentAmount,
-        paymentMethod,
-        setPaymentMethod,
-        paymentDescription,
-        setPaymentDescription,
         viewMode,
         setViewMode,
-        students,
         getFilteredStudents,
-        handlePayment,
-        handleAddStudent,
         handleExportPDF,
         handleExportExcel,
         isLoading,
         isLoadingClasses,
         fetchError,
-        newStudent,
-        setNewStudent,
-        resetPaymentForm,
-        resetStudentForm,
         classesList,
         showTransactionsModal,
         setShowTransactionsModal,
@@ -87,50 +67,6 @@ export default function FeeManagementPage() {
         setItemsPerPage,
     } = useFeeManagement();
 
-    const handleRecordPaymentClick = (student: Student) => {
-        setSelectedStudent(student);
-        setShowPaymentModal(true);
-    };
-
-    const handleAddStudentWithPayment = async (newStudentWithPayment: NewStudent) => {
-        console.warn("handleAddStudentWithPayment called - ensure hook logic is correct");
-        const { paymentAmount: amount, paymentMethod: method, paymentDescription: description, ...studentData } = newStudentWithPayment as any;
-        try {
-            await handleAddStudent(studentData);
-            console.log("Attempted to add student:", studentData);
-
-            const addedStudent = students.find(s =>
-                s.name === studentData.name
-            );
-
-            if (addedStudent && amount > 0) {
-                console.log(`Student found (ID: ${addedStudent.id}), attempting payment...`);
-                setSelectedStudent(addedStudent);
-                setPaymentAmount(amount);
-                setPaymentMethod(method);
-                setPaymentDescription(description || '');
-                await handlePayment();
-                resetPaymentForm();
-                setShowStudentModal(false);
-                resetStudentForm();
-            } else if (addedStudent) {
-                console.log(`Student found (ID: ${addedStudent.id}), no initial payment.`);
-                setShowStudentModal(false);
-                resetStudentForm();
-            } else {
-                console.error("Failed to find newly added student. Cannot proceed with payment.");
-                toast.error("Student added, but failed to find details for payment.");
-            }
-        } catch (err) {
-            console.error("Error in handleAddStudentWithPayment flow:", err);
-            toast.error(`Failed to add student: ${err instanceof Error ? err.message : String(err)}`);
-        }
-    };
-
-    const handleViewHistory = (student: Student) => {
-        console.log('View history for:', student.name);
-    };
-
     const handleViewTransactions = (student: Student) => {
         setSelectedTransactionsStudent(student);
         if (student.feeId) fetchFeeTransactions(student.feeId);
@@ -142,21 +78,17 @@ export default function FeeManagementPage() {
         setShowSubclassSummaryModal(true);
     };
 
-    // Chosen from the search popup → open the normal record-payment modal
+    // Search popup pick → open the student's payment history (read-only)
     const handleSearchSelectStudent = (student: Student) => {
         setStudentSearchTerm('');
-        setSelectedStudent(student);
-        setShowPaymentModal(true);
+        handleViewTransactions(student);
     };
 
     return (
         <div className="p-4 md:p-6 space-y-6">
-            <Header
-                setShowStudentModal={setShowStudentModal}
-                setShowPaymentModal={setShowPaymentModal}
-            />
+            <Header />
 
-            {/* Search a student → popup with matches → pick one → record payment */}
+            {/* Search a student → popup with matches → view payment history */}
             <RecordPaymentSearch
                 searchTerm={studentSearchTerm}
                 setSearchTerm={setStudentSearchTerm}
@@ -165,10 +97,11 @@ export default function FeeManagementPage() {
                 onSelectStudent={handleSearchSelectStudent}
             />
 
-            {/* View tabs: payment records ledger (default) or the student roster */}
+            {/* View tabs */}
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex gap-6 overflow-x-auto">
                     {([
+                        { key: 'class-fees', label: 'Class Fees' },
                         { key: 'records', label: 'Payment Records' },
                         { key: 'students', label: 'Students' },
                     ] as const).map((tab) => (
@@ -189,11 +122,12 @@ export default function FeeManagementPage() {
 
             {fetchError && <div className="text-red-600 text-center p-2">Error: {fetchError}</div>}
 
+            {viewTab === 'class-fees' && <ClassFeesEditor />}
+
             {viewTab === 'records' && (
                 <PaymentRecordsView
                     records={paymentRecords}
                     isLoading={isLoadingPaymentRecords}
-                    onUpdatePayment={handleUpdatePayment}
                 />
             )}
 
@@ -228,14 +162,11 @@ export default function FeeManagementPage() {
                             {viewMode === "list" ? (
                                 <ListView
                                     students={getFilteredStudents()}
-                                    onRecordPayment={handleRecordPaymentClick}
                                     onViewTransactions={handleViewTransactions}
                                 />
                             ) : (
                                 <CardView
                                     students={getFilteredStudents()}
-                                    onRecordPayment={handleRecordPaymentClick}
-                                    onViewHistory={handleViewHistory}
                                     onViewTransactions={handleViewTransactions}
                                 />
                             )}
@@ -253,40 +184,6 @@ export default function FeeManagementPage() {
                 </>
             )}
 
-            {showPaymentModal && (
-                <PaymentModal
-                    isOpen={showPaymentModal}
-                    onClose={() => {
-                        setShowPaymentModal(false);
-                        resetPaymentForm();
-                    }}
-                    student={selectedStudent}
-                    setSelectedStudent={setSelectedStudent}
-                    selectedPaymentType={selectedPaymentType}
-                    setSelectedPaymentType={setSelectedPaymentType}
-                    paymentAmount={paymentAmount}
-                    setPaymentAmount={setPaymentAmount}
-                    paymentMethod={paymentMethod}
-                    setPaymentMethod={setPaymentMethod}
-                    paymentDescription={paymentDescription}
-                    setPaymentDescription={setPaymentDescription}
-                    handlePayment={handlePayment}
-                    handleAddStudentWithPayment={handleAddStudentWithPayment}
-                    isLoading={isLoading}
-                    students={students}
-                />
-            )}
-            <StudentModal
-                isOpen={showStudentModal}
-                onClose={() => {
-                    setShowStudentModal(false);
-                    resetStudentForm();
-                }}
-                newStudent={newStudent}
-                setNewStudent={setNewStudent}
-                handleAddStudent={handleAddStudent}
-                isLoading={isLoading}
-            />
             <TransactionsModal
                 isOpen={showTransactionsModal}
                 onClose={() => setShowTransactionsModal(false)}
@@ -302,4 +199,4 @@ export default function FeeManagementPage() {
             />
         </div>
     );
-} 
+}

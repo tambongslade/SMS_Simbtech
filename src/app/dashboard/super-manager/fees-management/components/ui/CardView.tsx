@@ -4,7 +4,7 @@ import { Student } from '../../types';
 
 interface CardViewProps {
   students: Student[];
-  onRecordPayment: (student: Student) => void;
+  onRecordPayment?: (student: Student) => void;
   onViewHistory: (student: Student) => void;
   onViewTransactions: (student: Student) => void;
 }
@@ -92,12 +92,14 @@ export const CardView: React.FC<CardViewProps> = ({
           </div>
 
           <div className="mt-4 flex gap-2">
+            {onRecordPayment && (
             <button
-              onClick={() => onRecordPayment(student)}
+              onClick={() => onRecordPayment?.(student)}
               className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors"
             >
               Record Payment
             </button>
+            )}
             <button
               onClick={() => onViewHistory(student)}
               className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"

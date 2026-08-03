@@ -8,7 +8,7 @@ import { PaymentRecord } from '../../hooks/useFeeManagement';
 interface PaymentRecordsViewProps {
     records: PaymentRecord[];
     isLoading: boolean;
-    onUpdatePayment: (
+    onUpdatePayment?: (
         feeId: number | string,
         paymentId: number | string,
         data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
@@ -221,7 +221,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.paymentMethod ? record.paymentMethod.replace(/_/g, ' ') : '—'}</td>
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.receiptNumber || '—'}</td>
                                         <td className="px-3 py-2.5 whitespace-nowrap">
-                                            {isEditable(record) ? (
+                                            {onUpdatePayment && isEditable(record) ? (
                                                 <button
                                                     onClick={() => startEdit(record)}
                                                     title="Edit payment (allowed within 24h of recording)"
@@ -362,7 +362,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                         <span className="text-sm text-gray-900 text-right break-words">{record.receiptNumber || '—'}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-1.5">
-                                        {isEditable(record) ? (
+                                        {onUpdatePayment && isEditable(record) ? (
                                             <button
                                                 onClick={() => startEdit(record)}
                                                 title="Edit payment (allowed within 24h of recording)"

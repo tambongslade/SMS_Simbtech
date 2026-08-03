@@ -48,7 +48,7 @@ export const RecordPaymentSearch: React.FC<RecordPaymentSearchProps> = ({
     return (
         <div className="bg-white rounded-lg shadow-md border border-blue-100 p-4 sm:p-5">
             <label htmlFor="record-payment-search" className="block text-sm font-semibold text-gray-800">
-                Record a payment
+                Find a student
             </label>
             <p className="text-xs text-gray-500 mb-2">Search the student, pick them from the list, and enter the payment.</p>
             <div ref={containerRef} className="relative">
@@ -96,7 +96,7 @@ export const RecordPaymentSearch: React.FC<RecordPaymentSearchProps> = ({
                                                 )}
                                             </div>
                                             <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-blue-600 text-white text-xs font-medium">
-                                                <BanknotesIcon className="h-4 w-4" /> Record
+                                                <BanknotesIcon className="h-4 w-4" /> View
                                             </span>
                                         </div>
                                     </button>

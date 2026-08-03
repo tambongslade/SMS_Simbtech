@@ -8,81 +8,33 @@ interface ClassFormProps {
   onCancel: () => void;
 }
 
+// Class Management only creates/renames classes — the fee structure is
+// configured by the Super Manager under Fees Management → Class Fees.
+// Existing fee values are passed through unchanged on update (0 on create).
 export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassFormProps) {
-  // Use new field names for state
-  const [formData, setFormData] = useState(() => ({
-    name: initialData?.name || '',
-    firstTermFee: initialData?.firstTermFee?.toString() || '',
-    secondTermFee: initialData?.secondTermFee?.toString() || '',
-    thirdTermFee: initialData?.thirdTermFee?.toString() || '',
-    newStudentAddFee: initialData?.newStudentAddFee?.toString() || '',
-    oldStudentAddFee: initialData?.oldStudentAddFee?.toString() || '',
-    miscellaneousFee: initialData?.miscellaneousFee?.toString() || '',
-  }));
+  const [name, setName] = useState(initialData?.name || '');
 
-  // Update state with new field names
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name || '',
-        firstTermFee: initialData.firstTermFee?.toString() || '',
-        secondTermFee: initialData.secondTermFee?.toString() || '',
-        thirdTermFee: initialData.thirdTermFee?.toString() || '',
-        newStudentAddFee: initialData.newStudentAddFee?.toString() || '',
-        oldStudentAddFee: initialData.oldStudentAddFee?.toString() || '',
-        miscellaneousFee: initialData.miscellaneousFee?.toString() || '',
-      });
-    } else {
-      // Reset form
-      setFormData({
-        name: '',
-        firstTermFee: '',
-        secondTermFee: '',
-        thirdTermFee: '',
-        newStudentAddFee: '',
-        oldStudentAddFee: '',
-        miscellaneousFee: '',
-      });
-    }
+    setName(initialData?.name || '');
   }, [initialData]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Use new field names for parsing
-    const thirdTermFeeValue = formData.thirdTermFee.trim() === ''
-      ? undefined
-      : (parseFloat(formData.thirdTermFee) || 0);
-
-    const dataToSubmit = {
-      name: formData.name,
-      firstTermFee: parseFloat(formData.firstTermFee) || 0,
-      secondTermFee: parseFloat(formData.secondTermFee) || 0,
-      thirdTermFee: thirdTermFeeValue,
-      newStudentAddFee: parseFloat(formData.newStudentAddFee) || 0,
-      oldStudentAddFee: parseFloat(formData.oldStudentAddFee) || 0,
-      miscellaneousFee: parseFloat(formData.miscellaneousFee) || 0,
-    };
-
-    // Use new field names for validation
-    if (!dataToSubmit.name ||
-        isNaN(dataToSubmit.firstTermFee) ||
-        isNaN(dataToSubmit.secondTermFee) ||
-        (dataToSubmit.thirdTermFee !== undefined && isNaN(dataToSubmit.thirdTermFee)) ||
-        isNaN(dataToSubmit.newStudentAddFee) ||
-        isNaN(dataToSubmit.oldStudentAddFee) ||
-        isNaN(dataToSubmit.miscellaneousFee))
-    {
-        alert('Please fill in all required fields correctly.');
-        return;
+    if (!name.trim()) {
+      alert('Please enter a class name.');
+      return;
     }
 
-    const finalData: Omit<Class, 'id' | 'subClasses' | 'studentCount'> = dataToSubmit;
-    onSubmit(finalData);
+    onSubmit({
+      name: name.trim(),
+      // Preserve the existing fee structure — edited in Fees Management
+      firstTermFee: initialData?.firstTermFee ?? 0,
+      secondTermFee: initialData?.secondTermFee ?? 0,
+      thirdTermFee: initialData?.thirdTermFee,
+      newStudentAddFee: initialData?.newStudentAddFee ?? 0,
+      oldStudentAddFee: initialData?.oldStudentAddFee ?? 0,
+      miscellaneousFee: initialData?.miscellaneousFee ?? 0,
+    });
   };
 
   return (
@@ -96,101 +48,17 @@ export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassF
           type="text"
           id="name"
           name="name"
-          value={formData.name}
-          onChange={handleChange}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           required
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           placeholder="e.g., Form 1, Grade 5"
         />
       </div>
-      {/* Fee Inputs - Use new field names */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
-          <div>
-            <label htmlFor="firstTermFee" className="block text-sm font-medium text-gray-700">1st Term Fee *</label>
-            <input
-              type="number"
-              id="firstTermFee"
-              name="firstTermFee"
-              value={formData.firstTermFee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="secondTermFee" className="block text-sm font-medium text-gray-700">2nd Term Fee *</label>
-            <input
-              type="number"
-              id="secondTermFee"
-              name="secondTermFee"
-              value={formData.secondTermFee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="thirdTermFee" className="block text-sm font-medium text-gray-700">3rd Term Fee</label>
-            <input
-              type="number"
-              id="thirdTermFee"
-              name="thirdTermFee"
-              value={formData.thirdTermFee}
-              onChange={handleChange}
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Leave empty if none"
-            />
-          </div>
-          {/* Registration and Miscellaneous fields remain the same */}
-          <div>
-            <label htmlFor="newStudentAddFee" className="block text-sm font-medium text-gray-700">Registration (New Students) *</label>
-            <input
-              type="number"
-              id="newStudentAddFee"
-              name="newStudentAddFee"
-              value={formData.newStudentAddFee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label htmlFor="oldStudentAddFee" className="block text-sm font-medium text-gray-700">Registration (Old Students) *</label>
-            <input
-              type="number"
-              id="oldStudentAddFee"
-              name="oldStudentAddFee"
-              value={formData.oldStudentAddFee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-           <div>
-            <label htmlFor="miscellaneousFee" className="block text-sm font-medium text-gray-700">Miscellaneous Fee *</label>
-            <input
-              type="number"
-              id="miscellaneousFee"
-              name="miscellaneousFee"
-              value={formData.miscellaneousFee}
-              onChange={handleChange}
-              required
-              min="0"
-              step="any"
-              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-      </div>
+
+      <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-md p-2.5">
+        Class fees are configured in <span className="font-medium">Fees Management → Class Fees</span>.
+      </p>
 
       {/* Form actions */}
       <div className="flex justify-end space-x-3 pt-4 border-t">

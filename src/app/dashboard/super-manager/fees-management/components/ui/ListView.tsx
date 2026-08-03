@@ -8,7 +8,7 @@ const formatAmount = (amount: number) => amount.toLocaleString();
 
 interface ListViewProps {
   students: Student[];
-  onRecordPayment: (student: Student) => void;
+  onRecordPayment?: (student: Student) => void;
   onViewTransactions: (student: Student) => void;
 }
 
@@ -78,12 +78,14 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
                 </span>
               </td>
               <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
+                {onRecordPayment && (
                 <button
-                  onClick={() => onRecordPayment(student)}
+                  onClick={() => onRecordPayment?.(student)}
                   className="text-blue-600 hover:text-blue-900 mr-2"
                 >
                   Record
                 </button>
+                )}
                 <button
                   onClick={() => onViewTransactions(student)}
                   className="text-indigo-600 hover:text-indigo-900"
@@ -136,12 +138,14 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
               </span>
             </div>
             <div className="flex flex-wrap gap-2 pt-1.5">
+              {onRecordPayment && (
               <button
-                onClick={() => onRecordPayment(student)}
+                onClick={() => onRecordPayment?.(student)}
                 className="text-sm font-medium text-blue-600 hover:text-blue-900"
               >
                 Record
               </button>
+              )}
               <button
                 onClick={() => onViewTransactions(student)}
                 className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
