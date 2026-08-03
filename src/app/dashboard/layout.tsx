@@ -196,21 +196,13 @@ const menuItems: MenuItemsStructure = {
     { label: 'Expense Requisition', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
     { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
-    {
-      label: 'Discipline', href: '/dashboard/super-manager/discipline', icon: ClipboardDocumentListIcon, subItems: [
-        { label: 'Morning Roll-Call', href: '/dashboard/super-manager/roll-call', icon: ChevronRightIcon },
-        { label: 'Disciplinary Actions', href: '/dashboard/super-manager/disciplinary-actions', icon: ChevronRightIcon },
-        { label: 'Saturday Punishments', href: '/dashboard/super-manager/punishments', icon: ChevronRightIcon },
-        { label: 'Broken Property', href: '/dashboard/super-manager/broken-property', icon: ChevronRightIcon },
-        { label: 'Report Requests', href: '/dashboard/super-manager/report-requests', icon: ChevronRightIcon },
-      ]
-    },
+    { label: 'Discipline Overview', href: '/dashboard/super-manager/overview?module=discipline', icon: ClipboardDocumentListIcon },
+    { label: 'Report Requests', href: '/dashboard/super-manager/report-requests', icon: DocumentChartBarIcon },
     { label: 'Examination Structure', href: '/dashboard/super-manager/examination-structure', icon: CalendarDaysIcon },
     { label: 'Marks Management', href: '/dashboard/super-manager/marks-management', icon: ClipboardDocumentCheckIcon },
     { label: 'Report Card Generation', href: '/dashboard/super-manager/report-card-generation', icon: DocumentChartBarIcon },
     { label: 'Academic Year', href: '/dashboard/super-manager/academic-years', icon: CalendarIcon },
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
-    { label: 'Seized Items', href: '/dashboard/super-manager/seized-items', icon: ArchiveBoxIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },

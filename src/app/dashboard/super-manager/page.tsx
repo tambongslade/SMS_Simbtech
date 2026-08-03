@@ -79,9 +79,9 @@ const quickActions: QuickAction[] = [
     color: 'rose',
   },
   {
-    label: 'Discipline',
-    description: "Roll-call, actions & punishments",
-    href: '/dashboard/super-manager/disciplinary-actions',
+    label: 'Discipline Overview',
+    description: "Read-only discipline analytics",
+    href: '/dashboard/super-manager/overview?module=discipline',
     icon: ClipboardDocumentListIcon,
     color: 'amber',
   },
