@@ -251,10 +251,10 @@ export default function StaffSalariesTab({
                 ) : (
                     <ul className="divide-y divide-gray-100">
                         {staff.map((row) => (
-                            <li key={row.userId} className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-                                <div className="min-w-0 flex-1">
+                            <li key={row.userId} className="px-3 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                                <div className="min-w-0 sm:flex-1">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-sm font-medium text-gray-900 truncate">{row.name}</p>
+                                        <p className="text-sm font-medium text-gray-900 break-words">{row.name}</p>
                                         {row.roles.slice(0, 3).map((role) => (
                                             <Badge key={role} color="gray" size="sm">{formatLabel(role)}</Badge>
                                         ))}
@@ -271,17 +271,17 @@ export default function StaffSalariesTab({
                                             : 'No salary set yet'}
                                     </p>
                                 </div>
-                                <div className="flex gap-2 shrink-0">
+                                <div className="grid grid-cols-3 gap-2 sm:flex sm:shrink-0">
                                     <button
                                         onClick={() => openModal(row, 'set-salary')}
-                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
+                                        className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
                                     >
                                         {row.profile ? (isHourly(row.profile) ? 'Change Rate' : 'Change Salary') : 'Set Salary'}
                                     </button>
                                     <button
                                         onClick={() => openModal(row, 'allowance')}
                                         disabled={!row.profile}
-                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
                                         title={row.profile ? undefined : 'Set a salary first'}
                                     >
                                         Allowance
@@ -289,7 +289,7 @@ export default function StaffSalariesTab({
                                     <button
                                         onClick={() => openModal(row, 'withholding')}
                                         disabled={!row.profile}
-                                        className="px-2.5 py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed"
                                         title={row.profile ? undefined : 'Set a salary first'}
                                     >
                                         Withholding
@@ -351,15 +351,15 @@ export default function StaffSalariesTab({
                             </p>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-2">
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
                             <button
                                 onClick={closeModal}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
+                                className="w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50"
                             >
                                 Cancel
                             </button>
-                            <Button onClick={submit} isLoading={isSubmitting}>
+                            <Button onClick={submit} isLoading={isSubmitting} className="w-full sm:w-auto justify-center">
                                 {action === 'set-salary' ? (modalProfile ? 'Apply Change' : 'Set Salary')
                                     : action === 'allowance' ? 'Add Allowance' : 'Add Withholding'}
                             </Button>

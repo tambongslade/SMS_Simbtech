@@ -120,10 +120,10 @@ export default function SalariesWorkspace() {
     };
 
     return (
-        <div className="p-4 sm:p-6 space-y-6">
+        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Salary Management</h1>
-                <p className="text-gray-600">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Salary Management</h1>
+                <p className="text-sm sm:text-base text-gray-600">
                     {canApprove
                         ? 'Configure staff salaries, allowances and withholdings, and approve change requests.'
                         : canManage
@@ -143,7 +143,7 @@ export default function SalariesWorkspace() {
                         </h3>
                     </CardHeader>
                     <CardBody>
-                        <dl className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <dl className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
                             {Object.entries(cashSummary)
                                 .filter(([, value]) => typeof value === 'number' || typeof value === 'string')
                                 // Ids and counts are metadata, not money — don't show them as FCFA
@@ -164,7 +164,7 @@ export default function SalariesWorkspace() {
 
             {/* Tabs */}
             <div className="border-b border-gray-200">
-                <nav className="-mb-px flex gap-6 overflow-x-auto">
+                <nav className="-mb-px flex gap-4 sm:gap-6 overflow-x-auto">
                     {visibleTabs.map((t) => (
                         <button
                             key={t.key}
@@ -234,21 +234,21 @@ export default function SalariesWorkspace() {
                 ) : (
                     <ul className="divide-y divide-gray-100">
                         {items.map((item) => (
-                            <li key={item.id} className="px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                        <p className="text-sm font-medium text-gray-900 truncate">{itemName(item)}</p>
+                            <li key={item.id} className="px-3 sm:px-6 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
+                                <div className="min-w-0 sm:flex-1">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-sm font-medium text-gray-900 break-words">{itemName(item)}</p>
                                         <Badge color={statusColor(item.status)} size="sm">{formatLabel(item.status || 'Unknown')}</Badge>
                                         {item.type && <Badge color="gray" size="sm">{formatLabel(item.type)}</Badge>}
                                     </div>
-                                    <p className="mt-0.5 text-xs text-gray-500 truncate">
+                                    <p className="mt-0.5 text-xs text-gray-500 break-words">
                                         {item.reason || item.description || 'No reason provided'}
                                         {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString()}` : ''}
                                         {item.effectiveDate ? ` · effective ${new Date(item.effectiveDate).toLocaleDateString()}` : ''}
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <div className="text-right">
+                                <div className="flex items-center justify-between gap-3 sm:shrink-0">
+                                    <div className="sm:text-right">
                                         {activeTab === 'change-requests' && item.currentSalary != null && (
                                             <p className="text-xs text-gray-400 line-through">{formatMoney(item.currentSalary)}</p>
                                         )}
@@ -259,14 +259,14 @@ export default function SalariesWorkspace() {
                                             <button
                                                 onClick={() => act(item, 'approve')}
                                                 disabled={actingId === item.id}
-                                                className="px-2.5 py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                                className="px-3 py-2 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
                                             >
                                                 Approve
                                             </button>
                                             <button
                                                 onClick={() => act(item, 'reject')}
                                                 disabled={actingId === item.id}
-                                                className="px-2.5 py-1.5 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                                                className="px-3 py-2 sm:px-2.5 sm:py-1.5 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                                             >
                                                 Reject
                                             </button>
