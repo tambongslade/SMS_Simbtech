@@ -223,6 +223,29 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     });
   }, [subClasses, showConflictsOnly, teacherConflicts, timetables]);
 
+  // Per-class summary used by the mobile list (the full matrix is unreadable
+  // on a phone, so mobile gets a class list that drills into the class view).
+  const subClassSummaries = useMemo(() => {
+    return filteredSubClasses.map(subClass => {
+      const slots = timetables[subClass.id]?.slots || [];
+      let assigned = 0;
+      let conflicts = 0;
+
+      slots.forEach(slot => {
+        if (slot.assignments.length > 0) assigned++;
+        if (slot.assignments.some(a => hasConflict(slot.day, slot.period, a.teacherId))) conflicts++;
+      });
+
+      return {
+        id: subClass.id,
+        name: subClass.name,
+        assigned,
+        conflicts,
+        modified: getModifiedSubclasses.includes(subClass.id),
+      };
+    });
+  }, [filteredSubClasses, timetables, teacherConflicts, getModifiedSubclasses]);
+
   // Get live assignments for the currently editing slot
   const currentSlotAssignments = useMemo(() => {
     if (!manageModalOpen || !editingSubClassId || !editingDay || !editingPeriod) return [];
@@ -359,10 +382,10 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
   }
 
   return (
-    <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-2xl font-bold">School-Wide Timetable View</h2>
-        <div className="flex items-center space-x-4">
+    <div className="space-y-4 sm:space-y-6 w-full">
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:flex-wrap md:gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold">School-Wide Timetable View</h2>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           <label className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -390,7 +413,7 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
               onClick={handleSaveAllChanges}
               disabled={isSaving || isLoadingTimetable}
               color="primary"
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-2"
             >
               {isSaving ? (
                 <>
@@ -413,7 +436,46 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow w-full">
+      {/* Mobile: class list — tap a class to open its full timetable */}
+      <div className="md:hidden bg-white rounded-lg shadow w-full overflow-hidden">
+        {subClassSummaries.length === 0 ? (
+          <p className="p-4 text-center text-sm text-gray-500">
+            {showConflictsOnly ? 'No classes with conflicts.' : 'No classes available.'}
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {subClassSummaries.map(summary => (
+              <li key={summary.id}>
+                <button
+                  onClick={() => onClassSelect?.(summary.id)}
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-gray-900 truncate">{summary.name}</span>
+                      {summary.modified && (
+                        <span className="shrink-0 w-2 h-2 bg-yellow-400 rounded-full" title="Has unsaved changes"></span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500 mt-0.5">
+                      {summary.assigned} period{summary.assigned === 1 ? '' : 's'} assigned
+                    </div>
+                  </div>
+                  {summary.conflicts > 0 && (
+                    <span className="shrink-0 text-[10px] font-medium text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                      {summary.conflicts} conflict{summary.conflicts === 1 ? '' : 's'}
+                    </span>
+                  )}
+                  <span className="shrink-0 text-gray-300">&rsaquo;</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Desktop: full class-by-period matrix */}
+      <div className="hidden md:block bg-white rounded-lg shadow w-full">
         <div className="p-4">
           <div className="flex justify-end mb-4 space-x-4">
             <div className="flex items-center space-x-1">

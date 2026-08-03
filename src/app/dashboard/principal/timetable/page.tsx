@@ -135,13 +135,13 @@ const TimetableContent = () => {
   const hasTimetableData = selectedSubClassId && timetables[selectedSubClassId];
 
   return (
-    <div className={`p-6 space-y-6 ${isZoomed ? 'fixed inset-0 bg-white z-[100] overflow-auto' : ''}`}>
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Timetable Management</h1>
-        <div className="flex items-center space-x-4">
+    <div className={`p-4 sm:p-6 space-y-4 sm:space-y-6 ${isZoomed ? 'fixed inset-0 bg-white z-[100] overflow-auto' : ''}`}>
+      <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+        <h1 className="text-2xl sm:text-3xl font-bold">Timetable Management</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {academicYears.length > 0 && selectedAcademicYearId && (
-            <div className="flex items-center space-x-2">
-              <label htmlFor="academic-year-select" className="text-gray-700 text-sm font-medium">Academic Year:</label>
+            <div className="flex items-center gap-2">
+              <label htmlFor="academic-year-select" className="shrink-0 text-gray-700 text-sm font-medium">Academic Year:</label>
               <Select
                 id="academic-year-select"
                 value={selectedAcademicYearId}
@@ -150,13 +150,15 @@ const TimetableContent = () => {
                   value: year.id,
                   label: year.name
                 }))}
-                className="w-40"
+                className="flex-1 sm:flex-none sm:w-40"
               />
             </div>
           )}
+          {/* Fullscreen only makes sense where there is a window to fill */}
           <Button
             onClick={() => setIsZoomed(!isZoomed)}
             color="secondary"
+            className="hidden md:inline-flex"
             title={isZoomed ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
             {isZoomed ? (
@@ -169,7 +171,7 @@ const TimetableContent = () => {
               </svg>
             )}
           </Button>
-          <div className="flex space-x-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-2">
             <Button
               onClick={() => setViewMode('class')}
               color={viewMode === 'class' ? 'primary' : 'secondary'}
@@ -180,7 +182,7 @@ const TimetableContent = () => {
               onClick={() => setViewMode('school')}
               color={viewMode === 'school' ? 'primary' : 'secondary'}
             >
-              School-Wide View
+              School-Wide
             </Button>
           </div>
         </div>
@@ -188,8 +190,8 @@ const TimetableContent = () => {
 
       {viewMode === 'class' ? (
         /* Class Timetable View */
-        <div className="space-y-6">
-          <div className="flex items-end space-x-4">
+        <div className="space-y-4 sm:space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <Card className="flex-grow">
               <CardHeader>
                 <CardTitle>Select Subclass</CardTitle>
@@ -205,22 +207,24 @@ const TimetableContent = () => {
                 />
               </CardBody>
             </Card>
-            <Button
-              onClick={() => handleExport('subclass')}
-              disabled={!selectedSubClassId || isExporting || !hasTimetableData}
-              color="secondary"
-              title="Export this class timetable as Excel"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
-              {isExporting ? 'Exporting...' : 'Export'}
-            </Button>
-            <Button
-              onClick={() => saveChanges(selectedSubClassId)}
-              disabled={!selectedSubClassId || isLoadingTimetable || !hasTimetableData}
-              color="primary"
-            >
-              {isLoadingTimetable ? 'Saving...' : 'Save Changes'}
-            </Button>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-4">
+              <Button
+                onClick={() => handleExport('subclass')}
+                disabled={!selectedSubClassId || isExporting || !hasTimetableData}
+                color="secondary"
+                title="Export this class timetable as Excel"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
+                {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+              <Button
+                onClick={() => saveChanges(selectedSubClassId)}
+                disabled={!selectedSubClassId || isLoadingTimetable || !hasTimetableData}
+                color="primary"
+              >
+                {isLoadingTimetable ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
           </div>
 
           <div className="relative min-h-[300px]">
@@ -232,7 +236,7 @@ const TimetableContent = () => {
 
             {selectedSubClassId ? (
               <Card className={`${isLoadingTimetable ? 'opacity-50' : ''}`}>
-                <CardBody className="pt-6">
+                <CardBody className="px-2 pt-4 sm:px-6 sm:pt-6">
                   <TimetableGrid
                     key={`${selectedSubClassId}-${hasTimetableData ? 'loaded' : 'empty'}`}
                     selectedSubClassId={selectedSubClassId}

@@ -303,8 +303,8 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   return (
     <div className="space-y-4 w-full">
       {/* Mobile: one day at a time */}
-      <div className="md:hidden bg-white rounded-lg shadow w-full p-3">
-        <div className="flex gap-1.5 overflow-x-auto pb-2">
+      <div className="md:hidden w-full">
+        <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
           {DAYS_ORDER.map(day => (
             <button
               key={day}
