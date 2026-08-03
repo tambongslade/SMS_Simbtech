@@ -128,7 +128,7 @@ function UserPicker({
         value={term}
         onChange={e => setTerm(e.target.value)}
         placeholder="Search users…"
-        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm"
       />
       {results.length > 0 && (
         <div className="mt-1 border border-gray-200 rounded-md max-h-40 overflow-y-auto bg-white">
@@ -182,6 +182,9 @@ export default function ChatPage() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordChunks = useRef<Blob[]>([]);
   const recordStart = useRef(0);
+
+  // Touch devices have no hover — tapping a bubble toggles its action bar
+  const [actionsForId, setActionsForId] = useState<number | null>(null);
 
   // Presence / receipts
   const [activeDetail, setActiveDetail] = useState<ChatChannel | null>(null);
@@ -255,6 +258,7 @@ export default function ChatPage() {
     setActiveId(channelId);
     setThreadRoot(null);
     setThreadMessages([]);
+    setActionsForId(null);
     setEditing(null);
     setPendingAttachments([]);
     setReplyTo(null);
@@ -851,6 +855,40 @@ export default function ChatPage() {
     return others.length > 0 ? others.join(', ') : c.name;
   };
 
+  // Compact timestamp for the conversation list (time today, 'Yesterday', then date)
+  const listTimeLabel = (iso?: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const today = new Date();
+    if (d.toDateString() === today.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  };
+
+  const AVATAR_COLORS = [
+    'bg-blue-100 text-blue-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-amber-100 text-amber-700',
+    'bg-violet-100 text-violet-700',
+    'bg-rose-100 text-rose-700',
+    'bg-cyan-100 text-cyan-700',
+  ];
+
+  const channelAvatar = (c: ChatChannel, size = 'w-11 h-11 text-sm') => {
+    const title = dmTitle(c) || '?';
+    const initials = title.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+    const peerId = c.type === 'DIRECT' ? (c.members || []).find(m => m.userId !== myId)?.userId : undefined;
+    const online = peerId ? presenceMap[peerId]?.online : false;
+    return (
+      <span className={`${size} ${AVATAR_COLORS[c.id % AVATAR_COLORS.length]} relative shrink-0 rounded-full flex items-center justify-center font-semibold`}>
+        {c.type === 'DIRECT' ? initials : <UserGroupIcon className="w-5 h-5" />}
+        {online && <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />}
+      </span>
+    );
+  };
+
   // Sender-side delivery ladder: Sent (✓) → Delivered (✓✓) → Read (blue ✓✓)
   const renderDeliveryStatus = (m: ChatMessage) => {
     if (m.senderId !== myId || m.deletedAt) return null;
@@ -874,45 +912,56 @@ export default function ChatPage() {
     <button
       key={c.id}
       onClick={() => openChannel(c.id)}
-      className={`w-full text-left px-3 py-2 rounded-md flex items-center justify-between gap-2 ${
-        activeId === c.id ? 'bg-blue-50 text-blue-800' : 'hover:bg-gray-100 text-gray-800'
+      className={`w-full text-left px-4 md:px-3 py-2.5 md:py-2 md:rounded-md flex items-center gap-3 active:bg-gray-100 transition-colors ${
+        activeId === c.id ? 'md:bg-blue-50 md:text-blue-800' : 'hover:bg-gray-50 text-gray-800'
       }`}
     >
-      <div className="min-w-0">
-        <p className="text-sm font-medium truncate flex items-center gap-1.5">
-          {dmTitle(c)}
-          {c.type === 'DIRECT' && (() => {
-            const peerId = (c.members || []).find(m => m.userId !== myId)?.userId;
-            const p = peerId ? presenceMap[peerId] : undefined;
-            return p ? <PresenceDot online={p.online} /> : null;
-          })()}
-        </p>
-        {c.lastMessage && (
-          <p className="text-xs text-gray-500 truncate">
-            {c.lastMessage.senderName ? `${c.lastMessage.senderName}: ` : ''}
-            {c.lastMessage.content || 'Attachment'}
+      {channelAvatar(c)}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className={`text-[15px] md:text-sm truncate ${c.unreadCount > 0 ? 'font-semibold text-gray-900' : 'font-medium'}`}>
+            {dmTitle(c)}
           </p>
-        )}
+          <span className={`shrink-0 text-[11px] ${c.unreadCount > 0 ? 'text-blue-600 font-semibold' : 'text-gray-400'}`}>
+            {listTimeLabel(c.lastMessage?.createdAt || c.updatedAt)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2 mt-0.5">
+          <p className={`text-[13px] md:text-xs truncate ${c.unreadCount > 0 ? 'text-gray-700' : 'text-gray-500'}`}>
+            {c.lastMessage
+              ? `${c.lastMessage.senderId === myId ? 'You: ' : c.lastMessage.senderName ? `${c.lastMessage.senderName}: ` : ''}${c.lastMessage.content || 'Attachment'}`
+              : 'No messages yet'}
+          </p>
+          {c.unreadCount > 0 && (
+            <span className="shrink-0 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
+              {c.unreadCount > 99 ? '99+' : c.unreadCount}
+            </span>
+          )}
+        </div>
       </div>
-      {c.unreadCount > 0 && (
-        <span className="shrink-0 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[11px] font-bold rounded-full flex items-center justify-center">
-          {c.unreadCount > 99 ? '99+' : c.unreadCount}
-        </span>
-      )}
     </button>
   );
 
-  const renderMessage = (m: ChatMessage, inThread = false) => {
+  const renderMessage = (m: ChatMessage, inThread = false, prev?: ChatMessage) => {
     const mine = m.senderId === myId;
     const isAdmin = activeChannel?.myRole === 'ADMIN';
+    // Consecutive messages from the same sender group tightly, like native messengers
+    const grouped = !!prev && prev.senderId === m.senderId && !prev.deletedAt;
     return (
       <div
         key={m.id}
         ref={el => { if (!inThread) messageRefs.current[m.id] = el; }}
-        className={`group flex ${mine ? 'justify-end' : 'justify-start'}`}
+        className={`group flex ${mine ? 'justify-end' : 'justify-start'} ${grouped ? 'mt-0.5' : 'mt-2.5'} first:mt-0`}
       >
-        <div className={`max-w-[85%] sm:max-w-[70%] rounded-lg px-3 py-2 transition-shadow duration-300 ${highlightId === m.id ? 'ring-2 ring-amber-400 shadow-lg' : ''} ${mine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}>
-          {!mine && <p className={`text-xs font-semibold ${mine ? 'text-blue-100' : 'text-blue-700'}`}>{m.sender?.name || 'Unknown'}</p>}
+        <div
+          onClick={e => {
+            // Tap toggles the action bar on touch screens; ignore taps on interactive children
+            if ((e.target as HTMLElement).closest('button, a, audio, video, input')) return;
+            setActionsForId(current => (current === m.id ? null : m.id));
+          }}
+          className={`max-w-[80%] sm:max-w-[70%] rounded-2xl ${mine ? 'rounded-br-md' : 'rounded-bl-md'} px-3 py-2 shadow-sm transition-shadow duration-300 ${highlightId === m.id ? 'ring-2 ring-amber-400 shadow-lg' : ''} ${mine ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-900'}`}
+        >
+          {!mine && !grouped && <p className={`text-xs font-semibold ${mine ? 'text-blue-100' : 'text-blue-700'}`}>{m.sender?.name || 'Unknown'}</p>}
           {m.parentMessage && !m.deletedAt && (
             <button
               type="button"
@@ -1013,9 +1062,9 @@ export default function ChatPage() {
             </div>
           )}
           {!m.deletedAt && (
-            <div className="hidden group-hover:flex items-center gap-2 mt-1">
+            <div className={`${actionsForId === m.id ? 'flex' : 'hidden md:group-hover:flex'} items-center gap-3 md:gap-2 mt-1.5 md:mt-1`}>
               {QUICK_EMOJIS.map(e => (
-                <button key={e} onClick={() => toggleReaction(m, e)} className="text-sm hover:scale-125 transition-transform">{e}</button>
+                <button key={e} onClick={() => toggleReaction(m, e)} className="text-base md:text-sm hover:scale-125 transition-transform">{e}</button>
               ))}
               {!inThread && (
                 <button
@@ -1049,52 +1098,57 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex bg-gray-50">
+    // Phones: full-bleed fixed layout below the top bar; an open conversation
+    // covers the whole screen (top-0, above the z-30 navbar) like a native app.
+    // md+: contained card inside the dashboard's padded main area.
+    <div
+      className={`flex bg-gray-50 fixed inset-x-0 bottom-0 ${activeId ? 'top-0 z-40' : 'top-16 z-20'} md:static md:z-auto md:h-[calc(100vh-8rem)] md:rounded-xl md:border md:border-gray-200 md:shadow-sm md:overflow-hidden`}
+    >
       {/* Channel sidebar */}
       <aside className={`${activeId ? 'hidden md:flex' : 'flex'} w-full md:w-80 shrink-0 flex-col border-r border-gray-200 bg-white`}>
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="font-bold text-gray-900 flex items-center gap-2">
+        <div className="px-4 py-3 md:p-4 border-b border-gray-200 flex items-center justify-between">
+          <h2 className="font-bold text-gray-900 text-lg md:text-base flex items-center gap-2">
             <ChatBubbleLeftRightIcon className="w-5 h-5" /> Chat
           </h2>
           <div className="flex gap-1">
             {isParent ? (
-              <button onClick={openContactsPanel} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="Contact staff">
+              <button onClick={openContactsPanel} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="Contact staff">
                 <UserGroupIcon className="w-5 h-5" />
               </button>
             ) : (
               <>
-                <button onClick={() => setShowNewDm(true)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="New direct message">
+                <button onClick={() => setShowNewDm(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="New direct message">
                   <ChatBubbleOvalLeftIcon className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowNewChannel(true)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md" title="New channel">
+                <button onClick={() => setShowNewChannel(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="New channel">
                   <PlusIcon className="w-5 h-5" />
                 </button>
               </>
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-2 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain py-2 md:p-2 space-y-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {isLoadingChannels ? (
-            <p className="text-sm text-gray-500 p-3">Loading channels…</p>
+            <p className="text-sm text-gray-500 px-4 py-3">Loading channels…</p>
           ) : channels.length === 0 ? (
-            <p className="text-sm text-gray-500 p-3">No conversations yet.</p>
+            <p className="text-sm text-gray-500 px-4 py-3">No conversations yet.</p>
           ) : (
             <>
               {grouped.direct.length > 0 && (
                 <div>
-                  <p className="px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Direct Messages</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Direct Messages</p>
                   {grouped.direct.map(renderChannelButton)}
                 </div>
               )}
               {grouped.system.length > 0 && (
                 <div>
-                  <p className="px-3 text-xs font-semibold text-gray-400 uppercase mb-1">System Channels</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">System Channels</p>
                   {grouped.system.map(renderChannelButton)}
                 </div>
               )}
               {grouped.custom.length > 0 && (
                 <div>
-                  <p className="px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Custom Channels</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Custom Channels</p>
                   {grouped.custom.map(renderChannelButton)}
                 </div>
               )}
@@ -1111,11 +1165,13 @@ export default function ChatPage() {
           </div>
         ) : (
           <>
-            <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center gap-3">
-              <button onClick={() => setActiveId(null)} className="md:hidden text-gray-500">
-                <ArrowLeftIcon className="w-5 h-5" />
+            {/* Safe-area top padding: on phones this header sits at the very top of the screen */}
+            <div className="px-2 md:px-4 py-2 md:py-3 pt-[max(0.5rem,env(safe-area-inset-top))] md:pt-3 bg-white border-b border-gray-200 flex items-center gap-1 md:gap-3">
+              <button onClick={() => setActiveId(null)} className="md:hidden p-2 -ml-1 text-gray-600 active:bg-gray-100 rounded-full">
+                <ArrowLeftIcon className="w-6 h-6" />
               </button>
-              <button onClick={openInfo} className="min-w-0 text-left flex-1">
+              {channelAvatar(activeChannel, 'w-9 h-9 text-xs')}
+              <button onClick={openInfo} className="min-w-0 text-left flex-1 pl-1">
                 <p className="font-semibold text-gray-900 truncate flex items-center gap-2">
                   {dmTitle(activeChannel)}
                   {activeChannel.type === 'DIRECT' && (
@@ -1139,10 +1195,10 @@ export default function ChatPage() {
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-3 md:p-4">
               {hasMore && (
-                <div className="text-center">
-                  <button onClick={loadOlder} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
+                <div className="text-center mb-2">
+                  <button onClick={loadOlder} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-white border border-gray-200 rounded-full px-3 py-1.5 shadow-sm">
                     <ArrowUpIcon className="w-3 h-3" /> Load older messages
                   </button>
                 </div>
@@ -1152,13 +1208,13 @@ export default function ChatPage() {
               ) : messages.length === 0 ? (
                 <p className="text-center text-sm text-gray-400 py-8">No messages yet — say hello!</p>
               ) : (
-                messages.map(m => renderMessage(m))
+                messages.map((m, i) => renderMessage(m, false, messages[i - 1]))
               )}
               <div ref={bottomRef} />
             </div>
 
             {canPost ? (
-              <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200">
+              <form onSubmit={handleSend} className="px-2 py-2 md:p-3 bg-white border-t border-gray-200 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-3">
                 {editing && (
                   <div className="flex items-center justify-between text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">
                     Editing message
@@ -1205,7 +1261,7 @@ export default function ChatPage() {
                 )}
                 {isUploading && <p className="text-xs text-gray-400 mb-1">Uploading…</p>}
                 {isRecording && <p className="text-xs text-red-500 mb-1 animate-pulse">● Recording voice note… tap the stop button to attach.</p>}
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-1.5 md:gap-2 items-center">
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1220,7 +1276,7 @@ export default function ChatPage() {
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
-                        className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full disabled:opacity-50"
+                        className="p-2.5 md:p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full disabled:opacity-50"
                         title="Attach file (max 25 MB)"
                       >
                         <PaperClipIcon className="w-5 h-5" />
@@ -1229,7 +1285,7 @@ export default function ChatPage() {
                         type="button"
                         onClick={isRecording ? stopRecording : startRecording}
                         disabled={isUploading}
-                        className={`p-2 rounded-full disabled:opacity-50 ${isRecording ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
+                        className={`p-2.5 md:p-2 rounded-full disabled:opacity-50 ${isRecording ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-50'}`}
                         title={isRecording ? 'Stop recording' : 'Record voice note'}
                       >
                         {isRecording ? <StopIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
@@ -1242,19 +1298,19 @@ export default function ChatPage() {
                     onChange={e => handleDraftChange(e.target.value)}
                     onBlur={handleComposerBlur}
                     placeholder={threadRoot ? 'Reply in thread…' : 'Type a message…'}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-4 py-2.5 md:py-2 border border-gray-300 bg-gray-50 md:bg-white rounded-full text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
                     type="submit"
                     disabled={isSending || isUploading || (!draft.trim() && pendingAttachments.length === 0)}
-                    className="p-2.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50"
+                    className="p-3 md:p-2.5 shrink-0 bg-blue-600 text-white rounded-full hover:bg-blue-700 active:bg-blue-700 disabled:opacity-50"
                   >
                     <PaperAirplaneIcon className="w-5 h-5" />
                   </button>
                 </div>
               </form>
             ) : (
-              <div className="p-3 bg-gray-100 border-t border-gray-200 text-center text-xs text-gray-500">
+              <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gray-100 border-t border-gray-200 text-center text-xs text-gray-500">
                 Parents can only post in direct messages with staff.
               </div>
             )}
@@ -1262,21 +1318,35 @@ export default function ChatPage() {
         )}
       </main>
 
-      {/* Thread panel */}
+      {/* Thread panel — side panel on desktop, full-screen overlay on phones */}
       {threadRoot && (
-        <aside className="hidden lg:flex w-96 shrink-0 flex-col border-l border-gray-200 bg-white">
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-            <p className="font-semibold text-gray-900 text-sm">Thread</p>
-            <button onClick={() => setThreadRoot(null)} className="text-gray-400 hover:text-gray-600">
+        <aside className="fixed inset-0 z-50 flex flex-col bg-white lg:static lg:z-auto lg:w-96 lg:shrink-0 lg:border-l lg:border-gray-200">
+          <div className="px-2 lg:px-4 py-2 lg:py-3 pt-[max(0.5rem,env(safe-area-inset-top))] lg:pt-3 border-b border-gray-200 flex items-center gap-1">
+            <button onClick={() => setThreadRoot(null)} className="lg:hidden p-2 -ml-1 text-gray-600 active:bg-gray-100 rounded-full">
+              <ArrowLeftIcon className="w-6 h-6" />
+            </button>
+            <p className="font-semibold text-gray-900 text-sm flex-1 pl-1 lg:pl-0">Thread</p>
+            <button onClick={() => setThreadRoot(null)} className="hidden lg:block text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          <div className="flex-1 overflow-y-auto overscroll-contain p-3">
             {renderMessage(threadRoot, true)}
-            <div className="border-t border-gray-100 pt-2" />
-            {threadMessages.map(m => renderMessage(m, true))}
+            <div className="border-t border-gray-100 mt-2 pt-2" />
+            {threadMessages.map((m, i) => renderMessage(m, true, threadMessages[i - 1]))}
           </div>
-          <p className="px-4 pb-2 text-[11px] text-gray-400">Replies post into this thread while it's open.</p>
+          {/* On phones the main composer is covered by this overlay — jump back with the root pre-set as reply target */}
+          {canPost && (
+            <div className="lg:hidden border-t border-gray-200 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <button
+                onClick={() => { setReplyTo(threadRoot); setThreadRoot(null); }}
+                className="w-full py-2.5 bg-blue-600 text-white rounded-full text-sm font-medium active:bg-blue-700"
+              >
+                Reply in thread
+              </button>
+            </div>
+          )}
+          <p className="hidden lg:block px-4 pb-2 text-[11px] text-gray-400">Replies post into this thread while it's open.</p>
         </aside>
       )}
 
@@ -1294,8 +1364,8 @@ export default function ChatPage() {
 
       {/* New DM modal */}
       {showNewDm && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-end sm:items-center justify-center z-[60] sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-lg w-full sm:max-w-md p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative max-h-[85vh] overflow-y-auto">
             <button onClick={() => setShowNewDm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
@@ -1307,8 +1377,8 @@ export default function ChatPage() {
 
       {/* Parent contacts panel */}
       {showContacts && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-lg w-full p-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-end sm:items-center justify-center z-[60] sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-lg w-full sm:max-w-lg p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative max-h-[85vh] overflow-y-auto">
             <button onClick={() => setShowContacts(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
@@ -1360,8 +1430,8 @@ export default function ChatPage() {
 
       {/* Channel info modal */}
       {showInfo && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-end sm:items-center justify-center z-[60] sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-lg w-full sm:max-w-md p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative max-h-[85vh] overflow-y-auto">
             <button onClick={() => setShowInfo(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
@@ -1411,7 +1481,7 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
         value={term}
         onChange={e => setTerm(e.target.value)}
         placeholder="Search by name, matricule or email…"
-        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+        className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm"
         autoFocus
       />
       {isSearching && <p className="text-xs text-gray-400 mt-2">Searching…</p>}
@@ -1470,8 +1540,8 @@ function NewChannelModal({ onClose, onCreated }: { onClose: () => void; onCreate
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-end sm:items-center justify-center z-[60] sm:p-4">
+      <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-lg w-full sm:max-w-md p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] relative max-h-[85vh] overflow-y-auto">
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-5 h-5" />
         </button>
@@ -1479,11 +1549,11 @@ function NewChannelModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <form onSubmit={submit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g. Form 3A Homeroom" />
+            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder="e.g. Form 3A Homeroom" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm" placeholder="e.g. Class master group" />
+            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder="e.g. Class master group" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
