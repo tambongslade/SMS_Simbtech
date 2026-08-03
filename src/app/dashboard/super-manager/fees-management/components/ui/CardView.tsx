@@ -1,11 +1,12 @@
 "use client";
 
+import { StudentPhoto } from '@/components/ui/StudentPhoto';
 import { Student } from '../../types';
 
 interface CardViewProps {
   students: Student[];
   onRecordPayment?: (student: Student) => void;
-  onViewHistory: (student: Student) => void;
+  onViewHistory?: (student: Student) => void;
   onViewTransactions: (student: Student) => void;
 }
 
@@ -86,7 +87,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Last Payment:</span>
               <span>
-                {new Date(student.lastPaymentDate).toLocaleDateString()}
+                {student.lastPaymentDate ? new Date(student.lastPaymentDate).toLocaleDateString() : '—'}
               </span>
             </div>
           </div>
@@ -100,12 +101,14 @@ export const CardView: React.FC<CardViewProps> = ({
               Record Payment
             </button>
             )}
-            <button
-              onClick={() => onViewHistory(student)}
-              className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
-            >
-              History
-            </button>
+            {onViewHistory && (
+              <button
+                onClick={() => onViewHistory(student)}
+                className="flex-1 bg-gray-100 text-gray-600 px-3 py-1.5 rounded text-sm hover:bg-gray-200 transition-colors"
+              >
+                History
+              </button>
+            )}
             <button
               onClick={() => onViewTransactions(student)}
               className="flex-1 bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 transition-colors"

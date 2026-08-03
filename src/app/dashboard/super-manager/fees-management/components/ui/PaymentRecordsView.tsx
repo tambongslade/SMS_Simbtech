@@ -56,6 +56,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
     };
 
     const saveEdit = async (record: PaymentRecord) => {
+        if (!onUpdatePayment) return;
         const amount = Number(editAmount);
         if (!amount || amount <= 0) return;
         setIsSavingEdit(true);
