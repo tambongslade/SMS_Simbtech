@@ -37,8 +37,8 @@ export default function BursarFinanceRequestsPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h1 className="text-2xl font-bold text-gray-900">Expense Requisition</h1>
         <p className="text-gray-600 mt-1">
-          Validate parent payment claims and staff money requests, raise refunds for Super Manager
-          approval, and track fee reductions and bank verifications.
+          Validate parent payment claims, raise refunds for Super Manager approval, and track staff
+          money requests, fee reductions and bank verifications.
         </p>
       </div>
 
@@ -81,20 +81,7 @@ export default function BursarFinanceRequestsPage() {
                 <FinanceRequestsPanel
                   key={`money-requests-${refreshKey}`}
                   title="Money Requested by Staff"
-                  description="Requests from teachers, HODs, discipline masters and other personnel. Approve to release the money; they confirm receipt once it reaches them."
-                  baseFilters={{ type: 'PERSONNEL_DISBURSEMENT', status: 'PENDING' }}
-                  emptyMessage="No staff money requests are awaiting validation."
-                />
-              ),
-            },
-            {
-              id: 'money-requests-history',
-              label: 'Money Request History',
-              content: (
-                <FinanceRequestsPanel
-                  key={`money-requests-history-${refreshKey}`}
-                  title="All Staff Money Requests"
-                  description="Every request, including those approved and waiting for the recipient to confirm receipt."
+                  description="Requests from teachers, HODs, discipline masters and other personnel — what to disburse. Only the recipient or Principal+ can settle a request, so there are no action buttons here."
                   baseFilters={{ type: 'PERSONNEL_DISBURSEMENT' }}
                   showStatusFilter
                   emptyMessage="No staff money requests yet."

@@ -40,6 +40,7 @@ export interface BankVerificationPayload {
 export interface PaymentClaimPayload {
   studentId?: number;
   enrollmentId?: number;
+  feeId?: number;
   paymentMethod: PaymentClaimMethod;
   paymentDate: string; // YYYY-MM-DD
   receiptNumber?: string;
@@ -354,10 +355,6 @@ export const REQUESTER_ROLES = [
   'FEE_AUDITOR',
 ];
 
-// Who signs off money requested by staff. The Bursar holds the cash and
-// validates; Principal / Manager / Super Manager can override.
-export const DISBURSEMENT_VALIDATORS = ['BURSAR', 'PRINCIPAL', 'MANAGER', 'SUPER_MANAGER'];
-
 // True when the role may only ask for money for itself — never for someone else.
 export const isSelfRequester = (role: string | null | undefined): boolean =>
   !!role && !BURSAR_PLUS.includes(role) && REQUESTER_ROLES.includes(role);
@@ -401,37 +398,27 @@ export type FinanceAction = 'approve' | 'reject' | 'complete';
  * mirroring the backend authorization matrix.
  *
  * Most types are decided in a single action while PENDING and are immutable
- * afterwards. Personnel disbursements are the exception: the Bursar validates
- * the request, and the recipient then confirms the money reached them, so an
- * APPROVED one still has an action left on it. Rejected and completed requests
- * are always final.
+ * afterwards.
+ *
+ * Personnel disbursements never take `approve` — the backend accepts only
+ * `complete` (the recipient confirms the money reached them) and `reject`, and
+ * only from the recipient or Principal+.
  */
 export const availableActions = (
   req: FinanceRequest,
   role: string | null | undefined,
   userId: number | null | undefined,
 ): FinanceAction[] => {
-  if (!role) return [];
-  if (req.status === 'REJECTED' || req.status === 'COMPLETED') return [];
+  if (req.status !== 'PENDING' || !role) return [];
   const isPrincipalPlus = PRINCIPAL_PLUS.includes(role);
 
-  // Money requested by staff is the one two-step flow: validate, then confirm
-  // receipt. Every other type is decided in one action while still PENDING.
+  // Only the recipient (or Principal+ as an override) may settle money
+  // addressed to someone. The backend rejects `approve` for this type.
   if (req.type === 'PERSONNEL_DISBURSEMENT') {
     const recipientId = (req.payload as PersonnelDisbursementPayload)?.recipientUserId;
     const isRecipient = userId != null && recipientId === userId;
-    const isValidator = DISBURSEMENT_VALIDATORS.includes(role);
-
-    if (req.status === 'PENDING') {
-      if (isValidator) return ['approve', 'reject'];
-      // The requester may withdraw their own pending request.
-      return isRecipient ? ['reject'] : [];
-    }
-    if (req.status === 'APPROVED' && (isRecipient || isValidator)) return ['complete'];
-    return [];
+    return isPrincipalPlus || isRecipient ? ['complete', 'reject'] : [];
   }
-
-  if (req.status !== 'PENDING') return [];
 
   if (req.type === 'FEE_REDUCTION') {
     return isPrincipalPlus ? ['approve', 'reject'] : [];

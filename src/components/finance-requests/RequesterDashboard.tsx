@@ -27,7 +27,7 @@ export const requesterTabs = (userId: number, refreshKey: number = 0): FinanceTa
       <FinanceRequestsPanel
         key={`my-requests-${refreshKey}`}
         title="My Money Requests"
-        description="What you have asked the Bursar for, and where each request stands."
+        description="What you have asked for, and where each request stands."
         baseFilters={{ requestedById: userId }}
         showCreate
         allowedCreateTypes={['PERSONNEL_DISBURSEMENT']}
@@ -57,12 +57,13 @@ export const requesterTabs = (userId: number, refreshKey: number = 0): FinanceTa
  * Masters, HODs, teachers, the nurse and so on.
  *
  * They raise a PERSONNEL_DISBURSEMENT naming themselves as the recipient and
- * see only their own requests. The Bursar validates it; once approved, they
- * confirm the cash actually reached them.
+ * see only their own requests. Because they are the recipient, they are also
+ * the one who confirms receipt — the backend only accepts `complete` and
+ * `reject` on this type, from the recipient or Principal+.
  */
 export function RequesterDashboard({
   heading = 'Request Money',
-  description = 'Ask the Bursar for money you need, and confirm what you receive. The Bursar validates every request.',
+  description = 'Ask for money you need, and confirm receipt once it reaches you.',
 }: {
   heading?: string;
   description?: string;
