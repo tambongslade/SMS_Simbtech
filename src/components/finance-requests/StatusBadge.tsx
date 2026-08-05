@@ -14,6 +14,8 @@ const TYPE_STYLES: Record<FinanceRequestType, string> = {
   FEE_REDUCTION: 'bg-purple-100 text-purple-800',
   PERSONNEL_DISBURSEMENT: 'bg-cyan-100 text-cyan-800',
   BANK_VERIFICATION: 'bg-slate-100 text-slate-800',
+  PAYMENT_CLAIM: 'bg-green-100 text-green-800',
+  REFUND: 'bg-orange-100 text-orange-800',
 };
 
 export function StatusBadge({ status }: { status: FinanceRequestStatus }) {

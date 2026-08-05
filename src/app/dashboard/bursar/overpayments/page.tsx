@@ -24,6 +24,7 @@ import {
   type OverpaidRow,
   type RefundMethod,
 } from '@/lib/refundsApi';
+import { createFinanceRequest } from '@/lib/financeRequestsApi';
 
 type ClassInfo = { id: number; name: string };
 type SubClassInfo = { id: number; name: string; classId?: number };
@@ -32,8 +33,12 @@ const LIMIT = 50;
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 export default function BursarOverpaymentsPage() {
-  const { selectedAcademicYear } = useAuth();
+  const { selectedAcademicYear, selectedRole } = useAuth();
   const router = useRouter();
+
+  // Recording a refund outright is a Super Manager privilege; everyone else
+  // raises a REFUND finance request for a Super Manager to approve.
+  const canRecordDirectly = selectedRole === 'SUPER_MANAGER';
 
   const [rows, setRows] = useState<OverpaidRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -149,6 +154,25 @@ export default function BursarOverpaymentsPage() {
     }
     setIsSaving(true);
     try {
+      if (!canRecordDirectly) {
+        const created = await createFinanceRequest({
+          type: 'REFUND',
+          amount: amountNum,
+          reason: reason.trim(),
+          notes: notes.trim() || undefined,
+          payload: {
+            enrollmentId: refundRow.enrollmentId,
+            refundMethod: method,
+            refundDate,
+          },
+        });
+        toast.success(
+          `Refund request #${created.id} sent to the Super Manager for approval. The overpayment stays on file until it is approved.`,
+        );
+        setRefundRow(null);
+        return;
+      }
+
       const result = await recordRefund({
         enrollmentId: refundRow.enrollmentId,
         amount: amountNum,
@@ -194,6 +218,7 @@ export default function BursarOverpaymentsPage() {
           <p className="text-gray-600 mt-1">
             Students who have paid more than expected
             {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
+            {!canRecordDirectly && ' Refunds are sent to the Super Manager for approval.'}
           </p>
         </div>
         <Button variant="outline" leftIcon={DocumentArrowDownIcon} isLoading={isExporting} onClick={handleExport}>
@@ -300,7 +325,7 @@ export default function BursarOverpaymentsPage() {
                           onClick={() => openRefund(row)}
                           disabled={row.currentOverpayment <= 0}
                         >
-                          Refund
+                          {canRecordDirectly ? 'Refund' : 'Request Refund'}
                         </Button>
                       </div>
                     </td>
@@ -370,7 +395,7 @@ export default function BursarOverpaymentsPage() {
                     onClick={() => openRefund(row)}
                     disabled={row.currentOverpayment <= 0}
                   >
-                    Refund
+                    {canRecordDirectly ? 'Refund' : 'Request Refund'}
                   </Button>
                 </div>
               </div>
@@ -395,7 +420,12 @@ export default function BursarOverpaymentsPage() {
       </div>
 
       {/* Refund modal */}
-      <Modal isOpen={!!refundRow} onClose={() => setRefundRow(null)} title="Record Refund" size="md">
+      <Modal
+        isOpen={!!refundRow}
+        onClose={() => setRefundRow(null)}
+        title={canRecordDirectly ? 'Record Refund' : 'Request Refund'}
+        size="md"
+      >
         {refundRow && (
           <form onSubmit={handleRefund} className="space-y-4">
             <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
@@ -429,12 +459,19 @@ export default function BursarOverpaymentsPage() {
             </div>
             <Input label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
 
+            {!canRecordDirectly && (
+              <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                This goes to the Super Manager for approval. The refund is only issued — and the
+                fees adjusted — once they approve it.
+              </p>
+            )}
+
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
               <Button type="button" variant="outline" onClick={() => setRefundRow(null)} disabled={isSaving}>
                 Cancel
               </Button>
               <Button type="submit" color="primary" isLoading={isSaving}>
-                Record Refund
+                {canRecordDirectly ? 'Record Refund' : 'Send for Approval'}
               </Button>
             </div>
           </form>

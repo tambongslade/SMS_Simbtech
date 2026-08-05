@@ -43,6 +43,10 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  // Required for env(safe-area-inset-*) to report real values — without it the
+  // fixed top nav renders under the status/notification bar on edge-to-edge
+  // Android and notched iOS devices, swallowing the hamburger button.
+  viewportFit: 'cover',
 };
 
 export default function RootLayout({
@@ -61,6 +65,7 @@ export default function RootLayout({
             {children}
             <Toaster
               position="top-right"
+              containerStyle={{ top: 'calc(var(--safe-top) + 1rem)' }}
               toastOptions={{
                 duration: 4000,
                 style: {

@@ -11,6 +11,8 @@ import {
     Notification,
 } from '@/lib/notifications-api';
 import { BellIcon, TrashIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '@/components/context/AuthContext';
+import { notificationLink } from '@/lib/notificationLinks';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { toast } from 'react-hot-toast';
 
@@ -52,6 +54,7 @@ export default function NotificationIndicator({
     className = ''
 }: NotificationIndicatorProps) {
     const router = useRouter();
+    const { selectedRole } = useAuth();
     const containerRef = useRef<HTMLDivElement>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -124,9 +127,10 @@ export default function NotificationIndicator({
             setUnreadCount(prev => Math.max(0, prev - 1));
         }
         // Deep-link when the notification points inside the app
-        if (notification.actionUrl && notification.actionUrl.startsWith('/dashboard')) {
+        const link = notificationLink(notification, selectedRole);
+        if (link) {
             setIsOpen(false);
-            router.push(notification.actionUrl);
+            router.push(link);
         }
     };
 

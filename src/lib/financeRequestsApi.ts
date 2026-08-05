@@ -11,7 +11,9 @@ import apiService from './apiService';
 export type FinanceRequestType =
   | 'FEE_REDUCTION'
   | 'PERSONNEL_DISBURSEMENT'
-  | 'BANK_VERIFICATION';
+  | 'BANK_VERIFICATION'
+  | 'PAYMENT_CLAIM'
+  | 'REFUND';
 
 export type FinanceRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
 
@@ -33,11 +35,65 @@ export interface BankVerificationPayload {
   estimatedPaymentPeriod: string; // free text, e.g. "2026-03 to 2026-04"
 }
 
+// Proof of payment submitted by a parent (or recorded on their behalf); the
+// Bursar validates it and the backend then creates the real PaymentTransaction.
+export interface PaymentClaimPayload {
+  studentId?: number;
+  enrollmentId?: number;
+  paymentMethod: PaymentClaimMethod;
+  paymentDate: string; // YYYY-MM-DD
+  receiptNumber?: string;
+}
+
+// Refund against a confirmed overpayment; a Super Manager approves and the
+// backend then creates the real Refund.
+export interface RefundRequestPayload {
+  enrollmentId: number;
+  refundMethod: RefundRequestMethod;
+  refundDate: string; // YYYY-MM-DD
+}
+
 export type FinanceRequestPayload =
   | FeeReductionPayload
   | PersonnelDisbursementPayload
   | BankVerificationPayload
+  | PaymentClaimPayload
+  | RefundRequestPayload
   | Record<string, any>;
+
+// ---- Payment / refund method vocabularies (mirror the backend enums) ----
+
+export type PaymentClaimMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
+
+export const PAYMENT_CLAIM_METHODS: { value: PaymentClaimMethod; label: string }[] = [
+  { value: 'EXPRESS_UNION', label: 'Express Union' },
+  { value: 'CCA', label: 'CCA' },
+  { value: 'F3DC', label: 'F3DC' },
+  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
+];
+
+export type RefundRequestMethod =
+  | 'CASH'
+  | 'BANK_TRANSFER'
+  | 'MOBILE_MONEY'
+  | 'EXPRESS_UNION'
+  | 'CCA'
+  | 'F3DC'
+  | 'AFRILAND_FIRST_BANK';
+
+export const REFUND_REQUEST_METHODS: { value: RefundRequestMethod; label: string }[] = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'MOBILE_MONEY', label: 'Mobile Money' },
+  { value: 'EXPRESS_UNION', label: 'Express Union' },
+  { value: 'CCA', label: 'CCA' },
+  { value: 'F3DC', label: 'F3DC' },
+  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
+];
+
+const METHOD_LABEL = (value: string): string =>
+  REFUND_REQUEST_METHODS.find((m) => m.value === value)?.label ||
+  value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
 // ---- Core record ----
 
@@ -242,6 +298,8 @@ export const TYPE_LABELS: Record<FinanceRequestType, string> = {
   FEE_REDUCTION: 'Fee Reduction',
   PERSONNEL_DISBURSEMENT: 'Personnel Disbursement',
   BANK_VERIFICATION: 'Bank Verification',
+  PAYMENT_CLAIM: 'Payment Claim',
+  REFUND: 'Refund',
 };
 
 export const STATUS_LABELS: Record<FinanceRequestStatus, string> = {
@@ -251,8 +309,9 @@ export const STATUS_LABELS: Record<FinanceRequestStatus, string> = {
   COMPLETED: 'Completed',
 };
 
-// Roles allowed to create a finance request.
-export const CREATE_ROLES = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'BURSAR'];
+// Roles allowed to create a finance request. Parents can only create payment
+// claims (see CREATABLE_TYPES below).
+export const CREATE_ROLES = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'BURSAR', 'PARENT'];
 
 // Roles allowed to list / view finance requests.
 export const VIEW_ROLES = [
@@ -263,10 +322,44 @@ export const VIEW_ROLES = [
   'BURSAR',
   'SECRETARY',
   'FEE_AUDITOR',
+  'PARENT',
 ];
 
 // Principal+ — can act on any request type as an override.
 export const PRINCIPAL_PLUS = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL'];
+
+// Bursar+ — may raise refund requests and validate payment claims.
+export const BURSAR_PLUS = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'BURSAR'];
+
+/**
+ * Which request types the given role may create, mirroring the backend's
+ * per-type creator checks.
+ */
+export const creatableTypes = (role: string | null | undefined): FinanceRequestType[] => {
+  if (!role) return [];
+  if (role === 'PARENT' || role === 'STUDENT') return ['PAYMENT_CLAIM'];
+  if (BURSAR_PLUS.includes(role)) {
+    return [
+      'FEE_REDUCTION',
+      'PERSONNEL_DISBURSEMENT',
+      'BANK_VERIFICATION',
+      'PAYMENT_CLAIM',
+      'REFUND',
+    ];
+  }
+  return [];
+};
+
+/**
+ * Where a FinanceRequest deep link should land for the given role. Used by
+ * notification deep links (entityType === 'FinanceRequest').
+ */
+export const financeRequestsPath = (role: string | null | undefined): string | null => {
+  if (!role) return null;
+  if (role === 'PARENT' || role === 'STUDENT') return '/dashboard/parent-student/payments';
+  if (!VIEW_ROLES.includes(role)) return null;
+  return `/dashboard/${role.toLowerCase().replace(/_/g, '-')}/finance-requests`;
+};
 
 export type FinanceAction = 'approve' | 'reject' | 'complete';
 
@@ -295,6 +388,18 @@ export const availableActions = (
 
   if (req.type === 'BANK_VERIFICATION') {
     return VIEW_ROLES.includes(role) ? ['complete', 'reject'] : [];
+  }
+
+  // Bursar validates a parent's proof of payment. Approving creates the real
+  // PaymentTransaction server-side — no follow-up call is needed.
+  if (req.type === 'PAYMENT_CLAIM') {
+    return BURSAR_PLUS.includes(role) ? ['approve', 'reject'] : [];
+  }
+
+  // Refunds are a Super Manager decision only. Approving records the real
+  // Refund and decrements SchoolFees.amountPaid server-side.
+  if (req.type === 'REFUND') {
+    return role === 'SUPER_MANAGER' ? ['approve', 'reject'] : [];
   }
 
   return [];
@@ -336,6 +441,23 @@ export const payloadSummary = (req: FinanceRequest): string => {
     const bp = p as BankVerificationPayload;
     const parts = [`Student #${bp.studentId}`];
     if (bp.estimatedPaymentPeriod) parts.push(bp.estimatedPaymentPeriod);
+    return parts.join(' · ');
+  }
+  if (req.type === 'PAYMENT_CLAIM') {
+    const cp = p as PaymentClaimPayload;
+    const parts: string[] = [];
+    if (cp.studentId) parts.push(`Student #${cp.studentId}`);
+    else if (cp.enrollmentId) parts.push(`Enrollment #${cp.enrollmentId}`);
+    if (cp.paymentMethod) parts.push(METHOD_LABEL(cp.paymentMethod));
+    if (cp.paymentDate) parts.push(cp.paymentDate);
+    if (cp.receiptNumber) parts.push(`Receipt ${cp.receiptNumber}`);
+    return parts.join(' · ');
+  }
+  if (req.type === 'REFUND') {
+    const rp = p as RefundRequestPayload;
+    const parts = [`Enrollment #${rp.enrollmentId}`];
+    if (rp.refundMethod) parts.push(METHOD_LABEL(rp.refundMethod));
+    if (rp.refundDate) parts.push(rp.refundDate);
     return parts.join(' · ');
   }
   return '';

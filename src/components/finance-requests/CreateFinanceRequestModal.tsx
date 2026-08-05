@@ -9,19 +9,24 @@ import {
   createFinanceRequest,
   searchFinanceStudents,
   listRecipientUsers,
+  creatableTypes,
   TYPE_LABELS,
+  PAYMENT_CLAIM_METHODS,
+  REFUND_REQUEST_METHODS,
   type FinanceRequest,
   type FinanceRequestType,
   type FinanceStudent,
   type StudentEnrollment,
   type RecipientUser,
+  type PaymentClaimMethod,
+  type RefundRequestMethod,
 } from '@/lib/financeRequestsApi';
 
 interface CreateFinanceRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated: (created: FinanceRequest) => void;
-  // Restrict the selectable types (defaults to all three).
+  // Restrict the selectable types (defaults to whatever the active role may create).
   allowedTypes?: FinanceRequestType[];
 }
 
@@ -29,17 +34,26 @@ const ALL_TYPES: FinanceRequestType[] = [
   'FEE_REDUCTION',
   'PERSONNEL_DISBURSEMENT',
   'BANK_VERIFICATION',
+  'PAYMENT_CLAIM',
+  'REFUND',
 ];
 
 const monthValue = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const todayValue = () => new Date().toISOString().split('T')[0];
 
 export function CreateFinanceRequestModal({
   isOpen,
   onClose,
   onCreated,
-  allowedTypes = ALL_TYPES,
+  allowedTypes: allowedTypesProp,
 }: CreateFinanceRequestModalProps) {
-  const { selectedAcademicYear } = useAuth();
+  const { selectedAcademicYear, selectedRole } = useAuth();
+
+  const allowedTypes = useMemo(() => {
+    if (allowedTypesProp?.length) return allowedTypesProp;
+    const byRole = creatableTypes(selectedRole);
+    return byRole.length ? byRole : ALL_TYPES;
+  }, [allowedTypesProp, selectedRole]);
 
   const [type, setType] = useState<FinanceRequestType>(allowedTypes[0]);
   const [amount, setAmount] = useState('');
@@ -68,6 +82,15 @@ export function CreateFinanceRequestModal({
   const [periodFrom, setPeriodFrom] = useState('');
   const [periodTo, setPeriodTo] = useState('');
 
+  // PAYMENT_CLAIM extras
+  const [paymentMethod, setPaymentMethod] = useState<PaymentClaimMethod>('EXPRESS_UNION');
+  const [paymentDate, setPaymentDate] = useState(todayValue());
+  const [receiptNumber, setReceiptNumber] = useState('');
+
+  // REFUND extras
+  const [refundMethod, setRefundMethod] = useState<RefundRequestMethod>('CASH');
+  const [refundDate, setRefundDate] = useState(todayValue());
+
   const resetForm = () => {
     setType(allowedTypes[0]);
     setAmount('');
@@ -84,6 +107,11 @@ export function CreateFinanceRequestModal({
     setClaimedAmount('');
     setPeriodFrom('');
     setPeriodTo('');
+    setPaymentMethod('EXPRESS_UNION');
+    setPaymentDate(todayValue());
+    setReceiptNumber('');
+    setRefundMethod('CASH');
+    setRefundDate(todayValue());
   };
 
   // Reset whenever the modal opens.
@@ -104,9 +132,18 @@ export function CreateFinanceRequestModal({
     }
   }, [isOpen]);
 
+  // Types whose form starts from a student lookup.
+  const usesStudentPicker =
+    type === 'FEE_REDUCTION' ||
+    type === 'BANK_VERIFICATION' ||
+    type === 'PAYMENT_CLAIM' ||
+    type === 'REFUND';
+  // Types that need a specific enrollment, not just the student.
+  const needsEnrollment = type === 'FEE_REDUCTION' || type === 'REFUND';
+
   // Debounced student search.
   useEffect(() => {
-    if (type !== 'FEE_REDUCTION' && type !== 'BANK_VERIFICATION') return;
+    if (!usesStudentPicker) return;
     const q = studentQuery.trim();
     if (q.length < 2) {
       setStudentResults([]);
@@ -120,7 +157,7 @@ export function CreateFinanceRequestModal({
         .finally(() => setIsSearching(false));
     }, 350);
     return () => clearTimeout(handle);
-  }, [studentQuery, type, selectedAcademicYear?.id]);
+  }, [studentQuery, usesStudentPicker, selectedAcademicYear?.id]);
 
   const filteredRecipients = useMemo(() => {
     const q = recipientQuery.trim().toLowerCase();
@@ -140,7 +177,7 @@ export function CreateFinanceRequestModal({
     setStudentResults([]);
     setStudentQuery(`${s.name}${s.matricule ? ` (${s.matricule})` : ''}`);
     // Pre-select the enrollment for the active academic year, else the latest.
-    if (type === 'FEE_REDUCTION') {
+    if (needsEnrollment) {
       const match =
         s.enrollments.find((e) => e.academicYearId === selectedAcademicYear?.id) ||
         s.enrollments[s.enrollments.length - 1];
@@ -169,6 +206,16 @@ export function CreateFinanceRequestModal({
       if (!selectedStudent) return 'Select the student.';
       if (!periodFrom || !periodTo) return 'Provide the estimated payment period.';
     }
+    if (type === 'PAYMENT_CLAIM') {
+      if (!selectedStudent) return 'Select the student the payment is for.';
+      if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
+      if (!paymentDate) return 'Provide the date the payment was made.';
+    }
+    if (type === 'REFUND') {
+      if (!enrollmentId) return 'Select the enrollment to refund.';
+      if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
+      if (!refundDate) return 'Provide the refund date.';
+    }
     return null;
   };
 
@@ -192,6 +239,21 @@ export function CreateFinanceRequestModal({
     } else if (type === 'PERSONNEL_DISBURSEMENT') {
       amountValue = Number(amount);
       payload = { recipientUserId: Number(recipientId), purpose: purpose.trim() };
+    } else if (type === 'PAYMENT_CLAIM') {
+      amountValue = Number(amount);
+      payload = {
+        studentId: selectedStudent!.id,
+        paymentMethod,
+        paymentDate,
+        ...(receiptNumber.trim() ? { receiptNumber: receiptNumber.trim() } : {}),
+      };
+    } else if (type === 'REFUND') {
+      amountValue = Number(amount);
+      payload = {
+        enrollmentId: Number(enrollmentId),
+        refundMethod,
+        refundDate,
+      };
     } else {
       // BANK_VERIFICATION — amount omitted
       payload = {
@@ -385,6 +447,90 @@ export function CreateFinanceRequestModal({
           </>
         )}
 
+        {/* PAYMENT_CLAIM */}
+        {type === 'PAYMENT_CLAIM' && (
+          <>
+            {StudentPicker}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Amount paid (XAF) *"
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+              <Select
+                label="Payment method *"
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value as PaymentClaimMethod)}
+                options={PAYMENT_CLAIM_METHODS}
+              />
+              <Input
+                label="Payment date *"
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+              />
+              <Input
+                label="Receipt number"
+                value={receiptNumber}
+                onChange={(e) => setReceiptNumber(e.target.value)}
+                placeholder="e.g. EU-88213"
+                helperText="From the bank / agency slip"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              The Bursar verifies this claim before it is recorded against the student&apos;s fees.
+            </p>
+          </>
+        )}
+
+        {/* REFUND */}
+        {type === 'REFUND' && (
+          <>
+            {StudentPicker}
+            {selectedStudent && (
+              <Select
+                label="Enrollment to refund *"
+                value={enrollmentId}
+                onChange={(e) => setEnrollmentId(e.target.value)}
+                options={[
+                  { value: '', label: 'Select enrollment…' },
+                  ...selectedStudent.enrollments.map((en) => ({
+                    value: String(en.id),
+                    label: enrollmentLabel(en),
+                  })),
+                ]}
+              />
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                label="Refund amount (XAF) *"
+                type="number"
+                min={1}
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                helperText="Cannot exceed the current overpayment"
+              />
+              <Select
+                label="Refund method *"
+                value={refundMethod}
+                onChange={(e) => setRefundMethod(e.target.value as RefundRequestMethod)}
+                options={REFUND_REQUEST_METHODS}
+              />
+              <Input
+                label="Refund date *"
+                type="date"
+                value={refundDate}
+                onChange={(e) => setRefundDate(e.target.value)}
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              A Super Manager must approve before the refund is recorded.
+            </p>
+          </>
+        )}
+
         <Input
           label="Reason *"
           value={reason}
@@ -392,7 +538,11 @@ export function CreateFinanceRequestModal({
           placeholder={
             type === 'BANK_VERIFICATION'
               ? 'e.g. Parent claims they paid at the bank'
-              : 'Why is this request being made?'
+              : type === 'PAYMENT_CLAIM'
+                ? 'e.g. First installment for Term 1'
+                : type === 'REFUND'
+                  ? 'e.g. Overpayment on Term 2 fees'
+                  : 'Why is this request being made?'
           }
         />
         <TextArea

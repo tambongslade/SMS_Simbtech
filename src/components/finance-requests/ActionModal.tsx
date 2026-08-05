@@ -102,6 +102,20 @@ export function ActionModal({ request, action, onClose, onDone }: ActionModalPro
             )}
           </div>
 
+          {/* These two types have real financial side effects on approval. */}
+          {action === 'approve' && request.type === 'PAYMENT_CLAIM' && (
+            <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+              Approving records a payment of {fmtMoney(request.amount)} against the student&apos;s
+              fees straight away. Do not also record it manually.
+            </div>
+          )}
+          {action === 'approve' && request.type === 'REFUND' && (
+            <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+              Approving issues the refund and reduces the amount paid on file by{' '}
+              {fmtMoney(request.amount)}. The Bursar and the parents are notified.
+            </div>
+          )}
+
           <TextArea
             label={`Notes${meta.notesRequired ? ' *' : ' (optional)'}`}
             value={notes}

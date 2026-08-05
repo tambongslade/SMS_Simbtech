@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import {
+  BanknotesIcon,
   ChartBarIcon,
   ChatBubbleLeftRightIcon,
   Cog6ToothIcon,
@@ -26,6 +27,13 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/parent-student/child-snapshot',
     icon: DocumentChartBarIcon,
     color: 'indigo',
+  },
+  {
+    label: 'My Payments',
+    description: 'Submit proof of payment & track it',
+    href: '/dashboard/parent-student/payments',
+    icon: BanknotesIcon,
+    color: 'cyan',
   },
   {
     label: 'Chat',

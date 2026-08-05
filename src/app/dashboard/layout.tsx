@@ -170,6 +170,7 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/parent-student' },
     { icon: UserGroupIcon, label: 'My Children', href: '/dashboard/parent-student/children' },
     { icon: DocumentChartBarIcon, label: 'Results & Report Cards', href: '/dashboard/parent-student/child-snapshot' },
+    { icon: BanknotesIcon, label: 'My Payments', href: '/dashboard/parent-student/payments' },
             { icon: DocumentChartBarIcon, label: 'Analytics', href: '/dashboard/parent-student/analytics' },
     { icon: Cog6ToothIcon, label: 'Settings', href: '/dashboard/parent-student/settings' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/parent-student/overview' },
@@ -812,10 +813,17 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-gray-100">
       {/* *** Add Toaster Component here *** */}
       {/* Position can be adjusted, see react-hot-toast docs */}
-      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+      <Toaster
+        position="top-right"
+        containerStyle={{ top: 'calc(var(--safe-top) + 1rem)' }}
+        toastOptions={{ duration: 4000 }}
+      />
 
-      {/* Top Navigation Bar */}
-      <nav className="bg-white shadow-sm fixed w-full z-30">
+      {/* Top Navigation Bar — padded clear of the device status/notification bar */}
+      <nav
+        className="bg-white shadow-sm fixed w-full z-30"
+        style={{ paddingTop: 'var(--safe-top)' }}
+      >
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
             <div className="flex items-center">
@@ -852,9 +860,12 @@ export default function DashboardLayout({
       </nav>
 
       {/* Sidebar and Main Content */}
-      <div className="flex pt-16">
+      <div className="flex" style={{ paddingTop: 'var(--app-header-height)' }}>
         {/* Desktop Sidebar (Fixed) - Hidden below lg */}
-        <aside className={`fixed top-16 bottom-0 hidden lg:flex lg:flex-col bg-white shadow-sm border-r border-gray-200 transition-[width] duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <aside
+          className={`fixed bottom-0 hidden lg:flex lg:flex-col bg-white shadow-sm border-r border-gray-200 transition-[width] duration-300 ease-in-out ${isSidebarCollapsed ? 'w-16' : 'w-64'}`}
+          style={{ top: 'var(--app-header-height)' }}
+        >
           {renderSidebar(isSidebarCollapsed, true)}
         </aside>
 
@@ -867,8 +878,12 @@ export default function DashboardLayout({
               className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
             />
             {/* Mobile Sidebar Content */}
-            {/* top-16 bottom-0 (not 100vh) so the footer stays above mobile browser toolbars */}
-            <aside className="fixed top-16 bottom-0 left-0 flex flex-col w-64 bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden">
+            {/* Anchored to the bar's bottom edge, not 100vh, so the footer stays
+                above mobile browser toolbars and clear of the status bar. */}
+            <aside
+              className="fixed bottom-0 left-0 flex flex-col w-64 bg-white shadow-lg border-r border-gray-200 z-50 lg:hidden"
+              style={{ top: 'var(--app-header-height)' }}
+            >
               {renderSidebar(false, false)}
             </aside>
           </>

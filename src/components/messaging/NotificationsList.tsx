@@ -15,14 +15,20 @@ import {
     SpeakerWaveIcon,
     ChatBubbleLeftIcon,
     CalendarIcon,
-    TrashIcon
+    TrashIcon,
+    ArrowTopRightOnSquareIcon
 } from '@heroicons/react/24/outline';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/context/AuthContext';
+import { notificationLink } from '@/lib/notificationLinks';
 
 interface NotificationsListProps {
     onNotificationUpdate?: () => void;
 }
 
 export default function NotificationsList({ onNotificationUpdate }: NotificationsListProps) {
+    const router = useRouter();
+    const { selectedRole } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -73,6 +79,17 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
         } catch (error) {
             toast.error('Failed to mark notification as read');
         }
+    };
+
+    // Follow a notification through to whatever it references (e.g. a finance
+    // request), marking it read on the way.
+    const handleOpen = async (notification: Notification) => {
+        const link = notificationLink(notification, selectedRole);
+        if (!link) return;
+        if (notification.status !== 'READ') {
+            await handleMarkAsRead(notification.id);
+        }
+        router.push(link);
     };
 
     const handleMarkAllAsRead = async () => {
@@ -325,6 +342,15 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                                         </p>
                                     </div>
                                     <div className="mt-3 flex items-center space-x-4">
+                                        {notificationLink(notification, selectedRole) && (
+                                            <button
+                                                onClick={() => handleOpen(notification)}
+                                                className="flex items-center text-xs font-medium text-blue-600 hover:text-blue-800"
+                                            >
+                                                <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-1" />
+                                                Open
+                                            </button>
+                                        )}
                                         {notification.status !== 'READ' && (
                                             <button
                                                 onClick={() => handleMarkAsRead(notification.id)}

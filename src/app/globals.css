@@ -4,6 +4,15 @@
 
 :root {
   --font-sans: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Status/notification bar height on edge-to-edge Android and notched iOS.
+     Resolves to 0px in a normal browser. Requires viewport-fit=cover. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* The fixed dashboard top bar: a 4rem row pushed clear of the status bar.
+     Anything anchored below the bar (content, sidebars) offsets by this. */
+  --app-header-height: calc(4rem + var(--safe-top));
 }
 
 @layer base {

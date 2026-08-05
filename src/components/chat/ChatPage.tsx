@@ -1102,7 +1102,10 @@ export default function ChatPage() {
     // covers the whole screen (top-0, above the z-30 navbar) like a native app.
     // md+: contained card inside the dashboard's padded main area.
     <div
-      className={`flex bg-gray-50 fixed inset-x-0 bottom-0 ${activeId ? 'top-0 z-40' : 'top-16 z-20'} md:static md:z-auto md:h-[calc(100vh-8rem)] md:rounded-xl md:border md:border-gray-200 md:shadow-sm md:overflow-hidden`}
+      className={`flex bg-gray-50 fixed inset-x-0 bottom-0 ${activeId ? 'z-40' : 'z-20'} md:static md:z-auto md:top-auto md:h-[calc(100vh-8rem)] md:rounded-xl md:border md:border-gray-200 md:shadow-sm md:overflow-hidden`}
+      // A full-screen conversation still clears the status bar; the channel
+      // list sits below the dashboard's top bar.
+      style={{ top: activeId ? 'var(--safe-top)' : 'var(--app-header-height)' }}
     >
       {/* Channel sidebar */}
       <aside className={`${activeId ? 'hidden md:flex' : 'flex'} w-full md:w-80 shrink-0 flex-col border-r border-gray-200 bg-white`}>
