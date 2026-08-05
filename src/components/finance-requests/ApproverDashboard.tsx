@@ -104,14 +104,14 @@ export function ApproverDashboard({ heading }: { heading: string }) {
       content: (
         <FinanceRequestsPanel
           key={`receiving-${refreshKey}`}
-          title="Disbursements Addressed to Me"
-          description="Confirm receipt of money assigned to you, or reject if incorrect."
+          title="Money Addressed to Me"
+          description="Confirm receipt once the money reaches you, or reject if something is wrong."
           baseFilters={{
             type: 'PERSONNEL_DISBURSEMENT' as const,
             recipientUserId: user.id,
-            status: 'PENDING' as const,
           }}
-          emptyMessage="No disbursements are awaiting your confirmation."
+          showStatusFilter
+          emptyMessage="Nothing is waiting for your confirmation."
         />
       ),
     });

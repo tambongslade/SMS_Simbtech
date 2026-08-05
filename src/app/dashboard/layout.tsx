@@ -153,6 +153,7 @@ const menuItems: MenuItemsStructure = {
     {
       icon: ChartBarIcon, label: 'Overview', href: '/dashboard/discipline-master/overview'
     },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/discipline-master/finance-requests' },
   ],
   hod: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/hod' },
@@ -165,6 +166,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/hod/teacher-logbook' },
     { icon: DocumentChartBarIcon, label: 'Performance', href: '/dashboard/hod/performance' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/hod/overview' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/hod/finance-requests' },
           ],
   'parent-student': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/parent-student' },
@@ -214,6 +216,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Remarks', href: '/dashboard/guidance-counselor/remarks' },
     { icon: BuildingLibraryIcon, label: 'Behavior', href: '/dashboard/guidance-counselor/behavior' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/guidance-counselor/overview' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/guidance-counselor/finance-requests' },
           ],
   teacher: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/teacher' },
@@ -227,6 +230,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClockIcon, label: 'Period Roll Call', href: '/dashboard/teacher/period-roll-call' },
     { icon: BookOpenIcon, label: 'Logbook', href: '/dashboard/teacher/logbook' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/teacher/overview' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/teacher/finance-requests' },
   ],
   'vice-principal': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
@@ -282,6 +286,7 @@ const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/dean-of-studies/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/dean-of-studies/teacher-logbook' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/dean-of-studies/finance-requests' },
           ],
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
@@ -296,6 +301,7 @@ const menuItems: MenuItemsStructure = {
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/dean-of-discipline/finance-requests' },
           ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
@@ -309,6 +315,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/senior-discipline-master/teacher-attendance' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/senior-discipline-master/seized-items' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/senior-discipline-master/report-requests' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/senior-discipline-master/finance-requests' },
           ],
   'fee-auditor': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/fee-auditor' },
@@ -321,17 +328,19 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
-    { icon: BanknotesIcon, label: 'Bank Verifications', href: '/dashboard/secretary/finance-requests' },
+    { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/secretary/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
     { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },
   ],
   nurse: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/nurse' },
     { icon: ClipboardDocumentCheckIcon, label: 'Visits', href: '/dashboard/nurse/visits' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/nurse/finance-requests' },
           ],
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/controller/finance-requests' },
   ],
 };
 

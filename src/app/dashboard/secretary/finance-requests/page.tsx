@@ -3,7 +3,12 @@
 import Link from 'next/link';
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { Tabs } from '@/components/ui';
-import { FinanceRequestsPanel, FinanceRequestDeepLink } from '@/components/finance-requests';
+import { useAuth } from '@/components/context/AuthContext';
+import {
+  FinanceRequestsPanel,
+  FinanceRequestDeepLink,
+  requesterTabs,
+} from '@/components/finance-requests';
 import type { FinanceRequest } from '@/lib/financeRequestsApi';
 
 // After a bank verification is marked complete, remind the team to record the
@@ -16,6 +21,8 @@ const bankFollowUp = (req: FinanceRequest) =>
   ) : null;
 
 export default function SecretaryFinanceRequestsPage() {
+  const { user } = useAuth();
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
@@ -26,14 +33,15 @@ export default function SecretaryFinanceRequestsPage() {
           <ChevronLeftIcon className="h-4 w-4 mr-1" />
           Menu
         </Link>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Bank Verification Queue</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Finance Requests</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Check the bank for parent-claimed deposits. Mark each request verified or not found.
+          Ask the Bursar for money you need, and check the bank for parent-claimed deposits.
         </p>
       </div>
 
       <Tabs
         tabs={[
+          ...(user?.id ? requesterTabs(user.id) : []),
           {
             id: 'pending',
             label: 'Pending',

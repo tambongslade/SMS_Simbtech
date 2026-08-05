@@ -332,6 +332,37 @@ export const PRINCIPAL_PLUS = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL'];
 export const BURSAR_PLUS = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'BURSAR'];
 
 /**
+ * Staff who may ask the Bursar for money for themselves — they raise a
+ * PERSONNEL_DISBURSEMENT naming themselves as the recipient, and see only
+ * their own requests.
+ *
+ * Deliberately separate from VIEW_ROLES: that list also confers the right to
+ * clear bank verifications, which none of these roles should have.
+ */
+export const REQUESTER_ROLES = [
+  'TEACHER',
+  'HOD',
+  'DISCIPLINE_MASTER',
+  'SENIOR_DISCIPLINE_MASTER',
+  'DEAN_OF_DISCIPLINE',
+  'DEAN_OF_STUDIES',
+  'GUIDANCE_COUNSELOR',
+  'NURSE',
+  'CONTROLLER',
+  'SECRETARY',
+  'VICE_PRINCIPAL',
+  'FEE_AUDITOR',
+];
+
+// Who signs off money requested by staff. The Bursar holds the cash and
+// validates; Principal / Manager / Super Manager can override.
+export const DISBURSEMENT_VALIDATORS = ['BURSAR', 'PRINCIPAL', 'MANAGER', 'SUPER_MANAGER'];
+
+// True when the role may only ask for money for itself — never for someone else.
+export const isSelfRequester = (role: string | null | undefined): boolean =>
+  !!role && !BURSAR_PLUS.includes(role) && REQUESTER_ROLES.includes(role);
+
+/**
  * Which request types the given role may create, mirroring the backend's
  * per-type creator checks.
  */
@@ -347,6 +378,8 @@ export const creatableTypes = (role: string | null | undefined): FinanceRequestT
       'REFUND',
     ];
   }
+  // Other staff may only ask for money for themselves.
+  if (REQUESTER_ROLES.includes(role)) return ['PERSONNEL_DISBURSEMENT'];
   return [];
 };
 
@@ -357,33 +390,51 @@ export const creatableTypes = (role: string | null | undefined): FinanceRequestT
 export const financeRequestsPath = (role: string | null | undefined): string | null => {
   if (!role) return null;
   if (role === 'PARENT' || role === 'STUDENT') return '/dashboard/parent-student/payments';
-  if (!VIEW_ROLES.includes(role)) return null;
+  if (!VIEW_ROLES.includes(role) && !REQUESTER_ROLES.includes(role)) return null;
   return `/dashboard/${role.toLowerCase().replace(/_/g, '-')}/finance-requests`;
 };
 
 export type FinanceAction = 'approve' | 'reject' | 'complete';
 
 /**
- * Which actions the given user (active role + id) may take on a PENDING
- * request, mirroring the backend authorization matrix. Returns [] for any
- * non-PENDING request (immutable once it leaves PENDING).
+ * Which actions the given user (active role + id) may take on a request,
+ * mirroring the backend authorization matrix.
+ *
+ * Most types are decided in a single action while PENDING and are immutable
+ * afterwards. Personnel disbursements are the exception: the Bursar validates
+ * the request, and the recipient then confirms the money reached them, so an
+ * APPROVED one still has an action left on it. Rejected and completed requests
+ * are always final.
  */
 export const availableActions = (
   req: FinanceRequest,
   role: string | null | undefined,
   userId: number | null | undefined,
 ): FinanceAction[] => {
-  if (req.status !== 'PENDING' || !role) return [];
+  if (!role) return [];
+  if (req.status === 'REJECTED' || req.status === 'COMPLETED') return [];
   const isPrincipalPlus = PRINCIPAL_PLUS.includes(role);
 
-  if (req.type === 'FEE_REDUCTION') {
-    return isPrincipalPlus ? ['approve', 'reject'] : [];
-  }
-
+  // Money requested by staff is the one two-step flow: validate, then confirm
+  // receipt. Every other type is decided in one action while still PENDING.
   if (req.type === 'PERSONNEL_DISBURSEMENT') {
     const recipientId = (req.payload as PersonnelDisbursementPayload)?.recipientUserId;
     const isRecipient = userId != null && recipientId === userId;
-    return isPrincipalPlus || isRecipient ? ['complete', 'reject'] : [];
+    const isValidator = DISBURSEMENT_VALIDATORS.includes(role);
+
+    if (req.status === 'PENDING') {
+      if (isValidator) return ['approve', 'reject'];
+      // The requester may withdraw their own pending request.
+      return isRecipient ? ['reject'] : [];
+    }
+    if (req.status === 'APPROVED' && (isRecipient || isValidator)) return ['complete'];
+    return [];
+  }
+
+  if (req.status !== 'PENDING') return [];
+
+  if (req.type === 'FEE_REDUCTION') {
+    return isPrincipalPlus ? ['approve', 'reject'] : [];
   }
 
   if (req.type === 'BANK_VERIFICATION') {

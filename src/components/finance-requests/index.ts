@@ -5,3 +5,4 @@ export { FinanceRequestsPanel } from './FinanceRequestsPanel';
 export type { FinanceRequestsPanelProps } from './FinanceRequestsPanel';
 export { ApproverDashboard } from './ApproverDashboard';
 export { FinanceRequestDeepLink } from './FinanceRequestDeepLink';
+export { RequesterDashboard, requesterTabs } from './RequesterDashboard';

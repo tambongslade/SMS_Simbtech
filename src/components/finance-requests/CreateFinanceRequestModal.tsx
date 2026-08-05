@@ -10,6 +10,7 @@ import {
   searchFinanceStudents,
   listRecipientUsers,
   creatableTypes,
+  isSelfRequester,
   TYPE_LABELS,
   PAYMENT_CLAIM_METHODS,
   REFUND_REQUEST_METHODS,
@@ -47,7 +48,11 @@ export function CreateFinanceRequestModal({
   onCreated,
   allowedTypes: allowedTypesProp,
 }: CreateFinanceRequestModalProps) {
-  const { selectedAcademicYear, selectedRole } = useAuth();
+  const { user, selectedAcademicYear, selectedRole } = useAuth();
+
+  // Staff outside the finance team may only request money for themselves, and
+  // can't list other users — so the recipient picker is replaced by "you".
+  const selfOnly = isSelfRequester(selectedRole);
 
   const allowedTypes = useMemo(() => {
     if (allowedTypesProp?.length) return allowedTypesProp;
@@ -102,7 +107,7 @@ export function CreateFinanceRequestModal({
     setEnrollmentId('');
     setPartnerName('');
     setRecipientQuery('');
-    setRecipientId('');
+    setRecipientId(selfOnly && user?.id ? String(user.id) : '');
     setPurpose('');
     setClaimedAmount('');
     setPeriodFrom('');
@@ -125,12 +130,16 @@ export function CreateFinanceRequestModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Load recipient users once (for the personnel disbursement picker).
+  // Load recipient users once (for the personnel disbursement picker). Self
+  // requesters skip it — they can't list users and the recipient is themselves.
   useEffect(() => {
-    if (isOpen) {
-      listRecipientUsers().then(setRecipients).catch(() => setRecipients([]));
+    if (!isOpen) return;
+    if (selfOnly) {
+      setRecipientId(user?.id ? String(user.id) : '');
+      return;
     }
-  }, [isOpen]);
+    listRecipientUsers().then(setRecipients).catch(() => setRecipients([]));
+  }, [isOpen, selfOnly, user?.id]);
 
   // Types whose form starts from a student lookup.
   const usesStudentPicker =
@@ -382,24 +391,33 @@ export function CreateFinanceRequestModal({
         {/* PERSONNEL_DISBURSEMENT */}
         {type === 'PERSONNEL_DISBURSEMENT' && (
           <>
-            <Input
-              label="Find recipient"
-              value={recipientQuery}
-              onChange={(e) => setRecipientQuery(e.target.value)}
-              placeholder="Filter staff by name, matricule or email…"
-            />
-            <Select
-              label="Recipient *"
-              value={recipientId}
-              onChange={(e) => setRecipientId(e.target.value)}
-              options={[
-                { value: '', label: recipients.length ? 'Select recipient…' : 'Loading staff…' },
-                ...filteredRecipients.map((u) => ({
-                  value: String(u.id),
-                  label: `${u.name}${u.matricule ? ` (${u.matricule})` : ''}`,
-                })),
-              ]}
-            />
+            {selfOnly ? (
+              <div className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                Recipient: <span className="font-medium text-gray-900">{user?.name || 'You'}</span>
+                <span className="text-gray-400"> — you can only request money for yourself.</span>
+              </div>
+            ) : (
+              <>
+                <Input
+                  label="Find recipient"
+                  value={recipientQuery}
+                  onChange={(e) => setRecipientQuery(e.target.value)}
+                  placeholder="Filter staff by name, matricule or email…"
+                />
+                <Select
+                  label="Recipient *"
+                  value={recipientId}
+                  onChange={(e) => setRecipientId(e.target.value)}
+                  options={[
+                    { value: '', label: recipients.length ? 'Select recipient…' : 'Loading staff…' },
+                    ...filteredRecipients.map((u) => ({
+                      value: String(u.id),
+                      label: `${u.name}${u.matricule ? ` (${u.matricule})` : ''}`,
+                    })),
+                  ]}
+                />
+              </>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 label="Amount (XAF) *"
