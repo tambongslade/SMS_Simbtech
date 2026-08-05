@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { Tabs } from '@/components/ui';
-import { FinanceRequestsPanel } from '@/components/finance-requests';
+import { FinanceRequestsPanel, FinanceRequestDeepLink } from '@/components/finance-requests';
 import type { FinanceRequest } from '@/lib/financeRequestsApi';
 
 // After a bank verification is marked complete, remind the team to record the
@@ -63,6 +63,8 @@ export default function SecretaryFinanceRequestsPage() {
           },
         ]}
       />
+
+      <FinanceRequestDeepLink />
     </div>
   );
 }

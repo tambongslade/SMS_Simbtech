@@ -1,6 +1,6 @@
 'use client';
 
-import { FinanceRequestsPanel } from '@/components/finance-requests';
+import { FinanceRequestsPanel, FinanceRequestDeepLink } from '@/components/finance-requests';
 
 export default function VicePrincipalFinanceRequestsPage() {
   return (
@@ -18,6 +18,8 @@ export default function VicePrincipalFinanceRequestsPage() {
         showTypeFilter
         showStatusFilter
       />
+
+      <FinanceRequestDeepLink />
     </div>
   );
 }

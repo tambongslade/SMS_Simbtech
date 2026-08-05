@@ -1,6 +1,6 @@
 'use client';
 
-import { FinanceRequestsPanel } from '@/components/finance-requests';
+import { FinanceRequestsPanel, FinanceRequestDeepLink } from '@/components/finance-requests';
 
 export default function FeeAuditorFinanceRequestsPage() {
   return (
@@ -18,6 +18,8 @@ export default function FeeAuditorFinanceRequestsPage() {
         showTypeFilter
         showStatusFilter
       />
+
+      <FinanceRequestDeepLink />
     </div>
   );
 }
