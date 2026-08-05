@@ -207,8 +207,13 @@ export function CreateFinanceRequestModal({
       if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
     }
     if (type === 'PERSONNEL_DISBURSEMENT') {
-      if (!recipientId) return 'Select the recipient.';
-      if (!purpose.trim()) return 'Purpose is required.';
+      // The backend requires both payload.recipientUserId and payload.purpose.
+      if (!recipientId || isNaN(Number(recipientId))) {
+        return selfOnly
+          ? 'We could not identify your account. Sign out and back in, then try again.'
+          : 'Select the recipient.';
+      }
+      if (!purpose.trim()) return 'Purpose is required — say what the money is for.';
       if (!amount || Number(amount) <= 0) return 'Amount must be greater than 0.';
     }
     if (type === 'BANK_VERIFICATION') {
@@ -431,6 +436,7 @@ export function CreateFinanceRequestModal({
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 placeholder="e.g. Travel reimbursement"
+                helperText="What the money will be used for"
               />
             </div>
           </>
