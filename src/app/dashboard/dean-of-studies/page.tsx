@@ -3,6 +3,7 @@
 import {
   ArchiveBoxIcon,
   BookOpenIcon,
+  CalendarDaysIcon,
   ChatBubbleLeftRightIcon,
   ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
@@ -10,6 +11,13 @@ import { useAuth } from '@/components/context/AuthContext';
 import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
 
 const quickActions: QuickAction[] = [
+  {
+    label: 'Timetable',
+    description: "View & manage class timetables",
+    href: '/dashboard/dean-of-studies/timetable',
+    icon: CalendarDaysIcon,
+    color: 'indigo',
+  },
   {
     label: 'Schemes of Work',
     description: "Review teacher schemes of work",

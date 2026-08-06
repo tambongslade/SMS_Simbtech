@@ -284,6 +284,7 @@ const menuItems: MenuItemsStructure = {
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
+    { icon: CalendarDaysIcon, label: 'Timetable', href: '/dashboard/dean-of-studies/timetable' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/dean-of-studies/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/dean-of-studies/teacher-logbook' },
     { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/dean-of-studies/finance-requests' },
