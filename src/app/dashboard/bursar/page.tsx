@@ -28,6 +28,13 @@ const quickActions: QuickAction[] = [
     color: 'blue',
   },
   {
+    label: 'Fee Statistics',
+    description: 'Paid vs unpaid per class & subclass',
+    href: '/dashboard/bursar/fee-statistics',
+    icon: ChartBarIcon,
+    color: 'indigo',
+  },
+  {
     label: 'Fee Items',
     description: 'Configure fee items',
     href: '/dashboard/bursar/fee-items',
