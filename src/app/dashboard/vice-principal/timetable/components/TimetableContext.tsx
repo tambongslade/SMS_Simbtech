@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
@@ -73,6 +73,23 @@ interface AcademicYear {
   name: string;
 }
 
+/**
+ * A teacher double-booking reported by the API. The slot IS saved — the
+ * backend records the clash and lets the scheduler resolve it rather than
+ * blocking the edit.
+ */
+export interface ClashWarning {
+  periodId: number;
+  type: 'TEACHER_CLASH' | string;
+  message: string;
+  clashWith?: {
+    subClassId: number;
+    subClassName: string;
+    day: string;
+    periodName: string;
+  };
+}
+
 interface TimetableContextType {
   classes: Class[];
   subClasses: SubClass[];
@@ -109,6 +126,10 @@ interface TimetableContextType {
     assignmentIndex: number
   ) => void;
   saveChanges: (subClassId: string) => Promise<void>;
+  /// Auto-save state for the whole timetable editor. Assignments persist
+  /// on selection; this is what the UI reports instead of a Save button.
+  autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  retryAutoSave: () => void;
   getTeachersBySubject: (subjectId: string) => Teacher[];
   isTeacherAssignedElsewhere: (
     teacherId: string,
@@ -116,6 +137,9 @@ interface TimetableContextType {
     period: string,
     excludeSubClassId: string
   ) => string | null;
+  /// Teacher clashes reported by the last save, keyed by subclass id.
+  clashWarnings: Record<string, ClashWarning[]>;
+  getClashWarning: (subClassId: string, periodId?: number | string | null) => ClashWarning | null;
   error: string | null;
   academicYears: AcademicYear[];
   selectedAcademicYearId: string | null;
@@ -201,6 +225,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [subClasses, setSubClasses] = useState<SubClass[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [clashWarnings, setClashWarnings] = useState<Record<string, ClashWarning[]>>({});
   const [allWeeklySlots, setAllWeeklySlots] = useState<PeriodInfo[]>([]);
   const [uniquePeriodNames, setUniquePeriodNames] = useState<string[]>([]);
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]);
@@ -543,6 +568,21 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [allWeeklySlots, subjects, teachers, selectedAcademicYearId, subClasses]);
 
+  // ── Auto-save ──
+  // Assignments persist as soon as they're chosen. Edits mark their
+  // subclass dirty; a short debounce coalesces a burst (picking a
+  // subject then a teacher then removing a row) into one request.
+  const AUTO_SAVE_DELAY_MS = 700;
+  const [autoSaveStatus, setAutoSaveStatus] =
+    useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const dirtySubClassIds = useRef<Set<string>>(new Set());
+  const [dirtyTick, setDirtyTick] = useState(0);
+
+  const markDirty = useCallback((subClassId: string) => {
+    dirtySubClassIds.current.add(subClassId);
+    setDirtyTick(tick => tick + 1);
+  }, []);
+
   // Function to update a specific assignment within a slot
   const updateSlotAssignment = useCallback((
     subClassId: string,
@@ -575,7 +615,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         [subClassId]: { ...classTimetable, slots: updatedSlots },
       };
     });
-  }, [subjects, teachers]);
+    markDirty(subClassId);
+  }, [subjects, teachers, markDirty]);
 
   // Function to add a new assignment to a slot
   const addSlotAssignment = useCallback((
@@ -607,7 +648,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         [subClassId]: { ...classTimetable, slots: updatedSlots },
       };
     });
-  }, [subjects, teachers]);
+    markDirty(subClassId);
+  }, [subjects, teachers, markDirty]);
 
   // Function to remove an assignment from a slot
   const removeSlotAssignment = useCallback((
@@ -633,7 +675,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         [subClassId]: { ...classTimetable, slots: updatedSlots },
       };
     });
-  }, []);
+    markDirty(subClassId);
+  }, [markDirty]);
 
   // Helper: check if assignments arrays are equal
   const assignmentsEqual = (a: SlotAssignment[], b: SlotAssignment[]): boolean => {
@@ -643,18 +686,27 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     );
   };
 
-  // Function to save changes for a specific subclass to the backend
-  const saveChanges = useCallback(async (subClassId: string) => {
+  // Persists one subclass's changed slots.
+  //
+  // `silent` is the auto-save path: it skips the success toast, leaves the
+  // global loading flag alone (so the grid doesn't dim on every pick), and
+  // syncs the baseline locally instead of refetching the whole school.
+  // The explicit Save button still takes the loud path.
+  const persistSubClass = useCallback(async (
+    subClassId: string,
+    options?: { silent?: boolean }
+  ) => {
+    const silent = options?.silent ?? false;
     const currentTimetable = timetables[subClassId];
     const originalTimetable = originalTimetables[subClassId];
 
     if (!currentTimetable) {
-      toast.error("No timetable data loaded for this subclass to save.");
+      if (!silent) toast.error("No timetable data loaded for this subclass to save.");
       return;
     }
     if (!originalTimetable) {
       console.error("Original timetable state missing for comparison.");
-      toast.error("Cannot determine changes to save.");
+      if (!silent) toast.error("Cannot determine changes to save.");
       return;
     }
 
@@ -705,7 +757,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     });
 
     if (changedSlotsPayload.length === 0) {
-      toast("No changes detected to save.");
+      if (!silent) toast("No changes detected to save.");
       return;
     }
 
@@ -718,13 +770,13 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     console.log("Saving changed timetable slots:", payload);
-    setIsLoadingTimetable(true);
+    if (!silent) setIsLoadingTimetable(true);
     setError(null);
     const token = getAuthToken();
     if (!token) {
       toast.error("Authentication token not found.");
-      setIsLoadingTimetable(false);
-      return;
+      if (!silent) setIsLoadingTimetable(false);
+      throw new Error("Authentication token not found.");
     }
 
     try {
@@ -739,6 +791,20 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
       const result = await response.json();
 
+      // A batch can be saved and still report teacher clashes. Record them for
+      // the affected periods either way — including alongside hard errors.
+      const savedPeriodIds = new Set(changedSlotsPayload.map(slot => slot.periodId));
+      const incomingWarnings: ClashWarning[] = Array.isArray(result.warnings) ? result.warnings : [];
+      setClashWarnings(prev => ({
+        ...prev,
+        // Drop stale warnings for the periods we just re-sent — if a clash was
+        // resolved, the new response simply won't mention it.
+        [subClassId]: [
+          ...(prev[subClassId] || []).filter(w => !savedPeriodIds.has(w.periodId)),
+          ...incomingWarnings,
+        ],
+      }));
+
       if (!response.ok || !result.success) {
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
           const errorMessages = result.errors.map((e: any) =>
@@ -751,23 +817,102 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
       }
 
-      toast.success(result.message || 'Timetable saved successfully!');
       console.log(`Timetable save summary: Updated ${result.data?.updated || 0}, Created ${result.data?.created || 0}, Deleted ${result.data?.deleted || 0}`);
 
-      // Refetch the full school timetable to ensure UI is synchronized with server
-      await fetchFullSchoolTimetable();
+      if (silent) {
+        // Move the baseline forward to exactly what we just sent, so the
+        // next diff is empty and the same slot isn't posted twice. Uses
+        // the snapshot the payload was built from, not the live state —
+        // an edit made mid-request must stay dirty.
+        setOriginalTimetables(prev => ({
+          ...prev,
+          [subClassId]: JSON.parse(JSON.stringify(currentTimetable)),
+        }));
+      } else {
+        toast.success(result.message || 'Timetable saved successfully!');
+        // Refetch the full school timetable to ensure UI is synchronized with server
+        await fetchFullSchoolTimetable();
+      }
+
+      // Saved, but a teacher is double-booked. Worth saying out loud even on a
+      // silent auto-save; a fixed toast id keeps it from stacking up.
+      if (incomingWarnings.length > 0) {
+        toast(
+          incomingWarnings.length === 1
+            ? incomingWarnings[0].message
+            : `${incomingWarnings.length} teacher clashes — saved, but check the flagged periods.`,
+          { id: 'timetable-clash', icon: '⚠️', duration: 6000 },
+        );
+      }
 
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
       console.error("Failed to save timetable:", err);
       setError(message);
-      toast.error(`Save failed: ${message}`);
+      if (!silent) toast.error(`Save failed: ${message}`);
+      throw err;
     } finally {
-      setIsLoadingTimetable(false);
+      if (!silent) setIsLoadingTimetable(false);
     }
   }, [timetables, originalTimetables, allWeeklySlots, selectedAcademicYearId, fetchFullSchoolTimetable]);
 
+  // The explicit Save button — unchanged behaviour, and still useful as a
+  // manual retry when an auto-save failed.
+  const saveChanges = useCallback(async (subClassId: string) => {
+    try {
+      await persistSubClass(subClassId);
+    } catch {
+      // persistSubClass already reported it.
+    }
+  }, [persistSubClass]);
+
+  // Flushes dirty subclasses after the debounce settles.
+  //
+  // persistSubClass's identity changes on every edit (it closes over
+  // `timetables`), so this effect re-runs and restarts the timer — which
+  // is exactly the debounce we want. Once the save clears the set, the
+  // re-run from the baseline update finds nothing to do and returns.
+  useEffect(() => {
+    if (dirtySubClassIds.current.size === 0) return;
+
+    const handle = setTimeout(async () => {
+      const ids = Array.from(dirtySubClassIds.current);
+      dirtySubClassIds.current.clear();
+      setAutoSaveStatus('saving');
+      try {
+        for (const id of ids) {
+          await persistSubClass(id, { silent: true });
+        }
+        setAutoSaveStatus('saved');
+      } catch (err) {
+        // Put them back so a retry (or the next edit) picks them up, and
+        // never silently drop a change the user believes is saved.
+        ids.forEach(id => dirtySubClassIds.current.add(id));
+        setAutoSaveStatus('error');
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        toast.error(`Auto-save failed: ${message}`);
+      }
+    }, AUTO_SAVE_DELAY_MS);
+
+    return () => clearTimeout(handle);
+  }, [dirtyTick, persistSubClass]);
+
+  // Manual retry after a failed auto-save.
+  const retryAutoSave = useCallback(() => {
+    if (dirtySubClassIds.current.size === 0) return;
+    setDirtyTick(tick => tick + 1);
+  }, []);
+
   // Function to get teachers who can teach a specific subject
+  const getClashWarning = useCallback((
+    subClassId: string,
+    periodId?: number | string | null,
+  ): ClashWarning | null => {
+    if (!periodId) return null;
+    const id = Number(periodId);
+    return (clashWarnings[subClassId] || []).find(w => w.periodId === id) || null;
+  }, [clashWarnings]);
+
   const getTeachersBySubject = useCallback((subjectId: string): Teacher[] => {
     return teachers.filter(teacher => teacher.subjects.includes(subjectId));
   }, [teachers]);
@@ -818,8 +963,12 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       addSlotAssignment,
       removeSlotAssignment,
       saveChanges,
+      autoSaveStatus,
+      retryAutoSave,
       getTeachersBySubject,
       isTeacherAssignedElsewhere,
+      clashWarnings,
+      getClashWarning,
       error,
       academicYears,
       selectedAcademicYearId,

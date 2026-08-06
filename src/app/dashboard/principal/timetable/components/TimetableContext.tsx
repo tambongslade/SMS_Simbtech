@@ -73,6 +73,23 @@ interface AcademicYear {
   name: string;
 }
 
+/**
+ * A teacher double-booking reported by the API. The slot IS saved — the
+ * backend records the clash and lets the scheduler resolve it rather than
+ * blocking the edit.
+ */
+export interface ClashWarning {
+  periodId: number;
+  type: 'TEACHER_CLASH' | string;
+  message: string;
+  clashWith?: {
+    subClassId: number;
+    subClassName: string;
+    day: string;
+    periodName: string;
+  };
+}
+
 interface TimetableContextType {
   classes: Class[];
   subClasses: SubClass[];
@@ -120,6 +137,9 @@ interface TimetableContextType {
     period: string,
     excludeSubClassId: string
   ) => string | null;
+  /// Teacher clashes reported by the last save, keyed by subclass id.
+  clashWarnings: Record<string, ClashWarning[]>;
+  getClashWarning: (subClassId: string, periodId?: number | string | null) => ClashWarning | null;
   error: string | null;
   academicYears: AcademicYear[];
   selectedAcademicYearId: string | null;
@@ -205,6 +225,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [subClasses, setSubClasses] = useState<SubClass[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [clashWarnings, setClashWarnings] = useState<Record<string, ClashWarning[]>>({});
   const [allWeeklySlots, setAllWeeklySlots] = useState<PeriodInfo[]>([]);
   const [uniquePeriodNames, setUniquePeriodNames] = useState<string[]>([]);
   const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]);
@@ -770,6 +791,20 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       });
       const result = await response.json();
 
+      // A batch can be saved and still report teacher clashes. Record them for
+      // the affected periods either way — including alongside hard errors.
+      const savedPeriodIds = new Set(changedSlotsPayload.map(slot => slot.periodId));
+      const incomingWarnings: ClashWarning[] = Array.isArray(result.warnings) ? result.warnings : [];
+      setClashWarnings(prev => ({
+        ...prev,
+        // Drop stale warnings for the periods we just re-sent — if a clash was
+        // resolved, the new response simply won't mention it.
+        [subClassId]: [
+          ...(prev[subClassId] || []).filter(w => !savedPeriodIds.has(w.periodId)),
+          ...incomingWarnings,
+        ],
+      }));
+
       if (!response.ok || !result.success) {
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
           const errorMessages = result.errors.map((e: any) =>
@@ -797,6 +832,17 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         toast.success(result.message || 'Timetable saved successfully!');
         // Refetch the full school timetable to ensure UI is synchronized with server
         await fetchFullSchoolTimetable();
+      }
+
+      // Saved, but a teacher is double-booked. Worth saying out loud even on a
+      // silent auto-save; a fixed toast id keeps it from stacking up.
+      if (incomingWarnings.length > 0) {
+        toast(
+          incomingWarnings.length === 1
+            ? incomingWarnings[0].message
+            : `${incomingWarnings.length} teacher clashes — saved, but check the flagged periods.`,
+          { id: 'timetable-clash', icon: '⚠️', duration: 6000 },
+        );
       }
 
     } catch (err: any) {
@@ -858,6 +904,15 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   }, []);
 
   // Function to get teachers who can teach a specific subject
+  const getClashWarning = useCallback((
+    subClassId: string,
+    periodId?: number | string | null,
+  ): ClashWarning | null => {
+    if (!periodId) return null;
+    const id = Number(periodId);
+    return (clashWarnings[subClassId] || []).find(w => w.periodId === id) || null;
+  }, [clashWarnings]);
+
   const getTeachersBySubject = useCallback((subjectId: string): Teacher[] => {
     return teachers.filter(teacher => teacher.subjects.includes(subjectId));
   }, [teachers]);
@@ -912,6 +967,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       retryAutoSave,
       getTeachersBySubject,
       isTeacherAssignedElsewhere,
+      clashWarnings,
+      getClashWarning,
       error,
       academicYears,
       selectedAcademicYearId,

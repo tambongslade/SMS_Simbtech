@@ -8,6 +8,49 @@ import { toast } from "react-hot-toast";
 import { useTimetable, SlotAssignment } from './TimetableContext';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
+// Reports the auto-save state where the "click Save" note used to be.
+// Assignments persist on selection, so the only thing worth saying is
+// when that's in flight or has failed.
+export const AutoSaveNote: React.FC<{
+  status: 'idle' | 'saving' | 'saved' | 'error';
+  onRetry: () => void;
+}> = ({ status, onRetry }) => {
+  if (status === 'idle') return null;
+
+  if (status === 'error') {
+    return (
+      <div className="flex items-center justify-between gap-2 p-3 bg-red-50 border border-red-200 rounded">
+        <p className="text-sm text-red-800">
+          <strong>Not saved.</strong> Your changes are still here — check your
+          connection and try again.
+        </p>
+        <button
+          onClick={onRetry}
+          className="shrink-0 text-sm font-medium text-red-700 underline hover:text-red-900"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <p className="text-sm text-gray-500 flex items-center gap-1.5">
+      {status === 'saving' ? (
+        <>
+          <span className="inline-block w-3 h-3 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+          Saving…
+        </>
+      ) : (
+        <>
+          <span className="text-green-600">✓</span>
+          Saved
+        </>
+      )}
+    </p>
+  );
+};
+
 // Days of the week for the timetable (ordered)
 const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 
@@ -27,7 +70,10 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     updateSlotAssignment,
     removeSlotAssignment,
     getTeachersBySubject,
-    isTeacherAssignedElsewhere
+    isTeacherAssignedElsewhere,
+    getClashWarning,
+    autoSaveStatus,
+    retryAutoSave
   } = useTimetable();
 
   // Mobile: show one day at a time. Defaults to Monday, then jumps to today's
@@ -93,6 +139,14 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     return allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
   };
 
+  // The server-reported clash for the slot the modal is editing, if any.
+  const editingClash = useMemo(() => {
+    if (!manageModalOpen || !editingDay || !editingPeriod) return null;
+    const definition = allWeeklySlots.find(ws => ws.dayOfWeek === editingDay && ws.name === editingPeriod);
+    return getClashWarning(selectedSubClassId, definition?.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manageModalOpen, editingDay, editingPeriod, allWeeklySlots, selectedSubClassId, getClashWarning]);
+
   // Get live assignments for the currently editing slot
   const currentSlotAssignments = useMemo(() => {
     if (!manageModalOpen || !editingDay || !editingPeriod) return [];
@@ -142,13 +196,13 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
-    toast.success("Assignment added. Remember to save changes.");
+    toast.success("Assignment added");
   };
 
   // Remove an assignment from the current slot
   const handleRemoveAssignment = (index: number) => {
     removeSlotAssignment(selectedSubClassId, editingDay, editingPeriod, index);
-    toast.success("Assignment removed. Remember to save changes.");
+    toast.success("Assignment removed");
   };
 
   // Generate the cell content for a timetable slot
@@ -183,17 +237,30 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     const hasAnyConflict = assignments.some(a =>
       a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, day, periodName, selectedSubClassId) : false
     );
+    // A clash the server reported on the last save. The slot was saved anyway,
+    // so it reads as a warning rather than an error.
+    const clash = getClashWarning(selectedSubClassId, dayPeriod.id);
     let bgColor = 'bg-white hover:bg-blue-50';
     if (assignments.length > 0) {
       bgColor = hasAnyConflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
     }
+    if (clash && !hasAnyConflict) bgColor = 'bg-amber-100 hover:bg-amber-200';
 
     return (
       <td
         key={`${day}-${timeSlot.timeRange}`}
-        className={`border-r h-20 p-1 cursor-pointer align-top ${bgColor}`}
+        className={`relative border-r h-20 p-1 cursor-pointer align-top ${bgColor}`}
         onClick={() => handleManageSlot(day, periodName)}
+        title={clash ? clash.message : undefined}
       >
+        {clash && (
+          <span
+            className="absolute top-0.5 right-0.5 inline-flex items-center rounded-full bg-amber-500 px-1 text-[9px] font-bold text-white"
+            aria-label={clash.message}
+          >
+            !
+          </span>
+        )}
         {assignments.length === 0 ? (
           <div className="h-full flex items-center justify-center text-gray-400 text-xs">
             <div>Click to assign</div>
@@ -258,9 +325,11 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     const hasAnyConflict = assignments.some(a =>
       a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, activeDay, dayPeriod.name, selectedSubClassId) : false
     );
-    const bg = assignments.length === 0
+    const clash = getClashWarning(selectedSubClassId, dayPeriod.id);
+    let bg = assignments.length === 0
       ? 'bg-white active:bg-blue-50'
       : hasAnyConflict ? 'bg-red-100 active:bg-red-200' : 'bg-blue-50 active:bg-blue-100';
+    if (clash && !hasAnyConflict && assignments.length > 0) bg = 'bg-amber-50 active:bg-amber-100';
 
     return (
       <li key={timeSlot.timeRange}>
@@ -283,9 +352,13 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
               </div>
             )}
           </div>
-          {hasAnyConflict && (
+          {hasAnyConflict ? (
             <span className="shrink-0 text-[10px] font-medium text-red-700 bg-red-200 rounded-full px-2 py-0.5">Conflict</span>
-          )}
+          ) : clash ? (
+            <span className="shrink-0 text-[10px] font-medium text-amber-800 bg-amber-200 rounded-full px-2 py-0.5">
+              Double-booked
+            </span>
+          ) : null}
         </button>
       </li>
     );
@@ -375,6 +448,25 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
           <ModalHeader>Manage Slot ({editingDay} - {editingPeriod})</ModalHeader>
           <ModalBody>
            <div className="space-y-4">
+            {/* Teacher double-booking reported by the server. The slot saved
+                fine — this is here so the scheduler can go and resolve it. */}
+            {editingClash && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <p className="text-sm font-medium text-amber-900">Teacher is double-booked</p>
+                <p className="text-xs text-amber-800 mt-0.5">{editingClash.message}</p>
+                {editingClash.clashWith && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Also teaching{' '}
+                    <span className="font-medium">{editingClash.clashWith.subClassName}</span> on{' '}
+                    {editingClash.clashWith.day} during {editingClash.clashWith.periodName}.
+                  </p>
+                )}
+                <p className="text-xs text-amber-700 mt-1">
+                  This slot is saved. Change the teacher here or in the other class to clear it.
+                </p>
+              </div>
+            )}
+
             {/* Current Assignments */}
             <div>
               <h4 className="text-sm font-semibold text-gray-700 mb-2">Current Assignments</h4>
@@ -442,13 +534,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
               </div>
             </div>
 
-            {currentSlotAssignments.length > 0 && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
-                <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> Changes are saved locally. Click &quot;Save Changes&quot; button above to persist to the server.
-                </p>
-              </div>
-            )}
+            <AutoSaveNote status={autoSaveStatus} onRetry={retryAutoSave} />
            </div>
           </ModalBody>
           <ModalFooter>

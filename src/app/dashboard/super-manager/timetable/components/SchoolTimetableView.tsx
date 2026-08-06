@@ -294,13 +294,13 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
-    toast.success("Assignment added. Remember to save changes.");
+    toast.success("Assignment added");
   };
 
   // Remove an assignment from the current slot
   const handleRemoveAssignment = (index: number) => {
     removeSlotAssignment(editingSubClassId, editingDay, editingPeriod, index);
-    toast.success("Assignment removed. Remember to save changes.");
+    toast.success("Assignment removed");
   };
 
   const renderCell = (day: string, periodName: string, subClassId: string, period: any) => {
@@ -660,7 +660,7 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             {currentSlotAssignments.length > 0 && (
               <div className="p-3 bg-yellow-50 border border-yellow-200 rounded">
                 <p className="text-sm text-yellow-800">
-                  <strong>Note:</strong> Changes are saved locally. Use the &quot;Save Changes&quot; button at the top to persist all changes to the server.
+                  <strong>Note:</strong> Assignments save automatically as soon as you choose them.
                 </p>
               </div>
             )}

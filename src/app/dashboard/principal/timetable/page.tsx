@@ -31,6 +31,7 @@ const TimetableContent = () => {
     fetchTimetableForSubclass,
     fetchFullSchoolTimetable,
     saveChanges,
+    autoSaveStatus,
     isLoadingTimetable,
     timetables,
     academicYears,
@@ -217,12 +218,20 @@ const TimetableContent = () => {
                 <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
                 {isExporting ? 'Exporting...' : 'Export'}
               </Button>
+              {/* Assignments save on selection. The button stays as a
+                  manual re-sync — useful after an auto-save failure, and
+                  it still forces a full refetch from the server. */}
               <Button
                 onClick={() => saveChanges(selectedSubClassId)}
                 disabled={!selectedSubClassId || isLoadingTimetable || !hasTimetableData}
-                color="primary"
+                color={autoSaveStatus === 'error' ? 'primary' : 'secondary'}
+                title="Re-send any unsaved changes and reload from the server"
               >
-                {isLoadingTimetable ? 'Saving...' : 'Save Changes'}
+                {isLoadingTimetable
+                  ? 'Saving...'
+                  : autoSaveStatus === 'error'
+                    ? 'Retry save'
+                    : 'Sync'}
               </Button>
             </div>
           </div>
