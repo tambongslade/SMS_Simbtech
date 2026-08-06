@@ -59,6 +59,20 @@ interface RequestOptions extends RequestInit {
     body?: any; // Allow any body type for flexibility, will be stringified if object
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     params?: any; // Allow params object for query parameters
+    // Suppress the automatic error toast. Use for probe requests whose failure
+    // the caller handles itself (e.g. falling back to an older endpoint).
+    silent?: boolean;
+}
+
+// An API failure that still carries the HTTP status, so callers can branch on
+// it (404 -> endpoint not deployed) instead of matching on message text.
+export class ApiError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+    }
 }
 
 type ExpectedResponseType = 'json' | 'blob' | 'text' | 'arrayBuffer'; // Add more as needed
@@ -140,9 +154,11 @@ async function request<T = any>(
                 // Non-JSON body (e.g. an HTML error page) — never show it to the user.
             }
             const errorMessage = humanizeServerMessage(serverMessage, response.status);
-            // A shared toast id keeps repeated/parallel failures from stacking.
-            toast.error(errorMessage, { id: 'api-error' });
-            throw new Error(errorMessage);
+            if (!options.silent) {
+                // A shared toast id keeps repeated/parallel failures from stacking.
+                toast.error(errorMessage, { id: 'api-error' });
+            }
+            throw new ApiError(errorMessage, response.status);
         }
 
         // For 204 No Content or similar, where response.json() would fail

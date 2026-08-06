@@ -130,16 +130,22 @@ export function CreateFinanceRequestModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Load recipient users once (for the personnel disbursement picker). Self
-  // requesters skip it — they can't list users and the recipient is themselves.
+  // Recipient lookup for the personnel disbursement picker — searched
+  // server-side, debounced. Self requesters skip it entirely: they can't list
+  // other users and the recipient is always themselves.
   useEffect(() => {
     if (!isOpen) return;
     if (selfOnly) {
       setRecipientId(user?.id ? String(user.id) : '');
       return;
     }
-    listRecipientUsers().then(setRecipients).catch(() => setRecipients([]));
-  }, [isOpen, selfOnly, user?.id]);
+    const handle = setTimeout(() => {
+      listRecipientUsers({ search: recipientQuery.trim() || undefined })
+        .then(setRecipients)
+        .catch(() => setRecipients([]));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [isOpen, selfOnly, user?.id, recipientQuery]);
 
   // Types whose form starts from a student lookup.
   const usesStudentPicker =
@@ -168,18 +174,9 @@ export function CreateFinanceRequestModal({
     return () => clearTimeout(handle);
   }, [studentQuery, usesStudentPicker, selectedAcademicYear?.id]);
 
-  const filteredRecipients = useMemo(() => {
-    const q = recipientQuery.trim().toLowerCase();
-    if (!q) return recipients.slice(0, 50);
-    return recipients
-      .filter(
-        (u) =>
-          u.name?.toLowerCase().includes(q) ||
-          u.matricule?.toLowerCase().includes(q) ||
-          u.email?.toLowerCase().includes(q),
-      )
-      .slice(0, 50);
-  }, [recipients, recipientQuery]);
+  // The server already applied the query; keep the option list bounded so the
+  // native select stays usable on a phone.
+  const filteredRecipients = useMemo(() => recipients.slice(0, 50), [recipients]);
 
   const pickStudent = (s: FinanceStudent) => {
     setSelectedStudent(s);
@@ -407,7 +404,7 @@ export function CreateFinanceRequestModal({
                   label="Find recipient"
                   value={recipientQuery}
                   onChange={(e) => setRecipientQuery(e.target.value)}
-                  placeholder="Filter staff by name, matricule or email…"
+                  placeholder="Search staff by name, matricule, email or phone…"
                 />
                 <Select
                   label="Recipient *"

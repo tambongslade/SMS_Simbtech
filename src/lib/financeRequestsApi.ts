@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { searchPersonnel, MAX_PERSONNEL_LIMIT } from './personnelApi';
 
 // ---------------------------------------------------------------------------
 // Finance Requests API client
@@ -279,16 +280,19 @@ const mapRecipientUser = (u: any): RecipientUser => ({
     .filter(Boolean),
 });
 
-// Staff/teacher users eligible to receive a personnel disbursement.
+// Staff eligible to receive a personnel disbursement. Searched server-side —
+// parents are excluded by the endpoint, which is what we want here.
 export const listRecipientUsers = async (params: {
   search?: string;
   limit?: number;
 } = {}): Promise<RecipientUser[]> => {
-  const qs = new URLSearchParams();
-  qs.append('limit', String(params.limit ?? 200));
-  if (params.search) qs.append('search', params.search);
-  const res = await apiService.get<{ data: any[] }>(`/users?${qs.toString()}`);
-  return (res.data || []).map(mapRecipientUser);
+  const res = await searchPersonnel({
+    q: params.search,
+    limit: params.limit ?? MAX_PERSONNEL_LIMIT,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  });
+  return res.data.map(mapRecipientUser);
 };
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR, { useSWRConfig } from 'swr';
 import apiService from '../../../../../lib/apiService';
+import { personnelSearchPath, searchPersonnel, type SearchPersonnelParams } from '@/lib/personnelApi';
 import { useAuth } from '../../../../../components/context/AuthContext';
 
 // Define types locally or import them
@@ -82,14 +83,35 @@ export const usePersonnelManagement = () => {
 
   // Use the selected academic year from AuthContext in the API endpoint
   const academicYearId = selectedAcademicYear?.id || '';
-  const API_ENDPOINT = `/users?page=${currentPage}&limit=${itemsPerPage}&role=${selectedRoleFilter === 'all' ? '' : selectedRoleFilter}&search=${searchTerm}&academicYearId=${academicYearId}`;
+  // Debounced so typing in the search box doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(handle);
+  }, [searchTerm]);
+
+  const searchParams: SearchPersonnelParams = useMemo(() => ({
+    q: debouncedSearch,
+    role: selectedRoleFilter === 'all' ? undefined : selectedRoleFilter,
+    academicYearId: academicYearId ? Number(academicYearId) : undefined,
+    // Parents are excluded by default; only look them up if asked for.
+    includeParents: selectedRoleFilter === 'PARENT',
+    page: currentPage,
+    limit: itemsPerPage,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  }), [debouncedSearch, selectedRoleFilter, academicYearId, currentPage, itemsPerPage]);
+
+  // The path doubles as the SWR cache key; searchPersonnel falls back to the
+  // older /users endpoint if this API hasn't deployed the search route.
+  const API_ENDPOINT = personnelSearchPath(searchParams);
 
   const {
     data: apiResult,
     error: fetchError,
     isLoading: isSWRLoading,
     mutate
-  } = useSWR(API_ENDPOINT, (url) => apiService.get(url));
+  } = useSWR(API_ENDPOINT, () => searchPersonnel(searchParams));
 
   const { personnel, totalPages, totalItems } = useMemo(() => {
     if (!apiResult?.data) {
@@ -138,7 +160,7 @@ export const usePersonnelManagement = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedRoleFilter, searchTerm]);
+  }, [selectedRoleFilter, debouncedSearch, academicYearId]);
 
   const openAddModal = () => {
     setEditingPersonnel(null);
