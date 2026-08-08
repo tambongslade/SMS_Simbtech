@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 // Initializes OneSignal push notifications inside the Capacitor mobile app.
 // The native shell injects the OneSignal Cordova plugin; on the plain website
@@ -35,7 +35,15 @@ const currentExternalId = (): string | null => {
     return null;
 };
 
+interface PriorityAlert {
+    title: string;
+    body: string;
+    actionUrl?: string;
+}
+
 export default function OneSignalInit() {
+    const [alert, setAlert] = useState<PriorityAlert | null>(null);
+
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cap = (window as any).Capacitor;
@@ -122,6 +130,38 @@ export default function OneSignalInit() {
                             : '/dashboard';
                     }
                 });
+
+                // High-priority pushes that land while the app is open. Android
+                // would otherwise slide them quietly into the shade, which is
+                // exactly what "urgent" must not do — so suppress the system
+                // notification and show a blocking modal instead. `popup` is set
+                // by the backend only for HIGH/URGENT.
+                OneSignal.Notifications.addEventListener('foregroundWillDisplay', (event: {
+                    preventDefault?: () => void;
+                    notification?: {
+                        title?: string;
+                        body?: string;
+                        additionalData?: {
+                            actionUrl?: string;
+                            notificationId?: number;
+                            popup?: boolean;
+                            priority?: string;
+                        };
+                    };
+                }) => {
+                    const data = event?.notification?.additionalData;
+                    const urgent = data?.popup === true
+                        || data?.priority === 'HIGH'
+                        || data?.priority === 'URGENT';
+                    if (!urgent) return;
+                    event.preventDefault?.();
+                    setAlert({
+                        title: event.notification?.title ?? 'Urgent notification',
+                        body: event.notification?.body ?? '',
+                        actionUrl: data?.actionUrl,
+                    });
+                });
+
                 syncIdentity();
             } catch (e) {
                 console.warn('OneSignal init failed:', e);
@@ -144,5 +184,50 @@ export default function OneSignalInit() {
         };
     }, []);
 
-    return null;
+    if (!alert) return null;
+
+    return (
+        <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-label={alert.title}
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4"
+        >
+            <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+                <div className="flex items-start gap-3 p-5">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-lg">
+                        &#9888;
+                    </span>
+                    <div className="min-w-0">
+                        <p className="font-semibold text-gray-900">{alert.title}</p>
+                        {alert.body && (
+                            <p className="mt-1 text-sm text-gray-600">{alert.body}</p>
+                        )}
+                    </div>
+                </div>
+                <div className="flex justify-end gap-2 border-t border-gray-100 px-5 py-3">
+                    <button
+                        type="button"
+                        onClick={() => setAlert(null)}
+                        className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                    >
+                        Dismiss
+                    </button>
+                    {alert.actionUrl && (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const url = alert.actionUrl!;
+                                setAlert(null);
+                                window.location.href = url;
+                            }}
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                        >
+                            View
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }
