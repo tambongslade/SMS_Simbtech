@@ -39,7 +39,17 @@ export default function OneSignalInit() {
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cap = (window as any).Capacitor;
-        if (!cap?.isNativePlatform?.() || !APP_ID) return;
+        if (!cap?.isNativePlatform?.()) return;
+        if (!APP_ID) {
+            // NEXT_PUBLIC_* values are baked in at build time, so a server whose
+            // .env lacks this one produces a bundle where push silently never
+            // starts — no registration, no notifications, no error. Say so.
+            console.error(
+                'OneSignal disabled: NEXT_PUBLIC_ONESIGNAL_APP_ID was missing when this ' +
+                'bundle was built. Add it to .env on the server and rebuild.',
+            );
+            return;
+        }
 
         let cancelled = false;
         let lastExternalId: string | null = null;
