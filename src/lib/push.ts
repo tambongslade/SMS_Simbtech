@@ -46,15 +46,9 @@ const resolve = async <T,>(value: T | Promise<T>, fallback: T): Promise<T> => {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-/** Mirrors OSNotificationPermission in the plugin. iOS reports all four; on
- *  Android the value is only ever NotDetermined, Denied or Authorized. */
-const NATIVE_PERMISSION: Record<number, PushState['permission']> = {
-    0: 'notDetermined',
-    1: 'denied',
-    2: 'granted',
-    3: 'granted', // Provisional — quiet delivery, but pushes do arrive.
-    4: 'granted', // Ephemeral (App Clips).
-};
+/** OSNotificationPermission values that still deliver notifications: Authorized,
+ *  Provisional (quiet delivery) and Ephemeral. */
+const GRANTED_NATIVE = new Set([2, 3, 4]);
 
 export async function getPushState(): Promise<PushState> {
     const OneSignal = getOneSignal();
@@ -69,9 +63,15 @@ export async function getPushState(): Promise<PushState> {
         const canAsk = await resolve<boolean>(OneSignal.Notifications.canRequestPermission(), false);
         const native = await resolve<number>(OneSignal.Notifications.permissionNative(), -1);
 
-        const permission: PushState['permission'] = granted
+        // canAsk decides, not the native enum: a never-asked Android device
+        // reports permissionNative() === Denied(1) while still being perfectly
+        // askable (verified on an emulator). Trusting the enum would show the
+        // "blocked, go to settings" dead end to users who were never asked.
+        const permission: PushState['permission'] = granted || GRANTED_NATIVE.has(native)
             ? 'granted'
-            : NATIVE_PERMISSION[native] ?? (canAsk ? 'notDetermined' : 'denied');
+            : canAsk
+                ? 'notDetermined'
+                : 'denied';
 
         return { supported: true, permission, optedIn: granted && optedIn, canAsk };
     } catch {

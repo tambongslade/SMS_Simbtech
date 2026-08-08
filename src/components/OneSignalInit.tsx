@@ -79,7 +79,14 @@ export default function OneSignalInit() {
             if (cancelled) return;
             const OneSignal = getOneSignal();
             if (!OneSignal) {
-                if (attempts++ < 20) setTimeout(init, 500);
+                if (attempts++ < 20) { setTimeout(init, 500); return; }
+                // Ten seconds without the plugin means the Cordova bridge was
+                // never injected into this page — the usual cause is loading the
+                // app from a remote server.url. Push cannot work at all here.
+                console.error(
+                    'OneSignal disabled: window.plugins.OneSignal never appeared after 10s. ' +
+                    'The Cordova plugin bridge is not present in this WebView.',
+                );
                 return;
             }
             try {
