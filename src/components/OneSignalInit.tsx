@@ -4,9 +4,16 @@ import { useEffect } from 'react';
 
 // Initializes OneSignal push notifications inside the Capacitor mobile app.
 // The native shell injects the OneSignal Cordova plugin; on the plain website
-// this component does nothing. Devices are identified with an external id
-// (user-<id> for signed-in accounts, parent-<matricule> for portal parents)
-// so the backend can target message notifications at specific people.
+// this component does nothing.
+//
+// The external id MUST be the bare user id as a string ("42"), because the
+// backend targets pushes with external_id = String(user.id). Any other format
+// makes every send fail with "All included players are not subscribed".
+//
+// Parent-portal sessions are matricule-based and have no real user id (the
+// synthetic user is id -1, see AuthContext.loginParent), so they register the
+// alias below but the backend cannot target them until it grows matricule
+// support.
 
 const APP_ID = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
 
@@ -18,7 +25,8 @@ const currentExternalId = (): string | null => {
         const token = localStorage.getItem('token');
         if (token) {
             const user = JSON.parse(localStorage.getItem('userData') || 'null');
-            if (user?.id != null && user.id !== -1) return `user-${user.id}`;
+            // Bare id — this is what the backend targets.
+            if (user?.id != null && user.id !== -1) return String(user.id);
         }
         const portal = JSON.parse(localStorage.getItem('parentPortal') || 'null');
         if (portal?.active) return `parent-${portal.active}`;
@@ -35,6 +43,7 @@ export default function OneSignalInit() {
 
         let cancelled = false;
         let lastExternalId: string | null = null;
+        let askedPermission = false;
 
         const syncIdentity = () => {
             const OneSignal = getOneSignal();
@@ -46,6 +55,16 @@ export default function OneSignalInit() {
                 if (externalId) OneSignal.login(externalId);
                 else OneSignal.logout();
             } catch (e) { console.warn('OneSignal identity sync failed:', e); }
+
+            // Only ask once we know who the user is. iOS shows this dialog exactly
+            // once per install — asking on a cold launch, before the user has any
+            // idea what the app sends, spends that single chance for nothing.
+            if (externalId && !askedPermission) {
+                askedPermission = true;
+                try {
+                    OneSignal.Notifications.requestPermission(true);
+                } catch (e) { console.warn('OneSignal permission request failed:', e); }
+            }
         };
 
         // The plugin may not be injected yet when React mounts — retry briefly.
@@ -59,16 +78,28 @@ export default function OneSignalInit() {
             }
             try {
                 OneSignal.initialize(APP_ID);
-                // Ask for permission (no-op if already granted/denied)
-                OneSignal.Notifications.requestPermission(true);
-                // Tapping a notification: follow the url in its data payload;
-                // message notifications land on the chat.
+                // Permission is requested from syncIdentity, once a user is known.
+                // Tapping a notification follows the backend's payload contract:
+                // actionUrl wins, then entityType/entityId, then the chat fallback.
                 OneSignal.Notifications.addEventListener('click', (event: {
-                    notification?: { additionalData?: { url?: string; type?: string } };
+                    notification?: {
+                        additionalData?: {
+                            actionUrl?: string;
+                            entityType?: string;
+                            entityId?: number;
+                            category?: string;
+                            notificationId?: number;
+                            url?: string;
+                            type?: string;
+                        };
+                    };
                 }) => {
                     const data = event?.notification?.additionalData;
-                    if (data?.url) {
-                        window.location.href = data.url;
+                    const actionUrl = data?.actionUrl ?? data?.url;
+                    if (actionUrl) {
+                        window.location.href = actionUrl;
+                    } else if (data?.entityType && data?.entityId != null) {
+                        window.location.href = `/${data.entityType.toLowerCase()}/${data.entityId}`;
                     } else if (data?.type && /message|chat/i.test(data.type)) {
                         // Role-agnostic: every dashboard shows the chat indicator; the
                         // parent portal has a dedicated chat page.
@@ -85,10 +116,13 @@ export default function OneSignalInit() {
         };
         init();
 
-        // Keep the device identity in step with login/logout
+        // Keep the device identity in step with login/logout. The storage event
+        // only fires in *other* documents, so in the single-page webview this
+        // poll is what actually notices a login — keep it short enough that the
+        // permission prompt still feels like part of signing in.
         const onStorage = () => syncIdentity();
         window.addEventListener('storage', onStorage);
-        const interval = setInterval(syncIdentity, 30000);
+        const interval = setInterval(syncIdentity, 3000);
 
         return () => {
             cancelled = true;
