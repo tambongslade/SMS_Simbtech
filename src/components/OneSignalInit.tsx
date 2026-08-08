@@ -43,7 +43,6 @@ export default function OneSignalInit() {
 
         let cancelled = false;
         let lastExternalId: string | null = null;
-        let askedPermission = false;
 
         const syncIdentity = () => {
             const OneSignal = getOneSignal();
@@ -55,17 +54,14 @@ export default function OneSignalInit() {
                 if (externalId) OneSignal.login(externalId);
                 else OneSignal.logout();
             } catch (e) { console.warn('OneSignal identity sync failed:', e); }
-
-            // Only ask once we know who the user is. iOS shows this dialog exactly
-            // once per install — asking on a cold launch, before the user has any
-            // idea what the app sends, spends that single chance for nothing.
-            if (externalId && !askedPermission) {
-                askedPermission = true;
-                try {
-                    OneSignal.Notifications.requestPermission(true);
-                } catch (e) { console.warn('OneSignal permission request failed:', e); }
-            }
         };
+
+        // Permission is deliberately NOT requested here. The OS shows that dialog
+        // once per install on iOS and twice on Android; spending it seconds after
+        // login, before the user has been told what we send, means one reflexive
+        // "Don't allow" locks the app out of notifications for good — recoverable
+        // only through device settings. Settings → Notifications asks instead,
+        // where the user has just chosen to turn them on. See lib/push.ts.
 
         // The plugin may not be injected yet when React mounts — retry briefly.
         let attempts = 0;

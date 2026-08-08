@@ -17,7 +17,12 @@ import {
 import { Card, CardHeader, CardTitle, CardBody, Button, Input, Select } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import { apiService } from '@/lib/apiService';
-import { getPushState, setPushEnabled, type PushState } from '@/lib/push';
+import {
+    getPushState,
+    setPushEnabled,
+    openNotificationSettings,
+    type PushState,
+} from '@/lib/push';
 import {
     fetchMe,
     updateMe,
@@ -190,11 +195,21 @@ export default function SettingsPage() {
     };
 
     // ---- Device push (OneSignal) ------------------------------------------
-    const [push, setPush] = useState<PushState>({ supported: false, permission: 'unknown', optedIn: false });
+    const [push, setPush] = useState<PushState>({
+        supported: false, permission: 'unknown', optedIn: false, canAsk: false,
+    });
     const [pushBusy, setPushBusy] = useState(false);
 
     const refreshPush = useCallback(async () => setPush(await getPushState()), []);
     useEffect(() => { refreshPush(); }, [refreshPush]);
+
+    // Returning from the OS settings screen does not remount this page, so
+    // re-read the permission whenever the app comes back to the foreground.
+    useEffect(() => {
+        const onVisible = () => { if (!document.hidden) refreshPush(); };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, [refreshPush]);
 
     const togglePush = async (enabled: boolean) => {
         setPushBusy(true);
@@ -202,12 +217,24 @@ export default function SettingsPage() {
             const next = await setPushEnabled(enabled);
             setPush(next);
             if (enabled && next.permission === 'denied') {
-                toast.error('Notifications are blocked in your device settings. Enable them there first.');
+                // The dialog is spent; the banner below offers the way back.
+                toast.error('Notifications are turned off for this app on your device.');
+            } else if (enabled && !next.optedIn) {
+                toast.error('Could not turn notifications on. Please try again.');
             } else {
                 toast.success(enabled ? 'Notifications on' : 'Notifications off');
             }
         } catch {
             toast.error('Could not change your notification setting.');
+        } finally {
+            setPushBusy(false);
+        }
+    };
+
+    const openDeviceSettings = async () => {
+        setPushBusy(true);
+        try {
+            setPush(await openNotificationSettings());
         } finally {
             setPushBusy(false);
         }
@@ -391,11 +418,21 @@ export default function SettingsPage() {
                                         <div className="flex gap-3 p-4 bg-amber-50 rounded-lg">
                                             <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
                                             <div className="text-sm text-amber-900">
-                                                <p className="font-medium">Blocked on this device</p>
+                                                <p className="font-medium">Turned off on this device</p>
                                                 <p className="mt-1 text-amber-800">
-                                                    Turn notifications back on in your device settings for
-                                                    St Stephen International, then return here.
+                                                    Your phone will not show notifications for St Stephen
+                                                    International. The permission dialog cannot be shown
+                                                    again, so this has to be changed in device settings.
                                                 </p>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="mt-3"
+                                                    isLoading={pushBusy}
+                                                    onClick={openDeviceSettings}
+                                                >
+                                                    Open device settings
+                                                </Button>
                                             </div>
                                         </div>
                                     )}

@@ -8,13 +8,24 @@
 export interface PushState {
     /** True only inside the native app with the plugin present. */
     supported: boolean;
-    /** OS-level permission for notifications. */
-    permission: 'granted' | 'denied' | 'unknown';
+    /**
+     * OS-level permission. 'notDetermined' means the system dialog has never
+     * been shown, so asking will still work — it must not be reported to the
+     * user as "blocked", which is only true of 'denied'.
+     */
+    permission: 'granted' | 'denied' | 'notDetermined' | 'unknown';
     /** Whether this device is currently subscribed in OneSignal. */
     optedIn: boolean;
+    /** False once the OS refuses further prompts — only settings can fix it. */
+    canAsk: boolean;
 }
 
-const UNSUPPORTED: PushState = { supported: false, permission: 'unknown', optedIn: false };
+const UNSUPPORTED: PushState = {
+    supported: false,
+    permission: 'unknown',
+    optedIn: false,
+    canAsk: false,
+};
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const getOneSignal = (): any => {
@@ -35,6 +46,16 @@ const resolve = async <T,>(value: T | Promise<T>, fallback: T): Promise<T> => {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
+/** Mirrors OSNotificationPermission in the plugin. iOS reports all four; on
+ *  Android the value is only ever NotDetermined, Denied or Authorized. */
+const NATIVE_PERMISSION: Record<number, PushState['permission']> = {
+    0: 'notDetermined',
+    1: 'denied',
+    2: 'granted',
+    3: 'granted', // Provisional — quiet delivery, but pushes do arrive.
+    4: 'granted', // Ephemeral (App Clips).
+};
+
 export async function getPushState(): Promise<PushState> {
     const OneSignal = getOneSignal();
     if (!OneSignal) return UNSUPPORTED;
@@ -42,22 +63,28 @@ export async function getPushState(): Promise<PushState> {
     try {
         const granted = await resolve<boolean>(OneSignal.Notifications.getPermissionAsync(), false);
         const optedIn = await resolve<boolean>(OneSignal.User.pushSubscription.getOptedInAsync(), false);
-        return {
-            supported: true,
-            permission: granted ? 'granted' : 'denied',
-            optedIn: granted && optedIn,
-        };
+        // canRequestPermission is the honest test for "has the OS given up on
+        // us": Android returns false after the user dismisses twice, iOS after
+        // the single dialog is answered.
+        const canAsk = await resolve<boolean>(OneSignal.Notifications.canRequestPermission(), false);
+        const native = await resolve<number>(OneSignal.Notifications.permissionNative(), -1);
+
+        const permission: PushState['permission'] = granted
+            ? 'granted'
+            : NATIVE_PERMISSION[native] ?? (canAsk ? 'notDetermined' : 'denied');
+
+        return { supported: true, permission, optedIn: granted && optedIn, canAsk };
     } catch {
-        return { supported: true, permission: 'unknown', optedIn: false };
+        return { supported: true, permission: 'unknown', optedIn: false, canAsk: true };
     }
 }
 
 /**
  * Turn notifications on or off for this device, returning the resulting state.
  *
- * Enabling asks for OS permission the first time. On iOS that dialog can only
- * ever be shown once per install, so a later "denied" result means the user
- * must change it in device settings — the caller surfaces that.
+ * Enabling asks for OS permission the first time. The system dialog is a
+ * one-shot — once per install on iOS, twice on Android — so this is called
+ * only from a deliberate user action, never on launch.
  */
 export async function setPushEnabled(enabled: boolean): Promise<PushState> {
     const OneSignal = getOneSignal();
@@ -65,8 +92,10 @@ export async function setPushEnabled(enabled: boolean): Promise<PushState> {
 
     try {
         if (enabled) {
+            // fallbackToSettings=false: a plain permission ask. Sending the user
+            // to device settings is a separate, explicitly-labelled action.
             const granted = await resolve<boolean>(
-                OneSignal.Notifications.requestPermission(true),
+                OneSignal.Notifications.requestPermission(false),
                 false,
             );
             if (granted) OneSignal.User.pushSubscription.optIn();
@@ -77,5 +106,21 @@ export async function setPushEnabled(enabled: boolean): Promise<PushState> {
         // Fall through to a state read — the plugin may still have applied it.
     }
 
+    return getPushState();
+}
+
+/**
+ * Asks the OS to show its "open settings" path for a previously denied app.
+ * This is the only way back once permission is hard-denied — the permission
+ * dialog itself will never appear again.
+ */
+export async function openNotificationSettings(): Promise<PushState> {
+    const OneSignal = getOneSignal();
+    if (!OneSignal) return UNSUPPORTED;
+    try {
+        await resolve<boolean>(OneSignal.Notifications.requestPermission(true), false);
+    } catch {
+        // Nothing more we can do from JavaScript.
+    }
     return getPushState();
 }
