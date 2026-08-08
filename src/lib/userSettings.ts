@@ -1,97 +1,13 @@
-// Notification preferences live on /api/v1/messaging/preferences. That endpoint
-// speaks a nested shape (channel flags, a categories map, a quietHours object);
-// this module flattens it into the shape the settings screen works with.
+// Account settings. The deployed API has no per-user preference endpoint —
+// both /users/me/settings and the documented /messaging/preferences return
+// "Route not found" — so notification channels, quiet hours and categories are
+// deliberately absent here rather than being faked. What remains is the profile
+// (/users/me), the device push opt-in (OneSignal, see lib/push), and the
+// device-local display preferences below.
 
 import { apiService } from '@/lib/apiService';
 
 export type Theme = 'LIGHT' | 'DARK' | 'SYSTEM';
-
-/** The only categories the backend recognises — sending others is dropped. */
-export const NOTIFICATION_CATEGORIES = [
-    'general',
-    'academic',
-    'disciplinary',
-    'financial',
-    'administrative',
-    'emergency',
-] as const;
-
-export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
-
-/** Human labels — the raw keys are not for showing to school staff. */
-export const CATEGORY_LABELS: Record<NotificationCategory, string> = {
-    general: 'General',
-    academic: 'Academic — results and marks',
-    disciplinary: 'Discipline and attendance',
-    financial: 'Fees and payments',
-    administrative: 'Administrative notices',
-    emergency: 'Emergencies',
-};
-
-export interface UserSettings {
-    notificationsEmail: boolean;
-    notificationsSms: boolean;
-    notificationsPush: boolean;
-    quietHoursEnabled: boolean;
-    quietHoursStart: string | null;
-    quietHoursEnd: string | null;
-    /** Categories the user has switched off. Derived from the server's map. */
-    mutedCategories: NotificationCategory[];
-}
-
-/** What /messaging/preferences returns. Every field is treated as optional
- *  because older accounts predate some of them. */
-interface ApiPreferences {
-    emailNotifications?: boolean;
-    pushNotifications?: boolean;
-    smsNotifications?: boolean;
-    categories?: Partial<Record<NotificationCategory, boolean>>;
-    quietHours?: { enabled?: boolean; startTime?: string | null; endTime?: string | null };
-}
-
-function fromApi(prefs: ApiPreferences | undefined): UserSettings {
-    const categories = prefs?.categories ?? {};
-    return {
-        notificationsEmail: prefs?.emailNotifications ?? true,
-        notificationsSms: prefs?.smsNotifications ?? false,
-        notificationsPush: prefs?.pushNotifications ?? true,
-        quietHoursEnabled: prefs?.quietHours?.enabled ?? false,
-        quietHoursStart: prefs?.quietHours?.startTime ?? null,
-        quietHoursEnd: prefs?.quietHours?.endTime ?? null,
-        // Absent means "on" — only an explicit false counts as muted.
-        mutedCategories: NOTIFICATION_CATEGORIES.filter(c => categories[c] === false),
-    };
-}
-
-export async function fetchUserSettings(): Promise<UserSettings> {
-    const res = await apiService.get<{ data?: ApiPreferences }>('/messaging/preferences');
-    return fromApi(res.data);
-}
-
-/**
- * Sends the complete preference set rather than a patch: the categories map and
- * quietHours object are replaced wholesale server-side, so a partial body would
- * silently reset the fields it left out.
- */
-export async function updateUserSettings(next: UserSettings): Promise<UserSettings> {
-    const categories = Object.fromEntries(
-        NOTIFICATION_CATEGORIES.map(c => [c, !next.mutedCategories.includes(c)]),
-    );
-    const body = {
-        emailNotifications: next.notificationsEmail,
-        pushNotifications: next.notificationsPush,
-        smsNotifications: next.notificationsSms,
-        categories,
-        quietHours: {
-            enabled: next.quietHoursEnabled,
-            startTime: next.quietHoursStart ?? '22:00',
-            endTime: next.quietHoursEnd ?? '06:00',
-        },
-    };
-    const res = await apiService.put<{ data?: ApiPreferences }>('/messaging/preferences', body);
-    // Some deployments echo only a success message; fall back to what we sent.
-    return res.data ? fromApi(res.data) : next;
-}
 
 /** Theme and language have no server-side home yet, so they stay on the device. */
 const LOCAL_PREFS_KEY = 'sms_local_prefs';
@@ -119,9 +35,6 @@ export function saveLocalPrefs(prefs: LocalPrefs): void {
         // Private browsing / full storage — the choice just will not persist.
     }
 }
-
-/** Matches the backend's HH:MM 24-hour validation so we fail before the request. */
-export const isValidTime = (value: string): boolean => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
 
 /** Fields PUT /users/me actually honours. Anything else is silently dropped. */
 export const EDITABLE_PROFILE_FIELDS = [

@@ -21,16 +21,9 @@ import { getPushState, setPushEnabled, type PushState } from '@/lib/push';
 import {
     fetchMe,
     updateMe,
-    fetchUserSettings,
-    updateUserSettings,
     loadLocalPrefs,
     saveLocalPrefs,
-    isValidTime,
-    NOTIFICATION_CATEGORIES,
-    CATEGORY_LABELS,
     type MeProfile,
-    type UserSettings,
-    type NotificationCategory,
     type LocalPrefs,
     type Theme,
 } from '@/lib/userSettings';
@@ -185,53 +178,6 @@ export default function SettingsPage() {
         }
     };
 
-    // ---- Server-side settings ---------------------------------------------
-    const [settings, setSettings] = useState<UserSettings | null>(null);
-    const [settingsLoading, setSettingsLoading] = useState(true);
-    const [savingKey, setSavingKey] = useState<string | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const s = await fetchUserSettings();
-                if (!cancelled) setSettings(s);
-            } catch {
-                if (!cancelled) setSettings(null);
-            } finally {
-                if (!cancelled) setSettingsLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, []);
-
-    // Optimistic: flip locally, roll back if the server rejects it. The whole
-    // preference set goes up each time — see updateUserSettings.
-    const patchSettings = async (patch: Partial<UserSettings>, key: string) => {
-        if (!settings) return;
-        const previous = settings;
-        const next = { ...settings, ...patch };
-        setSettings(next);
-        setSavingKey(key);
-        try {
-            setSettings(await updateUserSettings(next));
-        } catch (e) {
-            setSettings(previous);
-            toast.error(e instanceof Error ? e.message : 'Could not save that setting.');
-        } finally {
-            setSavingKey(null);
-        }
-    };
-
-    const toggleCategory = (category: NotificationCategory) => {
-        if (!settings) return;
-        const muted = settings.mutedCategories ?? [];
-        const next = muted.includes(category)
-            ? muted.filter(c => c !== category)
-            : [...muted, category];
-        patchSettings({ mutedCategories: next }, `cat-${category}`);
-    };
-
     // ---- Device-local preferences -----------------------------------------
     const [localPrefs, setLocalPrefs] = useState<LocalPrefs>({ theme: 'SYSTEM', language: 'en' });
     useEffect(() => { setLocalPrefs(loadLocalPrefs()); }, []);
@@ -265,22 +211,6 @@ export default function SettingsPage() {
         } finally {
             setPushBusy(false);
         }
-    };
-
-    // ---- Quiet hours (validated locally before sending) --------------------
-    const [quiet, setQuiet] = useState({ start: '', end: '' });
-    const quietStart = settings?.quietHoursStart ?? '';
-    const quietEnd = settings?.quietHoursEnd ?? '';
-    useEffect(() => {
-        setQuiet({ start: quietStart, end: quietEnd });
-    }, [quietStart, quietEnd]);
-
-    const saveQuietHours = () => {
-        if (!isValidTime(quiet.start) || !isValidTime(quiet.end)) {
-            toast.error('Enter times as HH:MM, for example 22:00.');
-            return;
-        }
-        patchSettings({ quietHoursStart: quiet.start, quietHoursEnd: quiet.end }, 'quiet');
     };
 
     return (
@@ -480,102 +410,12 @@ export default function SettingsPage() {
                         </CardBody>
                     </Card>
 
-                    <Card>
-                        <CardHeader><CardTitle>How we reach you</CardTitle></CardHeader>
-                        <CardBody>
-                            {settingsLoading ? (
-                                <p className="text-sm text-gray-500">Loading…</p>
-                            ) : !settings ? (
-                                <p className="text-sm text-gray-500">
-                                    Your preferences could not be loaded. Please try again later.
-                                </p>
-                            ) : (
-                                <div className="divide-y divide-gray-100">
-                                    <Toggle
-                                        label="Push notifications"
-                                        description="Alerts on your phone."
-                                        checked={settings.notificationsPush}
-                                        disabled={savingKey === 'push'}
-                                        onChange={v => patchSettings({ notificationsPush: v }, 'push')}
-                                    />
-                                    <Toggle
-                                        label="Email"
-                                        checked={settings.notificationsEmail}
-                                        disabled={savingKey === 'email'}
-                                        onChange={v => patchSettings({ notificationsEmail: v }, 'email')}
-                                    />
-                                    <Toggle
-                                        label="SMS"
-                                        checked={settings.notificationsSms}
-                                        disabled={savingKey === 'sms'}
-                                        onChange={v => patchSettings({ notificationsSms: v }, 'sms')}
-                                    />
-                                </div>
-                            )}
-                        </CardBody>
-                    </Card>
-
-                    {settings && (
-                        <>
-                            <Card>
-                                <CardHeader><CardTitle>Quiet hours</CardTitle></CardHeader>
-                                <CardBody className="space-y-4">
-                                    <Toggle
-                                        label="Pause notifications overnight"
-                                        description="You will still see everything in the app."
-                                        checked={settings.quietHoursEnabled}
-                                        disabled={savingKey === 'quietEnabled'}
-                                        onChange={v => patchSettings({ quietHoursEnabled: v }, 'quietEnabled')}
-                                    />
-                                    {settings.quietHoursEnabled && (
-                                        <div className="flex flex-wrap items-end gap-3">
-                                            <Input
-                                                label="From"
-                                                type="time"
-                                                className="w-32"
-                                                value={quiet.start}
-                                                onChange={e => setQuiet({ ...quiet, start: e.target.value })}
-                                            />
-                                            <Input
-                                                label="To"
-                                                type="time"
-                                                className="w-32"
-                                                value={quiet.end}
-                                                onChange={e => setQuiet({ ...quiet, end: e.target.value })}
-                                            />
-                                            <Button
-                                                size="sm"
-                                                onClick={saveQuietHours}
-                                                isLoading={savingKey === 'quiet'}
-                                            >
-                                                Save
-                                            </Button>
-                                        </div>
-                                    )}
-                                </CardBody>
-                            </Card>
-
-                            <Card>
-                                <CardHeader><CardTitle>What you hear about</CardTitle></CardHeader>
-                                <CardBody>
-                                    <p className="text-sm text-gray-500 mb-3">
-                                        Turn off anything you would rather not be notified about.
-                                    </p>
-                                    <div className="divide-y divide-gray-100">
-                                        {NOTIFICATION_CATEGORIES.map(category => (
-                                            <Toggle
-                                                key={category}
-                                                label={CATEGORY_LABELS[category]}
-                                                checked={!(settings.mutedCategories ?? []).includes(category)}
-                                                disabled={savingKey === `cat-${category}`}
-                                                onChange={() => toggleCategory(category)}
-                                            />
-                                        ))}
-                                    </div>
-                                </CardBody>
-                            </Card>
-                        </>
-                    )}
+                    {/* Email and SMS delivery is decided by the school, not per
+                        user — the API exposes no per-account channel settings. */}
+                    <p className="text-sm text-gray-500">
+                        Email and SMS alerts are managed by the school. Contact an administrator
+                        if you are receiving too many, or none at all.
+                    </p>
                 </div>
             )}
 

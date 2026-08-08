@@ -365,6 +365,10 @@ const formatRoleName = (role: string | undefined | null): string => {
     .join(' ');
 };
 
+// Dashboard sections that belong to every role rather than to one, so their
+// first path segment is a page name and not a role.
+const SHARED_SECTIONS = ['settings'];
+
 const formatRoleForURL = (role: string | undefined | null): string => {
   if (!role) return '';
 
@@ -436,8 +440,13 @@ export default function DashboardLayout({
   // Use useMemo to avoid recalculating on every render unless pathname changes
   const roleFromPath = useMemo(() => {
     const pathSegments = pathname.split('/');
-    return pathSegments.length > 2 ? pathSegments[2] : null;
-  }, [pathname]);
+    const segment = pathSegments.length > 2 ? pathSegments[2] : null;
+    if (segment && SHARED_SECTIONS.includes(segment)) {
+      // Keep the signed-in role's menu and skip the role-mismatch redirect.
+      return selectedRole ? formatRoleForURL(selectedRole) : null;
+    }
+    return segment;
+  }, [pathname, selectedRole]);
 
   // --- Effect to validate authentication and redirect if needed ---
   useEffect(() => {
@@ -805,6 +814,22 @@ export default function DashboardLayout({
             </div>
           </div>
         )}
+
+        {/* Settings — shared by every role, so it lives here rather than in
+            each role's menu array. */}
+        <Link
+          href="/dashboard/settings"
+          onClick={() => setIsMobileSidebarOpen(false)}
+          className={`w-full flex items-center justify-center py-2 mb-2 text-sm font-medium rounded-lg group transition-colors duration-200 ${pathname === '/dashboard/settings'
+            ? 'text-blue-700 bg-blue-50'
+            : 'text-gray-700 bg-gray-50 hover:bg-gray-100'
+            } ${collapsed ? 'px-2' : 'px-4'}`}
+          title="Settings"
+          aria-label="Settings"
+        >
+          <Cog6ToothIcon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
+          {!collapsed && 'Settings'}
+        </Link>
 
         {/* Logout Button */}
         <button
