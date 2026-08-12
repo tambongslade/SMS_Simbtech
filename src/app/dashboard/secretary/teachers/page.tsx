@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { MagnifyingGlassIcon, UserPlusIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
+import { UserPlusIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal } from '@/components/ui';
-import {
-  fetchTeachers,
-  createTeacher,
-  type SecretaryTeacher,
-  type CreateTeacherPayload,
-} from '../lib/secretaryApi';
+import { useTeacherSearch, useTeacherFilterOptions } from '@/hooks/useTeacherSearch';
+import { TeacherSearchFilters } from '@/components/teachers/TeacherSearchFilters';
+import { TeacherTable } from '@/components/teachers/TeacherTable';
+import { TeacherPagination } from '@/components/teachers/TeacherPagination';
+import { createTeacher, type CreateTeacherPayload } from '../lib/secretaryApi';
 
 const emptyForm: CreateTeacherPayload = {
   name: '',
@@ -26,40 +25,15 @@ const emptyForm: CreateTeacherPayload = {
 export default function SecretaryTeachersPage() {
   const { selectedAcademicYear } = useAuth();
 
-  const [teachers, setTeachers] = useState<SecretaryTeacher[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const search = useTeacherSearch({
+    academicYearId: selectedAcademicYear?.id,
+    initialFilters: { sortBy: 'name', sortOrder: 'asc' },
+  });
+  const { subjects, subClasses } = useTeacherFilterOptions();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [form, setForm] = useState<CreateTeacherPayload>(emptyForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const loadTeachers = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetchTeachers({ academicYearId: selectedAcademicYear?.id, limit: 200 });
-      setTeachers(res.data || []);
-    } catch {
-      setTeachers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [selectedAcademicYear?.id]);
-
-  useEffect(() => {
-    loadTeachers();
-  }, [loadTeachers]);
-
-  const filteredTeachers = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    if (!term) return teachers;
-    return teachers.filter(
-      (t) =>
-        t.name?.toLowerCase().includes(term) ||
-        t.email?.toLowerCase().includes(term) ||
-        t.matricule?.toLowerCase().includes(term),
-    );
-  }, [teachers, searchTerm]);
 
   const handleFormChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -87,10 +61,11 @@ export default function SecretaryTeachersPage() {
       toast.success('Teacher created successfully.');
       setIsCreateOpen(false);
       setForm(emptyForm);
-      loadTeachers();
-    } catch (error: any) {
-      if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Failed to create teacher.');
+      search.refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '';
+      if (message !== 'Unauthorized') {
+        toast.error(message || 'Failed to create teacher.');
       }
     } finally {
       setIsSubmitting(false);
@@ -122,97 +97,11 @@ export default function SecretaryTeachersPage() {
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-        <div className="max-w-md">
-          <Input
-            label="Search"
-            placeholder="Search by name, email or matricule"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />}
-          />
-        </div>
-      </div>
+      <TeacherSearchFilters search={search} subjects={subjects} subClasses={subClasses} />
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-3">
-        {isLoading ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
-            Loading teachers…
-          </div>
-        ) : filteredTeachers.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
-            No teachers found.
-          </div>
-        ) : (
-          filteredTeachers.map((teacher) => (
-            <div
-              key={teacher.id}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4"
-            >
-              <p className="text-sm font-semibold text-gray-900">{teacher.name}</p>
-              <p className="text-xs text-gray-600 mt-1 break-all">{teacher.email || '—'}</p>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
-                <span>{teacher.phone || 'No phone'}</span>
-                <span>{teacher.gender || '—'}</span>
-              </div>
-              <p className="text-xs text-gray-600 mt-2">
-                <span className="font-medium text-gray-500">Subjects: </span>
-                {teacher.subjects && teacher.subjects.length > 0
-                  ? teacher.subjects.map((s) => s.name).join(', ')
-                  : '—'}
-              </p>
-            </div>
-          ))
-        )}
-      </div>
+      <TeacherTable teachers={search.teachers} isLoading={search.isLoading} emptyMessage="No teachers found." />
 
-      {/* Table (desktop) */}
-      <div className="hidden md:block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Phone</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Gender</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subjects</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    Loading teachers…
-                  </td>
-                </tr>
-              ) : filteredTeachers.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    No teachers found.
-                  </td>
-                </tr>
-              ) : (
-                filteredTeachers.map((teacher) => (
-                  <tr key={teacher.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{teacher.name}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{teacher.email || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{teacher.phone || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">{teacher.gender || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
-                      {teacher.subjects && teacher.subjects.length > 0
-                        ? teacher.subjects.map((s) => s.name).join(', ')
-                        : '—'}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TeacherPagination meta={search.meta} onPageChange={search.setPage} isLoading={search.isLoading} />
 
       {/* Create teacher modal */}
       <Modal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} title="Add Teacher" size="lg">
