@@ -1,5 +1,23 @@
 import UIKit
+import WebKit
 import Capacitor
+
+/// The iPhone has no hardware back button — its equivalent is the swipe from
+/// the left screen edge, which WKWebView turns off by default. Enabling it
+/// gives iOS the same "go back a page" affordance the Android back button
+/// provides, walking the same history stack.
+///
+/// This lives in AppDelegate.swift rather than its own file on purpose: the
+/// Xcode project is still objectVersion 48, which predates file-system
+/// synchronized groups, so a new source file would have to be registered in
+/// project.pbxproj by hand — and `cap sync` never touches app sources.
+/// Main.storyboard points its view controller at this class.
+class MainViewController: CAPBridgeViewController {
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
+        webView?.allowsBackForwardNavigationGestures = true
+    }
+}
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
