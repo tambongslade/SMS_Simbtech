@@ -5,7 +5,15 @@ import { Button } from "@/components/ui";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui";
 import { Select } from "@/components/ui";
 import { toast } from "react-hot-toast";
-import { useTimetable, SlotAssignment } from './TimetableContext';
+import {
+  useTimetable,
+  buildPeriodRows,
+  formatTimeRange,
+  isAssignablePeriod,
+  DAYS_ORDER,
+  PeriodDefinition,
+  TimetableSlot,
+} from './TimetableContext';
 import { PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Reports the auto-save state where the "click Save" note used to be.
@@ -51,8 +59,66 @@ export const AutoSaveNote: React.FC<{
   );
 };
 
-// Days of the week for the timetable (ordered)
-const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
+// The label a non-teaching row carries in the grid.
+const nonTeachingLabel = (period: PeriodDefinition) =>
+  period.type === 'PREP' ? 'Preps' : 'Break';
+
+// Offered when a class has no bell schedule — nothing can be scheduled until
+// one is attached, so the grid is replaced by the choice.
+export const AssignPeriodSetPrompt: React.FC<{ classId: string | null; className?: string }> = ({
+  classId,
+  className,
+}) => {
+  const { periodSets, assignPeriodSetToClass } = useTimetable();
+  const [selected, setSelected] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleAssign = async () => {
+    if (!classId || !selected) return;
+    setIsSaving(true);
+    try {
+      await assignPeriodSetToClass(classId, selected);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="p-6 text-center space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-gray-900">No bell schedule assigned</h3>
+        <p className="text-sm text-gray-500 mt-1">
+          {className ? <span className="font-medium">{className}</span> : 'This class'} has no
+          period times, so it has no timetable grid yet. Pick the cycle it follows.
+        </p>
+      </div>
+
+      {!classId ? (
+        <p className="text-sm text-gray-400">
+          Class information is unavailable — reload the page and try again.
+        </p>
+      ) : periodSets.length === 0 ? (
+        <p className="text-sm text-gray-400">
+          No bell schedules are defined for this academic year yet.
+        </p>
+      ) : (
+        <div className="max-w-sm mx-auto space-y-3">
+          <Select
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            options={[
+              { value: '', label: '-- Select bell schedule --' },
+              ...periodSets.map(ps => ({ value: ps.id, label: ps.name })),
+            ]}
+          />
+          <Button color="primary" onClick={handleAssign} disabled={!selected || isSaving} className="w-full">
+            {isSaving ? 'Assigning…' : 'Assign bell schedule'}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Define the props for the TimetableGrid component
 interface TimetableGridProps {
@@ -63,11 +129,9 @@ interface TimetableGridProps {
 export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId }) => {
   const {
     timetables,
-    allWeeklySlots,
+    subClasses,
     subjects,
-    teachers,
     addSlotAssignment,
-    updateSlotAssignment,
     removeSlotAssignment,
     getTeachersBySubject,
     isTeacherAssignedElsewhere,
@@ -84,83 +148,53 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     if (todayIndex >= 0 && todayIndex < DAYS_ORDER.length) setActiveDay(DAYS_ORDER[todayIndex]);
   }, []);
 
-  // State for the manage slot modal
+  // State for the manage slot modal — addressed by period id, which is unique
+  // per (bell schedule, day, sequence).
   const [manageModalOpen, setManageModalOpen] = useState(false);
-  const [editingDay, setEditingDay] = useState('');
-  const [editingPeriod, setEditingPeriod] = useState('');
+  const [editingPeriodId, setEditingPeriodId] = useState('');
   // State for the "add new assignment" form within the modal
   const [newSubject, setNewSubject] = useState('');
   const [newTeacher, setNewTeacher] = useState('');
   const [newTeacherOptions, setNewTeacherOptions] = useState<{ id: string; name: string }[]>([]);
 
-  // Get all unique periods sorted by time
-  const allPeriods = useMemo(() => {
-    const timeGroups: { [timeRange: string]: any } = {};
+  const currentTimetable = timetables[selectedSubClassId];
+  const subClass = subClasses.find(sc => sc.id === selectedSubClassId);
 
-    allWeeklySlots.forEach(slot => {
-      const timeRange = `${slot.startTime}-${slot.endTime}`;
-      if (!timeGroups[timeRange]) {
-        timeGroups[timeRange] = {
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          isBreak: slot.isBreak,
-          timeRange: timeRange,
-          representativeSlot: slot
-        };
-      }
-    });
+  // Grid rows come from THIS class's bell schedule, never from a school-wide
+  // period list — the two cycles break at different times.
+  const periodRows = useMemo(
+    () => buildPeriodRows(currentTimetable?.periods || []),
+    [currentTimetable],
+  );
 
-    const uniquePeriods = Object.values(timeGroups).sort((a, b) => {
-      if (!a.startTime && !b.startTime) return 0;
-      if (!a.startTime) return 1;
-      if (!b.startTime) return -1;
-      return a.startTime.localeCompare(b.startTime);
-    });
-
-    return uniquePeriods;
-  }, [allWeeklySlots]);
-
-  // Get the current timetable for the selected class from full school data
-  const currentTimetable = useMemo(() => {
-    return timetables[selectedSubClassId];
-  }, [timetables, selectedSubClassId]);
-
-  const slots = useMemo(() => {
-    return currentTimetable?.slots || [];
+  const slotsByPeriodId = useMemo(() => {
+    const map = new Map<string, TimetableSlot>();
+    (currentTimetable?.slots || []).forEach(slot => map.set(slot.periodId, slot));
+    return map;
   }, [currentTimetable]);
 
-  // Function to get a slot for a specific day and period name
-  const getSlot = (day: string, periodName: string) => {
-    return slots.find(slot => slot.day === day && slot.period === periodName) || null;
-  };
-
-  // Function to get the *definition* of a weekly slot (for times, isBreak)
-  const getWeeklySlotDefinition = (day: string, periodName: string) => {
-    return allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
-  };
+  const editingPeriod = useMemo(
+    () => (currentTimetable?.periods || []).find(p => p.id === editingPeriodId) || null,
+    [currentTimetable, editingPeriodId],
+  );
 
   // The server-reported clash for the slot the modal is editing, if any.
   const editingClash = useMemo(() => {
-    if (!manageModalOpen || !editingDay || !editingPeriod) return null;
-    const definition = allWeeklySlots.find(ws => ws.dayOfWeek === editingDay && ws.name === editingPeriod);
-    return getClashWarning(selectedSubClassId, definition?.id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manageModalOpen, editingDay, editingPeriod, allWeeklySlots, selectedSubClassId, getClashWarning]);
+    if (!manageModalOpen || !editingPeriodId) return null;
+    return getClashWarning(selectedSubClassId, editingPeriodId);
+  }, [manageModalOpen, editingPeriodId, selectedSubClassId, getClashWarning]);
 
   // Get live assignments for the currently editing slot
   const currentSlotAssignments = useMemo(() => {
-    if (!manageModalOpen || !editingDay || !editingPeriod) return [];
-    const slot = getSlot(editingDay, editingPeriod);
-    return slot?.assignments || [];
-  }, [manageModalOpen, editingDay, editingPeriod, slots]);
+    if (!manageModalOpen || !editingPeriodId) return [];
+    return slotsByPeriodId.get(editingPeriodId)?.assignments || [];
+  }, [manageModalOpen, editingPeriodId, slotsByPeriodId]);
 
   // Function to open the manage modal for a slot
-  const handleManageSlot = (day: string, periodName: string) => {
-    const slotDefinition = getWeeklySlotDefinition(day, periodName);
-    if (!slotDefinition || slotDefinition.isBreak) return;
+  const handleManageSlot = (period?: PeriodDefinition) => {
+    if (!period || !isAssignablePeriod(period.type)) return;
 
-    setEditingDay(day);
-    setEditingPeriod(periodName);
+    setEditingPeriodId(period.id);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
@@ -178,13 +212,15 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
 
   // Add a new assignment to the current slot
   const handleAddAssignment = () => {
-    if (!newSubject || !newTeacher) return;
+    if (!newSubject || !newTeacher || !editingPeriod) return;
 
-    // Check for teacher conflict in other classes
+    // Check for teacher conflict in other classes — by time, so a clash with
+    // the other cycle is caught too.
     const conflictClass = isTeacherAssignedElsewhere(
       newTeacher,
-      editingDay,
-      editingPeriod,
+      editingPeriod.dayOfWeek,
+      editingPeriod.startTime,
+      editingPeriod.endTime,
       selectedSubClassId
     );
     if (conflictClass) {
@@ -192,7 +228,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
       return;
     }
 
-    addSlotAssignment(selectedSubClassId, editingDay, editingPeriod, newSubject, newTeacher);
+    addSlotAssignment(selectedSubClassId, editingPeriod.id, newSubject, newTeacher);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
@@ -201,45 +237,40 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
 
   // Remove an assignment from the current slot
   const handleRemoveAssignment = (index: number) => {
-    removeSlotAssignment(selectedSubClassId, editingDay, editingPeriod, index);
+    if (!editingPeriod) return;
+    removeSlotAssignment(selectedSubClassId, editingPeriod.id, index);
     toast.success("Assignment removed");
   };
 
   // Generate the cell content for a timetable slot
-  const renderCellContent = (day: string, timeSlot: any) => {
-    const dayPeriod = allWeeklySlots.find(slot =>
-      slot.dayOfWeek === day &&
-      slot.startTime === timeSlot.startTime &&
-      slot.endTime === timeSlot.endTime
-    );
-
-    if (!dayPeriod) {
+  const renderCellContent = (day: string, period?: PeriodDefinition) => {
+    if (!period) {
       return (
-        <td key={`${day}-${timeSlot.timeRange}`} className="border-r h-20 text-gray-400 text-center text-xs">
-          <div className="h-full flex items-center justify-center"></div>
+        <td key={`${day}-empty`} className="border-r h-20 text-gray-400 text-center text-xs">
+          <div className="h-full flex items-center justify-center">—</div>
         </td>
       );
     }
 
-    const periodName = dayPeriod.name;
-    const slot = getSlot(day, periodName);
-    const assignments = slot?.assignments || [];
-
-    if (dayPeriod.isBreak) {
+    if (!isAssignablePeriod(period.type)) {
       return (
-        <td key={`${day}-${timeSlot.timeRange}`} className="border-r h-20 bg-gray-100 text-center text-gray-600 font-medium align-middle">
-          <div className="text-xs">Break</div>
+        <td key={period.id} className="border-r h-20 bg-gray-100 text-center text-gray-600 font-medium align-middle">
+          <div className="text-xs">{nonTeachingLabel(period)}</div>
         </td>
       );
     }
+
+    const assignments = slotsByPeriodId.get(period.id)?.assignments || [];
 
     // Determine background color based on assignments and conflicts
     const hasAnyConflict = assignments.some(a =>
-      a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, day, periodName, selectedSubClassId) : false
+      a.teacherId
+        ? isTeacherAssignedElsewhere(a.teacherId, day, period.startTime, period.endTime, selectedSubClassId)
+        : false
     );
     // A clash the server reported on the last save. The slot was saved anyway,
     // so it reads as a warning rather than an error.
-    const clash = getClashWarning(selectedSubClassId, dayPeriod.id);
+    const clash = getClashWarning(selectedSubClassId, period.id);
     let bgColor = 'bg-white hover:bg-blue-50';
     if (assignments.length > 0) {
       bgColor = hasAnyConflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
@@ -248,9 +279,9 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
 
     return (
       <td
-        key={`${day}-${timeSlot.timeRange}`}
+        key={period.id}
         className={`relative border-r h-20 p-1 cursor-pointer align-top ${bgColor}`}
-        onClick={() => handleManageSlot(day, periodName)}
+        onClick={() => handleManageSlot(period)}
         title={clash ? clash.message : undefined}
       >
         {clash && (
@@ -285,56 +316,50 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   };
 
   // Mobile row: one period of the active day as a tappable list item
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const renderMobileRow = (timeSlot: any, index: number) => {
-    const periodNumber = index + 1;
-    const timeRange = `${timeSlot.startTime?.substring(0, 5) || ''} - ${timeSlot.endTime?.substring(0, 5) || ''}`;
-    const dayPeriod = allWeeklySlots.find(slot =>
-      slot.dayOfWeek === activeDay &&
-      slot.startTime === timeSlot.startTime &&
-      slot.endTime === timeSlot.endTime
-    );
-
+  const renderMobileRow = (period: PeriodDefinition | undefined, sequence: number) => {
     const timeCol = (
       <div className="w-20 shrink-0 text-center">
-        <div className="text-xs font-semibold text-gray-800">P{periodNumber}</div>
-        <div className="text-[10px] text-gray-500">{timeRange}</div>
+        <div className="text-xs font-semibold text-gray-800">P{sequence}</div>
+        <div className="text-[10px] text-gray-500">
+          {period ? formatTimeRange(period.startTime, period.endTime) : ''}
+        </div>
       </div>
     );
 
-    if (!dayPeriod) {
+    if (!period) {
       return (
-        <li key={timeSlot.timeRange} className="flex items-center gap-3 px-3 py-2.5">
+        <li key={`empty-${sequence}`} className="flex items-center gap-3 px-3 py-2.5">
           {timeCol}
           <div className="text-xs text-gray-300">—</div>
         </li>
       );
     }
 
-    if (dayPeriod.isBreak) {
+    if (!isAssignablePeriod(period.type)) {
       return (
-        <li key={timeSlot.timeRange} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50">
+        <li key={period.id} className="flex items-center gap-3 px-3 py-2.5 bg-gray-50">
           {timeCol}
-          <div className="text-xs font-medium text-gray-500">Break</div>
+          <div className="text-xs font-medium text-gray-500">{nonTeachingLabel(period)}</div>
         </li>
       );
     }
 
-    const slot = getSlot(activeDay, dayPeriod.name);
-    const assignments = slot?.assignments || [];
+    const assignments = slotsByPeriodId.get(period.id)?.assignments || [];
     const hasAnyConflict = assignments.some(a =>
-      a.teacherId ? isTeacherAssignedElsewhere(a.teacherId, activeDay, dayPeriod.name, selectedSubClassId) : false
+      a.teacherId
+        ? isTeacherAssignedElsewhere(a.teacherId, period.dayOfWeek, period.startTime, period.endTime, selectedSubClassId)
+        : false
     );
-    const clash = getClashWarning(selectedSubClassId, dayPeriod.id);
+    const clash = getClashWarning(selectedSubClassId, period.id);
     let bg = assignments.length === 0
       ? 'bg-white active:bg-blue-50'
       : hasAnyConflict ? 'bg-red-100 active:bg-red-200' : 'bg-blue-50 active:bg-blue-100';
     if (clash && !hasAnyConflict && assignments.length > 0) bg = 'bg-amber-50 active:bg-amber-100';
 
     return (
-      <li key={timeSlot.timeRange}>
+      <li key={period.id}>
         <button
-          onClick={() => handleManageSlot(activeDay, dayPeriod.name)}
+          onClick={() => handleManageSlot(period)}
           className={`w-full flex items-center gap-3 px-3 py-2.5 text-left ${bg}`}
         >
           {timeCol}
@@ -364,21 +389,41 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     );
   };
 
-  // If essential data hasn't loaded
-  if (allPeriods.length === 0) {
-    return <div className="p-4 text-center text-gray-500">Loading timetable structure...</div>;
-  }
-
   if (!selectedSubClassId) {
     return <div className="p-4 text-center text-gray-500">Please select a subclass to view its timetable.</div>;
   }
 
+  if (!currentTimetable) {
+    return <div className="p-4 text-center text-gray-500">Loading timetable structure...</div>;
+  }
+
+  // No bell schedule → no grid to draw. Offer the fix instead of an empty table.
+  if (!currentTimetable.periodSet || periodRows.length === 0) {
+    return (
+      <AssignPeriodSetPrompt
+        classId={currentTimetable.classId}
+        className={subClass?.className || subClass?.name}
+      />
+    );
+  }
+
+  const days = DAYS_ORDER;
+
   return (
     <div className="space-y-4 w-full">
+      {/* Which cycle this class runs on — the times below only make sense
+          alongside it, since the other cycle breaks at different hours. */}
+      <div className="flex items-center gap-2 text-xs text-gray-600">
+        <span className="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 px-2 py-0.5 font-medium">
+          {currentTimetable.periodSet.name}
+        </span>
+        <span className="hidden sm:inline">bell schedule</span>
+      </div>
+
       {/* Mobile: one day at a time */}
       <div className="md:hidden w-full">
         <div className="flex gap-1.5 overflow-x-auto pb-2 -mx-1 px-1">
-          {DAYS_ORDER.map(day => (
+          {days.map(day => (
             <button
               key={day}
               onClick={() => setActiveDay(day)}
@@ -391,7 +436,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
           ))}
         </div>
         <ul className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
-          {allPeriods.map((timeSlot, index) => renderMobileRow(timeSlot, index))}
+          {periodRows.map(row => renderMobileRow(row.byDay[activeDay], row.sequence))}
         </ul>
       </div>
 
@@ -406,46 +451,44 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r sticky left-0 bg-gray-50 z-20 min-w-[120px]">
                       Period / Time
                     </th>
-                    {DAYS_ORDER.map(day => (
+                    {days.map(day => (
                       <th key={day} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r min-w-[140px]">
                         {day.charAt(0) + day.slice(1).toLowerCase()}
                       </th>
-              ))}
-            </tr>
-          </thead>
+                    ))}
+                  </tr>
+                </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {allPeriods.map((timeSlot, index) => {
-                    const periodNumber = index + 1;
-                    const timeRange = `${timeSlot.startTime?.substring(0, 5) || ''} - ${timeSlot.endTime?.substring(0, 5) || ''}`;
-
-              return (
-                      <tr key={timeSlot.timeRange} className="border-b hover:bg-gray-50">
-                        <th className="px-2 py-2 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
-                          <div className="text-center text-sm font-semibold">Period {periodNumber}</div>
-                          <div className="text-xs text-gray-500 font-normal text-center mt-1">
-                            {timeRange}
+                  {periodRows.map(row => (
+                    <tr key={row.sequence} className="border-b hover:bg-gray-50">
+                      <th className="px-2 py-2 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
+                        <div className="text-center text-sm font-semibold">{row.label.name}</div>
+                        <div className="text-xs text-gray-500 font-normal text-center mt-1">
+                          {formatTimeRange(row.label.startTime, row.label.endTime)}
+                        </div>
+                        {!isAssignablePeriod(row.label.type) && (
+                          <div className="text-xs text-blue-600 font-normal text-center mt-1">
+                            ({nonTeachingLabel(row.label)})
                           </div>
-                          {timeSlot.isBreak && (
-                            <div className="text-xs text-blue-600 font-normal text-center mt-1">
-                              (Break)
-                      </div>
-                    )}
-                  </th>
-                        {DAYS_ORDER.map(day => renderCellContent(day, timeSlot))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                        )}
+                      </th>
+                      {days.map(day => renderCellContent(day, row.byDay[day]))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
 
       {/* Manage Slot Modal */}
-      {manageModalOpen && (
+      {manageModalOpen && editingPeriod && (
         <Modal isOpen={manageModalOpen} onClose={() => setManageModalOpen(false)} size="lg">
-          <ModalHeader>Manage Slot ({editingDay} - {editingPeriod})</ModalHeader>
+          <ModalHeader>
+            Manage Slot ({editingPeriod.dayOfWeek} - {editingPeriod.name},{' '}
+            {formatTimeRange(editingPeriod.startTime, editingPeriod.endTime)})
+          </ModalHeader>
           <ModalBody>
            <div className="space-y-4">
             {/* Teacher double-booking reported by the server. The slot saved
@@ -458,7 +501,14 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                   <p className="text-xs text-amber-700 mt-1">
                     Also teaching{' '}
                     <span className="font-medium">{editingClash.clashWith.subClassName}</span> on{' '}
-                    {editingClash.clashWith.day} during {editingClash.clashWith.periodName}.
+                    {editingClash.clashWith.day} during {editingClash.clashWith.periodName}
+                    {editingClash.clashWith.periodStartTime && (
+                      <> ({formatTimeRange(editingClash.clashWith.periodStartTime, editingClash.clashWith.periodEndTime)})</>
+                    )}
+                    {editingClash.clashWith.periodSetCode && (
+                      <> on the {editingClash.clashWith.periodSetCode.replace(/_/g, ' ').toLowerCase()} schedule</>
+                    )}
+                    .
                   </p>
                 )}
                 <p className="text-xs text-amber-700 mt-1">

@@ -21,6 +21,7 @@ interface Class {
   id: string;
   name: string;
   level: number;
+  periodSetId?: string | null;
 }
 
 // Added SubClass type
@@ -32,14 +33,31 @@ interface SubClass {
   level?: number; // Add level to subclass for sorting
 }
 
-// Added PeriodInfo type
-interface PeriodInfo {
-  id: string; // Or number
-  name: string; // e.g., "Period 1", "Break"
-  startTime?: string; // Optional
-  endTime?: string;   // Optional
-  isBreak?: boolean; // Optional flag from API
-  dayOfWeek?: string; // Added dayOfWeek field
+/**
+ * A row of the grid. Periods belong to a bell schedule (period set), not to
+ * the school as a whole — the first cycle (F1–F4) and the second cycle
+ * (F5/LS/US) break at different times, so the same `sequence` sits at
+ * different clock times depending on the class.
+ */
+export type PeriodType = 'TEACHING' | 'BREAK' | 'PREP';
+
+export interface PeriodDefinition {
+  id: string;
+  name: string;
+  dayOfWeek: string;
+  startTime: string; // "HH:MM:SS"
+  endTime: string;
+  sequence: number;  // 1..N for the day, within its set
+  type: PeriodType;
+  isBreak: boolean;  // legacy mirror of type === 'BREAK'
+  periodSetId: string | null;
+}
+
+/** The bell schedule a class follows. */
+export interface PeriodSetInfo {
+  id: string;
+  code: string;
+  name: string;
 }
 
 // A single subject+teacher assignment within a slot
@@ -50,17 +68,24 @@ export interface SlotAssignment {
   teacherName: string | null;
 }
 
-interface TimetableSlot {
+export interface TimetableSlot {
   day: string;
-  period: string;
-  periodId?: string; // Persist specific weekly slot ID for reliable saves
+  periodId: string;
+  periodName: string;
+  sequence: number;
+  type: PeriodType;
+  startTime: string;
+  endTime: string;
   assignments: SlotAssignment[];
-  isBreak?: boolean;
-  isAssembly?: boolean;
 }
 
-interface Timetable {
-  classId: string;
+export interface Timetable {
+  subClassId: string;
+  classId: string | null;
+  /// null means the class has no bell schedule attached yet — nothing can be
+  /// scheduled for it until one is assigned.
+  periodSet: PeriodSetInfo | null;
+  periods: PeriodDefinition[];
   slots: TimetableSlot[];
 }
 
@@ -76,7 +101,9 @@ interface AcademicYear {
 /**
  * A teacher double-booking reported by the API. The slot IS saved — the
  * backend records the clash and lets the scheduler resolve it rather than
- * blocking the edit.
+ * blocking the edit. Clashes are detected by time overlap, so a teacher
+ * booked across the two cycles is caught even though the period ids and
+ * sequence numbers differ.
  */
 export interface ClashWarning {
   periodId: number;
@@ -87,6 +114,9 @@ export interface ClashWarning {
     subClassName: string;
     day: string;
     periodName: string;
+    periodStartTime?: string;
+    periodEndTime?: string;
+    periodSetCode?: string;
   };
 }
 
@@ -95,8 +125,8 @@ interface TimetableContextType {
   subClasses: SubClass[];
   subjects: Subject[];
   teachers: Teacher[];
-  allWeeklySlots: PeriodInfo[];
-  uniquePeriodNames: string[];
+  /// Every bell schedule defined for the selected academic year.
+  periodSets: PeriodSetInfo[];
   daysOfWeek: string[];
   timetables: TimetablesState;
   originalTimetables: TimetablesState;
@@ -104,25 +134,24 @@ interface TimetableContextType {
   isLoadingTimetable: boolean;
   fetchTimetableForSubclass: (subClassId: string) => Promise<void>;
   fetchFullSchoolTimetable: () => Promise<void>;
+  /// Attaches a bell schedule to a class (or detaches it with null).
+  assignPeriodSetToClass: (classId: string, periodSetId: string | null) => Promise<void>;
   updateSlotAssignment: (
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     assignmentIndex: number,
     subjectId: string | null,
     teacherId: string | null
   ) => void;
   addSlotAssignment: (
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     subjectId: string | null,
     teacherId: string | null
   ) => void;
   removeSlotAssignment: (
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     assignmentIndex: number
   ) => void;
   saveChanges: (subClassId: string) => Promise<void>;
@@ -131,10 +160,13 @@ interface TimetableContextType {
   autoSaveStatus: 'idle' | 'saving' | 'saved' | 'error';
   retryAutoSave: () => void;
   getTeachersBySubject: (subjectId: string) => Teacher[];
+  /// Cross-cycle safe: compares wall-clock times, not period ids, so a
+  /// teacher taking Form 2 and Upper Sixth at overlapping times is flagged.
   isTeacherAssignedElsewhere: (
     teacherId: string,
     day: string,
-    period: string,
+    startTime: string,
+    endTime: string,
     excludeSubClassId: string
   ) => string | null;
   /// Teacher clashes reported by the last save, keyed by subclass id.
@@ -146,57 +178,122 @@ interface TimetableContextType {
   setSelectedAcademicYearId: (id: string | null) => void;
 }
 
-// Mock data - in a real application, this would come from an API
-const MOCK_CLASSES: Class[] = [
-  { id: 'class1', name: 'Class 6A', level: 6 },
-  { id: 'class2', name: 'Class 7B', level: 7 },
-  { id: 'class3', name: 'Class 8C', level: 8 },
-  { id: 'class4', name: 'Class 9D', level: 9 },
-  { id: 'class5', name: 'Class 10E', level: 10 },
-];
-
-const MOCK_SUBJECTS: Subject[] = [
-  { id: 'sub1', name: 'Mathematics' },
-  { id: 'sub2', name: 'English' },
-  { id: 'sub3', name: 'Science' },
-  { id: 'sub4', name: 'Social Studies' },
-  { id: 'sub5', name: 'Physical Education' },
-  { id: 'sub6', name: 'Computer Science' },
-];
-
-const MOCK_TEACHERS: Teacher[] = [
-  { id: 'teacher1', name: 'Mr. Johnson', subjects: ['sub1', 'sub3'] },
-  { id: 'teacher2', name: 'Mrs. Smith', subjects: ['sub2', 'sub4'] },
-  { id: 'teacher3', name: 'Ms. Davis', subjects: ['sub3', 'sub6'] },
-  { id: 'teacher4', name: 'Mr. Wilson', subjects: ['sub4', 'sub5'] },
-  { id: 'teacher5', name: 'Mrs. Brown', subjects: ['sub1', 'sub6'] },
-];
+export const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 
 // Base URL and Auth Token retrieval (assuming similar setup as other pages)
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 const getAuthToken = () => localStorage.getItem('token');
 
-// Create empty timetable structure
-const createInitialTimetableStructure = (subClassId: string, weeklySlots: PeriodInfo[]): Timetable => {
-  const slots: TimetableSlot[] = weeklySlots.map(ws => ({
-    day: ws.dayOfWeek || '',
-    period: ws.name,
-    periodId: String(ws.id),
-    assignments: [],
-    isBreak: ws.isBreak,
-  }));
+// ── Period helpers ──
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizePeriod = (p: any): PeriodDefinition => {
+  const rawType = p?.type;
+  const type: PeriodType =
+    rawType === 'BREAK' || rawType === 'PREP' || rawType === 'TEACHING'
+      ? rawType
+      : p?.isBreak
+        ? 'BREAK'
+        : 'TEACHING';
+
   return {
-    classId: subClassId,
-    slots
+    id: String(p.id),
+    name: p.name ?? '',
+    dayOfWeek: p.dayOfWeek ?? '',
+    startTime: p.startTime ?? '',
+    endTime: p.endTime ?? '',
+    sequence: Number(p.sequence ?? 0),
+    type,
+    isBreak: p.isBreak ?? type === 'BREAK',
+    periodSetId: p.periodSetId != null ? String(p.periodSetId) : null,
   };
 };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const normalizePeriodSet = (ps: any): PeriodSetInfo | null =>
+  ps ? { id: String(ps.id), code: ps.code ?? '', name: ps.name ?? ps.code ?? '' } : null;
+
+/// Only TEACHING periods take assignments — breaks and preps are labels.
+export const isAssignablePeriod = (type: PeriodType) => type === 'TEACHING';
+
+/// "HH:MM" or "HH:MM:SS" → minutes since midnight. Returns null for junk so
+/// callers can decide what an unknown time means rather than treating it as 0.
+export const timeToMinutes = (time?: string | null): number | null => {
+  if (!time) return null;
+  const parts = time.split(':');
+  const hours = Number(parts[0]);
+  const minutes = Number(parts[1] ?? 0);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return hours * 60 + minutes;
+};
+
+/// Half-open interval overlap — [start, end). Matches the backend's clash rule,
+/// so back-to-back periods (…10:30 / 10:30…) never count as a clash.
+export const periodsOverlap = (
+  aStart?: string | null,
+  aEnd?: string | null,
+  bStart?: string | null,
+  bEnd?: string | null,
+): boolean => {
+  const a1 = timeToMinutes(aStart);
+  const a2 = timeToMinutes(aEnd);
+  const b1 = timeToMinutes(bStart);
+  const b2 = timeToMinutes(bEnd);
+  if (a1 === null || a2 === null || b1 === null || b2 === null) return false;
+  return a1 < b2 && b1 < a2;
+};
+
+export const formatTimeRange = (start?: string | null, end?: string | null): string =>
+  `${start?.substring(0, 5) || ''} - ${end?.substring(0, 5) || ''}`;
+
+/// Rows of a grid: one entry per `sequence` in the set, with the periods for
+/// each day keyed by day name. Every day of a set has the same shape, but this
+/// tolerates a day that doesn't.
+export interface PeriodRow {
+  sequence: number;
+  label: PeriodDefinition; // representative period, for name/time/type
+  byDay: Record<string, PeriodDefinition | undefined>;
+}
+
+export const buildPeriodRows = (periods: PeriodDefinition[]): PeriodRow[] => {
+  const bySequence = new Map<number, PeriodRow>();
+
+  [...periods]
+    .sort((a, b) => a.sequence - b.sequence || a.startTime.localeCompare(b.startTime))
+    .forEach(period => {
+      let row = bySequence.get(period.sequence);
+      if (!row) {
+        row = { sequence: period.sequence, label: period, byDay: {} };
+        bySequence.set(period.sequence, row);
+      }
+      row.byDay[period.dayOfWeek] = period;
+      // Prefer Monday as the label so times read consistently.
+      if (period.dayOfWeek === 'MONDAY') row.label = period;
+    });
+
+  return Array.from(bySequence.values()).sort((a, b) => a.sequence - b.sequence);
+};
+
+// Build the empty grid for a subclass from its own bell schedule.
+const buildSlots = (periods: PeriodDefinition[]): TimetableSlot[] =>
+  periods.map(period => ({
+    day: period.dayOfWeek,
+    periodId: period.id,
+    periodName: period.name,
+    sequence: period.sequence,
+    type: period.type,
+    startTime: period.startTime,
+    endTime: period.endTime,
+    assignments: [],
+  }));
 
 // Deep clone a timetables state (needed because assignments are nested arrays)
 const deepCloneTimetablesState = (state: TimetablesState): TimetablesState => {
   const clone: TimetablesState = {};
   for (const key in state) {
     clone[key] = {
-      classId: state[key].classId,
+      ...state[key],
+      periods: state[key].periods.map(p => ({ ...p })),
       slots: state[key].slots.map(slot => ({
         ...slot,
         assignments: slot.assignments.map(a => ({ ...a })),
@@ -204,15 +301,6 @@ const deepCloneTimetablesState = (state: TimetablesState): TimetablesState => {
     };
   }
   return clone;
-};
-
-// Initialize mock timetables - may need revision or removal
-const initializeMockTimetables = (): TimetablesState => {
-  const timetables: TimetablesState = {};
-  MOCK_CLASSES.forEach(cls => {
-    timetables[cls.id] = createInitialTimetableStructure(cls.id, []);
-  });
-  return timetables;
 };
 
 // Create context
@@ -226,9 +314,8 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [clashWarnings, setClashWarnings] = useState<Record<string, ClashWarning[]>>({});
-  const [allWeeklySlots, setAllWeeklySlots] = useState<PeriodInfo[]>([]);
-  const [uniquePeriodNames, setUniquePeriodNames] = useState<string[]>([]);
-  const [daysOfWeek, setDaysOfWeek] = useState<string[]>([]);
+  const [periodSets, setPeriodSets] = useState<PeriodSetInfo[]>([]);
+  const [daysOfWeek, setDaysOfWeek] = useState<string[]>(DAYS_ORDER);
   const [timetables, setTimetables] = useState<TimetablesState>({});
   const [originalTimetables, setOriginalTimetables] = useState<TimetablesState>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -244,7 +331,10 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
   }, [authSelectedAcademicYear, selectedAcademicYearId]);
 
-  // Fetch initial data (Classes, SubClasses, Periods, Subjects, Teachers, Academic Years from API)
+  // Fetch initial data (Classes, SubClasses, Subjects, Teachers, Academic Years).
+  //
+  // Periods are deliberately NOT fetched here: they belong to a bell schedule,
+  // and each subclass's grid rows arrive with its own timetable response.
   useEffect(() => {
     const fetchInitialData = async () => {
       setIsLoading(true);
@@ -253,17 +343,14 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (!token) {
         toast.error("Authentication token not found.");
         setIsLoading(false);
-        setTeachers(MOCK_TEACHERS);
         return;
       }
 
       try {
-        console.log("Fetching initial timetable dependency data from API...");
-        const [classResponse, subClassResponse, subjectResponse, periodResponse, teacherResponse, academicYearResponse] = await Promise.all([
+        const [classResponse, subClassResponse, subjectResponse, teacherResponse, academicYearResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/classes`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/subjects`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
-          fetch(`${API_BASE_URL}/periods`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/users/teachers`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/academic-years`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
         ].map(p => p.catch(e => e)));
@@ -273,40 +360,36 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
             throw new Error(`Network error fetching ${entity}: ${response.message}`);
           }
           if (!response.ok) {
-            if (entity === 'periods' && response.status === 404) {
-              console.warn('/periods endpoint not found (404). Using empty array.');
-              return { data: [] };
-            }
             const errorData = await response.json().catch(() => ({ message: response.statusText }));
             throw new Error(errorData.message || `Failed to fetch ${entity} (${response.status})`);
           }
           return response.json();
         };
 
-        const [classResult, subClassResult, subjectResult, periodResult, teacherResult, academicYearResult] = await Promise.all([
+        const [classResult, subClassResult, subjectResult, teacherResult, academicYearResult] = await Promise.all([
           checkResponse(classResponse, 'classes'),
           checkResponse(subClassResponse, 'subClasses'),
           checkResponse(subjectResponse, 'subjects'),
-          checkResponse(periodResponse, 'periods'),
           checkResponse(teacherResponse, 'teachers'),
           checkResponse(academicYearResponse, 'academic years'),
         ]);
 
-        console.log("Classes API response:", classResult);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fetchedClasses: Class[] = classResult.data?.map((cls: any) => ({
           id: String(cls.id),
           name: cls.name,
-          level: cls.level
+          level: cls.level,
+          periodSetId: cls.periodSetId != null ? String(cls.periodSetId) : null,
         })) || [];
         setClasses(sortClassesByLevel(fetchedClasses));
 
-        console.log("SubClasses API response:", subClassResult);
-        let fetchedSubClasses: SubClass[] = subClassResult.data?.map((sc: any) => ({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const fetchedSubClasses: SubClass[] = subClassResult.data?.map((sc: any) => ({
           id: String(sc.id),
           name: sc.name,
-          classId: String(sc.class?.id),
+          classId: String(sc.class?.id ?? sc.classId),
           className: sc.class?.name,
-          level: fetchedClasses.find(c => c.id === String(sc.class?.id))?.level
+          level: fetchedClasses.find(c => c.id === String(sc.class?.id ?? sc.classId))?.level
         })) || [];
 
         fetchedSubClasses.sort((a, b) => {
@@ -318,65 +401,19 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         setSubClasses(fetchedSubClasses);
 
-        console.log("Subjects API response:", subjectResult);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fetchedSubjects = subjectResult.data?.map((sub: any) => ({ id: String(sub.id), name: sub.name })) || [];
         setSubjects(fetchedSubjects);
 
-        // Process Periods (now expecting weekly slot structure)
-        console.log("Periods API response (Weekly Slots):", periodResult);
-        const fetchedWeeklySlots: PeriodInfo[] = periodResult.data?.map((p: any) => ({
-          id: String(p.id),
-          name: p.name,
-          dayOfWeek: p.dayOfWeek,
-          startTime: p.startTime,
-          endTime: p.endTime,
-          isBreak: p.isBreak || false
-        })) || [];
-        setAllWeeklySlots(fetchedWeeklySlots);
-
-        // Derive unique period names and days
-        const uniqueNamesSet = new Set<string>();
-        const daysSet = new Set<string>();
-        fetchedWeeklySlots.forEach((slot: PeriodInfo) => {
-          uniqueNamesSet.add(slot.name);
-          if (slot.dayOfWeek) daysSet.add(slot.dayOfWeek);
-        });
-
-        // Custom sort for period names based on start time
-        const sortedUniqueNames = Array.from(uniqueNamesSet).sort((nameA, nameB) => {
-          const slotA = fetchedWeeklySlots.find((slot: PeriodInfo) => slot.name === nameA);
-          const slotB = fetchedWeeklySlots.find((slot: PeriodInfo) => slot.name === nameB);
-
-          const timeA = slotA?.startTime;
-          const timeB = slotB?.startTime;
-
-          if (!timeA && !timeB) return 0;
-          if (!timeA) return 1;
-          if (!timeB) return -1;
-
-          return timeA.localeCompare(timeB);
-        });
-
-        // Sort days (using a predefined order)
-        const dayOrder = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"];
-        const sortedDays = Array.from(daysSet).sort((dayA, dayB) => {
-          return dayOrder.indexOf(dayA) - dayOrder.indexOf(dayB);
-        });
-
-        setUniquePeriodNames(sortedUniqueNames);
-        setDaysOfWeek(sortedDays);
-
-        console.log("Sorted Unique Periods:", sortedUniqueNames);
-        console.log("Sorted Days:", sortedDays);
-
-        console.log("Teachers API response:", teacherResult);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fetchedTeachers = teacherResult.data?.map((t: any) => ({ id: String(t.id), name: t.name, subjects: t.subjects?.map((s: any) => String(s.id)) || [] })) || [];
         setTeachers(fetchedTeachers);
 
-        console.log("Academic Years API response:", academicYearResult);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fetchedAcademicYears = academicYearResult.data?.map((ay: any) => ({ id: String(ay.id), name: ay.name })) || [];
         setAcademicYears(fetchedAcademicYears);
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         if (authSelectedAcademicYear && fetchedAcademicYears.some((ay: any) => ay.id === String(authSelectedAcademicYear.id))) {
           setSelectedAcademicYearId(String(authSelectedAcademicYear.id));
         } else if (fetchedAcademicYears.length > 0) {
@@ -386,6 +423,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         setTimetables({});
         setOriginalTimetables({});
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         const message = err instanceof Error ? err.message : 'An unknown error occurred';
         console.error("Failed to fetch initial timetable data:", err);
@@ -395,9 +433,6 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         setSubClasses([]);
         setSubjects([]);
         setTeachers([]);
-        setAllWeeklySlots([]);
-        setUniquePeriodNames([]);
-        setDaysOfWeek([]);
         setTimetables({});
         setOriginalTimetables({});
         setAcademicYears([]);
@@ -410,10 +445,77 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     fetchInitialData();
   }, [authSelectedAcademicYear]);
 
-  // Function to fetch assigned slots for a specific subclass
+  // The bell schedules available for the selected year — needed to offer a
+  // choice when a class has none attached.
+  useEffect(() => {
+    if (!selectedAcademicYearId) return;
+    const token = getAuthToken();
+    if (!token) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/periods/period-sets?academicYearId=${selectedAcademicYearId}`,
+          { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } },
+        );
+        if (!response.ok) return; // Optional data — the grids don't depend on it.
+        const result = await response.json();
+        if (cancelled) return;
+        setPeriodSets(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (result.data || []).map((ps: any) => normalizePeriodSet(ps)).filter(Boolean) as PeriodSetInfo[],
+        );
+      } catch (err) {
+        console.warn('Could not load period sets:', err);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [selectedAcademicYearId]);
+
+  const buildTimetableFromApi = useCallback((
+    subClassId: string,
+    classId: string | null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    periodSet: any,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    apiPeriods: any[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    apiSlots: any[],
+  ): Timetable => {
+    const periods = (apiPeriods || []).map(normalizePeriod);
+    const slots = buildSlots(periods);
+    const slotByPeriodId = new Map(slots.map(slot => [slot.periodId, slot]));
+
+    (apiSlots || []).forEach(apiSlot => {
+      const slot = slotByPeriodId.get(String(apiSlot.periodId));
+      if (!slot) {
+        console.warn(`Slot references period ${apiSlot.periodId}, which is not in this class's bell schedule.`);
+        return;
+      }
+      const subject = subjects.find(s => s.id === String(apiSlot.subjectId));
+      const teacher = teachers.find(t => t.id === String(apiSlot.teacherId));
+      slot.assignments.push({
+        subjectId: apiSlot.subjectId != null ? String(apiSlot.subjectId) : null,
+        teacherId: apiSlot.teacherId != null ? String(apiSlot.teacherId) : null,
+        subjectName: apiSlot.subjectName ?? subject?.name ?? null,
+        teacherName: apiSlot.teacherName ?? teacher?.name ?? null,
+      });
+    });
+
+    return {
+      subClassId,
+      classId,
+      periodSet: normalizePeriodSet(periodSet),
+      periods,
+      slots,
+    };
+  }, [subjects, teachers]);
+
+  // Function to fetch one subclass's bell schedule and assigned slots
   const fetchTimetableForSubclass = useCallback(async (subClassId: string) => {
     if (!subClassId || !selectedAcademicYearId) return;
-    console.log(`Fetching timetable for subClassId: ${subClassId} for academic year: ${selectedAcademicYearId}`);
     setIsLoadingTimetable(true);
     setError(null);
     const token = getAuthToken();
@@ -424,14 +526,6 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     try {
-      // 1. Get the base structure from allWeeklySlots
-      const baseStructure = createInitialTimetableStructure(subClassId, allWeeklySlots);
-
-      // Set base structure immediately to render grid
-      setTimetables(prev => ({ ...prev, [subClassId]: baseStructure }));
-      setOriginalTimetables(prev => ({ ...prev, [subClassId]: deepCloneTimetablesState({ [subClassId]: baseStructure })[subClassId] }));
-
-      // 2. Fetch assigned slots from API
       const response = await fetch(`${API_BASE_URL}/timetables/subclass/${subClassId}?academicYearId=${selectedAcademicYearId}`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' },
@@ -443,44 +537,19 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       const result = await response.json();
-      const assignedApiSlots: any[] = result.data?.slots || [];
-      console.log(`Assigned slots for ${subClassId}:`, assignedApiSlots);
+      const classId = result.data?.class?.id != null ? String(result.data.class.id) : null;
+      const timetable = buildTimetableFromApi(
+        subClassId,
+        classId,
+        result.periodSet ?? result.data?.periodSet,
+        result.periods ?? result.data?.periods ?? [],
+        result.slots ?? result.data?.slots ?? [],
+      );
 
-      // 3. Merge assigned slots into the base structure
-      // Multiple API slots can map to the same (day, period) — push to assignments array
-      const mergedSlots = baseStructure.slots.map(baseSlot => {
-        const weeklySlotDef = allWeeklySlots.find(ws =>
-          ws.dayOfWeek === baseSlot.day && ws.name === baseSlot.period
-        );
-        if (!weeklySlotDef) return baseSlot;
+      setTimetables(prev => ({ ...prev, [subClassId]: timetable }));
+      setOriginalTimetables(prev => ({ ...prev, [subClassId]: deepCloneTimetablesState({ [subClassId]: timetable })[subClassId] }));
 
-        // Find ALL assignments from API data that match this weekly slot
-        const matchingAssignments = assignedApiSlots.filter(
-          (apiSlot) => String(apiSlot.periodId) === String(weeklySlotDef.id)
-        );
-
-        const assignments: SlotAssignment[] = matchingAssignments.map(assignment => {
-          const subject = subjects.find(s => String(s.id) === String(assignment.subjectId));
-          const teacher = teachers.find(t => String(t.id) === String(assignment.teacherId));
-          return {
-            subjectId: assignment.subjectId ? String(assignment.subjectId) : null,
-            teacherId: assignment.teacherId ? String(assignment.teacherId) : null,
-            subjectName: subject?.name || null,
-            teacherName: teacher?.name || null,
-          };
-        });
-
-        return {
-          ...baseSlot,
-          assignments,
-        };
-      });
-
-      // 4. Update the state
-      const newTimetableState = { ...baseStructure, slots: mergedSlots };
-      setTimetables(prev => ({ ...prev, [subClassId]: newTimetableState }));
-      setOriginalTimetables(prev => ({ ...prev, [subClassId]: deepCloneTimetablesState({ [subClassId]: newTimetableState })[subClassId] }));
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
       console.error(`Failed to fetch timetable for ${subClassId}:`, err);
@@ -489,9 +558,10 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoadingTimetable(false);
     }
-  }, [allWeeklySlots, subjects, teachers, selectedAcademicYearId]);
+  }, [selectedAcademicYearId, buildTimetableFromApi]);
 
-  // New function to fetch the full school timetable
+  // The whole school. Each subclass block carries its own periods, because the
+  // two cycles don't share a column set.
   const fetchFullSchoolTimetable = useCallback(async () => {
     if (!selectedAcademicYearId) return;
     setIsLoadingTimetable(true);
@@ -515,49 +585,41 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       }
 
       const result = await response.json();
-      const fullTimetableSlots: any[] = result.data?.timetableSlots || [];
-      console.log("Full school timetable API response:", fullTimetableSlots);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const blocks: any[] = result.data?.subclasses || [];
 
       const newTimetablesState: TimetablesState = {};
+      const daysSeen = new Set<string>();
 
-      // FIRST: Initialize base structure for ALL subclasses
-      subClasses.forEach(subClass => {
-        newTimetablesState[subClass.id] = createInitialTimetableStructure(subClass.id, allWeeklySlots);
-      });
+      blocks.forEach(block => {
+        const subClassId = String(block.subClass?.id);
+        if (!subClassId || subClassId === 'undefined') return;
 
-      // SECOND: Apply assigned slots from API response
-      // Multiple API slots can map to the same (subClassId, day, periodName) — push to assignments array
-      fullTimetableSlots.forEach(apiSlot => {
-        const subClassId = String(apiSlot.subClassId);
-
-        if (!newTimetablesState[subClassId]) {
-          newTimetablesState[subClassId] = createInitialTimetableStructure(subClassId, allWeeklySlots);
-        }
-
-        newTimetablesState[subClassId].classId = String(apiSlot.classId);
-
-        const targetSlot = newTimetablesState[subClassId].slots.find(baseSlot =>
-          baseSlot.day === apiSlot.day && baseSlot.period === apiSlot.periodName
+        const timetable = buildTimetableFromApi(
+          subClassId,
+          block.subClass?.classId != null ? String(block.subClass.classId) : null,
+          block.periodSet,
+          block.periods || [],
+          block.slots || [],
         );
-
-        if (targetSlot) {
-          const subject = subjects.find(s => String(s.id) === String(apiSlot.subjectId));
-          const teacher = teachers.find(t => String(t.id) === String(apiSlot.teacherId));
-          targetSlot.assignments.push({
-            subjectId: apiSlot.subjectId ? String(apiSlot.subjectId) : null,
-            teacherId: apiSlot.teacherId ? String(apiSlot.teacherId) : null,
-            subjectName: subject?.name || null,
-            teacherName: teacher?.name || null,
-          });
-        } else {
-          console.warn(`Could not find slot for ${apiSlot.day} - ${apiSlot.periodName} in subclass ${subClassId}`);
-        }
+        timetable.periods.forEach(p => { if (p.dayOfWeek) daysSeen.add(p.dayOfWeek); });
+        newTimetablesState[subClassId] = timetable;
       });
 
-      console.log("Final timetables state:", newTimetablesState);
+      if (daysSeen.size > 0) {
+        setDaysOfWeek(DAYS_ORDER.filter(day => daysSeen.has(day)));
+      }
+
+      const fetchedSets: PeriodSetInfo[] = (result.data?.periodSets || [])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((ps: any) => normalizePeriodSet(ps))
+        .filter(Boolean);
+      if (fetchedSets.length > 0) setPeriodSets(fetchedSets);
+
       setTimetables(newTimetablesState);
       setOriginalTimetables(deepCloneTimetablesState(newTimetablesState));
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
       console.error("Failed to fetch full school timetable:", err);
@@ -566,7 +628,43 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       setIsLoadingTimetable(false);
     }
-  }, [allWeeklySlots, subjects, teachers, selectedAcademicYearId, subClasses]);
+  }, [selectedAcademicYearId, buildTimetableFromApi]);
+
+  // Attaches a bell schedule to a class. Every subclass under it gains a grid,
+  // so the affected timetables are refetched.
+  const assignPeriodSetToClass = useCallback(async (classId: string, periodSetId: string | null) => {
+    const token = getAuthToken();
+    if (!token) {
+      toast.error("Authentication token not found.");
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/classes/${classId}/period-set`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({ periodSetId: periodSetId ? Number(periodSetId) : null }),
+      });
+
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || result.success === false) {
+        throw new Error(result.error || result.message || `Failed to assign bell schedule (${response.status})`);
+      }
+
+      setClasses(prev => prev.map(c => (c.id === classId ? { ...c, periodSetId } : c)));
+      toast.success(periodSetId ? 'Bell schedule assigned.' : 'Bell schedule removed.');
+      await fetchFullSchoolTimetable();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      const message = err instanceof Error ? err.message : 'An unknown error occurred';
+      console.error('Failed to assign period set:', err);
+      toast.error(message);
+    }
+  }, [fetchFullSchoolTimetable]);
 
   // ── Auto-save ──
   // Assignments persist as soon as they're chosen. Edits mark their
@@ -583,100 +681,67 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     setDirtyTick(tick => tick + 1);
   }, []);
 
-  // Function to update a specific assignment within a slot
+  // Applies a change to one slot, addressed by period id. Period ids are unique
+  // per (set, day, sequence), so no day argument is needed — and a first-cycle
+  // id can never land on a second-cycle grid.
+  const mutateSlot = useCallback((
+    subClassId: string,
+    periodId: string,
+    mutate: (assignments: SlotAssignment[]) => SlotAssignment[],
+  ) => {
+    setTimetables(prev => {
+      const classTimetable = prev[subClassId];
+      if (!classTimetable) return prev;
+
+      const updatedSlots = classTimetable.slots.map(slot =>
+        slot.periodId === periodId ? { ...slot, assignments: mutate(slot.assignments) } : slot
+      );
+
+      return { ...prev, [subClassId]: { ...classTimetable, slots: updatedSlots } };
+    });
+    markDirty(subClassId);
+  }, [markDirty]);
+
+  const resolveNames = useCallback((subjectId: string | null, teacherId: string | null): SlotAssignment => ({
+    subjectId,
+    teacherId,
+    subjectName: subjectId ? subjects.find(s => s.id === subjectId)?.name ?? null : null,
+    teacherName: teacherId ? teachers.find(t => t.id === teacherId)?.name ?? null : null,
+  }), [subjects, teachers]);
+
   const updateSlotAssignment = useCallback((
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     assignmentIndex: number,
     subjectId: string | null,
     teacherId: string | null
   ) => {
-    const subjectName = subjectId ? subjects.find(s => String(s.id) === String(subjectId))?.name || null : null;
-    const teacherName = teacherId ? teachers.find(t => String(t.id) === String(teacherId))?.name || null : null;
-
-    setTimetables(prev => {
-      const classTimetable = prev[subClassId];
-      if (!classTimetable) return prev;
-
-      const updatedSlots = classTimetable.slots.map(slot => {
-        if (slot.day === day && slot.period === period) {
-          const newAssignments = [...slot.assignments];
-          if (assignmentIndex >= 0 && assignmentIndex < newAssignments.length) {
-            newAssignments[assignmentIndex] = { subjectId, teacherId, subjectName, teacherName };
-          }
-          return { ...slot, assignments: newAssignments };
-        }
-        return slot;
-      });
-
-      return {
-        ...prev,
-        [subClassId]: { ...classTimetable, slots: updatedSlots },
-      };
+    const assignment = resolveNames(subjectId, teacherId);
+    mutateSlot(subClassId, periodId, assignments => {
+      if (assignmentIndex < 0 || assignmentIndex >= assignments.length) return assignments;
+      const next = [...assignments];
+      next[assignmentIndex] = assignment;
+      return next;
     });
-    markDirty(subClassId);
-  }, [subjects, teachers, markDirty]);
+  }, [mutateSlot, resolveNames]);
 
-  // Function to add a new assignment to a slot
   const addSlotAssignment = useCallback((
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     subjectId: string | null,
     teacherId: string | null
   ) => {
-    const subjectName = subjectId ? subjects.find(s => String(s.id) === String(subjectId))?.name || null : null;
-    const teacherName = teacherId ? teachers.find(t => String(t.id) === String(teacherId))?.name || null : null;
+    const assignment = resolveNames(subjectId, teacherId);
+    mutateSlot(subClassId, periodId, assignments => [...assignments, assignment]);
+  }, [mutateSlot, resolveNames]);
 
-    setTimetables(prev => {
-      const classTimetable = prev[subClassId];
-      if (!classTimetable) return prev;
-
-      const updatedSlots = classTimetable.slots.map(slot => {
-        if (slot.day === day && slot.period === period) {
-          return {
-            ...slot,
-            assignments: [...slot.assignments, { subjectId, teacherId, subjectName, teacherName }],
-          };
-        }
-        return slot;
-      });
-
-      return {
-        ...prev,
-        [subClassId]: { ...classTimetable, slots: updatedSlots },
-      };
-    });
-    markDirty(subClassId);
-  }, [subjects, teachers, markDirty]);
-
-  // Function to remove an assignment from a slot
   const removeSlotAssignment = useCallback((
     subClassId: string,
-    day: string,
-    period: string,
+    periodId: string,
     assignmentIndex: number
   ) => {
-    setTimetables(prev => {
-      const classTimetable = prev[subClassId];
-      if (!classTimetable) return prev;
-
-      const updatedSlots = classTimetable.slots.map(slot => {
-        if (slot.day === day && slot.period === period) {
-          const newAssignments = slot.assignments.filter((_, i) => i !== assignmentIndex);
-          return { ...slot, assignments: newAssignments };
-        }
-        return slot;
-      });
-
-      return {
-        ...prev,
-        [subClassId]: { ...classTimetable, slots: updatedSlots },
-      };
-    });
-    markDirty(subClassId);
-  }, [markDirty]);
+    mutateSlot(subClassId, periodId, assignments => assignments.filter((_, i) => i !== assignmentIndex));
+  }, [mutateSlot]);
 
   // Helper: check if assignments arrays are equal
   const assignmentsEqual = (a: SlotAssignment[], b: SlotAssignment[]): boolean => {
@@ -709,50 +774,36 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       if (!silent) toast.error("Cannot determine changes to save.");
       return;
     }
+    if (!currentTimetable.periodSet) {
+      if (!silent) toast.error("This class has no bell schedule assigned. Assign one before scheduling.");
+      return;
+    }
 
-    const currentSlots = currentTimetable.slots;
-    const originalSlots = originalTimetable.slots;
+    const originalByPeriodId = new Map(originalTimetable.slots.map(slot => [slot.periodId, slot]));
 
-    // Find changed slots (excluding breaks)
-    // For each changed slot, send ALL its current assignments
+    // Only TEACHING slots are sent — the server rejects writes to BREAK/PREP.
     const changedSlotsPayload: { periodId: number; subjectId: number | null; teacherId: number | null }[] = [];
 
-    currentSlots.forEach(currentSlot => {
-      if (currentSlot.isBreak) return;
+    currentTimetable.slots.forEach(currentSlot => {
+      if (!isAssignablePeriod(currentSlot.type)) return;
 
-      const originalSlot = originalSlots.find(origSlot =>
-        origSlot.day === currentSlot.day && origSlot.period === currentSlot.period
-      );
-
+      const originalSlot = originalByPeriodId.get(currentSlot.periodId);
       const isChanged = !originalSlot || !assignmentsEqual(currentSlot.assignments, originalSlot.assignments);
+      if (!isChanged) return;
 
-      if (isChanged) {
-        const specificPeriodId = currentSlot.periodId || allWeeklySlots.find(ws => ws.dayOfWeek === currentSlot.day && ws.name === currentSlot.period)?.id || null;
+      const periodIdNum = Number(currentSlot.periodId);
 
-        if (!specificPeriodId) {
-          console.warn(`Could not find period ID for ${currentSlot.day} - ${currentSlot.period}`);
-          return;
-        }
-
-        const periodIdNum = Number(specificPeriodId);
-
-        if (currentSlot.assignments.length === 0) {
-          // Slot was cleared — send null to remove all assignments
+      if (currentSlot.assignments.length === 0) {
+        // Slot was cleared — send null to remove all assignments
+        changedSlotsPayload.push({ periodId: periodIdNum, subjectId: null, teacherId: null });
+      } else {
+        currentSlot.assignments.forEach(assignment => {
           changedSlotsPayload.push({
             periodId: periodIdNum,
-            subjectId: null,
-            teacherId: null,
+            subjectId: assignment.subjectId ? Number(assignment.subjectId) : null,
+            teacherId: assignment.teacherId ? Number(assignment.teacherId) : null,
           });
-        } else {
-          // Send all current assignments for this slot
-          currentSlot.assignments.forEach(assignment => {
-            changedSlotsPayload.push({
-              periodId: periodIdNum,
-              subjectId: assignment.subjectId ? Number(assignment.subjectId) : null,
-              teacherId: assignment.teacherId ? Number(assignment.teacherId) : null,
-            });
-          });
-        }
+        });
       }
     });
 
@@ -761,15 +812,13 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       return;
     }
 
-    const payload: { subClassId: number; academicYearId?: number; slots: any[]; } = {
-      subClassId: Number(subClassId),
+    const payload: { academicYearId?: number; slots: typeof changedSlotsPayload } = {
       slots: changedSlotsPayload,
     };
     if (selectedAcademicYearId) {
       payload.academicYearId = Number(selectedAcademicYearId);
     }
 
-    console.log("Saving changed timetable slots:", payload);
     if (!silent) setIsLoadingTimetable(true);
     setError(null);
     const token = getAuthToken();
@@ -780,7 +829,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/timetables/bulk-update`, {
+      const response = await fetch(`${API_BASE_URL}/timetables/subclass/${subClassId}/bulk-update`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -807,17 +856,22 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       if (!response.ok || !result.success) {
         if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-          const errorMessages = result.errors.map((e: any) =>
-            `Period ID: ${e.periodId} - ${e.error}`
-          ).join('; ');
+          // Name the period rather than its id — "Period ID: 412" means nothing
+          // to a scheduler looking at a grid.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const errorMessages = result.errors.map((e: any) => {
+            const slot = currentTimetable.slots.find(s => s.periodId === String(e.periodId));
+            const where = slot
+              ? `${slot.day} ${slot.periodName} (${formatTimeRange(slot.startTime, slot.endTime)})`
+              : `Period ID ${e.periodId}`;
+            return `${where}: ${e.error}`;
+          }).join('; ');
           console.error("Detailed save errors (partial success):", result.errors);
-          throw new Error(`Save failed: ${result.message || 'Some errors occurred'}. Details: ${errorMessages}`);
+          throw new Error(`Save failed: ${result.message || 'Some errors occurred'}. ${errorMessages}`);
         } else {
           throw new Error(result.error || result.message || 'Failed to save timetable (Unknown error structure)');
         }
       }
-
-      console.log(`Timetable save summary: Updated ${result.data?.updated || 0}, Created ${result.data?.created || 0}, Deleted ${result.data?.deleted || 0}`);
 
       if (silent) {
         // Move the baseline forward to exactly what we just sent, so the
@@ -826,7 +880,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         // an edit made mid-request must stay dirty.
         setOriginalTimetables(prev => ({
           ...prev,
-          [subClassId]: JSON.parse(JSON.stringify(currentTimetable)),
+          [subClassId]: deepCloneTimetablesState({ [subClassId]: currentTimetable })[subClassId],
         }));
       } else {
         toast.success(result.message || 'Timetable saved successfully!');
@@ -845,6 +899,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         );
       }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred';
       console.error("Failed to save timetable:", err);
@@ -854,7 +909,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     } finally {
       if (!silent) setIsLoadingTimetable(false);
     }
-  }, [timetables, originalTimetables, allWeeklySlots, selectedAcademicYearId, fetchFullSchoolTimetable]);
+  }, [timetables, originalTimetables, selectedAcademicYearId, fetchFullSchoolTimetable]);
 
   // The explicit Save button — unchanged behaviour, and still useful as a
   // manual retry when an auto-save failed.
@@ -903,7 +958,6 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     setDirtyTick(tick => tick + 1);
   }, []);
 
-  // Function to get teachers who can teach a specific subject
   const getClashWarning = useCallback((
     subClassId: string,
     periodId?: number | string | null,
@@ -917,22 +971,23 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     return teachers.filter(teacher => teacher.subjects.includes(subjectId));
   }, [teachers]);
 
-  // Function to check if a teacher is assigned elsewhere during a specific time slot
+  // Local mirror of the server's clash rule: same day, overlapping wall-clock
+  // times, any other subclass. Period ids and sequence numbers can't be
+  // compared across bell schedules, so only the times are.
   const isTeacherAssignedElsewhere = useCallback((
     teacherId: string,
     day: string,
-    period: string,
+    startTime: string,
+    endTime: string,
     excludeSubClassId: string
   ): string | null => {
     for (const subClassId in timetables) {
       if (subClassId === excludeSubClassId) continue;
 
-      const classTimetable = timetables[subClassId];
-      const conflict = classTimetable.slots.some(
-        slot =>
-          slot.day === day &&
-          slot.period === period &&
-          slot.assignments.some(a => a.teacherId === teacherId)
+      const conflict = timetables[subClassId].slots.some(slot =>
+        slot.day === day &&
+        periodsOverlap(startTime, endTime, slot.startTime, slot.endTime) &&
+        slot.assignments.some(a => a.teacherId === teacherId)
       );
 
       if (conflict) {
@@ -950,8 +1005,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       subClasses,
       subjects,
       teachers,
-      allWeeklySlots,
-      uniquePeriodNames,
+      periodSets,
       daysOfWeek,
       timetables,
       originalTimetables,
@@ -959,6 +1013,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       isLoadingTimetable,
       fetchTimetableForSubclass,
       fetchFullSchoolTimetable,
+      assignPeriodSetToClass,
       updateSlotAssignment,
       addSlotAssignment,
       removeSlotAssignment,

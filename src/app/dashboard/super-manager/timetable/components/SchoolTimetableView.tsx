@@ -5,11 +5,19 @@ import { Button } from "@/components/ui";
 import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/ui";
 import { Select } from "@/components/ui";
 import { toast } from "react-hot-toast";
-import { useTimetable, SlotAssignment } from './TimetableContext';
+import {
+  useTimetable,
+  buildPeriodRows,
+  formatTimeRange,
+  isAssignablePeriod,
+  periodsOverlap,
+  DAYS_ORDER,
+  PeriodDefinition,
+  PeriodRow,
+  PeriodSetInfo,
+  SlotAssignment,
+} from './TimetableContext';
 import { PlusIcon, XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-
-// Days of the week for the timetable (ordered)
-const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 
 interface SchoolTimetableViewProps {
   onClassSelect?: (subClassId: string) => void;
@@ -17,9 +25,15 @@ interface SchoolTimetableViewProps {
   isExporting?: boolean;
 }
 
+// One booking of a teacher's time, used for cross-cycle clash detection.
+interface Booking {
+  subClassId: string;
+  startTime: string;
+  endTime: string;
+}
+
 const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect, onExportSchool, isExporting }) => {
   const {
-    allWeeklySlots,
     subClasses,
     subjects,
     teachers,
@@ -27,7 +41,6 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     originalTimetables,
     isLoadingTimetable,
     addSlotAssignment,
-    updateSlotAssignment,
     removeSlotAssignment,
     saveChanges,
     getTeachersBySubject,
@@ -55,10 +68,9 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
 
       if (!original || !current) return;
 
+      const originalByPeriodId = new Map(original.slots.map(slot => [slot.periodId, slot]));
       const hasChanges = current.slots.some(currentSlot => {
-        const originalSlot = original.slots.find(origSlot =>
-          origSlot.day === currentSlot.day && origSlot.period === currentSlot.period
-        );
+        const originalSlot = originalByPeriodId.get(currentSlot.periodId);
         return !originalSlot || !assignmentsEqual(currentSlot.assignments, originalSlot.assignments);
       });
 
@@ -95,171 +107,149 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
   // Modal state for assignment
   const [manageModalOpen, setManageModalOpen] = useState(false);
   const [editingSubClassId, setEditingSubClassId] = useState('');
-  const [editingDay, setEditingDay] = useState('');
-  const [editingPeriod, setEditingPeriod] = useState('');
+  const [editingPeriodId, setEditingPeriodId] = useState('');
   const [newSubject, setNewSubject] = useState('');
   const [newTeacher, setNewTeacher] = useState('');
   const [newTeacherOptions, setNewTeacherOptions] = useState<{ id: string; name: string }[]>([]);
 
-  // Organize periods by day and sort by time, deduplicating by name
-  const organizedPeriods = useMemo(() => {
-    const dayGroups: { [day: string]: any[] } = {};
-
-    // If periods don't have dayOfWeek, build a single set of unique periods
-    // and use it for every day
-    const hasDayOfWeek = allWeeklySlots.some(slot => slot.dayOfWeek);
-
-    if (hasDayOfWeek) {
-      DAYS_ORDER.forEach(day => {
-        const daySlots = allWeeklySlots.filter(slot => slot.dayOfWeek === day);
-
-        // Deduplicate by period name
-        const seen = new Set<string>();
-        const uniqueSlots = daySlots.filter(slot => {
-          if (seen.has(slot.name)) return false;
-          seen.add(slot.name);
-          return true;
-        });
-
-        dayGroups[day] = uniqueSlots.sort((a, b) => {
-          if (!a.startTime && !b.startTime) return 0;
-          if (!a.startTime) return 1;
-          if (!b.startTime) return -1;
-          return a.startTime.localeCompare(b.startTime);
-        });
-      });
-    } else {
-      // Periods are day-agnostic — deduplicate globally by name and reuse for each day
-      const seen = new Set<string>();
-      const uniqueSlots = allWeeklySlots.filter(slot => {
-        if (seen.has(slot.name)) return false;
-        seen.add(slot.name);
-        return true;
-      }).sort((a, b) => {
-        if (!a.startTime && !b.startTime) return 0;
-        if (!a.startTime) return 1;
-        if (!b.startTime) return -1;
-        return a.startTime.localeCompare(b.startTime);
-      });
-
-      DAYS_ORDER.forEach(day => {
-        dayGroups[day] = uniqueSlots;
-      });
-    }
-
-    // Debug: log period counts per day
-    console.log("SchoolTimetableView organizedPeriods:", Object.entries(dayGroups).map(([day, periods]) => `${day}: ${periods.length} periods`));
-
-    return dayGroups;
-  }, [allWeeklySlots]);
-
-  // Calculate teacher conflicts
-  const teacherConflicts = useMemo(() => {
-    const conflicts: { [day: string]: { [period: string]: { [teacherId: string]: string[] } } } = {};
-
-    DAYS_ORDER.forEach(day => {
-      conflicts[day] = {};
-      allWeeklySlots.forEach(slot => {
-        if (slot.dayOfWeek === day) {
-          conflicts[day][slot.name] = {};
-        }
-      });
-    });
+  // Every booked teacher-hour in the school, keyed by day then teacher. Clashes
+  // are found by comparing wall-clock times, because the two cycles put
+  // different period ids (and different sequence numbers) at the same hour.
+  const teacherBookings = useMemo(() => {
+    const byDay: Record<string, Map<string, Booking[]>> = {};
 
     Object.entries(timetables).forEach(([subClassId, timetable]) => {
-      if (!timetable || !timetable.slots) return;
       timetable.slots.forEach(slot => {
-        const slotDef = allWeeklySlots.find(ws => ws.dayOfWeek === slot.day && ws.name === slot.period);
-        if (slotDef?.isBreak) return;
-
-        // Check all assignments in this slot for conflicts
+        if (!isAssignablePeriod(slot.type)) return;
         slot.assignments.forEach(assignment => {
           if (!assignment.teacherId) return;
-          const day = slot.day;
-          const period = slot.period;
-          if (!conflicts[day]?.[period]) return;
-
-          if (!conflicts[day][period][assignment.teacherId]) {
-            conflicts[day][period][assignment.teacherId] = [subClassId];
-          } else {
-            if (!conflicts[day][period][assignment.teacherId].includes(subClassId)) {
-              conflicts[day][period][assignment.teacherId].push(subClassId);
-            }
-          }
+          const forDay = byDay[slot.day] ?? (byDay[slot.day] = new Map());
+          const forTeacher = forDay.get(assignment.teacherId) ?? [];
+          forTeacher.push({ subClassId, startTime: slot.startTime, endTime: slot.endTime });
+          forDay.set(assignment.teacherId, forTeacher);
         });
       });
     });
 
-    return conflicts;
-  }, [timetables, allWeeklySlots]);
+    return byDay;
+  }, [timetables]);
 
-  const getSlotAssignments = (subClassId: string, day: string, periodName: string): SlotAssignment[] => {
-    const timetable = timetables[subClassId];
-    if (!timetable || !timetable.slots) return [];
-    const slot = timetable.slots.find(s => s.day === day && s.period === periodName);
-    return slot?.assignments || [];
+  const hasConflict = (
+    day: string,
+    startTime: string,
+    endTime: string,
+    teacherId: string | null,
+    subClassId: string,
+  ): boolean => {
+    if (!teacherId) return false;
+    const bookings = teacherBookings[day]?.get(teacherId) || [];
+    return bookings.some(booking =>
+      booking.subClassId !== subClassId &&
+      periodsOverlap(startTime, endTime, booking.startTime, booking.endTime)
+    );
   };
 
-  const hasConflict = (day: string, period: string, teacherId: string | null) => {
-    if (!teacherId) return false;
-    return teacherConflicts[day]?.[period]?.[teacherId]?.length > 1;
+  const getSlot = (subClassId: string, periodId: string) =>
+    timetables[subClassId]?.slots.find(s => s.periodId === periodId);
+
+  const subClassHasConflict = (subClassId: string): boolean => {
+    const timetable = timetables[subClassId];
+    if (!timetable) return false;
+    return timetable.slots.some(slot =>
+      isAssignablePeriod(slot.type) &&
+      slot.assignments.some(a => hasConflict(slot.day, slot.startTime, slot.endTime, a.teacherId, subClassId))
+    );
   };
 
   const filteredSubClasses = useMemo(() => {
     if (!showConflictsOnly) return subClasses;
+    return subClasses.filter(subClass => subClassHasConflict(subClass.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subClasses, showConflictsOnly, teacherBookings, timetables]);
 
-    return subClasses.filter(subClass => {
+  /**
+   * Classes are grouped by the bell schedule they follow: one matrix per
+   * cycle. A single school-wide column set would be wrong — first-cycle
+   * period 3 (09:35) and second-cycle period 3 (09:20) are not the same row.
+   */
+  const groups = useMemo(() => {
+    const bySet = new Map<string, {
+      periodSet: PeriodSetInfo;
+      rows: PeriodRow[];
+      subClassIds: string[];
+    }>();
+    const unscheduled: string[] = [];
+
+    filteredSubClasses.forEach(subClass => {
       const timetable = timetables[subClass.id];
-      if (!timetable || !timetable.slots) return false;
-
-      for (const slot of timetable.slots) {
-        for (const assignment of slot.assignments) {
-          if (assignment.teacherId && hasConflict(slot.day, slot.period, assignment.teacherId)) {
-            return true;
-          }
-        }
+      const periodSet = timetable?.periodSet;
+      if (!timetable || !periodSet || timetable.periods.length === 0) {
+        unscheduled.push(subClass.id);
+        return;
       }
-      return false;
+
+      const existing = bySet.get(periodSet.id);
+      if (existing) {
+        existing.subClassIds.push(subClass.id);
+      } else {
+        bySet.set(periodSet.id, {
+          periodSet,
+          rows: buildPeriodRows(timetable.periods),
+          subClassIds: [subClass.id],
+        });
+      }
     });
-  }, [subClasses, showConflictsOnly, teacherConflicts, timetables]);
+
+    return { grouped: Array.from(bySet.values()), unscheduled };
+  }, [filteredSubClasses, timetables]);
 
   // Per-class summary used by the mobile list (the full matrix is unreadable
   // on a phone, so mobile gets a class list that drills into the class view).
   const subClassSummaries = useMemo(() => {
     return filteredSubClasses.map(subClass => {
-      const slots = timetables[subClass.id]?.slots || [];
+      const timetable = timetables[subClass.id];
+      const slots = timetable?.slots || [];
       let assigned = 0;
       let conflicts = 0;
 
       slots.forEach(slot => {
+        if (!isAssignablePeriod(slot.type)) return;
         if (slot.assignments.length > 0) assigned++;
-        if (slot.assignments.some(a => hasConflict(slot.day, slot.period, a.teacherId))) conflicts++;
+        if (slot.assignments.some(a => hasConflict(slot.day, slot.startTime, slot.endTime, a.teacherId, subClass.id))) {
+          conflicts++;
+        }
       });
 
       return {
         id: subClass.id,
         name: subClass.name,
+        periodSetName: timetable?.periodSet?.name ?? null,
         assigned,
         conflicts,
         modified: getModifiedSubclasses.includes(subClass.id),
       };
     });
-  }, [filteredSubClasses, timetables, teacherConflicts, getModifiedSubclasses]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredSubClasses, timetables, teacherBookings, getModifiedSubclasses]);
+
+  const editingPeriod = useMemo(
+    () => timetables[editingSubClassId]?.periods.find(p => p.id === editingPeriodId) || null,
+    [timetables, editingSubClassId, editingPeriodId],
+  );
 
   // Get live assignments for the currently editing slot
   const currentSlotAssignments = useMemo(() => {
-    if (!manageModalOpen || !editingSubClassId || !editingDay || !editingPeriod) return [];
-    return getSlotAssignments(editingSubClassId, editingDay, editingPeriod);
-  }, [manageModalOpen, editingSubClassId, editingDay, editingPeriod, timetables]);
+    if (!manageModalOpen || !editingSubClassId || !editingPeriodId) return [];
+    return getSlot(editingSubClassId, editingPeriodId)?.assignments || [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manageModalOpen, editingSubClassId, editingPeriodId, timetables]);
 
   // Function to open the manage modal for a slot
-  const handleManageSlot = (subClassId: string, day: string, periodName: string) => {
-    const slotDefinition = allWeeklySlots.find(ws => ws.dayOfWeek === day && ws.name === periodName);
-    if (!slotDefinition || slotDefinition.isBreak) return;
+  const handleManageSlot = (subClassId: string, period?: PeriodDefinition) => {
+    if (!period || !isAssignablePeriod(period.type)) return;
 
     setEditingSubClassId(subClassId);
-    setEditingDay(day);
-    setEditingPeriod(periodName);
+    setEditingPeriodId(period.id);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
@@ -277,12 +267,13 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
 
   // Add a new assignment to the current slot
   const handleAddAssignment = () => {
-    if (!newSubject || !newTeacher) return;
+    if (!newSubject || !newTeacher || !editingPeriod) return;
 
     const conflictClass = isTeacherAssignedElsewhere(
       newTeacher,
-      editingDay,
-      editingPeriod,
+      editingPeriod.dayOfWeek,
+      editingPeriod.startTime,
+      editingPeriod.endTime,
       editingSubClassId
     );
     if (conflictClass) {
@@ -290,7 +281,7 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
       return;
     }
 
-    addSlotAssignment(editingSubClassId, editingDay, editingPeriod, newSubject, newTeacher);
+    addSlotAssignment(editingSubClassId, editingPeriod.id, newSubject, newTeacher);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
@@ -299,52 +290,61 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
 
   // Remove an assignment from the current slot
   const handleRemoveAssignment = (index: number) => {
-    removeSlotAssignment(editingSubClassId, editingDay, editingPeriod, index);
+    if (!editingPeriod) return;
+    removeSlotAssignment(editingSubClassId, editingPeriod.id, index);
     toast.success("Assignment removed");
   };
 
-  const renderCell = (day: string, periodName: string, subClassId: string, period: any) => {
-    const assignments = getSlotAssignments(subClassId, day, periodName);
-
-    if (period.isBreak) {
+  const renderCell = (subClassId: string, period?: PeriodDefinition) => {
+    if (!period) {
       return (
-        <td key={`${subClassId}-${periodName}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r bg-gray-100 h-20">
-          <div className="truncate">Break</div>
+        <td key={`${subClassId}-none`} className="px-2 py-2 text-center text-xs text-gray-300 border-r h-20">
+          —
         </td>
       );
     }
 
+    if (!isAssignablePeriod(period.type)) {
+      return (
+        <td key={`${subClassId}-${period.id}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r bg-gray-100 h-20">
+          <div className="truncate">{period.type === 'PREP' ? 'Preps' : 'Break'}</div>
+        </td>
+      );
+    }
+
+    const assignments = getSlot(subClassId, period.id)?.assignments || [];
+
     if (assignments.length === 0) {
       return (
         <td
-          key={`${subClassId}-${periodName}`}
+          key={`${subClassId}-${period.id}`}
           className="px-2 py-2 border-r bg-white cursor-pointer hover:bg-blue-50 h-20"
-          onClick={() => handleManageSlot(subClassId, day, periodName)}
+          onClick={() => handleManageSlot(subClassId, period)}
         >
           <div className="text-center text-gray-400 text-xs"></div>
         </td>
       );
     }
 
-    // Check for conflicts across all assignments
-    const hasAnyConflict = assignments.some(a => hasConflict(day, periodName, a.teacherId));
+    const conflictOf = (a: SlotAssignment) =>
+      hasConflict(period.dayOfWeek, period.startTime, period.endTime, a.teacherId, subClassId);
+
+    const hasAnyConflict = assignments.some(conflictOf);
     const bgColor = hasAnyConflict ? 'bg-red-200 hover:bg-red-300' : 'bg-blue-100 hover:bg-blue-200';
 
     // Build title showing all assignments
-    const titleParts = assignments.map(a => {
+    const title = assignments.map(a => {
       const subjectName = a.subjectName || subjects.find(s => s.id === a.subjectId)?.name || 'Unknown';
       const teacherName = a.teacherName || teachers.find(t => t.id === a.teacherId)?.name || 'Unknown';
-      const conflict = hasConflict(day, periodName, a.teacherId);
-      return `${subjectName} - ${teacherName}${conflict ? ' (CONFLICT!)' : ''}`;
-    });
-    const title = titleParts.join('\n');
+      return `${subjectName} - ${teacherName}${conflictOf(a) ? ' (CONFLICT!)' : ''}`;
+    }).join('\n');
 
     return (
       <td
-        key={`${subClassId}-${periodName}`}
+        key={`${subClassId}-${period.id}`}
         className={`px-1 py-2 ${bgColor} cursor-pointer text-center text-xs border-r h-20`}
         title={title}
-        onClick={() => handleManageSlot(subClassId, day, periodName)}
+        onClick={() => handleManageSlot(subClassId, period)}
       >
         {assignments.length === 1 ? (
           <div className="space-y-1 flex flex-col justify-center h-full">
@@ -373,12 +373,101 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     );
   };
 
+  // One full matrix for a single bell schedule.
+  const renderGroup = (group: { periodSet: PeriodSetInfo; rows: PeriodRow[]; subClassIds: string[] }) => {
+    const columns = group.subClassIds
+      .map(id => subClasses.find(sc => sc.id === id))
+      .filter((sc): sc is NonNullable<typeof sc> => Boolean(sc));
+
+    return (
+      <div key={group.periodSet.id} className="space-y-2">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold text-gray-900">{group.periodSet.name}</h3>
+          <span className="text-xs text-gray-500">
+            {columns.length} class{columns.length === 1 ? '' : 'es'}
+          </span>
+        </div>
+
+        <div className="w-full border rounded-lg">
+          <div className="overflow-x-auto">
+            <div className="inline-block min-w-full">
+              <table className="min-w-full divide-y divide-gray-200 text-xs">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-24">
+                      Period
+                    </th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-20">
+                      Time
+                    </th>
+                    {columns.map((subClass) => {
+                      const hasChanges = getModifiedSubclasses.includes(subClass.id);
+                      return (
+                        <th
+                          key={subClass.id}
+                          className={`px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r cursor-pointer hover:bg-gray-100 ${
+                            hasChanges
+                              ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                              : 'text-gray-500'
+                          }`}
+                          title={`${hasChanges ? '[MODIFIED] ' : ''}View timetable for ${subClass.name}`}
+                          onClick={() => onClassSelect?.(subClass.id)}
+                          style={{ minWidth: '100px', width: '150px', maxWidth: '150px' }}
+                        >
+                          <div className="truncate flex items-center space-x-1">
+                            <span>{subClass.name}</span>
+                            {hasChanges && (
+                              <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" title="Has unsaved changes"></span>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {DAYS_ORDER.map(day => (
+                    <React.Fragment key={day}>
+                      {/* Day Header */}
+                      <tr className="bg-blue-50">
+                        <td
+                          colSpan={2 + columns.length}
+                          className="px-4 py-3 text-center text-sm font-bold text-blue-900 border-b"
+                        >
+                          {day.charAt(0) + day.slice(1).toLowerCase()}
+                        </td>
+                      </tr>
+
+                      {/* Periods for this day, in this bell schedule */}
+                      {group.rows.map(row => {
+                        const period = row.byDay[day];
+                        return (
+                          <tr key={`${day}-${row.sequence}`} className="hover:bg-gray-50">
+                            <td className="px-2 py-2 text-center text-xs font-medium border-r w-24">
+                              {(period ?? row.label).name}
+                            </td>
+                            <td className="px-2 py-2 text-center text-xs text-gray-600 border-r w-20">
+                              <div className="truncate">
+                                {formatTimeRange((period ?? row.label).startTime, (period ?? row.label).endTime)}
+                              </div>
+                            </td>
+                            {columns.map(subClass => renderCell(subClass.id, period))}
+                          </tr>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoadingTimetable && Object.keys(timetables).length === 0) {
     return <div className="p-4 text-center text-gray-500">Loading school-wide timetable data...</div>;
-  }
-
-  if (allWeeklySlots.length === 0) {
-    return <div className="p-4 text-center text-gray-500">Timetable structure not available. Please ensure periods are defined.</div>;
   }
 
   return (
@@ -458,7 +547,9 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
                       )}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5">
-                      {summary.assigned} period{summary.assigned === 1 ? '' : 's'} assigned
+                      {summary.periodSetName
+                        ? `${summary.periodSetName} · ${summary.assigned} period${summary.assigned === 1 ? '' : 's'} assigned`
+                        : 'No bell schedule assigned'}
                     </div>
                   </div>
                   {summary.conflicts > 0 && (
@@ -474,10 +565,10 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
         )}
       </div>
 
-      {/* Desktop: full class-by-period matrix */}
+      {/* Desktop: one class-by-period matrix per bell schedule */}
       <div className="hidden md:block bg-white rounded-lg shadow w-full">
-        <div className="p-4">
-          <div className="flex justify-end mb-4 space-x-4">
+        <div className="p-4 space-y-6">
+          <div className="flex justify-end space-x-4">
             <div className="flex items-center space-x-1">
               <div className="w-4 h-4 bg-blue-100"></div>
               <span className="text-xs">Assigned</span>
@@ -488,105 +579,53 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
             </div>
             <div className="flex items-center space-x-1">
               <div className="w-4 h-4 bg-gray-200"></div>
-              <span className="text-xs">Break</span>
+              <span className="text-xs">Break / Preps</span>
             </div>
           </div>
 
-          {/* Constrained table container */}
-          <div className="w-full border rounded-lg">
-            <div className="overflow-x-auto">
-              <div className="inline-block min-w-full">
-                <table className="min-w-full divide-y divide-gray-200 text-xs">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-12">
-                        Period
-                      </th>
-                      <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-20">
-                        Time
-                      </th>
-                      {filteredSubClasses.map((subClass) => {
-                        const hasChanges = getModifiedSubclasses.includes(subClass.id);
-                        return (
-                          <th
-                            key={subClass.id}
-                            className={`px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r cursor-pointer hover:bg-gray-100 ${
-                              hasChanges
-                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                : 'text-gray-500'
-                            }`}
-                            title={`${hasChanges ? '[MODIFIED] ' : ''}View timetable for ${subClass.name}`}
-                            onClick={() => onClassSelect?.(subClass.id)}
-                            style={{
-                              minWidth: '100px',
-                              width: '150px',
-                              maxWidth: '150px'
-                            }}
-                          >
-                            <div className="truncate flex items-center space-x-1">
-                              <span>{subClass.name}</span>
-                              {hasChanges && (
-                                <span className="w-2 h-2 bg-yellow-400 rounded-full flex-shrink-0" title="Has unsaved changes"></span>
-                              )}
-                            </div>
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {DAYS_ORDER.map(day => {
-                      const dayPeriods = organizedPeriods[day] || [];
+          {groups.grouped.length === 0 && groups.unscheduled.length === 0 && (
+            <p className="text-center text-sm text-gray-500 py-6">
+              {showConflictsOnly ? 'No classes with conflicts.' : 'No classes available.'}
+            </p>
+          )}
 
-                      return (
-                        <React.Fragment key={day}>
-                          {/* Day Header */}
-                          <tr className="bg-blue-50">
-                            <td
-                              colSpan={2 + filteredSubClasses.length}
-                              className="px-4 py-3 text-center text-sm font-bold text-blue-900 border-b"
-                            >
-                              {day.charAt(0) + day.slice(1).toLowerCase()}
-                            </td>
-                          </tr>
+          {groups.grouped.map(renderGroup)}
 
-                          {/* Periods for this day */}
-                          {dayPeriods.map((period, index) => {
-                            const periodNumber = index + 1;
-                            const timeRange = `${period.startTime?.substring(0, 5) || ''} - ${period.endTime?.substring(0, 5) || ''}`;
-
-                            return (
-                              <tr key={`${day}-${period.id}`} className="hover:bg-gray-50">
-                                <td className="px-2 py-2 text-center text-xs font-medium border-r w-12">
-                                  {periodNumber}
-                                </td>
-                                <td className="px-2 py-2 text-center text-xs text-gray-600 border-r w-20">
-                                  <div className="truncate">
-                                    {timeRange}
-                                  </div>
-                                </td>
-                                {filteredSubClasses.map(subClass =>
-                                  renderCell(day, period.name, subClass.id, period)
-                                )}
-                              </tr>
-                            );
-                          })}
-                        </React.Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          {groups.unscheduled.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-900">
+                No bell schedule assigned
+              </p>
+              <p className="text-xs text-amber-800 mt-1">
+                These classes have no period times, so they cannot be scheduled yet. Open one to
+                assign the cycle it follows:{' '}
+                {groups.unscheduled.map((id, i) => {
+                  const subClass = subClasses.find(sc => sc.id === id);
+                  return (
+                    <React.Fragment key={id}>
+                      {i > 0 && ', '}
+                      <button
+                        onClick={() => onClassSelect?.(id)}
+                        className="font-medium underline hover:text-amber-950"
+                      >
+                        {subClass?.name || id}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
+              </p>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
       {/* Manage Slot Modal */}
-      {manageModalOpen && (
+      {manageModalOpen && editingPeriod && (
         <Modal isOpen={manageModalOpen} onClose={() => setManageModalOpen(false)} size="lg">
           <ModalHeader>
-            Manage Assignment - {subClasses.find(sc => sc.id === editingSubClassId)?.name} ({editingDay} - {editingPeriod})
+            Manage Assignment - {subClasses.find(sc => sc.id === editingSubClassId)?.name} (
+            {editingPeriod.dayOfWeek} - {editingPeriod.name},{' '}
+            {formatTimeRange(editingPeriod.startTime, editingPeriod.endTime)})
           </ModalHeader>
           <ModalBody>
            <div className="space-y-4">

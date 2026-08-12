@@ -49,15 +49,6 @@ interface TimeSlot {
     };
 }
 
-interface Period {
-    id: number;
-    name: string;
-    dayOfWeek: string;
-    startTime: string;
-    endTime: string;
-    isBreak: boolean;
-}
-
 interface TimetableStats {
     totalClasses: number;
     totalSubjects: number;
@@ -106,19 +97,8 @@ export default function TeacherTimetablePage() {
         (url: string) => apiService.get(url)
     );
 
-    // Fetch all school periods to build the grid
-    const {
-        data: periodsData,
-        error: periodsError,
-        isLoading: isLoadingPeriods,
-    } = useSWR<{ success: boolean; data: Period[] }>(
-        '/periods',
-        (url: string) => apiService.get(url)
-    );
-
     const schedule = timetableResponse?.data?.schedule || [];
     const summary = timetableResponse?.data?.summary;
-    const allPeriods = periodsData?.data || [];
 
     // Process errors
     useEffect(() => {
@@ -126,28 +106,27 @@ export default function TeacherTimetablePage() {
             console.error('Timetable Fetch Error:', timetableError);
             toast.error('Failed to load your timetable.');
         }
-        if (periodsError) {
-            console.error('Periods Fetch Error:', periodsError);
-            toast.error('Failed to load timetable structure.');
-        }
-    }, [timetableError, periodsError]);
+    }, [timetableError]);
 
-    // Group all periods by time range to create unique rows, sorted by time
+    // Rows come from the teacher's own periods, not from a school-wide period
+    // list: a teacher can take classes on both bell schedules (first cycle and
+    // second cycle break at different times), so there is no single column set
+    // that fits everyone. Distinct time ranges become distinct rows.
     const uniqueTimeSlots = useMemo(() => {
         const timeGroups: { [timeRange: string]: any } = {};
-        allPeriods.forEach(slot => {
-            const timeRange = `${slot.startTime}-${slot.endTime}`;
+        schedule.forEach(slot => {
+            const timeRange = `${slot.period.startTime}-${slot.period.endTime}`;
             if (!timeGroups[timeRange]) {
                 timeGroups[timeRange] = {
-                    startTime: slot.startTime,
-                    endTime: slot.endTime,
-                    isBreak: slot.isBreak,
+                    startTime: slot.period.startTime,
+                    endTime: slot.period.endTime,
+                    name: slot.period.name,
                     timeRange: timeRange,
                 };
             }
         });
         return Object.values(timeGroups).sort((a, b) => a.startTime.localeCompare(b.startTime));
-    }, [allPeriods]);
+    }, [schedule]);
 
     // Get today's schedule for daily view - group by time slots
     const todaySchedule = useMemo(() => {
@@ -198,14 +177,6 @@ export default function TeacherTimetablePage() {
             slot.period.startTime === timeSlot.startTime &&
             slot.period.endTime === timeSlot.endTime
         );
-
-        if (timeSlot.isBreak) {
-            return (
-                <td key={`${day}-${timeSlot.timeRange}`} className="border h-20 bg-gray-100 text-center text-gray-600 font-medium align-middle">
-                    <div className="text-xs">Break</div>
-                </td>
-            );
-        }
 
         if (assignedSlots.length === 0) {
             return <td key={`${day}-${timeSlot.timeRange}`} className="border h-20 bg-white"></td>;
@@ -453,22 +424,16 @@ export default function TeacherTimetablePage() {
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
-                                {uniqueTimeSlots.map((timeSlot, index) => {
-                                    const periodNumber = index + 1;
+                                {uniqueTimeSlots.map((timeSlot) => {
                                     const timeRange = `${timeSlot.startTime?.substring(0, 5) || ''} - ${timeSlot.endTime?.substring(0, 5) || ''}`;
 
                                     return (
                                         <tr key={timeSlot.timeRange} className="border-b hover:bg-gray-50">
                                             <th className="px-2 py-2 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
-                                                <div className="text-center text-sm font-semibold">Period {periodNumber}</div>
+                                                <div className="text-center text-sm font-semibold">{timeRange}</div>
                                                 <div className="text-xs text-gray-500 font-normal text-center mt-1">
-                                                    {timeRange}
+                                                    {timeSlot.name}
                                                 </div>
-                                                {timeSlot.isBreak && (
-                                                    <div className="text-xs text-blue-600 font-normal text-center mt-1">
-                                                        (Break)
-                                                    </div>
-                                                )}
                                             </th>
                                             {DAYS_ORDER.map(day => renderCellContent(day, timeSlot))}
                                         </tr>
@@ -483,7 +448,7 @@ export default function TeacherTimetablePage() {
     );
 
     // Prevent hydration mismatch by not rendering dynamic content until mounted
-    if (!isMounted || isLoadingTimetable || isLoadingPeriods) {
+    if (!isMounted || isLoadingTimetable) {
         return (
             <div className="p-6 space-y-6">
                 <div className="flex justify-between items-center">
@@ -571,7 +536,7 @@ export default function TeacherTimetablePage() {
             </div>
 
             {/* Timetable Content */}
-            {schedule.length === 0 && !isLoadingTimetable && !isLoadingPeriods ? (
+            {schedule.length === 0 && !isLoadingTimetable ? (
                 <Card>
                     <CardBody className="text-center py-12">
                         <CalendarDaysIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
