@@ -1,6 +1,8 @@
 PODS:
   - Capacitor (6.2.1):
     - CapacitorCordova
+  - CapacitorApp (6.0.3):
+    - Capacitor
   - CapacitorCordova (6.2.1)
   - CordovaPluginsStatic (6.2.1):
     - CapacitorCordova
@@ -59,9 +61,11 @@ PODS:
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - CordovaPluginsStatic (from `../capacitor-cordova-ios-plugins`)
   - OneSignalCordovaDependencies (from `https://github.com/OneSignal/OneSignal-Cordova-SDK.git`, tag `5.5.2`)
+  - OneSignalXCFramework (< 6.0, >= 5.0.0)
 
 SPEC REPOS:
   trunk:
@@ -70,6 +74,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Capacitor:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CordovaPluginsStatic:
@@ -85,11 +91,12 @@ CHECKOUT OPTIONS:
 
 SPEC CHECKSUMS:
   Capacitor: 1e0d0e7330dea9f983b50da737d8918abcf273f8
+  CapacitorApp: 22c94146dfaae1159ab7059cbd51e76d9f2d45ec
   CapacitorCordova: 8d93e14982f440181be7304aa9559ca631d77fff
   CordovaPluginsStatic: 52dffc3639ad23669c8e14e6b1064813d1c06c83
   OneSignalCordovaDependencies: 5f039a8e7a114ad9a27884c9c56c260c05468cbf
   OneSignalXCFramework: 48e5b7c5b51d4e67bab3405229f963efde1a3894
 
-PODFILE CHECKSUM: 065e1732a9e3bd51fb37235a1c9824272460214b
+PODFILE CHECKSUM: e154e98dfef7231b55f856e81d19cf6b708b5922
 
 COCOAPODS: 1.16.2

@@ -11,6 +11,7 @@ install! 'cocoapods', :disable_input_output_paths => true
 def capacitor_pods
   pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
   pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+  pod 'CapacitorApp', :path => '../../node_modules/@capacitor/app'
   pod 'OneSignalCordovaDependencies', :git => 'https://github.com/OneSignal/OneSignal-Cordova-SDK.git', :tag => '5.5.2'
   pod 'CordovaPluginsStatic', :path => '../capacitor-cordova-ios-plugins'
 end
@@ -20,13 +21,12 @@ target 'App' do
   # Add your Pods here
 end
 
-# Uncomment AFTER creating the OneSignalNotificationServiceExtension target in
-# Xcode (File > New > Target > Notification Service Extension), then run
-# `pod install`. Leaving it uncommented before the target exists makes
-# `pod install` — and therefore `npx cap sync ios` — fail.
-# target 'OneSignalNotificationServiceExtension' do
-#   pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
-# end
+# The extension target now exists in App.xcodeproj, so it takes its own copy of
+# the OneSignal SDK — an app extension is a separate binary and cannot link the
+# host app's frameworks.
+target 'OneSignalNotificationServiceExtension' do
+  pod 'OneSignalXCFramework', '>= 5.0.0', '< 6.0'
+end
 
 post_install do |installer|
   assertDeploymentTarget(installer)

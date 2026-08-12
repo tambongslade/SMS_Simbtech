@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Release builds (TestFlight and the App Store) must request the
+	     production APNs environment. A binary signed with "development" gets a
+	     sandbox device token, and every send from OneSignal — which talks to
+	     the production APNs gateway — fails with BadDeviceToken.
+
+	     This is deliberately a separate file from App.entitlements: a debug
+	     build signed against a development profile cannot claim "production"
+	     without a codesign entitlement mismatch, so the two configurations
+	     each point at their own file. Keep any capability added to one of
+	     these files in step with the other. -->
+	<key>aps-environment</key>
+	<string>production</string>
+</dict>
+</plist>

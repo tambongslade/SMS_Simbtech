@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Debug builds only. Release builds use AppRelease.entitlements, which
+	     asks for the production APNs environment — see the note there. -->
 	<key>aps-environment</key>
 	<string>development</string>
 </dict>
