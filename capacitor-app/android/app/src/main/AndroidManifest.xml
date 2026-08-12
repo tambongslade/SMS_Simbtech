@@ -24,6 +24,14 @@
 
         </activity>
 
+        <!-- Lets NotificationServiceExtension adjust each push before OneSignal
+             posts it, which is how background notifications reach our own
+             high-importance channel and show as a heads-up banner. The value is
+             resolved reflectively, so it must be the fully qualified name. -->
+        <meta-data
+            android:name="com.onesignal.NotificationServiceExtension"
+            android:value="com.simbtech.sms.NotificationServiceExtension" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

@@ -1,3 +1,7 @@
+# OneSignal instantiates this by name from an AndroidManifest meta-data entry,
+# so nothing references it in code and shrinking would otherwise remove it.
+-keep class com.simbtech.sms.NotificationServiceExtension { *; }
+
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
