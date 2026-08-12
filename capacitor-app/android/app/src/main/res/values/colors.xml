@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Painted behind the status bar and the navigation bar once the content
+         is inset away from them (see MainActivity). Matches the splash screen
+         background in capacitor.config.ts so the hand-off from splash to app
+         has no visible seam. -->
+    <color name="systemBarBackdrop">#1e40af</color>
+</resources>
