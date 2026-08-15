@@ -17,12 +17,14 @@ import {
   PeriodSetInfo,
   SlotAssignment,
 } from './TimetableContext';
-import { PlusIcon, XMarkIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, ArrowDownTrayIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 
 interface SchoolTimetableViewProps {
   onClassSelect?: (subClassId: string) => void;
   onExportSchool?: () => void;
   isExporting?: boolean;
+  onExportSchoolPdf?: () => void;
+  isExportingPdf?: boolean;
 }
 
 // One booking of a teacher's time, used for cross-cycle clash detection.
@@ -32,7 +34,7 @@ interface Booking {
   endTime: string;
 }
 
-const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect, onExportSchool, isExporting }) => {
+const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect, onExportSchool, isExporting, onExportSchoolPdf, isExportingPdf }) => {
   const {
     subClasses,
     subjects,
@@ -493,7 +495,19 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
               title="Export full school timetable as Excel"
             >
               <ArrowDownTrayIcon className="h-4 w-4 mr-1 inline" />
-              {isExporting ? 'Exporting...' : 'Export All'}
+              {isExporting ? 'Exporting...' : 'Export All (Excel)'}
+            </Button>
+          )}
+
+          {onExportSchoolPdf && (
+            <Button
+              onClick={onExportSchoolPdf}
+              disabled={isExportingPdf}
+              color="secondary"
+              title="Download every subclass timetable as one PDF (a page per class)"
+            >
+              <DocumentArrowDownIcon className="h-4 w-4 mr-1 inline" />
+              {isExportingPdf ? 'Preparing...' : 'Export All (PDF)'}
             </Button>
           )}
 

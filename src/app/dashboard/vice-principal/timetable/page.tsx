@@ -6,8 +6,9 @@ import { TimetableGrid } from './components/TimetableGrid';
 import SchoolTimetableView from './components/SchoolTimetableView';
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
 import { Select, Button } from "@/components/ui";
-import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { downloadSubclassTimetablePdf, downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
@@ -42,6 +43,7 @@ const TimetableContent = () => {
   const [viewMode, setViewMode] = useState<'class' | 'school'>('class');
   const [isZoomed, setIsZoomed] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   // Fetch timetable when subclass selection or academic year changes
   useEffect(() => {
@@ -132,6 +134,27 @@ const TimetableContent = () => {
     }
   };
 
+  // Export timetable as a print-ready PDF (rendered server-side)
+  const handleExportPdf = async (type: 'subclass' | 'school') => {
+    if (type === 'subclass' && !selectedSubClassId) {
+      toast.error('Please select a subclass first.');
+      return;
+    }
+
+    setIsExportingPdf(true);
+    try {
+      if (type === 'subclass') {
+        const subClassName = subClasses.find(sc => sc.id === selectedSubClassId)?.name;
+        await downloadSubclassTimetablePdf(selectedSubClassId, subClassName, selectedAcademicYearId);
+      } else {
+        const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name;
+        await downloadFullSchoolTimetablePdf(yearName, selectedAcademicYearId);
+      }
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   // Check if timetable data exists for the selected subclass
   const hasTimetableData = selectedSubClassId && timetables[selectedSubClassId];
 
@@ -216,7 +239,16 @@ const TimetableContent = () => {
                 title="Export this class timetable as Excel"
               >
                 <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
-                {isExporting ? 'Exporting...' : 'Export'}
+                {isExporting ? 'Exporting...' : 'Excel'}
+              </Button>
+              <Button
+                onClick={() => handleExportPdf('subclass')}
+                disabled={!selectedSubClassId || isExportingPdf || !hasTimetableData}
+                color="secondary"
+                title="Download this class timetable as a print-ready PDF"
+              >
+                <DocumentArrowDownIcon className="h-5 w-5 mr-1 inline" />
+                {isExportingPdf ? 'Preparing...' : 'PDF'}
               </Button>
               {/* Assignments save on selection. The button stays as a
                   manual re-sync — useful after an auto-save failure, and
@@ -267,6 +299,8 @@ const TimetableContent = () => {
               onClassSelect={handleClassSelect}
               onExportSchool={() => handleExport('school')}
               isExporting={isExporting}
+              onExportSchoolPdf={() => handleExportPdf('school')}
+              isExportingPdf={isExportingPdf}
             />
           </CardBody>
         </Card>

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { CalendarDaysIcon, ClockIcon, AcademicCapIcon, BuildingLibraryIcon, ViewColumnsIcon, CalendarIcon } from '@heroicons/react/24/outline';
+import { CalendarDaysIcon, ClockIcon, AcademicCapIcon, BuildingLibraryIcon, ViewColumnsIcon, CalendarIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { Card, CardBody, CardHeader, CardTitle, Badge, Button } from "@/components/ui";
 import apiService from '../../../../lib/apiService';
+import { downloadMyTimetablePdf } from '@/lib/timetablePdf';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 
@@ -70,6 +71,16 @@ export default function TeacherTimetablePage() {
     const [isMounted, setIsMounted] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('weekly');
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+
+    const handleDownloadPdf = async () => {
+        setIsDownloadingPdf(true);
+        try {
+            await downloadMyTimetablePdf();
+        } finally {
+            setIsDownloadingPdf(false);
+        }
+    };
 
     useEffect(() => {
         setIsMounted(true);
@@ -491,6 +502,17 @@ export default function TeacherTimetablePage() {
                     >
                         <ViewColumnsIcon className="h-4 w-4" />
                         <span>Weekly</span>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadPdf}
+                        disabled={isDownloadingPdf || schedule.length === 0}
+                        className="flex items-center space-x-2"
+                        title="Download your timetable as a print-ready PDF"
+                    >
+                        <DocumentArrowDownIcon className="h-4 w-4" />
+                        <span>{isDownloadingPdf ? 'Preparing...' : 'PDF'}</span>
                     </Button>
                 </div>
             </div>
