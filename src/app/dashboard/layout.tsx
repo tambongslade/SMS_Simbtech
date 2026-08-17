@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   HomeIcon,
+  SparklesIcon,
   UserGroupIcon,
   UserPlusIcon,
   BellIcon,
@@ -180,6 +181,7 @@ const menuItems: MenuItemsStructure = {
   ],
   'super-manager': [
     { label: 'Menu', href: '/dashboard/super-manager', icon: HomeIcon },
+    { label: 'Ask (AI)', href: '/dashboard/super-manager/ask', icon: SparklesIcon },
     {
       label: 'Personnel Management', href: '/dashboard/super-manager/personnel-management', icon: UserGroupIcon, navigates: true, subItems: [
         { label: 'All Personnel', href: '/dashboard/super-manager/personnel-management', icon: ChevronRightIcon },
