@@ -384,9 +384,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 const fetchedAcademicYears = academicYearsResponse.data.academicYears;
                 setAvailableAcademicYears(fetchedAcademicYears);
 
-                // Explicitly ensure selectedAcademicYear is null for roles requiring selection
-                setSelectedAcademicYear(null); // ADDED THIS LINE
-                localStorage.removeItem('academicYear'); // Clear any old saved academic year
+                if (fetchedAcademicYears.length === 1) {
+                    // Only one year is open to this role — picking it is not a
+                    // decision, so make it silently instead of prompting.
+                    const onlyYear = fetchedAcademicYears[0];
+                    setSelectedAcademicYear(onlyYear);
+                    localStorage.setItem('academicYear', JSON.stringify(onlyYear));
+                } else {
+                    // Several years: the UI must prompt for one.
+                    setSelectedAcademicYear(null);
+                    localStorage.removeItem('academicYear'); // Clear any old saved academic year
+                }
 
                 if (fetchedAcademicYears.length === 0) {
                     toast.error('No academic years available for this role. Please contact administrator.');

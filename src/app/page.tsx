@@ -161,6 +161,20 @@ export default function LoginPage() {
   // Remembered parent → one-tap sign-in (matricule only, no password needed)
   const [quickLogin, setQuickLogin] = useState<{ identifier: string } | null>(null);
 
+  // Whether this device already has a session to restore. `null` until the
+  // check runs on the client, so the first paint is the splash, not the form.
+  const [hasStoredSession, setHasStoredSession] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    try {
+      setHasStoredSession(
+        !!(localStorage.getItem('token') || localStorage.getItem('parentPortal')),
+      );
+    } catch {
+      setHasStoredSession(false);
+    }
+  }, []);
+
   // Pre-fill the identifier and tab from the last remembered login
   useEffect(() => {
     try {
@@ -318,16 +332,27 @@ export default function LoginPage() {
     setFormData({ ...formData, email: '' }); // Clear the input when switching
   };
 
-  // Conditionally render AcademicYearSelector
-  console.log('--- AcademicYearSelector Conditions ---');
-  console.log('isAuthenticated:', isAuthenticated);
-  console.log('selectedRole:', selectedRole);
-  console.log('requiresAcademicYear(selectedRole):', selectedRole ? requiresAcademicYear(selectedRole) : 'N/A');
-  console.log('!selectedAcademicYear:', !selectedAcademicYear);
-  console.log('availableAcademicYears.length:', availableAcademicYears.length);
-  console.log('------------------------------------');
+  // A restoring session must not flash the login form on the way to the
+  // dashboard — cover the whole restore with the splash instead.
+  const restoringSession =
+    hasStoredSession === null ||
+    (hasStoredSession && isLoading) ||
+    (isAuthenticated &&
+      !!selectedRole &&
+      (!requiresAcademicYear(selectedRole) || !!selectedAcademicYear));
 
-  if (isAuthenticated && selectedRole && requiresAcademicYear(selectedRole) && !selectedAcademicYear && availableAcademicYears.length > 0) {
+  if (restoringSession) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-white">
+        <Image src="/logo.png" alt="SSIC Logo" width={80} height={80} priority />
+        <div className="h-8 w-8 rounded-full border-2 border-gray-200 border-t-blue-600 animate-spin" />
+      </div>
+    );
+  }
+
+  // Only prompt for an academic year when there is an actual choice to make —
+  // a single available year is auto-selected in AuthContext.
+  if (isAuthenticated && selectedRole && requiresAcademicYear(selectedRole) && !selectedAcademicYear && availableAcademicYears.length > 1) {
     return (
       <AcademicYearSelector
         availableAcademicYears={availableAcademicYears}
