@@ -17,6 +17,7 @@ import {
   MegaphoneIcon,
   ReceiptRefundIcon,
   UserGroupIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
@@ -42,6 +43,13 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/super-manager/student-management',
     icon: UserGroupIcon,
     color: 'purple',
+  },
+  {
+    label: 'Enrollment',
+    description: 'Students per class & subclass',
+    href: '/dashboard/super-manager/enrollment',
+    icon: UsersIcon,
+    color: 'teal',
   },
   {
     label: 'Subject Management',

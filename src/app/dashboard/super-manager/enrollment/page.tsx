@@ -2,6 +2,6 @@
 
 import EnrollmentView from '@/components/enrollment/EnrollmentView';
 
-export default function BursarEnrollmentPage() {
+export default function SuperManagerEnrollmentPage() {
   return <EnrollmentView />;
 }

@@ -194,6 +194,7 @@ const menuItems: MenuItemsStructure = {
     },
     { label: 'Classes & Subclasses', href: '/dashboard/super-manager/classes', icon: BuildingLibraryIcon },
     { label: 'Student Management', href: '/dashboard/super-manager/student-management', icon: UsersIcon },
+    { label: 'Enrollment', href: '/dashboard/super-manager/enrollment', icon: UsersIcon },
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
