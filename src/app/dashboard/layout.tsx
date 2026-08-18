@@ -33,7 +33,7 @@ import {
   ReceiptRefundIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
-import { Fade } from '@/components/ui';
+import { Fade, PullToRefresh } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useAuth } from '@/components/context/AuthContext';
@@ -849,6 +849,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <PullToRefresh />
       {/* *** Add Toaster Component here *** */}
       {/* Position can be adjusted, see react-hot-toast docs */}
       <Toaster

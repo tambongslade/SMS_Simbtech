@@ -41,9 +41,12 @@ export const AssignSubjectsModal: React.FC<AssignSubjectsModalProps> = ({
     };
 
     const term = subjectFilter.trim().toLowerCase();
-    const visibleSubjects = term
+    const visibleSubjects = (term
         ? allSubjects.filter((s) => s.name.toLowerCase().includes(term))
-        : allSubjects;
+        : allSubjects
+    )
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

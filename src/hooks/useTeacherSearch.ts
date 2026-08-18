@@ -193,7 +193,7 @@ export function useTeacherFilterOptions() {
         const load = async () => {
             try {
                 const [subjectsResult, classesResult] = await Promise.all([
-                    apiService.get('/subjects', { silent: true }).catch(() => null),
+                    apiService.get('/subjects?limit=200', { silent: true }).catch(() => null),
                     apiService.get('/classes', { params: { includeSubClasses: 'true' }, silent: true }).catch(() => null),
                 ]);
                 if (cancelled) return;
