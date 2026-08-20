@@ -350,7 +350,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         const [classResponse, subClassResponse, subjectResponse, teacherResponse, academicYearResponse] = await Promise.all([
           fetch(`${API_BASE_URL}/classes`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/classes/sub-classes?limit=40`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
-          fetch(`${API_BASE_URL}/subjects`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
+          fetch(`${API_BASE_URL}/subjects?limit=200`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/users/teachers`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
           fetch(`${API_BASE_URL}/academic-years`, { method: 'GET', headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } }),
         ].map(p => p.catch(e => e)));

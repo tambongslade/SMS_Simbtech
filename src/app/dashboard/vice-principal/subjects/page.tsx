@@ -65,7 +65,7 @@ export default function SubjectManagementPage() {
         }
     try {
       // Fetch subjects (includes assignments/teachers via query params)
-      const subjectsUrl = `${API_BASE_URL}/subjects?include_sub_classes=true&include_teachers=true`;
+      const subjectsUrl = `${API_BASE_URL}/subjects?include_sub_classes=true&include_teachers=true&limit=200`;
       const subjectsPromise = fetch(subjectsUrl, { headers: { 'Authorization': `Bearer ${token}` } });
 
       // Fetch classes (includes subclasses)
