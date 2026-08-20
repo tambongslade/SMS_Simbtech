@@ -57,7 +57,7 @@ export default function AcademicYearsPage() {
     return apiResult.data.map((year: any): AcademicYear => ({
       id: year.id,
       name: year.name,
-      isActive: year.isActive,
+      isActive: year.isActive ?? year.isCurrent,
       startDate: String(year.start_date || year.startDate || ''),
       endDate: String(year.end_date || year.endDate || ''),
       terms: year.terms?.map((term: any): Term => ({
@@ -66,6 +66,10 @@ export default function AcademicYearsPage() {
         startDate: String(term.start_date || term.startDate || ''),
         endDate: String(term.end_date || term.endDate || ''),
         feeDeadline: String(term.fee_deadline || term.feeDeadline || ''),
+        isHoliday: !!(term.is_holiday ?? term.isHoliday),
+        classIds: (term.term_classes ?? term.termClasses ?? [])
+          .map((tc: any) => tc.class_id ?? tc.classId)
+          .filter((id: any) => typeof id === 'number'),
       })) || [],
     }));
   }, [apiResult]);
@@ -90,7 +94,12 @@ export default function AcademicYearsPage() {
         name: term.name,
         startDate: term.startDate,
         endDate: term.endDate,
-        feeDeadline: term.feeDeadline
+        // Holiday terms don't require a fee deadline; drop the field when empty.
+        ...(term.feeDeadline ? { feeDeadline: term.feeDeadline } : {}),
+        isHoliday: !!term.isHoliday,
+        ...(term.isHoliday && term.classIds && term.classIds.length > 0
+          ? { classIds: term.classIds }
+          : {})
       })) || []
     };
     console.log("Creating Academic Year Payload:", payload); // DEBUG
@@ -285,8 +294,17 @@ export default function AcademicYearsPage() {
                     <ul className="space-y-1 text-sm text-gray-600">
                       {year.terms.map(term => (
                         <li key={term.id} className="flex justify-between">
-                          <span>{term.name}: {formatDateDisplay(term.startDate)} - {formatDateDisplay(term.endDate)}</span>
-                          {term.feeDeadline && <span> (Fee Deadline: {formatDateDisplay(term.feeDeadline)})</span>}
+                          <span>
+                            {term.name}: {formatDateDisplay(term.startDate)} - {formatDateDisplay(term.endDate)}
+                            {term.isHoliday && (
+                              <span className="ml-2 px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full bg-amber-100 text-amber-800">
+                                Holiday{term.classIds && term.classIds.length > 0 ? ` · ${term.classIds.length} class${term.classIds.length === 1 ? '' : 'es'}` : ''}
+                              </span>
+                            )}
+                          </span>
+                          {!term.isHoliday && term.feeDeadline && (
+                            <span>(Fee Deadline: {formatDateDisplay(term.feeDeadline)})</span>
+                          )}
                         </li>
                       ))}
                     </ul>
