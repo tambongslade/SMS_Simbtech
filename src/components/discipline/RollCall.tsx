@@ -20,6 +20,8 @@ import {
   type NewAlert,
   type SubClassOption,
 } from '@/lib/disciplineApi';
+import { canQueueOffline } from '@/lib/offline/interceptor';
+import { isOnline } from '@/lib/offline/sync';
 
 interface RowState {
   status: RollCallStatus;
@@ -166,6 +168,18 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
     const missingArrival = lateEntries.find((s) => !rowsState[s.studentId].arrivalTime);
     if (missingArrival) {
       toast.error(`Enter the arrival time for ${missingArrival.name}.`);
+      return;
+    }
+
+    // This screen fans out to three endpoints, and only two of them are safe to
+    // replay (lateness throws on a repeat, so it is not queueable). Offline
+    // that would save present and absent while lateness failed, leaving a
+    // half-recorded register that the toast reports as a failure. Refuse the
+    // whole submit instead and say exactly why.
+    if (!isOnline() && lateEntries.length > 0 && !canQueueOffline('POST', '/discipline/lateness/bulk')) {
+      toast.error(
+        'Late arrivals cannot be saved offline yet. Save the present and absent students now, and record the late ones once you are back online.',
+      );
       return;
     }
 

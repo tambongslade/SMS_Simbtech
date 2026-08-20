@@ -1,5 +1,6 @@
 // src/lib/fetcher.ts
 import { getAuthToken } from '@/lib/auth'; // Use path alias
+import { knownOffline, maybeServeCachedUrl, rememberUrl } from '@/lib/offline/interceptor';
 
 /**
  * A reusable fetcher function for use with SWR.
@@ -16,7 +17,24 @@ export const fetcher = async (url: string) => {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, { headers });
+  // Known to be offline: serve the last good copy rather than throwing, so
+  // pages still render during a blackout. SWR keeps showing it until a real
+  // response replaces it.
+  if (knownOffline()) {
+    const cached = await maybeServeCachedUrl(url);
+    if (cached !== null) return cached;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, { headers });
+  } catch (error) {
+    // The connection died mid-request — navigator.onLine can still claim we are
+    // online, so this is the real detection point.
+    const cached = await maybeServeCachedUrl(url);
+    if (cached !== null) return cached;
+    throw error;
+  }
 
   if (!res.ok) {
     let errorInfo = { status: res.status, message: res.statusText };
@@ -41,7 +59,9 @@ export const fetcher = async (url: string) => {
   }
 
   try {
-    return await res.json(); // Parse and return JSON data
+    const json = await res.json(); // Parse and return JSON data
+    rememberUrl(url, json); // Keep it for the next blackout (best-effort).
+    return json;
   } catch (e) {
     console.error(`Failed to parse JSON response for ${url}:`, e);
     throw new Error(`Failed to parse JSON response from ${url}`); // Throw specific JSON parsing error

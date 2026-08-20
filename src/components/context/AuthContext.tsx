@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { clearCachedReads } from '@/lib/offline/cache';
 
 // Types
 interface User {
@@ -362,6 +363,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const logout = (): void => {
+        // Drop cached reads so the next person to use this phone cannot see the
+        // previous user's data. The unsent write queue is deliberately kept —
+        // it belongs to whoever entered it and reappears when they log back in.
+        void clearCachedReads();
         clearAuthData();
         setUser(null);
         setSelectedRole(null);

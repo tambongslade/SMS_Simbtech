@@ -1,4 +1,10 @@
 import { toast } from 'react-hot-toast';
+import {
+    knownOffline,
+    maybeQueueWrite,
+    maybeServeFromCache,
+    rememberRead,
+} from '@/lib/offline/interceptor';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'; // Fallback for safety
 
@@ -111,6 +117,26 @@ async function request<T = any>(
         url = `${url}?${queryString}`;
     }
 
+    // The endpoint with its query string attached — the cache is keyed on the
+    // exact URL the caller asked for, not the bare path.
+    const method = (options.method ?? 'GET').toUpperCase();
+    const offlineEndpoint = options.params
+        ? `${endpoint}${endpoint.includes('?') ? '&' : '?'}${new URLSearchParams(options.params).toString()}`
+        : endpoint;
+
+    // Already known to be offline: skip the doomed request entirely. A write
+    // goes to the queue, a read comes back from cache, and only if neither is
+    // possible do we fall through and let fetch produce the real error.
+    if (knownOffline()) {
+        if (method !== 'GET') {
+            const queued = await maybeQueueWrite(method, endpoint, options.body, options.silent);
+            if (queued) return queued as T;
+        } else {
+            const cached = await maybeServeFromCache<T>(offlineEndpoint, expectedResponseType);
+            if (cached) return cached;
+        }
+    }
+
     // Stringify body if it's an object and Content-Type is not already set to something else
     let body = options.body;
     if (typeof body === 'object' && body !== null && !(body instanceof FormData) && !(headers['Content-Type'] || headers['content-type'])) {
@@ -175,8 +201,12 @@ async function request<T = any>(
             case 'arrayBuffer':
                 return response.arrayBuffer() as Promise<T>;
             case 'json':
-            default:
-                return response.json() as Promise<T>;
+            default: {
+                const json = await response.json();
+                // Keep it for the next blackout. Best-effort and non-blocking.
+                if (method === 'GET') rememberRead(offlineEndpoint, expectedResponseType, json);
+                return json as T;
+            }
         }
     } catch (error) {
         // Log network errors or errors from response.json()
@@ -185,6 +215,16 @@ async function request<T = any>(
         // "Failed to fetch" message means nothing to users. Re-throw with the
         // friendly text so components that toast error.message stay readable.
         if (error instanceof TypeError) {
+            // The connection died mid-request. navigator.onLine can still say
+            // "online" here (captive portals, a dead uplink), so this is the
+            // real detection point, not just a fallback for the check above.
+            if (method !== 'GET') {
+                const queued = await maybeQueueWrite(method, endpoint, options.body, options.silent);
+                if (queued) return queued as T;
+            } else {
+                const cached = await maybeServeFromCache<T>(offlineEndpoint, expectedResponseType);
+                if (cached) return cached;
+            }
             const friendly = 'Could not reach the server. Please check your internet connection and try again.';
             toast.error(friendly, { id: 'api-error' });
             throw new Error(friendly);
