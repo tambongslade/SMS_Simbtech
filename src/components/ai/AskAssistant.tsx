@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { apiService } from '@/lib/apiService';
+import ThinkingIndicator from '@/components/ai/ThinkingIndicator';
 import {
     SparklesIcon,
     PaperAirplaneIcon,
@@ -149,14 +150,7 @@ export default function AskAssistant() {
 
                         <div className="flex justify-start">
                             <div className="max-w-[85%] rounded-2xl rounded-bl-sm border border-gray-200 bg-white px-4 py-3 shadow-sm">
-                                {entry.pending && (
-                                    <div className="flex items-center gap-2 text-gray-500">
-                                        <span className="h-2 w-2 animate-pulse rounded-full bg-indigo-500" />
-                                        <span className="text-sm">
-                                            Working it out. Uncommon questions take around 25 seconds.
-                                        </span>
-                                    </div>
-                                )}
+                                {entry.pending && <ThinkingIndicator />}
 
                                 {entry.error && (
                                     <div className="text-sm">

@@ -52,7 +52,7 @@ export default function ThinkingIndicator() {
                     // replays on each change, rather than the text swapping
                     // abruptly mid-wait.
                     key={stage.label}
-                    className="text-sm text-gray-700 animate-[fadeIn_400ms_ease-out]"
+                    className="stage-label text-sm text-gray-700"
                 >
                     {stage.label}
                     <span className="inline-block w-6 text-left">
@@ -67,6 +67,9 @@ export default function ThinkingIndicator() {
             </div>
 
             <style jsx>{`
+                .stage-label {
+                    animation: fadeIn 400ms ease-out;
+                }
                 @keyframes fadeIn {
                     from { opacity: 0; transform: translateY(2px); }
                     to   { opacity: 1; transform: none; }
@@ -83,13 +86,16 @@ function Ellipsis() {
             {[0, 1, 2].map(i => (
                 <span
                     key={i}
-                    className="animate-[blink_1.4s_ease-in-out_infinite]"
+                    className="dot"
                     style={{ animationDelay: `${i * 0.2}s` }}
                 >
                     .
                 </span>
             ))}
             <style jsx>{`
+                .dot {
+                    animation: blink 1.4s ease-in-out infinite;
+                }
                 @keyframes blink {
                     0%, 60%, 100% { opacity: 0.2; }
                     30%           { opacity: 1; }
