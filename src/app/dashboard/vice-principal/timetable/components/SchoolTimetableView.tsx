@@ -267,27 +267,29 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     setNewTeacherOptions(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
   };
 
-  // Add a new assignment to the current slot
+  // Add a new assignment to the current slot. Teacher is optional; clashes
+  // are allowed and surfaced as warnings after the save.
   const handleAddAssignment = () => {
-    if (!newSubject || !newTeacher || !editingPeriod) return;
+    if (!newSubject || !editingPeriod) return;
 
-    const conflictClass = isTeacherAssignedElsewhere(
-      newTeacher,
-      editingPeriod.dayOfWeek,
-      editingPeriod.startTime,
-      editingPeriod.endTime,
-      editingSubClassId
-    );
-    if (conflictClass) {
-      toast.error(`Teacher is already assigned to ${conflictClass} during this time`);
-      return;
+    if (newTeacher) {
+      const conflictClass = isTeacherAssignedElsewhere(
+        newTeacher,
+        editingPeriod.dayOfWeek,
+        editingPeriod.startTime,
+        editingPeriod.endTime,
+        editingSubClassId
+      );
+      if (conflictClass) {
+        toast(`Teacher is also booked in ${conflictClass} during this time — saved with a warning`, { icon: '⚠️' });
+      }
     }
 
-    addSlotAssignment(editingSubClassId, editingPeriod.id, newSubject, newTeacher);
+    addSlotAssignment(editingSubClassId, editingPeriod.id, newSubject, newTeacher || null);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
-    toast.success("Assignment added");
+    toast.success(newTeacher ? "Assignment added" : "Subject added without teacher");
   };
 
   // Remove an assignment from the current slot
@@ -689,19 +691,24 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
                   />
                 </div>
                 <div>
-                  <label htmlFor="newTeacherSelect" className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+                  <label htmlFor="newTeacherSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                    Teacher <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
                   <Select
                     id="newTeacherSelect"
                     value={newTeacher}
                     onChange={(e) => setNewTeacher(e.target.value)}
-                    options={[{ value: '', label: '-- Select Teacher --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
+                    options={[{ value: '', label: '-- No teacher yet --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
                     disabled={!newSubject}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave blank to reserve the slot for a subject you'll assign a teacher to later.
+                  </p>
                 </div>
                 <Button
                   color="primary"
                   onClick={handleAddAssignment}
-                  disabled={!newSubject || !newTeacher}
+                  disabled={!newSubject}
                   className="w-full"
                 >
                   <PlusIcon className="w-4 h-4 mr-1 inline" />
