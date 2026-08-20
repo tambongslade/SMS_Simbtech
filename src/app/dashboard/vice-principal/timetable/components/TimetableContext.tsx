@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
 
@@ -392,14 +392,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
           level: fetchedClasses.find(c => c.id === String(sc.class?.id ?? sc.classId))?.level
         })) || [];
 
-        fetchedSubClasses.sort((a, b) => {
-          if (a.level === b.level) {
-            return a.name.localeCompare(b.name);
-          }
-          return (a.level || 0) - (b.level || 0);
-        });
-
-        setSubClasses(fetchedSubClasses);
+        setSubClasses(sortSubClassesByLevel(fetchedSubClasses));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fetchedSubjects = subjectResult.data?.map((sub: any) => ({ id: String(sub.id), name: sub.name })) || [];

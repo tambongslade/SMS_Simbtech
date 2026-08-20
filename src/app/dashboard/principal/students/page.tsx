@@ -11,7 +11,7 @@ import {
   CameraIcon
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { useAuth } from '../../../../components/context/AuthContext'; // Add useAuth import
 import { StudentPhoto } from '../../../../components/ui';
 import StudentExtrasModal from '@/components/students/StudentExtrasModal';
@@ -339,7 +339,7 @@ export default function StudentManagement() {
         classId: sc.class?.id,
         className: sc.class?.name,
       })) || [];
-      setSubClasses(fetchedSubClasses);
+      setSubClasses(sortSubClassesByLevel(fetchedSubClasses));
     } catch (error: any) {
       console.error("Failed to fetch subclasses:", error);
       // toast.error(`Failed to load subclasses: ${error.message}`); // Handled by apiService

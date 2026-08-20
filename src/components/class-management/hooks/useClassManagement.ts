@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import useSWR, { useSWRConfig } from 'swr';
 import { Class, SubClass } from '../types/class';
 import apiService from '../../../lib/apiService'; // Import apiService
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // Define Teacher type locally for selection
 type Teacher = {
@@ -101,7 +101,7 @@ export const useClassManagement = () => {
             oldStudentAddFee: cls.oldStudentFee ?? cls.old_student_fee ?? cls.oldStudentAddFee ?? 0,
             miscellaneousFee: cls.miscellaneous_fee ?? cls.miscellaneousFee ?? 0,
             studentCount: cls.student_count ?? cls.studentCount,
-            subClasses: (cls.sub_classes || cls.subClasses)?.map((sub: any): SubClass => ({
+            subClasses: sortSubClassesByLevel((cls.sub_classes || cls.subClasses)?.map((sub: any): SubClass => ({
                 id: sub.id,
                 name: sub.name,
                 classId: sub.class_id || sub.classId || cls.id,
@@ -109,7 +109,7 @@ export const useClassManagement = () => {
                 classMasterId: sub.class_master_id ?? sub.classMasterId ?? null,
                 classMasterName: sub.classMaster?.name ?? sub.class_master?.name ?? null,
                 subjects: sub.subjects || [], // Initialize subjects array
-            })) || [],
+            })) || []),
         }));
         return sortClassesByLevel(mapped);
     }, [classesApiResult]);

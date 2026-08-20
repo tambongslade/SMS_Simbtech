@@ -4,6 +4,7 @@ import { AcademicCapIcon, ChartBarIcon, UserGroupIcon, ClipboardDocumentListIcon
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface Subject {
   id: number;
@@ -53,7 +54,11 @@ export default function TeacherSubjects() {
     (url: string) => apiService.get(url)
   );
 
-  const subjects = subjectsData?.data || [];
+  // Each subject lists the classes it is taught in — keep them in academic order.
+  const subjects: Subject[] = (subjectsData?.data || []).map((s: Subject) => ({
+    ...s,
+    subClasses: sortSubClassesByLevel(s.subClasses || []),
+  }));
 
   // Enhanced error handling with access control awareness
   useEffect(() => {

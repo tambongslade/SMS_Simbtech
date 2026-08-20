@@ -11,6 +11,7 @@ import {
   unassignDisciplineMaster,
   type DisciplineMasterUser,
 } from '@/lib/disciplineExtApi';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface SubClassOption {
   id: number;
@@ -46,7 +47,7 @@ export default function DmAssignmentsPage() {
         apiService.get('/classes/sub-classes?limit=200'),
       ]);
       setDms(dmList);
-      setSubClasses((subRes.data || []).map((s: any) => ({ id: s.id, name: s.name, className: s.class?.name })));
+      setSubClasses(sortSubClassesByLevel((subRes.data || []).map((s: any) => ({ id: s.id, name: s.name, className: s.class?.name }))));
     } catch (error: any) {
       toast.error(error.message || 'Failed to load discipline masters.');
     } finally {

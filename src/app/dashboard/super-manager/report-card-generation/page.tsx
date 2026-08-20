@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // --- Types --- (Using refined types)
 
@@ -135,7 +136,7 @@ export default function ReportCardGenerationPage() {
                     }))
                 })) || []);
 
-                setAllSubClassesData(subClassesData.data || []);
+                setAllSubClassesData(sortSubClassesByLevel(subClassesData.data || []));
 
             } catch (err: any) {
                 const errorMsg = `Error loading initial filters: ${err.message}`;

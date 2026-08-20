@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { Modal } from '@/components/ui/Modal'; // Base Modal component
 import { Button } from '@/components/ui/Button'; // Assuming a reusable Button component exists
 import { Input } from '@/components/ui/Input'; // Assuming a reusable Input component exists
@@ -122,7 +122,7 @@ export const NewStudentPaymentModal: React.FC<NewStudentPaymentModalProps> = ({
   useEffect(() => {
     if (selectedClassId) {
       const selectedClass = classes.find(c => c.id.toString() === selectedClassId);
-      setSubClasses(selectedClass?.subClasses || []);
+      setSubClasses(sortSubClassesByLevel(selectedClass?.subClasses || []));
       setSelectedSubClassId(''); // Reset subclass selection
     } else {
       setSubClasses([]);

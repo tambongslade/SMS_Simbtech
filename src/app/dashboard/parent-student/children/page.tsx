@@ -12,6 +12,7 @@ import {
     ExclamationCircleIcon,
     PlusIcon
 } from '@heroicons/react/24/outline';
+import { compareClasses } from '@/lib/classOrdering';
 
 export default function MyChildrenPage() {
     const router = useRouter();
@@ -67,7 +68,8 @@ export default function MyChildrenPage() {
     });
 
     // Get unique classes for filter
-    const uniqueClasses = [...new Set(children.map(child => child.className).filter(Boolean))];
+    const uniqueClasses = [...new Set(children.map(child => child.className).filter(Boolean))]
+        .sort((a, b) => compareClasses({ name: a }, { name: b }));
 
     return (
         <div className="p-4 sm:p-6">

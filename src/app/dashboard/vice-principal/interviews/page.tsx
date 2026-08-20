@@ -14,6 +14,7 @@ import apiService from '@/lib/apiService';
 import { useAuth } from '@/components/context/AuthContext';
 import Modal from '@/components/ui/Modal'; // Assuming Modal component is available
 import { Input } from '@/components/ui/Input'; // Importing Input component as named export
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface Interview {
   id: number;
@@ -100,7 +101,7 @@ export default function InterviewsPage() {
       setInterviews(interviewsData.data);
     }
     if (subClassesData) {
-      setSubClasses(subClassesData.data);
+      setSubClasses(sortSubClassesByLevel(subClassesData.data));
     }
     setIsLoading(interviewsLoading || subClassesLoading);
 

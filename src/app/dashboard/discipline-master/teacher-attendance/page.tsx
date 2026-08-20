@@ -11,6 +11,7 @@ import {
   getTeacherAttendanceDay,
   saveTeacherAttendanceDay,
 } from '@/lib/teacherAttendanceApi';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface SubClassOption {
   id: number;
@@ -68,7 +69,7 @@ export default function TeacherAttendancePage() {
     (async () => {
       try {
         const res = await apiService.get('/classes/sub-classes?limit=200');
-        setSubClasses((res.data || []).map((s: any) => ({ id: s.id, name: s.name, className: s.class?.name })));
+        setSubClasses(sortSubClassesByLevel((res.data || []).map((s: any) => ({ id: s.id, name: s.name, className: s.class?.name }))));
       } catch { /* filter stays empty */ }
     })();
   }, []);

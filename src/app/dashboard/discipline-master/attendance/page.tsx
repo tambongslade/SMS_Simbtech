@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import toast, { Toaster } from 'react-hot-toast';
 import {
   CalendarIcon,
@@ -860,7 +860,7 @@ const AttendanceDashboardPage: React.FC = () => {
   });
 
   // Get current subclasses
-  const currentSubclasses = classes.find(c => c.id === selectedClassId)?.subClasses || [];
+  const currentSubclasses = sortSubClassesByLevel(classes.find(c => c.id === selectedClassId)?.subClasses || []);
 
   return (
     <div className="container mx-auto p-4 md:p-6">

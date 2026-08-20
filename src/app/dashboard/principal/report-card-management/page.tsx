@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // --- Types ---
 type SelectOption = {
@@ -110,7 +111,7 @@ export default function PrincipalReportCardManagementPage() {
             try {
                 const subClassesResponse = await apiService.get('/classes/sub-classes?limit=40');
                 console.log("Report Card - All SubClasses Data Raw:", subClassesResponse);
-                setAllSubClassesData(subClassesResponse.data || []);
+                setAllSubClassesData(sortSubClassesByLevel(subClassesResponse.data || []));
 
             } catch (err: any) {
                 const errorMsg = `Error loading initial filters: ${err.message}`;

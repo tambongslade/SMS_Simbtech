@@ -9,6 +9,7 @@ import useSWR from 'swr';
 import apiService from '../../../../../lib/apiService'; // Import apiService
 import feeService, { UnifiedPaymentRequest } from '../../../../../lib/feeService';
 import { useAuth } from '@/components/context/AuthContext';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // API Configuration - REMOVED
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -111,7 +112,7 @@ export const useFeeManagement = () => {
 
   // 3. Fetch Classes 
   const { data: classesResult, error: classesErrorSWR, isLoading: isLoadingClassesSWR } = useSWR<{ data: Class[] }>('/classes?includeSubClasses=true', fetcher);
-  const classesList = useMemo(() => classesResult?.data || [], [classesResult]);
+  const classesList = useMemo(() => sortClassesByLevel(classesResult?.data || []), [classesResult]);
 
   // 4. Fetch Fee Records (Dependent on Current Academic Year and Filters)
   const feeRecordsKey = currentAcademicYear

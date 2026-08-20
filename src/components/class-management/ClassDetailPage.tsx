@@ -16,6 +16,7 @@ import {
 import { StatsCard, Badge } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 type TabKey = 'overview' | 'subjects' | 'finances';
 
@@ -110,12 +111,14 @@ export default function ClassDetailPage() {
         const raw = (classesResult?.data || []).find((c: any) => Number(c.id) === classId);
         if (!raw) return null;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const subClasses: SubClassInfo[] = (raw.subClasses || raw.sub_classes || []).map((sub: any) => ({
-            id: sub.id,
-            name: sub.name,
-            studentCount: sub.student_count ?? sub.studentCount ?? 0,
-            classMasterName: sub.classMasterName ?? sub.class_master_name ?? sub.classMaster?.name ?? null,
-        }));
+        const subClasses: SubClassInfo[] = sortSubClassesByLevel(
+            (raw.subClasses || raw.sub_classes || []).map((sub: any) => ({
+                id: sub.id,
+                name: sub.name,
+                studentCount: sub.student_count ?? sub.studentCount ?? 0,
+                classMasterName: sub.classMasterName ?? sub.class_master_name ?? sub.classMaster?.name ?? null,
+            })),
+        );
         return {
             id: raw.id,
             name: raw.name,

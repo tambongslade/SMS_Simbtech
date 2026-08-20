@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { StudentPhoto } from '@/components/ui';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // Types
 interface Student {
@@ -104,7 +105,7 @@ export default function TeacherStudents() {
   );
 
   const students = useMemo(() => studentsData?.data || [], [studentsData]);
-  const subClasses = useMemo(() => subClassesData?.data || [], [subClassesData]);
+  const subClasses = useMemo(() => sortSubClassesByLevel(subClassesData?.data || []), [subClassesData]);
 
   // Get unique subjects that the teacher teaches across all subclasses
   const teacherSubjects = useMemo(() => {

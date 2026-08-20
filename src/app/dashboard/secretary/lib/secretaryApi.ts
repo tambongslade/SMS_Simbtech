@@ -1,4 +1,5 @@
 import apiService from '@/lib/apiService';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // ---- Shared types for the Secretary dashboard ----
 
@@ -89,12 +90,12 @@ export interface CreateTeacherPayload {
 
 export const fetchClasses = async (): Promise<ClassInfo[]> => {
   const res = await apiService.get<Paginated<ClassInfo>>('/classes?limit=100');
-  return res.data || [];
+  return sortClassesByLevel(res.data || []);
 };
 
 export const fetchSubClasses = async (): Promise<SubClassInfo[]> => {
   const res = await apiService.get<Paginated<SubClassInfo>>('/classes/sub-classes?limit=100');
-  return res.data || [];
+  return sortSubClassesByLevel(res.data || []);
 };
 
 // The /students endpoint nests class/subclass under enrollments[]; flatten the

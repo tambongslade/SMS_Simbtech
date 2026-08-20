@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 // Assuming Class and Term types are available or imported
 import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/class"; // Assuming SubClass is exported here
 import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon, ChevronDownIcon } from '@heroicons/react/24/outline'; // Import icons
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 interface FiltersProps {
   sortMode?: 'latest' | 'name' | 'balance';
@@ -65,7 +66,7 @@ export const Filters = ({
   }, []);
 
   // Use top-level classes for filter
-  const allClasses = classes;
+  const allClasses = sortClassesByLevel(classes);
 
   const handleSubclassSummary = () => {
     if (selectedClass && selectedClass !== 'all' && onShowSubclassSummary) {

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Subject, SubjectAssignment } from '../types/subject';
 import { TrashIcon, PlusIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { AssignSubjectModal } from './AssignSubjectModal';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // Add ClassInfo type here or import from a shared location
 type ClassInfo = {
@@ -68,7 +69,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     // Get available subclasses for the selected class filter
     const availableSubclasses = useMemo(() => {
         if (selectedClassId === '') return [];
-        return allClasses.find(c => c.id === selectedClassId)?.subClasses || [];
+        return sortSubClassesByLevel(allClasses.find(c => c.id === selectedClassId)?.subClasses || []);
     }, [selectedClassId, allClasses]);
 
     // Determine the filtered subject object (if any)

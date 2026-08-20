@@ -20,6 +20,7 @@ import {
   type FeeGroupStats,
   type FeeStudentRow,
 } from '@/lib/feeStatsApi';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 type Drill = { title: string; rows: FeeStudentRow[] } | null;
 
@@ -81,7 +82,7 @@ export default function BursarFeeStatisticsPage() {
   );
 
   const classes = useMemo(() => {
-    const list = data?.classes ?? [];
+    const list = sortClassesByLevel(data?.classes ?? []);
     const q = search.trim().toLowerCase();
     if (!q) return list;
     return list.filter(

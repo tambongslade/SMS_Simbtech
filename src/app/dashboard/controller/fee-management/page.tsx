@@ -19,6 +19,7 @@ import {
   BuildingLibraryIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -522,7 +523,7 @@ export default function ControllerFeeManagementPage() {
 
   // Classes for filter dropdown
   const { data: classesData } = useSWR('/classes', (url: string) => apiService.get(url));
-  const classes: ClassOption[] = classesData?.data || classesData || [];
+  const classes: ClassOption[] = sortClassesByLevel(classesData?.data || classesData || []);
 
   // Debounce search
   useEffect(() => {

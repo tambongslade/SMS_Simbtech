@@ -4,6 +4,7 @@ import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outl
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // Types
 interface Subject {
@@ -120,7 +121,7 @@ export default function SubmitMarks() {
 
   const academicYears = academicYearsData?.data || [];
   const examSequences = examSequencesData?.data || [];
-  const subClasses = subClassesData?.data || [];
+  const subClasses = sortSubClassesByLevel(subClassesData?.data || []);
   const subjects = subjectsData?.data || [];
 
   // Filter exam sequences by selected academic year

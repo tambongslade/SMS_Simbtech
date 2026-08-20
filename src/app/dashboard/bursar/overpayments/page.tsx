@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import {
@@ -94,7 +94,16 @@ export default function BursarOverpaymentsPage() {
     apiService
       .get<{ data: any[] }>('/classes/sub-classes?limit=100')
       .then((r) =>
-        setSubClasses((r.data || []).map((sc: any) => ({ id: sc.id, name: sc.name, classId: sc.class?.id ?? sc.classId }))),
+        setSubClasses(
+          sortSubClassesByLevel(
+            (r.data || []).map((sc: any) => ({
+              id: sc.id,
+              name: sc.name,
+              classId: sc.class?.id ?? sc.classId,
+              className: sc.class?.name,
+            })),
+          ),
+        ),
       )
       .catch(() => {});
   }, []);
