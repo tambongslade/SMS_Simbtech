@@ -134,5 +134,9 @@
       "owner": "simbtech",
       "repo": "sms-desktop"
     }
+  },
+  "allowScripts": {
+    "sharp@0.34.5": true,
+    "core-js@3.49.0": true
   }
 }
