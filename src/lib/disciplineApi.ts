@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { compareSubClasses, sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // ---------------------------------------------------------------------------
 // Discipline Master API client
@@ -331,7 +332,9 @@ const normalizeSubClasses = (list: any[]): SubClassOption[] =>
       name: sc.name,
       className: sc.class?.name ?? sc.className,
     }))
-    .filter((sc) => Number.isFinite(sc.id) && sc.id > 0 && !!sc.name);
+    .filter((sc) => Number.isFinite(sc.id) && sc.id > 0 && !!sc.name)
+    // Pickers everywhere show classes in academic order: Form 1 → Upper Sixth.
+    .sort(compareSubClasses);
 
 /**
  * Fetch subclasses for pickers. Handles both the flat and double-nested list
@@ -350,9 +353,11 @@ export const listSubClassOptions = async (): Promise<SubClassOption[]> => {
   try {
     const c = await apiService.get<any>('/classes?limit=100');
     const classes: any[] = Array.isArray(c?.data) ? c.data : [];
-    return classes.flatMap((cl: any) =>
-      normalizeSubClasses(
-        (cl.subClasses || cl.sub_classes || []).map((sc: any) => ({ ...sc, className: cl.name })),
+    return sortSubClassesByLevel(
+      classes.flatMap((cl: any) =>
+        normalizeSubClasses(
+          (cl.subClasses || cl.sub_classes || []).map((sc: any) => ({ ...sc, className: cl.name })),
+        ),
       ),
     );
   } catch {

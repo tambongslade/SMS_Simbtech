@@ -18,6 +18,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { toast } from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface VicePrincipalDashboardData {
   totalStudents: number;
@@ -129,7 +130,9 @@ export default function VicePrincipalDashboard() {
         </CardHeader>
         <CardBody>
           <div className="space-y-3">
-            {(dashboardData?.subclassCapacityUtilization ?? []).slice(0, 8).map((subclass, index) => {
+            {sortSubClassesByLevel(
+              (dashboardData?.subclassCapacityUtilization ?? []).map(s => ({ ...s, name: s.subclassName, className: s.className })),
+            ).slice(0, 8).map((subclass, index) => {
               const rate = Math.min(100, Math.max(0, subclass.utilizationRate));
               return (
                 <div key={index}>

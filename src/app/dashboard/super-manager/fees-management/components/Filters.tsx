@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/class"; // Assuming SubClass is exported here
 import { AcademicYear, ExamSequence } from "@/app/dashboard/super-manager/academic-years/types/academic-year";
 import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon, ChevronDownIcon } from '@heroicons/react/24/outline'; // Import icons
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 interface FiltersProps {
   searchQuery: string;
@@ -58,7 +59,7 @@ export const Filters = ({
   }, []);
 
   // Prepare class options (top-level classes only)
-  const allClasses = classes;
+  const allClasses = sortClassesByLevel(classes);
 
   const handleSubclassSummary = () => {
     if (selectedClass && selectedClass !== 'all' && onShowSubclassSummary) {

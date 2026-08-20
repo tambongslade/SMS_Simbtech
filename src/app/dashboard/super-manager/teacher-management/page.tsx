@@ -40,7 +40,7 @@ export default function TeacherManagementPage() {
 
   useEffect(() => {
     apiService
-      .get('/subjects')
+      .get('/subjects?limit=200')
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .then((result) => setAllSubjects((result?.data ?? []).map((s: any) => ({ id: s.id, name: s.name }))))
       .catch(() => setAllSubjects([]));

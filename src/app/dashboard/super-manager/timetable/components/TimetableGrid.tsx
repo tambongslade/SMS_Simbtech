@@ -210,29 +210,31 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     setNewTeacherOptions(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
   };
 
-  // Add a new assignment to the current slot
+  // Add a new assignment to the current slot. Teacher is optional — a slot
+  // can hold a subject without a teacher yet. A teacher already booked in
+  // another class at this time is allowed too; the server will save the slot
+  // and return a warning that the grid surfaces afterwards.
   const handleAddAssignment = () => {
-    if (!newSubject || !newTeacher || !editingPeriod) return;
+    if (!newSubject || !editingPeriod) return;
 
-    // Check for teacher conflict in other classes — by time, so a clash with
-    // the other cycle is caught too.
-    const conflictClass = isTeacherAssignedElsewhere(
-      newTeacher,
-      editingPeriod.dayOfWeek,
-      editingPeriod.startTime,
-      editingPeriod.endTime,
-      selectedSubClassId
-    );
-    if (conflictClass) {
-      toast.error(`Teacher is already assigned to ${conflictClass} during this time`);
-      return;
+    if (newTeacher) {
+      const conflictClass = isTeacherAssignedElsewhere(
+        newTeacher,
+        editingPeriod.dayOfWeek,
+        editingPeriod.startTime,
+        editingPeriod.endTime,
+        selectedSubClassId
+      );
+      if (conflictClass) {
+        toast(`Teacher is also booked in ${conflictClass} during this time — saved with a warning`, { icon: '⚠️' });
+      }
     }
 
-    addSlotAssignment(selectedSubClassId, editingPeriod.id, newSubject, newTeacher);
+    addSlotAssignment(selectedSubClassId, editingPeriod.id, newSubject, newTeacher || null);
     setNewSubject('');
     setNewTeacher('');
     setNewTeacherOptions([]);
-    toast.success("Assignment added");
+    toast.success(newTeacher ? "Assignment added" : "Subject added without teacher");
   };
 
   // Remove an assignment from the current slot
@@ -563,19 +565,24 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                   />
                 </div>
                 <div>
-                  <label htmlFor="newTeacherSelect" className="block text-sm font-medium text-gray-700 mb-1">Teacher</label>
+                  <label htmlFor="newTeacherSelect" className="block text-sm font-medium text-gray-700 mb-1">
+                    Teacher <span className="text-gray-400 font-normal">(optional)</span>
+                  </label>
                   <Select
                     id="newTeacherSelect"
                     value={newTeacher}
                     onChange={(e) => setNewTeacher(e.target.value)}
-                    options={[{ value: '', label: '-- Select Teacher --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
+                    options={[{ value: '', label: '-- No teacher yet --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
                     disabled={!newSubject}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Leave blank to reserve the slot for a subject you'll assign a teacher to later.
+                  </p>
                 </div>
                 <Button
                   color="primary"
                   onClick={handleAddAssignment}
-                  disabled={!newSubject || !newTeacher}
+                  disabled={!newSubject}
                   className="w-full"
                 >
                   <PlusIcon className="w-4 h-4 mr-1 inline" />

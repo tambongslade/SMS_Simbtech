@@ -9,6 +9,7 @@ import {
     type TeacherSearchItem,
     type TeacherSearchMeta,
 } from '@/lib/teacherSearchApi';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 /** Searching only starts once the user has typed this many characters. */
 export const MIN_SEARCH_LENGTH = 3;
@@ -193,7 +194,7 @@ export function useTeacherFilterOptions() {
         const load = async () => {
             try {
                 const [subjectsResult, classesResult] = await Promise.all([
-                    apiService.get('/subjects', { silent: true }).catch(() => null),
+                    apiService.get('/subjects?limit=200', { silent: true }).catch(() => null),
                     apiService.get('/classes', { params: { includeSubClasses: 'true' }, silent: true }).catch(() => null),
                 ]);
                 if (cancelled) return;
@@ -208,7 +209,7 @@ export function useTeacherFilterOptions() {
                         mappedSubClasses.push({ id: sc.id, name: sc.name, className: c.name });
                     });
                 });
-                setSubClasses(mappedSubClasses);
+                setSubClasses(sortSubClassesByLevel(mappedSubClasses));
             } catch {
                 // Filter dropdowns are optional — a failure here must not break the page.
             }

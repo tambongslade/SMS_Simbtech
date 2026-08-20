@@ -34,6 +34,7 @@ import {
   type SchemeLesson,
   type LessonEntryType,
 } from '@/lib/subjectSchemeApi';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 interface SchemeDetailPageProps {
   schemeId: number;
@@ -141,7 +142,7 @@ export function SchemeDetailPage({ schemeId, basePath, readOnly = false }: Schem
       .catch(() => setSubjects([]));
     apiService
       .get<{ data: { id: number; name: string }[] }>('/classes?limit=100')
-      .then((r) => setClasses(r.data || []))
+      .then((r) => setClasses(sortClassesByLevel(r.data || [])))
       .catch(() => setClasses([]));
   }, []);
 

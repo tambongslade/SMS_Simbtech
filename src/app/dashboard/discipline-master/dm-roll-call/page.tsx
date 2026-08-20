@@ -19,6 +19,7 @@ import {
   getDmRollCallStatus,
   recordDmRollCall,
 } from '@/lib/disciplineExtApi';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface SubClassOption {
   id: number;
@@ -57,7 +58,7 @@ export default function DmRollCallPage() {
           name: s.name,
           className: s.class?.name,
         }));
-        setSubClasses(list);
+        setSubClasses(sortSubClassesByLevel(list));
       } catch {
         toast.error('Failed to load sub-classes.');
       }

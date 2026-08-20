@@ -34,7 +34,7 @@ import {
   ReceiptRefundIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
-import { Fade } from '@/components/ui';
+import { Fade, PullToRefresh } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useAuth } from '@/components/context/AuthContext';
@@ -111,6 +111,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/bursar/expenditures' },
     { icon: ClipboardDocumentListIcon, label: 'Broken Property', href: '/dashboard/bursar/broken-property' },
     { icon: UserPlusIcon, label: 'Student Registration', href: '/dashboard/bursar/student-registration' },
+    { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/bursar/enrollment' },
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: ChartBarIcon, label: 'Fee Statistics', href: '/dashboard/bursar/fee-statistics' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/bursar/defaulters' },
@@ -195,6 +196,7 @@ const menuItems: MenuItemsStructure = {
     },
     { label: 'Classes & Subclasses', href: '/dashboard/super-manager/classes', icon: BuildingLibraryIcon },
     { label: 'Student Management', href: '/dashboard/super-manager/student-management', icon: UsersIcon },
+    { label: 'Enrollment', href: '/dashboard/super-manager/enrollment', icon: UsersIcon },
     { label: 'Subject Management', href: '/dashboard/super-manager/subject-management', icon: BookOpenIcon },
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
@@ -849,6 +851,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
+      <PullToRefresh />
       {/* *** Add Toaster Component here *** */}
       {/* Position can be adjusted, see react-hot-toast docs */}
       <Toaster

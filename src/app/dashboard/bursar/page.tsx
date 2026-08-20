@@ -8,6 +8,7 @@ import {
   UserPlusIcon,
   DocumentChartBarIcon,
   ChartBarIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
@@ -19,6 +20,13 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/bursar/student-registration',
     icon: UserPlusIcon,
     color: 'green',
+  },
+  {
+    label: 'Enrollment',
+    description: 'Students per class & subclass',
+    href: '/dashboard/bursar/enrollment',
+    icon: UsersIcon,
+    color: 'purple',
   },
   {
     label: 'Fee Management',

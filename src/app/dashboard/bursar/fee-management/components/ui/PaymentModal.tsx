@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Student, NewStudent } from '../../types';
 import apiService from '../../../../../../lib/apiService';
@@ -128,7 +128,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const fetchSubClasses = async () => {
       try {
         const result = await apiService.get('/classes/sub-classes?limit=40');
-        setSubClasses(result.data || []);
+        setSubClasses(sortSubClassesByLevel(result.data || []));
       } catch (error) {
         setSubClasses([]);
       }

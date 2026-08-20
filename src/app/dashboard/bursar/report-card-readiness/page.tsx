@@ -15,6 +15,7 @@ import { Button, Select, Input } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { fmtMoney } from '@/lib/feeItemsApi';
 import { getSubclassFeeStatus, type SubclassFeeStatus } from '@/lib/feeStatusApi';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 type SubClassInfo = { id: number; name: string; classId?: number; className?: string };
 
@@ -34,12 +35,14 @@ export default function BursarReportCardReadinessPage() {
       .get<{ data: any[] }>('/classes/sub-classes?limit=100')
       .then((r) =>
         setSubClasses(
-          (r.data || []).map((sc: any) => ({
-            id: sc.id,
-            name: sc.name,
-            classId: sc.class?.id ?? sc.classId,
-            className: sc.class?.name,
-          })),
+          sortSubClassesByLevel(
+            (r.data || []).map((sc: any) => ({
+              id: sc.id,
+              name: sc.name,
+              classId: sc.class?.id ?? sc.classId,
+              className: sc.class?.name,
+            })),
+          ),
         ),
       )
       .catch(() => setSubClasses([]));

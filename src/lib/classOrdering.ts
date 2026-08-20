@@ -7,9 +7,9 @@
 // numeric-aware locale compare for anything unrecognised.
 
 export interface ClassLike {
-    id?: number | string;
-    name?: string;
-    level?: number | string;
+    id?: number | string | null;
+    name?: string | null;
+    level?: number | string | null;
 }
 
 // Lower rank sorts first. Unrecognised names sort last (Infinity) but keep a
@@ -42,3 +42,22 @@ export const compareClasses = (a: ClassLike, b: ClassLike): number => {
 // Returns a new, academically-ordered array; never mutates the input.
 export const sortClassesByLevel = <T extends ClassLike>(classes: T[] | null | undefined): T[] =>
     [...(classes ?? [])].sort(compareClasses);
+
+// Subclasses (streams) carry a bare name ("A", "North") plus their parent class,
+// so rank on the parent class name when we have it and fall back to the subclass
+// name itself. Within a class, order alphabetically/numerically.
+export interface SubClassLike extends ClassLike {
+    className?: string | null;
+    class?: { name?: string | null } | null;
+}
+
+export const compareSubClasses = (a: SubClassLike, b: SubClassLike): number => {
+    const parent = (s: SubClassLike) => s?.className ?? s?.class?.name ?? s?.name ?? '';
+    const byClass = compareClasses({ name: parent(a) }, { name: parent(b) });
+    if (byClass !== 0) return byClass;
+    return (a?.name ?? '').localeCompare(b?.name ?? '', undefined, { numeric: true });
+};
+
+// Returns a new, academically-ordered array; never mutates the input.
+export const sortSubClassesByLevel = <T extends SubClassLike>(subClasses: T[] | null | undefined): T[] =>
+    [...(subClasses ?? [])].sort(compareSubClasses);

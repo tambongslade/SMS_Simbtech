@@ -16,6 +16,7 @@ import { Subject, SubjectCategory, SubjectAssignment } from './types/subject';
 import { SubjectForm } from './components/SubjectForm';
 import { AssignSubjectModal } from './components/AssignSubjectModal';
 import { AssignmentsView } from './components/AssignmentsView';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // --- API Configuration ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
@@ -64,7 +65,7 @@ export default function SubjectManagementPage() {
         }
     try {
       // Fetch subjects (includes assignments/teachers via query params)
-      const subjectsUrl = `${API_BASE_URL}/subjects?include_sub_classes=true&include_teachers=true`;
+      const subjectsUrl = `${API_BASE_URL}/subjects?include_sub_classes=true&include_teachers=true&limit=200`;
       const subjectsPromise = fetch(subjectsUrl, { headers: { 'Authorization': `Bearer ${token}` } });
 
       // Fetch classes (includes subclasses)
@@ -120,7 +121,7 @@ export default function SubjectManagementPage() {
                name: sub.name,
            })) || [],
        }));
-       setAllClasses(mappedClasses);
+       setAllClasses(sortClassesByLevel(mappedClasses));
        console.log("Mapped Classes:", mappedClasses);
 
 

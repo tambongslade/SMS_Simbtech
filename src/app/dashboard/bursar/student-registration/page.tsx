@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import {
     MagnifyingGlassIcon,
@@ -413,7 +413,7 @@ export default function StudentManagement() {
                 classId: sc.class?.id,
                 className: sc.class?.name,
             })) || [];
-            setSubClasses(fetchedSubClasses);
+            setSubClasses(sortSubClassesByLevel(fetchedSubClasses));
         } catch (error: any) {
             console.error("Failed to fetch subclasses:", error);
             // toast.error(`Failed to load subclasses: ${error.message}`); // Handled by apiService

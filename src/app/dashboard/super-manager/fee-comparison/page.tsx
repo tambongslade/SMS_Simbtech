@@ -19,6 +19,7 @@ import {
   ChevronRightIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -173,7 +174,7 @@ export default function FeeAuditRoster() {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     }).then(r => r.json()),
   );
-  const classes: { id: number; name: string }[] = classesData?.data || [];
+  const classes: { id: number; name: string }[] = sortClassesByLevel(classesData?.data || []);
 
   // ── Export ───────────────────────────────────────────────────────────────
   const handleExport = async () => {

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditDisciplineMasterModal, DisciplineMasterEditableFields } from './components/EditDisciplineMasterModal';
@@ -339,7 +339,7 @@ export default function DisciplineMasterManagement() {
                         {/* Subclass Selection UI (Same as VP) */}
                         <div className="max-h-96 overflow-y-auto space-y-4 p-4 border rounded-md mb-4">
                             {classes.map(cls => {
-                                const relevantSubClasses = subClasses.filter(sc => sc.classId === cls.id);
+                                const relevantSubClasses = sortSubClassesByLevel(subClasses.filter(sc => sc.classId === cls.id));
                                 if (relevantSubClasses.length === 0) return null;
                                 return (
                                     <div key={cls.id} className="mb-2">

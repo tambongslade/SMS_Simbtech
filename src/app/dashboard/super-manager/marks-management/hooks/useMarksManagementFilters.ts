@@ -3,6 +3,7 @@
 import { useMemo } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // --- Types --- (Should match or be imported)
 type ExamSequence = {
@@ -77,7 +78,7 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
 
     const subClasses = useMemo((): SubClass[] => {
         if (!subClassesResult?.data) return [];
-        return subClassesResult.data.map((sc: any) => ({
+        return sortSubClassesByLevel(subClassesResult.data.map((sc: any) => ({
             id: sc.id,
             name: sc.name,
             classId: sc.classId,
@@ -88,7 +89,7 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
                 name: subj.name 
                 // Map other subject fields if needed
             }))
-        }));
+        })));
     }, [subClassesResult]);
 
     // --- Derive Dependent Options --- 

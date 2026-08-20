@@ -6,9 +6,11 @@ import { TimetableGrid } from './components/TimetableGrid';
 import SchoolTimetableView from './components/SchoolTimetableView';
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui";
 import { Select, Button } from "@/components/ui";
-import { ArrowDownTrayIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, DocumentArrowDownIcon, PrinterIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
-import { downloadSubclassTimetablePdf, downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
+import { downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
+import { downloadTimetablesPdf, PdfSubclassTimetable } from '@/lib/clientTimetablePdf';
+import { BatchPrintModal } from '@/components/timetable/BatchPrintModal';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
@@ -44,6 +46,35 @@ const TimetableContent = () => {
   const [isZoomed, setIsZoomed] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isBatchOpen, setIsBatchOpen] = useState(false);
+  const [isBatchPreparing, setIsBatchPreparing] = useState(false);
+
+  const buildPdfPayload = (subClassId: string): PdfSubclassTimetable | null => {
+    const t = timetables[subClassId];
+    if (!t) return null;
+    const sc = subClasses.find((s: any) => s.id === subClassId);
+    return {
+      subClassId,
+      subClassName: sc?.name ?? `Class ${subClassId}`,
+      className: (sc as any)?.className,
+      periods: t.periods.map((p) => ({
+        id: p.id,
+        name: p.name,
+        dayOfWeek: p.dayOfWeek,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        sequence: p.sequence,
+        type: p.type,
+      })),
+      slots: t.slots.map((s) => ({
+        periodId: s.periodId,
+        assignments: s.assignments.map((a) => ({
+          subjectName: a.subjectName,
+          teacherName: a.teacherName,
+        })),
+      })),
+    };
+  };
 
   // Fetch timetable when subclass selection or academic year changes
   useEffect(() => {
@@ -134,7 +165,8 @@ const TimetableContent = () => {
     }
   };
 
-  // Export timetable as a print-ready PDF (rendered server-side)
+  // Export timetable as a print-ready PDF. The subclass path renders client-side
+  // (single landscape A4, guaranteed to fit) so mobile prints don't get cut off.
   const handleExportPdf = async (type: 'subclass' | 'school') => {
     if (type === 'subclass' && !selectedSubClassId) {
       toast.error('Please select a subclass first.');
@@ -144,14 +176,37 @@ const TimetableContent = () => {
     setIsExportingPdf(true);
     try {
       if (type === 'subclass') {
-        const subClassName = subClasses.find(sc => sc.id === selectedSubClassId)?.name;
-        await downloadSubclassTimetablePdf(selectedSubClassId, subClassName, selectedAcademicYearId);
+        const payload = buildPdfPayload(selectedSubClassId);
+        if (!payload) {
+          toast.error('Timetable is still loading — try again in a moment.');
+          return;
+        }
+        const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name ?? undefined;
+        await downloadTimetablesPdf([payload], { academicYearName: yearName });
       } else {
         const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name;
         await downloadFullSchoolTimetablePdf(yearName, selectedAcademicYearId);
       }
     } finally {
       setIsExportingPdf(false);
+    }
+  };
+
+  const handleBatchPrint = async (ids: string[]) => {
+    setIsBatchPreparing(true);
+    try {
+      const payloads = ids
+        .map((id) => buildPdfPayload(id))
+        .filter((p): p is PdfSubclassTimetable => p !== null);
+      if (payloads.length === 0) {
+        toast.error('No timetable data loaded yet.');
+        return;
+      }
+      const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name ?? undefined;
+      const ok = await downloadTimetablesPdf(payloads, { academicYearName: yearName });
+      if (ok) setIsBatchOpen(false);
+    } finally {
+      setIsBatchPreparing(false);
     }
   };
 
@@ -209,8 +264,30 @@ const TimetableContent = () => {
               School-Wide
             </Button>
           </div>
+          <Button
+            onClick={() => setIsBatchOpen(true)}
+            color="primary"
+            disabled={subClasses.length === 0}
+            title="Pick several classes and download a single PDF (one page per class)"
+            className="w-full sm:w-auto"
+          >
+            <PrinterIcon className="h-5 w-5 mr-1 inline" />
+            Batch Print
+          </Button>
         </div>
       </div>
+
+      <BatchPrintModal
+        isOpen={isBatchOpen}
+        onClose={() => setIsBatchOpen(false)}
+        subClasses={subClasses.map((sc: any) => ({
+          id: sc.id,
+          name: sc.name,
+          className: sc.className,
+        }))}
+        onPrint={handleBatchPrint}
+        isPreparing={isBatchPreparing}
+      />
 
       {viewMode === 'class' ? (
         /* Class Timetable View */

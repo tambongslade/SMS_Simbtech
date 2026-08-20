@@ -10,6 +10,7 @@ import apiService from '../../../../../lib/apiService'; // Import apiService
 
 // API Configuration - REMOVED
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+import { sortClassesByLevel } from '@/lib/classOrdering';
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
 // One recorded payment transaction, flattened with its student/class context
@@ -115,7 +116,7 @@ export const useFeeManagement = () => {
 
   // 5. Fetch Classes 
   const { data: classesResult, error: classesErrorSWR, isLoading: isLoadingClassesSWR } = useSWR<{ data: Class[] }>('/classes?includeSubClasses=true', fetcher);
-  const classesList = useMemo(() => classesResult?.data || [], [classesResult]);
+  const classesList = useMemo(() => sortClassesByLevel(classesResult?.data || []), [classesResult]);
 
   // 5. Fetch Fee Records (Dependent on Current Academic Year and Filters)
   const feeRecordsKey = currentAcademicYear

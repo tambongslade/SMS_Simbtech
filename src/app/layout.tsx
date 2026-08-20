@@ -12,6 +12,8 @@ import React from 'react';
 import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
 import CapacitorBackButton from '@/components/CapacitorBackButton';
 import OneSignalInit from '@/components/OneSignalInit';
+import OfflineProvider from '@/components/offline/OfflineProvider';
+import OfflineBanner from '@/components/offline/OfflineBanner';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -62,7 +64,10 @@ export default function RootLayout({
         <OneSignalInit />
         <SWRProvider>
           <AuthProvider>
-            {children}
+            <OfflineProvider>
+              <OfflineBanner />
+              {children}
+            </OfflineProvider>
             <Toaster
               position="top-right"
               containerStyle={{ top: 'calc(var(--safe-top) + 1rem)' }}

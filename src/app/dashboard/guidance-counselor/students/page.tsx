@@ -15,6 +15,7 @@ import {
 import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table, StudentPhoto } from '@/components/ui';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // API Configuration
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
@@ -119,7 +120,7 @@ export default function GuidanceCounselorStudentsPage() {
 
       if (subClassesRes.ok) {
         const subClassesData = await subClassesRes.json();
-        setSubClasses(subClassesData.data || []);
+        setSubClasses(sortSubClassesByLevel(subClassesData.data || []));
       }
 
       if (studentsRes.ok) {

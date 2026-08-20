@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, FunnelIcon, CheckCircleIcon, ClockIcon, XCircleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService'; // Import apiService
+import { sortClassesByLevel } from '@/lib/classOrdering';
 
 // --- Type Definitions (move to types.ts later) ---
 type PaymentStatus = 'Paid' | 'Partially Paid' | 'Unpaid';
@@ -112,7 +113,7 @@ export default function FeesPaymentManagement() {
             if (availableClasses.length === 0) {
                 try {
                     const classResult = await apiService.get<{ data: ClassInfo[] }>(`${CLASSES_ENDPOINT}?fields=id,name`);
-                    setAvailableClasses(classResult.data || []);
+                    setAvailableClasses(sortClassesByLevel(classResult.data || []));
                 } catch (classError: any) {
                     console.error("Failed to fetch classes:", classError);
                     // apiService will toast for auth, but maybe a specific non-blocking error for classes

@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
+import { sortSubClassesByLevel } from '@/lib/classOrdering';
 
 // Types (can be shared or defined locally)
 export type ParentUser = {
@@ -108,7 +109,7 @@ export const useParentsManagement = () => {
                 name: sc.name,
                 className: sc.class?.name,
             })) || [];
-            setSubClassesForFilter(fetchedSubClasses);
+            setSubClassesForFilter(sortSubClassesByLevel(fetchedSubClasses));
             console.log("Subclasses for filter fetched:", fetchedSubClasses.length);
         } catch (error: any) {
             console.error("Failed to fetch subclasses for filter:", error);

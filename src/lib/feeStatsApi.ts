@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { compareClasses } from '@/lib/classOrdering';
 
 // ---------------------------------------------------------------------------
 // Paid / not-paid statistics, per class and per subclass.
@@ -200,9 +201,9 @@ export const fetchFeeStats = async (academicYearId: number): Promise<FeeStatsRes
       ...finalize(cls),
       subClasses: Array.from(subClassMaps.get(key)!.values())
         .map(finalize)
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
     }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+    .sort(compareClasses);
 
   return { totals: finalize(totals), classes, students };
 };
