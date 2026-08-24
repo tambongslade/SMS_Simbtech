@@ -310,6 +310,20 @@ export const linkExistingParent = (
     ...(relationship ? { relationship } : {}),
   });
 
+export interface CreateParentForStudentPayload {
+  studentId: number;
+  name: string;
+  phone: string;
+  address?: string;
+  phoneIsWhatsapp?: boolean;
+  whatsapp?: string;
+  relationship?: Relationship;
+  academicYearId?: number;
+}
+
+export const createParentForStudent = (payload: CreateParentForStudentPayload) =>
+  apiService.post('/bursar/create-parent-for-student', payload);
+
 /**
  * Toggles ream-of-paper collected on the student's current-year enrollment.
  * Calls PUT /students/:id which writes to the enrollment row for the given year.
