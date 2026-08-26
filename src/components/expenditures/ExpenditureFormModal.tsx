@@ -22,6 +22,8 @@ interface ExpenditureFormModalProps {
   onSaved: (saved: Expenditure) => void;
   // When provided, the modal edits this row; otherwise it creates a new one.
   editing?: Expenditure | null;
+  // Force the payment method to CASH and hide the picker (bursar view).
+  onlyCashMethod?: boolean;
 }
 
 const todayStr = () => new Date().toISOString().split('T')[0];
@@ -30,7 +32,7 @@ const ACCEPT = '.pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,
 
 type RecipientMode = 'text' | 'user';
 
-export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing }: ExpenditureFormModalProps) {
+export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing, onlyCashMethod = false }: ExpenditureFormModalProps) {
   const isEdit = !!editing;
 
   const [date, setDate] = useState(todayStr());
@@ -58,7 +60,7 @@ export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing }: Expe
       setRecipientMode(editing.recipientUserId ? 'user' : 'text');
       setRecipient(editing.recipient || '');
       setRecipientUserId(editing.recipientUserId ? String(editing.recipientUserId) : '');
-      setPaymentMethod(editing.paymentMethod || '');
+      setPaymentMethod(onlyCashMethod ? 'CASH' : (editing.paymentMethod || ''));
       setNotes(editing.notes || '');
     } else {
       setDate(todayStr());
@@ -68,7 +70,7 @@ export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing }: Expe
       setRecipientMode('text');
       setRecipient('');
       setRecipientUserId('');
-      setPaymentMethod('');
+      setPaymentMethod(onlyCashMethod ? 'CASH' : '');
       setNotes('');
     }
     setRecipientQuery('');
@@ -171,12 +173,21 @@ export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing }: Expe
             onChange={(e) => setAmount(e.target.value)}
             required
           />
-          <Select
-            label="Payment method (optional)"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value as ExpenditurePaymentMethod | '')}
-            options={[{ value: '', label: '— None —' }, ...EXPENDITURE_PAYMENT_METHODS]}
-          />
+          {onlyCashMethod ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment method</label>
+              <div className="w-full px-3 py-2 border border-gray-200 rounded-md bg-gray-50 text-sm text-gray-700">
+                Cash
+              </div>
+            </div>
+          ) : (
+            <Select
+              label="Payment method (optional)"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as ExpenditurePaymentMethod | '')}
+              options={[{ value: '', label: '— None —' }, ...EXPENDITURE_PAYMENT_METHODS]}
+            />
+          )}
         </div>
 
         {/* Recipient: free-text vendor OR a system user */}

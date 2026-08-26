@@ -43,6 +43,8 @@ export interface ExpendituresPanelProps {
   // re-syncs to these whenever `filterNonce` changes.
   externalFilter?: { from?: string; to?: string; category?: ExpenditureCategory | '' };
   filterNonce?: number;
+  // Lock the form's payment method to CASH (bursar view).
+  onlyCashMethod?: boolean;
 }
 
 export function ExpendituresPanel({
@@ -50,6 +52,7 @@ export function ExpendituresPanel({
   description,
   externalFilter,
   filterNonce,
+  onlyCashMethod = false,
 }: ExpendituresPanelProps) {
   const { user, selectedRole } = useAuth();
 
@@ -452,6 +455,7 @@ export function ExpendituresPanel({
           setEditing(null);
         }}
         onSaved={handleSaved}
+        onlyCashMethod={onlyCashMethod}
       />
 
       {/* Delete confirmation */}

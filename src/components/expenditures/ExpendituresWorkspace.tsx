@@ -12,6 +12,8 @@ interface ExpendituresWorkspaceProps {
   showSummary?: boolean;
   panelTitle?: string;
   panelDescription?: string;
+  // Lock the create/edit form's payment method to CASH (e.g. bursar view).
+  onlyCashMethod?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export function ExpendituresWorkspace({
   showSummary = true,
   panelTitle = 'Expenditure Ledger',
   panelDescription,
+  onlyCashMethod = false,
 }: ExpendituresWorkspaceProps) {
   const [externalFilter, setExternalFilter] = useState<{
     from?: string;
@@ -61,6 +64,7 @@ export function ExpendituresWorkspace({
         description={panelDescription}
         externalFilter={externalFilter}
         filterNonce={nonce}
+        onlyCashMethod={onlyCashMethod}
       />
     </div>
   );
