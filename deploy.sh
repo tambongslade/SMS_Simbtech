@@ -25,10 +25,10 @@ fi
 
 # Restart PM2 process
 echo "🔄 Restarting application..."
-pm2 restart sms-simbtech
+pm2 restart ssic-sms-ui
 
 # Check PM2 status
-pm2 status sms-simbtech
+pm2 status ssic-sms-ui
 
 # Reload nginx
 echo "🌐 Reloading nginx..."
@@ -39,4 +39,4 @@ sudo systemctl status nginx --no-pager -l
 
 echo "✅ Deployment completed successfully!"
 echo "📊 Application status:"
-pm2 status sms-simbtech
+pm2 status ssic-sms-ui

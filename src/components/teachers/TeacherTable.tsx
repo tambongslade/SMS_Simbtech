@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import type { TeacherSearchItem } from '@/lib/teacherSearchApi';
 
 interface TeacherTableProps {
@@ -8,8 +9,22 @@ interface TeacherTableProps {
     isLoading: boolean;
     /** Row actions (buttons) rendered per teacher; omit for a read-only table. */
     renderActions?: (teacher: TeacherSearchItem) => React.ReactNode;
+    /** When provided, the teacher's name becomes a link to this URL. */
+    getTeacherHref?: (teacher: TeacherSearchItem) => string;
     emptyMessage?: string;
 }
+
+const TeacherName: React.FC<{ teacher: TeacherSearchItem; href?: string }> = ({ teacher, href }) => {
+    if (!href) return <>{teacher.name}</>;
+    return (
+        <Link
+            href={href}
+            className="text-indigo-700 hover:text-indigo-900 hover:underline focus:outline-none focus:underline"
+        >
+            {teacher.name}
+        </Link>
+    );
+};
 
 const Avatar: React.FC<{ teacher: TeacherSearchItem }> = ({ teacher }) => (
     <span className="inline-block h-8 w-8 rounded-full overflow-hidden bg-gray-100 mr-3 flex-shrink-0">
@@ -71,6 +86,7 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
     teachers,
     isLoading,
     renderActions,
+    getTeacherHref,
     emptyMessage = 'No teachers found matching your criteria',
 }) => {
     const columnCount = renderActions ? 7 : 6;
@@ -100,7 +116,7 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
                     <div className="flex items-center">
                         <Avatar teacher={teacher} />
                         <span>
-                            {teacher.name}
+                            <TeacherName teacher={teacher} href={getTeacherHref?.(teacher)} />
                             <RoleBadges teacher={teacher} />
                         </span>
                     </div>
@@ -160,7 +176,9 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
                         <div key={teacher.id} className="p-4 space-y-1.5">
                             <div className="flex items-center">
                                 <Avatar teacher={teacher} />
-                                <span className="text-sm font-semibold text-gray-900 break-words">{teacher.name}</span>
+                                <span className="text-sm font-semibold text-gray-900 break-words">
+                                    <TeacherName teacher={teacher} href={getTeacherHref?.(teacher)} />
+                                </span>
                             </div>
                             <div className="flex flex-wrap">
                                 <RoleBadges teacher={teacher} />

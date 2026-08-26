@@ -99,6 +99,7 @@ export default function TeacherManagementPage() {
         <TeacherTable
           teachers={search.teachers}
           isLoading={search.isLoading}
+          getTeacherHref={(teacher) => `/dashboard/super-manager/teacher-management/${teacher.id}`}
           renderActions={(teacher) => (
             <div className="flex flex-wrap items-center gap-2">
               <button

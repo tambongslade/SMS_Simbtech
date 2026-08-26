@@ -99,7 +99,12 @@ export default function SecretaryTeachersPage() {
 
       <TeacherSearchFilters search={search} subjects={subjects} subClasses={subClasses} />
 
-      <TeacherTable teachers={search.teachers} isLoading={search.isLoading} emptyMessage="No teachers found." />
+      <TeacherTable
+        teachers={search.teachers}
+        isLoading={search.isLoading}
+        getTeacherHref={(teacher) => `/dashboard/secretary/teachers/${teacher.id}`}
+        emptyMessage="No teachers found."
+      />
 
       <TeacherPagination meta={search.meta} onPageChange={search.setPage} isLoading={search.isLoading} />
 
