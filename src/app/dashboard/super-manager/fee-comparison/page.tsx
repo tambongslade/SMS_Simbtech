@@ -20,6 +20,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import StudentAuditDetail from './StudentAuditDetail';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,9 @@ export default function FeeAuditRoster() {
 
   // Export
   const [exportLoading, setExportLoading] = useState(false);
+
+  // Selected student for detail drawer — shows each payment recorded by bursar vs controller
+  const [selectedRow, setSelectedRow] = useState<AuditRosterRow | null>(null);
 
   // ── Load academic years ──────────────────────────────────────────────────
   useEffect(() => {
@@ -403,7 +407,12 @@ export default function FeeAuditRoster() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {rows.map(row => (
-                        <tr key={row.enrollmentId} className="hover:bg-gray-50 transition-colors">
+                        <tr
+                          key={row.enrollmentId}
+                          onClick={() => setSelectedRow(row)}
+                          className="hover:bg-blue-50 transition-colors cursor-pointer"
+                          title="Click to see individual payments (bursar vs controller)"
+                        >
                           <td className="px-4 py-3">
                             <p className="text-sm font-medium text-gray-900">{row.studentName}</p>
                             <p className="text-xs text-gray-500">{row.studentMatricule}</p>
@@ -443,7 +452,11 @@ export default function FeeAuditRoster() {
                 {/* Mobile cards */}
                 <div className="md:hidden divide-y divide-gray-200">
                   {rows.map(row => (
-                    <div key={row.enrollmentId} className="p-4 space-y-2">
+                    <div
+                      key={row.enrollmentId}
+                      onClick={() => setSelectedRow(row)}
+                      className="p-4 space-y-2 active:bg-blue-50 cursor-pointer"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-semibold text-gray-900">{row.studentName}</p>
@@ -505,6 +518,12 @@ export default function FeeAuditRoster() {
           )}
         </>
       )}
+
+      <StudentAuditDetail
+        row={selectedRow}
+        academicYearId={selectedAcademicYear?.id}
+        onClose={() => setSelectedRow(null)}
+      />
     </div>
   );
 }
