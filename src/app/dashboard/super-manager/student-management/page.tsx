@@ -18,6 +18,7 @@ import {
 import apiService from '../../../../lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { StudentPhoto, BulkPhotoUploadModal } from '../../../../components/ui';
+import { formatDOB } from '@/lib/formatDate';
 
 // --- Types ---
 type ParentLink = {
@@ -1496,7 +1497,7 @@ export default function StudentManagement() {
                                             {/* Personal Details Column */}
                                             <td className="px-4 py-3">
                                                 <div className="space-y-1 text-xs text-gray-600">
-                                                    <div>DOB: {student.date_of_birth?.split('T')[0] || '-'}</div>
+                                                    <div>DOB: {formatDOB(student.date_of_birth)}</div>
                                                     <div>Gender: {student.gender || '-'}</div>
                                                     <div>Residence: {student.residence || '-'}</div>
                                                 </div>
@@ -1688,7 +1689,7 @@ export default function StudentManagement() {
                                                 </div>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <span className="text-xs text-gray-500">DOB</span>
-                                                    <span className="text-sm text-gray-900 text-right break-words">{student.date_of_birth?.split('T')[0] || '-'}</span>
+                                                    <span className="text-sm text-gray-900 text-right break-words">{formatDOB(student.date_of_birth)}</span>
                                                 </div>
                                                 <div className="flex items-start justify-between gap-3">
                                                     <span className="text-xs text-gray-500">Gender</span>

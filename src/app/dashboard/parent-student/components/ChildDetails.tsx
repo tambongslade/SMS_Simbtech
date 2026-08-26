@@ -16,6 +16,7 @@ import {
 import { Button, Tabs } from '@/components/ui';
 import ParentStudentFeesPage from '../fees/page';
 import ParentStudentResultsPage from '../results/page';
+import { formatDOB } from '@/lib/formatDate';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -57,7 +58,7 @@ const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
                     </div>
                     <div className="space-y-2 text-sm sm:text-base">
                         <p className="break-words"><span className="font-medium">Class Master:</span> {childData?.classInfo?.classMaster || 'N/A'}</p>
-                        <p><span className="font-medium">Date of Birth:</span> {childData?.dateOfBirth ? new Date(childData.dateOfBirth).toLocaleDateString() : 'N/A'}</p>
+                        <p><span className="font-medium">Date of Birth:</span> {formatDOB(childData?.dateOfBirth) === '-' ? 'N/A' : formatDOB(childData?.dateOfBirth)}</p>
                         <p><span className="font-medium">Enrollment Status:</span>
                             <span className={`ml-2 px-2 py-1 rounded-full text-xs ${childData?.enrollmentStatus === 'ACTIVE'
                                 ? 'bg-green-100 text-green-800'

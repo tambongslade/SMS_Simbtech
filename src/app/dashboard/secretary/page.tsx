@@ -2,6 +2,7 @@
 
 import {
   UserGroupIcon,
+  UsersIcon,
   AcademicCapIcon,
   DocumentChartBarIcon,
   UserPlusIcon,
@@ -40,6 +41,13 @@ const quickActions: QuickAction[] = [
     href: '/dashboard/secretary/class-lists',
     icon: DocumentChartBarIcon,
     color: 'cyan',
+  },
+  {
+    label: 'Enrollment',
+    description: 'Students per class / subclass',
+    href: '/dashboard/secretary/enrollment',
+    icon: UsersIcon,
+    color: 'teal',
   },
   {
     label: 'Bank Verifications',

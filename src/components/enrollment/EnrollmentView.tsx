@@ -13,6 +13,7 @@ import {
 import { Button, Input } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 
 interface SubClassSummary {
   id: number;
@@ -63,7 +64,7 @@ function useSubClasses(classId: number, enabled: boolean) {
     },
   );
   return {
-    subClasses: data?.subClasses ?? [],
+    subClasses: sortSubClassesByLevel(data?.subClasses ?? []),
     isLoading,
     error,
   };
@@ -171,7 +172,7 @@ export default function EnrollmentView() {
   });
 
   const classes = useMemo(() => {
-    const list = data ?? [];
+    const list = sortClassesByLevel(data ?? []);
     const q = search.trim().toLowerCase();
     if (!q) return list;
     return list.filter(

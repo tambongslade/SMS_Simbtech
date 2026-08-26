@@ -332,6 +332,7 @@ const menuItems: MenuItemsStructure = {
   secretary: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/secretary' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/secretary/students' },
+    { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/secretary/enrollment' },
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/secretary/finance-requests' },
