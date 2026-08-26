@@ -5,11 +5,12 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import {
     AcademicCapIcon,
-    BanknotesIcon,
+    BuildingLibraryIcon,
     CheckCircleIcon,
     ClipboardDocumentListIcon,
     DocumentChartBarIcon,
     IdentificationIcon,
+    ShieldCheckIcon,
     UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Badge } from '@/components/ui';
@@ -41,18 +42,6 @@ interface OperationalDashboard {
         overdueTasks: number;
         upcomingDeadlines: { id: number; title: string; assignedTo: string; deadline: string; priority: string }[];
     };
-}
-
-// ── GET /dashboard/financial-overview ──
-interface FinancialOverview {
-    collected: number;
-    expected: number;
-    outstanding: number;
-    collectionRate: number;
-    expenditures: number;
-    netCash: number;
-    byMethod: { method: string; amount: number }[];
-    monthlyTrend: { month: string; collected: number }[];
 }
 
 // ── GET /dashboard/teacher-analytics ──
@@ -94,10 +83,22 @@ interface EnhancedDashboard {
         totalForms: number;
         openSubmissions: number;
     };
+    staffBreakdown?: {
+        totalStaff: number;
+        teachers: number;
+        administrators: number;
+    };
+    enrollmentSummary?: {
+        academicYearId: number | null;
+        totalEnrolled: number;
+        classes: {
+            classId: number;
+            className: string;
+            totalStudents: number;
+            subClasses: { subClassId: number; subClassName: string; studentCount: number }[];
+        }[];
+    };
 }
-
-const formatMoney = (amount?: number | null) =>
-    `FCFA ${(amount ?? 0).toLocaleString()}`;
 
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -137,27 +138,24 @@ export default function ManagerOverviewPage() {
     const yearParam = selectedAcademicYear?.id ? `?academicYearId=${selectedAcademicYear.id}` : '';
 
     const { data: opsRes, error: opsError, isLoading: isLoadingOps } = useSWR<{ data?: OperationalDashboard }>(`/manager/dashboard${yearParam}`, fetcher);
-    const { data: financeRes, error: financeError, isLoading: isLoadingFinance } = useSWR<{ data?: FinancialOverview }>(`/dashboard/financial-overview${yearParam}`, fetcher);
     const { data: teacherRes } = useSWR<{ data?: TeacherAnalytics }>(`/dashboard/teacher-analytics${yearParam}`, fetcher);
     const { data: supportRes } = useSWR<{ data?: OperationalSupport }>('/manager/operational-support', fetcher);
     const { data: enhancedRes, isLoading: isLoadingEnhanced } = useSWR<{ data?: EnhancedDashboard }>(`/dashboard/manager/enhanced${yearParam}`, fetcher);
 
     const ops = opsRes?.data;
-    const finance = financeRes?.data;
     const teachers = teacherRes?.data;
     const support = supportRes?.data;
     const analytics = enhancedRes?.data;
+    const staffBreakdown = analytics?.staffBreakdown;
+    const enrollment = analytics?.enrollmentSummary;
 
     useEffect(() => {
-        const err = opsError || financeError;
-        if (err && err.message !== 'Unauthorized') {
-            console.error('Manager dashboard fetch error:', err);
+        if (opsError && opsError.message !== 'Unauthorized') {
+            console.error('Manager dashboard fetch error:', opsError);
             toast.error('Failed to load some dashboard data');
         }
-    }, [opsError, financeError]);
+    }, [opsError]);
 
-    const maxMethodAmount = Math.max(0, ...(finance?.byMethod ?? []).map(m => m.amount));
-    const maxMonthAmount = Math.max(0, ...(finance?.monthlyTrend ?? []).map(m => m.collected));
     const maxDeptRate = Math.max(0, ...(ops?.attendance?.departmentBreakdown ?? []).map(d => d.attendanceRate));
 
     const schoolStats = useMemo(() => ([
@@ -201,72 +199,63 @@ export default function ManagerOverviewPage() {
                 </p>
             </div>
 
-            {/* ── Finances first ── */}
+            {/* ── People (staff / teachers / administrators) ── */}
             <section>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Finances</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">People</h2>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                    {([
-                        { title: 'Expected', value: finance?.expected, color: 'primary' as const },
-                        { title: 'Collected', value: finance?.collected, color: 'success' as const },
-                        { title: 'Outstanding', value: finance?.outstanding, color: 'danger' as const },
-                        { title: 'Net Cash', value: finance?.netCash, color: 'secondary' as const },
-                    ]).map((card) => (
-                        <Link key={card.title} href="/dashboard/manager/financial-reports" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
-                            <StatsCard
-                                title={card.title}
-                                value={isLoadingFinance ? '...' : formatMoney(card.value)}
-                                icon={BanknotesIcon}
-                                color={card.color}
-                            />
-                        </Link>
-                    ))}
-                </div>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm font-medium text-gray-500">Collection rate</span>
-                            <span className="text-sm font-semibold text-gray-900">{(finance?.collectionRate ?? 0).toFixed(1)}%</span>
-                        </div>
-                        <div className="mt-2">
-                            <ProgressBar rate={finance?.collectionRate ?? 0} />
-                        </div>
-                        <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-                            <span className="text-gray-500">Expenditures</span>
-                            <span className="font-medium text-gray-900">{formatMoney(finance?.expenditures)}</span>
-                        </div>
-                        {(finance?.byMethod?.length ?? 0) > 0 && (
-                            <div className="mt-4 space-y-2">
-                                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Collected by method</p>
-                                {finance!.byMethod.map((m) => (
-                                    <BarListRow key={m.method} label={formatLabel(m.method)} value={m.amount} max={maxMethodAmount} display={formatMoney(m.amount)} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-                        <p className="text-sm font-medium text-gray-500">Monthly collections</p>
-                        {(finance?.monthlyTrend?.length ?? 0) === 0 ? (
-                            <p className="mt-2 text-sm text-gray-500">{isLoadingFinance ? 'Loading…' : 'No trend data yet.'}</p>
-                        ) : (
-                            <div className="mt-3 space-y-2">
-                                {finance!.monthlyTrend.map((m) => (
-                                    <BarListRow key={m.month} label={m.month} value={m.collected} max={maxMonthAmount} display={formatMoney(m.collected)} />
-                                ))}
-                            </div>
-                        )}
-                    </div>
+                    <StatsCard title="Total Staff" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.totalStaff ?? 0)} icon={UserGroupIcon} color="primary" />
+                    <StatsCard title="Teachers" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.teachers ?? 0)} icon={AcademicCapIcon} color="secondary" />
+                    <StatsCard title="Administrators" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.administrators ?? 0)} icon={ShieldCheckIcon} color="neutral" />
+                    <StatsCard title="Active Staff" value={isLoadingOps ? '...' : String(ops?.overview?.activeStaff ?? 0)} icon={CheckCircleIcon} color="success" />
                 </div>
             </section>
 
-            {/* ── Staff KPIs ── */}
+            {/* ── Enrollment by class ── */}
             <section>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">Staff</h2>
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                    <StatsCard title="Total Staff" value={isLoadingOps ? '...' : String(ops?.overview?.totalStaff ?? 0)} icon={UserGroupIcon} color="primary" />
-                    <StatsCard title="Active Staff" value={isLoadingOps ? '...' : String(ops?.overview?.activeStaff ?? 0)} icon={CheckCircleIcon} color="success" />
-                    <StatsCard title="On Leave Today" value={isLoadingOps ? '...' : String(ops?.overview?.onLeaveToday ?? 0)} icon={UserGroupIcon} color="warning" />
-                    <StatsCard title="Pending Leave Requests" value={isLoadingOps ? '...' : String(ops?.overview?.pendingLeaveRequests ?? 0)} icon={ClipboardDocumentListIcon} color="neutral" />
+                <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-lg font-semibold text-gray-900">Enrollment by class</h2>
+                    <span className="text-sm text-gray-500">
+                        {isLoadingEnhanced ? 'Loading…' : `Total enrolled: ${enrollment?.totalEnrolled ?? 0}`}
+                    </span>
                 </div>
+                {(enrollment?.classes?.length ?? 0) === 0 ? (
+                    <p className="text-sm text-gray-500">{isLoadingEnhanced ? 'Loading…' : 'No enrollments yet.'}</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
+                        {enrollment!.classes.map((cls) => (
+                            <Card key={cls.classId}>
+                                <CardHeader className="flex items-center justify-between">
+                                    <CardTitle>
+                                        <span className="inline-flex items-center gap-2">
+                                            <BuildingLibraryIcon className="w-5 h-5 text-blue-600" />
+                                            {cls.className}
+                                        </span>
+                                    </CardTitle>
+                                    <Badge color="blue" size="sm">{cls.totalStudents} students</Badge>
+                                </CardHeader>
+                                <CardBody>
+                                    {cls.subClasses.length === 0 ? (
+                                        <p className="text-sm text-gray-500">No sub-classes.</p>
+                                    ) : (
+                                        <ul className="divide-y divide-gray-100">
+                                            {cls.subClasses.map((sc) => (
+                                                <li key={sc.subClassId} className="py-1.5 flex items-center justify-between gap-2">
+                                                    <Link
+                                                        href={`/dashboard/manager/students?subClassId=${sc.subClassId}`}
+                                                        className="text-sm text-blue-700 hover:text-blue-900 truncate min-w-0"
+                                                    >
+                                                        {sc.subClassName}
+                                                    </Link>
+                                                    <span className="text-sm font-medium text-gray-900 shrink-0">{sc.studentCount}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </CardBody>
+                            </Card>
+                        ))}
+                    </div>
+                )}
             </section>
 
             <TasksNotificationsSection />
