@@ -19,7 +19,7 @@ import {
   ChevronRightIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import StudentAuditDetail from './StudentAuditDetail';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -88,6 +88,7 @@ export default function FeeAuditRoster() {
   const [statusFilter, setStatusFilter] = useState<AuditStatus | ''>('');
   const [studentStatusFilter, setStudentStatusFilter] = useState<StudentStatus | ''>('');
   const [classId, setClassId] = useState('');
+  const [subClassId, setSubClassId] = useState('');
   const [page, setPage] = useState(1);
   const LIMIT = 25;
 
@@ -136,7 +137,10 @@ export default function FeeAuditRoster() {
   }, [search]);
 
   // ── Reset page on filter change ──────────────────────────────────────────
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, studentStatusFilter, classId, selectedAcademicYear]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, studentStatusFilter, classId, subClassId, selectedAcademicYear]);
+
+  // ── Clear subclass when parent class changes ────────────────────────────
+  useEffect(() => { setSubClassId(''); }, [classId]);
 
   // ── SWR: roster ─────────────────────────────────────────────────────────
   const rosterKey = selectedAcademicYear
@@ -146,6 +150,7 @@ export default function FeeAuditRoster() {
         page,
         limit: LIMIT,
         ...(classId ? { classId } : {}),
+        ...(subClassId ? { subClassId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(studentStatusFilter ? { studentStatus: studentStatusFilter } : {}),
@@ -178,7 +183,14 @@ export default function FeeAuditRoster() {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     }).then(r => r.json()),
   );
-  const classes: { id: number; name: string }[] = sortClassesByLevel(classesData?.data || []);
+  const classes: { id: number; name: string; subClasses?: { id: number; name: string }[] }[] =
+    sortClassesByLevel(classesData?.data || []);
+
+  const subClassesForFilter = classId
+    ? sortSubClassesByLevel(
+        classes.find(c => String(c.id) === String(classId))?.subClasses ?? []
+      )
+    : [];
 
   // ── Export ───────────────────────────────────────────────────────────────
   const handleExport = async () => {
@@ -189,6 +201,7 @@ export default function FeeAuditRoster() {
         academicYearId: selectedAcademicYear.id,
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(classId ? { classId } : {}),
+        ...(subClassId ? { subClassId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
       const url = window.URL.createObjectURL(blob);
@@ -207,8 +220,8 @@ export default function FeeAuditRoster() {
     }
   };
 
-  const hasFilters = !!(search || statusFilter || studentStatusFilter || classId);
-  const clearFilters = () => { setSearch(''); setStatusFilter(''); setStudentStatusFilter(''); setClassId(''); };
+  const hasFilters = !!(search || statusFilter || studentStatusFilter || classId || subClassId);
+  const clearFilters = () => { setSearch(''); setStatusFilter(''); setStudentStatusFilter(''); setClassId(''); setSubClassId(''); };
 
   // ── Access guard ─────────────────────────────────────────────────────────
   if (!canAccess) {
@@ -360,6 +373,18 @@ export default function FeeAuditRoster() {
                 <option value="">All Classes</option>
                 {classes.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <select
+                value={subClassId}
+                onChange={e => setSubClassId(e.target.value)}
+                disabled={!classId || subClassesForFilter.length === 0}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px] disabled:bg-gray-100 disabled:text-gray-400"
+                title={!classId ? 'Pick a class first' : subClassesForFilter.length === 0 ? 'No sub-classes' : ''}
+              >
+                <option value="">All Sub-classes</option>
+                {subClassesForFilter.map(sc => (
+                  <option key={sc.id} value={sc.id}>{sc.name}</option>
                 ))}
               </select>
               {hasFilters && (
