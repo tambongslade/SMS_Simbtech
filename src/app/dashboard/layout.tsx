@@ -359,20 +359,6 @@ Object.entries(menuItems).forEach(([key, items]) => {
   items.push({ icon: ArchiveBoxIcon, label: 'Inventory', href: `/dashboard/${slug}/inventory` });
 });
 
-// Every staff role gets a shared Leave & Loans page (request + track own
-// requests). The route is common — no role slug in the path.
-Object.entries(menuItems).forEach(([key, items]) => {
-  if (key === 'parent-student') return;
-  items.push({ icon: CurrencyDollarIcon, label: 'Leave & Loans', href: '/dashboard/leave-and-loans' });
-});
-
-// Super Manager also gets the approval queue for both.
-menuItems['super-manager'].push({
-  icon: CurrencyDollarIcon,
-  label: 'Leave & Loans (Approvals)',
-  href: '/dashboard/super-manager/leave-and-loans',
-});
-
 // Helper function to format role names
 const formatRoleName = (role: string | undefined | null): string => {
   if (!role) return '';
