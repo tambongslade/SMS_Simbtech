@@ -76,6 +76,7 @@ const menuItems: MenuItemsStructure = {
   principal: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/principal' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
+    { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/principal/enrollment' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
@@ -95,6 +96,7 @@ const menuItems: MenuItemsStructure = {
       ]
     },
             { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
+    { icon: CalendarIcon, label: 'Timetable Management', href: '/dashboard/principal/timetable' },
     // { icon: DocumentChartBarIcon, label: 'Reports', href: '/dashboard/principal/reports' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/principal/schemes-of-work' },
@@ -244,6 +246,7 @@ const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Subjects', href: '/dashboard/vice-principal/subjects' },
     { icon: UserGroupIcon, label: 'Teachers', href: '/dashboard/vice-principal/teachers' },
     { icon: UserGroupIcon, label: 'Interviews', href: '/dashboard/vice-principal/interviews' },
+    { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/vice-principal/enrollment' },
     { icon: CalendarIcon, label: 'Timetable', href: '/dashboard/vice-principal/timetable' },
     { icon: BookOpenIcon, label: 'Schemes of Work', href: '/dashboard/vice-principal/schemes-of-work' },
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/vice-principal/teacher-logbook' },
