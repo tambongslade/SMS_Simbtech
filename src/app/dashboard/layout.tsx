@@ -32,12 +32,14 @@ import {
   ClockIcon,
   BanknotesIcon,
   ReceiptRefundIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ArrowPathIcon
 } from '@heroicons/react/24/outline';
-import { Fade, PullToRefresh } from '@/components/ui';
+import { Fade, PullToRefresh, LanguageSwitcher } from '@/components/ui';
 import { Toaster, toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
 import ChatIndicator from '@/components/chat/ChatIndicator';
 
@@ -215,6 +217,7 @@ const menuItems: MenuItemsStructure = {
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
+    { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
   ],
   guidancecounselor: [
@@ -410,6 +413,7 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Desktop sidebar collapsed (icon rail) state, persisted across sessions
@@ -639,15 +643,15 @@ export default function DashboardLayout({
       <div className={`flex items-center border-b border-gray-200 ${collapsed ? 'justify-center px-2 py-3' : 'justify-between px-4 py-3'}`}>
         {!collapsed && (
           <h2 className="text-base font-semibold text-gray-800 truncate">
-            {roleFromPath ? roleTitle[roleFromPath] || formatRoleName(roleFromPath) : 'Dashboard'}
+            {roleFromPath ? t(roleTitle[roleFromPath] || formatRoleName(roleFromPath)) : t('Dashboard')}
           </h2>
         )}
         {isDesktop && (
           <button
             onClick={toggleSidebarCollapsed}
             className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}
+            aria-label={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}
           >
             {collapsed ? <ChevronDoubleRightIcon className="h-5 w-5" /> : <ChevronDoubleLeftIcon className="h-5 w-5" />}
           </button>
@@ -679,8 +683,8 @@ export default function DashboardLayout({
                   setOpenSubmenus(prev => ({ ...prev, [item.href]: true }));
                 }}
                 className={`relative flex items-center justify-center w-full p-2.5 rounded-lg transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}
-                title={item.label}
-                aria-label={item.label}
+                title={t(item.label)}
+                aria-label={t(item.label)}
               >
                 {accentBar}
                 <item.icon className={`h-5 w-5 flex-shrink-0 ${iconClasses}`} />
@@ -690,8 +694,8 @@ export default function DashboardLayout({
                 key={item.href}
                 href={item.href}
                 className={`relative flex items-center justify-center p-2.5 rounded-lg transition-colors duration-200 group ${isParentActive ? activeClasses : inactiveClasses}`}
-                title={item.label}
-                aria-label={item.label}
+                title={t(item.label)}
+                aria-label={t(item.label)}
               >
                 {accentBar}
                 <item.icon className={`h-5 w-5 flex-shrink-0 ${iconClasses}`} />
@@ -714,12 +718,12 @@ export default function DashboardLayout({
                     className="flex items-center flex-1 min-w-0 px-3 py-2 text-sm font-medium"
                   >
                     <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{t(item.label)}</span>
                   </Link>
                   <button
                     onClick={() => toggleSubmenu(item.href)}
                     className="p-2 mr-1 rounded hover:bg-gray-100"
-                    aria-label={`Toggle ${item.label} submenu`}
+                    aria-label={`Toggle ${t(item.label)} submenu`}
                   >
                     <ChevronRightIcon
                       className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''}`}
@@ -734,7 +738,7 @@ export default function DashboardLayout({
                   {accentBar}
                   <span className="flex items-center min-w-0">
                     <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
-                    <span className="truncate">{item.label}</span>
+                    <span className="truncate">{t(item.label)}</span>
                   </span>
                   <ChevronRightIcon
                     className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${isSubmenuOpen ? 'rotate-90' : ''}`}
@@ -748,7 +752,7 @@ export default function DashboardLayout({
                 >
                   {accentBar}
                   <item.icon className={`h-5 w-5 mr-3 flex-shrink-0 ${iconClasses}`} />
-                  <span className="truncate">{item.label}</span>
+                  <span className="truncate">{t(item.label)}</span>
                 </Link>
               )}
 
@@ -771,7 +775,7 @@ export default function DashboardLayout({
                         `}
                         onClick={() => setIsMobileSidebarOpen(false)}
                       >
-                        <span className="truncate">{subItem.label}</span>
+                        <span className="truncate">{t(subItem.label)}</span>
                       </Link>
                     );
                   })}
@@ -787,7 +791,7 @@ export default function DashboardLayout({
         {!collapsed && availableRoles.length > 1 && !isLoading && (
           <div className="relative">
             <label htmlFor="role-switcher" className="block text-xs font-medium text-gray-500 mb-1">
-              Switch Role
+              {t('Switch Role')}
             </label>
             <select
               id="role-switcher"
@@ -797,7 +801,7 @@ export default function DashboardLayout({
             >
               {availableRoles.map(roleValue => (
                 <option key={roleValue} value={roleValue}>
-                  {formatRoleName(roleValue)}
+                  {t(formatRoleName(roleValue))}
                 </option>
               ))}
             </select>
@@ -808,14 +812,14 @@ export default function DashboardLayout({
           </div>
         )}
         {!collapsed && isLoading && availableRoles.length <= 1 && (
-          <div className="text-xs text-gray-400">Loading roles...</div>
+          <div className="text-xs text-gray-400">{t('Loading roles...')}</div>
         )}
 
         {/* Academic Year Selector */}
         {!collapsed && allAcademicYears.length > 1 && (
           <div className="relative">
             <label htmlFor="academic-year-switcher" className="block text-xs font-medium text-gray-500 mb-1">
-              Academic Year
+              {t('Academic Year')}
             </label>
             <select
               id="academic-year-switcher"
@@ -826,7 +830,7 @@ export default function DashboardLayout({
               }}
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md appearance-none"
             >
-              <option value="">Select Year</option>
+              <option value="">{t('Select Year')}</option>
               {allAcademicYears.map(yr => (
                 <option key={yr.id} value={yr.id}>{yr.name}</option>
               ))}
@@ -846,22 +850,22 @@ export default function DashboardLayout({
             ? 'text-blue-700 bg-blue-50'
             : 'text-gray-700 bg-gray-50 hover:bg-gray-100'
             } ${collapsed ? 'px-2' : 'px-4'}`}
-          title="Settings"
-          aria-label="Settings"
+          title={t('Settings')}
+          aria-label={t('Settings')}
         >
           <Cog6ToothIcon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
-          {!collapsed && 'Settings'}
+          {!collapsed && t('Settings')}
         </Link>
 
         {/* Logout Button */}
         <button
           onClick={handleLogout}
           className={`w-full flex items-center justify-center py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg group transition-colors duration-200 ${collapsed ? 'px-2' : 'px-4'}`}
-          title="Logout"
-          aria-label="Logout"
+          title={t('Logout')}
+          aria-label={t('Logout')}
         >
           <ArrowRightOnRectangleIcon className={`h-5 w-5 text-red-600 group-hover:text-red-700 ${collapsed ? '' : 'mr-3'}`} />
-          {!collapsed && 'Logout'}
+          {!collapsed && t('Logout')}
         </button>
       </div>
     </div>
@@ -908,11 +912,12 @@ export default function DashboardLayout({
                 </span>
               </div>
             </div>
-            {/* Chat + Notification Indicators */}
-            <div className="flex items-center">
+            {/* Chat + Notification Indicators + Language Switcher */}
+            <div className="flex items-center gap-2">
               <ChatIndicator className="mr-1" />
               {/* Bell opens its own notifications panel (works for every role) */}
               <NotificationIndicator className="mr-2" />
+              <LanguageSwitcher />
             </div>
           </div>
         </div>
