@@ -118,7 +118,7 @@ export function ExpendituresPanel({
         to: to || undefined,
         category: category || undefined,
       });
-      downloadBlob(blob, `expenditures_${from || 'all'}_${to || 'all'}.xlsx`);
+      await downloadBlob(blob, `expenditures_${from || 'all'}_${to || 'all'}.xlsx`);
       toast.success('Export downloaded.', { id: 'exp-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {

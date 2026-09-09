@@ -20,7 +20,9 @@ import {
   ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import ImageLightbox, { type LightboxImage } from '@/components/chat/ImageLightbox';
 import { getChatSocket } from '@/lib/chatSocket';
+import { isNativeApp, saveFileFromUrl } from '@/lib/download';
 import {
   type ChatChannel,
   type ChatMessage,
@@ -78,6 +80,24 @@ const formatDuration = (secs?: number | null) => {
   const m = Math.floor(secs / 60);
   const s = Math.round(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * Saves a file attachment.
+ *
+ * On the web a plain link is enough. Inside the mobile app it is not: the web
+ * view cannot download from a link any more than it can from an <a download>,
+ * so the file is fetched and handed to the native saver.
+ */
+const downloadAttachment = async (url: string, fileName?: string | null) => {
+  const toastId = toast.loading('Saving attachment...');
+  try {
+    await saveFileFromUrl(url, fileName || 'attachment');
+    toast.success('Attachment saved.', { id: toastId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not save the attachment.';
+    toast.error(message, { id: toastId });
+  }
 };
 
 const PresenceDot = ({ online }: { online?: boolean }) => (
@@ -171,6 +191,9 @@ export default function ChatPage() {
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Full-screen image viewer (fit-to-screen; a new tab would open photos at 1:1)
+  const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; index: number } | null>(null);
 
   // Reply + mentions
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -981,8 +1004,19 @@ export default function ChatPage() {
               {m.attachments.map((a, i) => {
                 const key = a.id ?? i;
                 if (a.kind === 'IMAGE') {
+                  const gallery = m.attachments.filter(x => x.kind === 'IMAGE');
                   return (
-                    <a key={key} href={a.fileUrl} target="_blank" rel="noreferrer" className="block mt-1">
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setLightbox({
+                          images: gallery.map(x => ({ url: x.fileUrl, name: x.fileName })),
+                          index: gallery.findIndex(x => x === a),
+                        })
+                      }
+                      className="block mt-1 w-full"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={a.fileUrl}
@@ -990,7 +1024,7 @@ export default function ChatPage() {
                         className="rounded-md max-h-64 max-w-full object-contain"
                         style={a.width && a.height ? { aspectRatio: `${a.width} / ${a.height}` } : undefined}
                       />
-                    </a>
+                    </button>
                   );
                 }
                 if (a.kind === 'AUDIO') {
@@ -1022,6 +1056,11 @@ export default function ChatPage() {
                     href={a.fileUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={(e) => {
+                      if (!isNativeApp()) return;
+                      e.preventDefault();
+                      void downloadAttachment(a.fileUrl, a.fileName);
+                    }}
                     className={`block text-xs underline mt-1 ${mine ? 'text-blue-100' : 'text-blue-600'}`}
                   >
                     📎 {a.fileName}
@@ -1450,6 +1489,15 @@ export default function ChatPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Image viewer — opens fit-to-screen, zoom is opt-in */}
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          startIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

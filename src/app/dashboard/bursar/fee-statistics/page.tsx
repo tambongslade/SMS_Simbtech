@@ -21,6 +21,7 @@ import {
   type FeeStudentRow,
 } from '@/lib/feeStatsApi';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 type Drill = { title: string; rows: FeeStudentRow[] } | null;
 
@@ -106,7 +107,7 @@ export default function BursarFeeStatisticsPage() {
     setDrill({ title, rows: rows.sort((a, b) => b.balance - a.balance) });
   };
 
-  const exportCsv = () => {
+  const exportCsv = async () => {
     if (!data) return;
     const header = 'Class,Subclass,Students,Paid in full,Not paid,Expected,Collected,Outstanding,% paid';
     const lines = data.classes.flatMap((c) => [
@@ -117,14 +118,7 @@ export default function BursarFeeStatisticsPage() {
       ),
     ]);
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `fee-statistics-${selectedAcademicYear?.name || 'year'}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    await saveFile(blob, `fee-statistics-${selectedAcademicYear?.name || 'year'}.csv`);
   };
 
   const totals = data?.totals;

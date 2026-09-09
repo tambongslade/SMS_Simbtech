@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 // --- Types --- (Using refined types)
 
@@ -337,14 +338,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveFile(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report downloaded successfully!`, { id: toastId });
 
@@ -423,14 +417,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveFile(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report generated and downloaded successfully!`, { id: toastId });
 

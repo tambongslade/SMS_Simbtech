@@ -32,6 +32,13 @@
 	<string>St Stephen International needs access to your photo library so you can attach existing photos to student records and messages.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>St Stephen International saves report cards and other documents you download to your photo library.</string>
+	<!-- Downloads are written into the app's Documents folder; these two make
+	     that folder browsable under "On My iPhone > St Stephen International"
+	     in the Files app, so a saved report card is not stranded. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<!-- Required by OneSignal so pushes can be received while backgrounded. -->

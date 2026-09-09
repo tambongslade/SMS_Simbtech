@@ -2,4 +2,8 @@
 <paths xmlns:android="http://schemas.android.com/apk/res/android">
     <external-path name="my_images" path="." />
     <cache-path name="my_cache_images" path="." />
+    <!-- Downloads that landed in app storage because the user turned the
+         storage permission down; NativeDownloader shares them from here. -->
+    <external-files-path name="app_downloads" path="." />
+    <files-path name="app_internal_downloads" path="downloads/" />
 </paths>

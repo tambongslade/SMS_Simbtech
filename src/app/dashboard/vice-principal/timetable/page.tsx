@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import { downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
 import { downloadTimetablesPdf, PdfSubclassTimetable } from '@/lib/clientTimetablePdf';
 import { BatchPrintModal } from '@/components/timetable/BatchPrintModal';
+import { saveFile } from '@/lib/download';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
@@ -147,14 +148,7 @@ const TimetableContent = () => {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveFile(blob, filename);
       toast.success('Timetable exported successfully!');
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'Export failed';

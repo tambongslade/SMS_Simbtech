@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { ArrowDownTrayIcon, DocumentTextIcon, TableCellsIcon } from '@heroicons/react/24/outline';
+import { saveFile } from '@/lib/download';
 import apiService from '../../../../lib/apiService'; // Import apiService
 import { toast } from 'react-hot-toast'; // Import toast
 
@@ -195,9 +196,6 @@ const FinancialReportsPage = () => {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
 
       // Enhanced filename with report type
       const reportTypeNames = {
@@ -209,11 +207,7 @@ const FinancialReportsPage = () => {
       const classFilter = selectedClass === 'all' ? 'all-classes' : `class-${selectedClass}`;
       const filename = `${reportTypeName}_${academicYear}_${classFilter}.${format}`;
 
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      await saveFile(blob, filename);
 
       toast.success(`${reportTypeName.replace('-', ' ')} exported as ${format.toUpperCase()}!`);
     } catch (error: any) {

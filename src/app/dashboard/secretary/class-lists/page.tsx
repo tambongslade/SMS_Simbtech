@@ -64,7 +64,7 @@ export default function SecretaryClassListsPage() {
         name = c?.name || `class_${classId}`;
         blob = await exportClassList(Number(classId), format, academicYearId);
       }
-      downloadBlob(blob, `${name.replace(/\s+/g, '_')}_students_${dateStr}.${format}`);
+      await downloadBlob(blob, `${name.replace(/\s+/g, '_')}_students_${dateStr}.${format}`);
       toast.success('Export downloaded.', { id: 'class-list-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {

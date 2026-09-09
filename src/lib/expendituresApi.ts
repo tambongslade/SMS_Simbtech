@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { saveFile } from '@/lib/download';
 
 // ---------------------------------------------------------------------------
 // Expenditures API client
@@ -261,13 +262,5 @@ export const monthBounds = (month: string): { from: string; to: string } => {
   return { from: first, to: last };
 };
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-};
+export const downloadBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);

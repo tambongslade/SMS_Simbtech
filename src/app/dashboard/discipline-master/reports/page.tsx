@@ -19,6 +19,7 @@ import {
   UserGroupIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import { saveFile } from '@/lib/download';
 
 interface ReportTemplate {
   id: string;
@@ -112,7 +113,7 @@ export default function ReportsPage() {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     if (!reportData) {
       toast.error('No report data available to download');
       return;
@@ -120,14 +121,7 @@ export default function ReportsPage() {
 
     const reportText = JSON.stringify(reportData, null, 2);
     const blob = new Blob([reportText], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `discipline-report-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    await saveFile(blob, `discipline-report-${new Date().toISOString().split('T')[0]}.json`);
 
     toast.success('Report downloaded');
   };

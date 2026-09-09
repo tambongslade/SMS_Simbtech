@@ -1,4 +1,5 @@
 import apiService from '@/lib/apiService';
+import { saveFile } from '@/lib/download';
 
 // ===========================================================================
 // Subject Schemes of Work & Teacher Logbook — API client
@@ -251,16 +252,8 @@ export const deleteLesson = (lessonId: number) =>
 export const downloadSchemeTemplate = async (): Promise<Blob> =>
   apiService.get<Blob>('/subject-schemes/import/template', undefined, 'blob');
 
-export const saveBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-};
+export const saveBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);
 
 export interface SchemeImportCreated {
   sheet: string;

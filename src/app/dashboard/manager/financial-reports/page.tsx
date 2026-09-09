@@ -16,6 +16,7 @@ import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { getExpenditureSummary, CATEGORY_LABELS, ExpenditureSummary } from '@/lib/expendituresApi';
+import { saveFile } from '@/lib/download';
 
 // ── GET /dashboard/financial-overview ──
 // Actual shape: { schoolOverview: { totalExpected, totalCollected,
@@ -236,15 +237,8 @@ export default function ManagerFinancialReportsPage() {
             if (selectedClass !== 'all') params.append('classId', selectedClass);
 
             const blob = await apiService.get(`/fees/export?${params.toString()}`, {}, 'blob');
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
             const reportTypeNames = { summary: 'Fee-Summary', detailed: 'Detailed-Fees', analytics: 'Payment-Analytics' };
-            link.download = `${reportTypeNames[reportType]}_${new Date().toISOString().split('T')[0]}.${exportFormat}`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
+            await saveFile(blob, `${reportTypeNames[reportType]}_${new Date().toISOString().split('T')[0]}.${exportFormat}`);
             toast.success(`${reportTypeNames[reportType]} exported as ${exportFormat.toUpperCase()}`);
         } catch (error) {
             console.error('Export error:', error);

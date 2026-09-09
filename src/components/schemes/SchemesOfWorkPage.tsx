@@ -111,7 +111,7 @@ export function SchemesOfWorkPage({ basePath, readOnly = false }: SchemesOfWorkP
   const handleDownloadTemplate = async () => {
     try {
       const blob = await downloadSchemeTemplate();
-      saveBlob(blob, 'subject-scheme-template.xlsx');
+      await saveBlob(blob, 'subject-scheme-template.xlsx');
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
       if (message !== 'Unauthorized') toast.error(message || 'Could not download the template.');

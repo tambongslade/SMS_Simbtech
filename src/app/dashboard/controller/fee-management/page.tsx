@@ -20,6 +20,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -567,14 +568,7 @@ export default function ControllerFeeManagementPage() {
         { params: { format, academicYearId, ...(selectedClassId ? { classId: selectedClassId } : {}) } },
         'blob',
       );
-      const url = window.URL.createObjectURL(blob as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `control-fees-${selectedAcademicYear?.name || 'export'}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await saveFile(blob as Blob, `control-fees-${selectedAcademicYear?.name || 'export'}.${format}`);
       toast.success('Export downloaded');
     } catch {
       toast.error('Export failed. Try again.');

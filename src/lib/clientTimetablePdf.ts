@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { toast } from 'react-hot-toast';
+import { saveFile } from '@/lib/download';
 
 // Client-side timetable PDF renderer.
 //
@@ -289,7 +290,9 @@ export const downloadTimetablesPdf = async (
             subs.length === 1
                 ? `timetable_${slugify(subs[0].subClassName)}.pdf`
                 : `timetables_${subs.length}_classes.pdf`;
-        pdf.save(filename);
+        // Not pdf.save(): that builds a blob: anchor, which the mobile app's
+        // web view refuses to download. saveFile routes it natively there.
+        await saveFile(pdf.output('blob'), filename);
         toast.success(
             subs.length === 1 ? 'Timetable PDF downloaded.' : `${subs.length} timetables downloaded.`,
             { id: toastId },

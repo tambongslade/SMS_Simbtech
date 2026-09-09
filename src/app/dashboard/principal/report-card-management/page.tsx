@@ -6,6 +6,7 @@ import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleI
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 // --- Types ---
 type SelectOption = {
@@ -321,14 +322,7 @@ export default function PrincipalReportCardManagementPage() {
             }
 
             const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(downloadUrl);
+            await saveFile(blob, filename);
 
             toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report downloaded successfully!`, { id: toastId });
 
@@ -404,14 +398,7 @@ export default function PrincipalReportCardManagementPage() {
             }
 
             const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode?.removeChild(link);
-            window.URL.revokeObjectURL(downloadUrl);
+            await saveFile(blob, filename);
 
             toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report generated and downloaded successfully!`, { id: toastId });
 

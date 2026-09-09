@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, FunnelIcon, CheckCircleIcon, ClockIcon, XCircleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService'; // Import apiService
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 // --- Type Definitions (move to types.ts later) ---
 type PaymentStatus = 'Paid' | 'Partially Paid' | 'Unpaid';
@@ -199,15 +200,8 @@ export default function FeesPaymentManagement() {
                 // Or send filters: filters: { searchTerm, statusFilter, classFilter }
             }, undefined, 'blob'); // Pass undefined for options, then 'blob' for expectedResponseType
 
-            const downloadUrl = window.URL.createObjectURL(response); // response should now be a Blob
-            const link = document.createElement('a');
-            link.href = downloadUrl;
             const filename = `fee_ defaulters_${new Date().toISOString().split('T')[0]}.${format}`;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(downloadUrl);
+            await saveFile(response, filename);
             toast.success(`Export downloaded successfully.`, { id: 'export-toast' });
         } catch (error: any) {
             console.error("Export failed:", error);

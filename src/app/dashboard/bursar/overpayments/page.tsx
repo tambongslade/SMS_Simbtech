@@ -123,7 +123,7 @@ export default function BursarOverpaymentsPage() {
         subClassId: subClassFilter ? Number(subClassFilter) : undefined,
         minOverpayment: minOverpayment ? Number(minOverpayment) : undefined,
       });
-      downloadBlob(blob, `overpayments_${todayStr()}.xlsx`);
+      await downloadBlob(blob, `overpayments_${todayStr()}.xlsx`);
       toast.success('Export downloaded.', { id: 'overpaid-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {

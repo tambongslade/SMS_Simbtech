@@ -3,6 +3,7 @@
 // camelCase on the wire.
 
 import apiService from './apiService';
+import { saveFile } from '@/lib/download';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
@@ -152,13 +153,6 @@ export const downloadChildReportCard = async (
   const dispo = res.headers.get('Content-Disposition') || '';
   const nameMatch = dispo.match(/filename="?([^";]+)"?/);
   const filename = nameMatch?.[1] || `report-${matricule}-seq-${examSequenceId}.pdf`;
-  const objectUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = objectUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(objectUrl);
+  await saveFile(blob, filename);
   return { kind: 'downloaded' };
 };

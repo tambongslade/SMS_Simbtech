@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { saveFile } from '@/lib/download';
 
 export type RefundMethod =
   | 'CASH'
@@ -147,13 +148,5 @@ export const fmtMoney = (v: any) => {
   return `XAF ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 };
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
-};
+export const downloadBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);

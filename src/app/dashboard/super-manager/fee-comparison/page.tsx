@@ -20,6 +20,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveFile } from '@/lib/download';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -187,14 +188,7 @@ export default function FeeAuditRoster() {
         ...(classId ? { classId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `fee-audit-${selectedAcademicYear.name}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await saveFile(blob, `fee-audit-${selectedAcademicYear.name}.xlsx`);
       toast.success('Export downloaded');
     } catch {
       toast.error('Export failed');
