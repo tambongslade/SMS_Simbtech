@@ -80,6 +80,7 @@ const menuItems: MenuItemsStructure = {
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/principal/enrollment' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
+    { icon: AcademicCapIcon, label: 'Teacher Management', href: '/dashboard/principal/teacher-management' },
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/principal/defaulters' },
