@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   CheckCircleIcon,
@@ -20,6 +20,7 @@ import {
   recordDmRollCall,
 } from '@/lib/disciplineExtApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SubClassOption {
   id: number;
@@ -27,19 +28,25 @@ interface SubClassOption {
   className?: string;
 }
 
-const STATUS_OPTIONS: { value: DMRollCallStatus; label: string; active: string; idle: string }[] = [
-  { value: 'PRESENT', label: 'Present', active: 'bg-green-600 text-white', idle: 'bg-green-50 text-green-700 hover:bg-green-100' },
-  { value: 'LATE', label: 'Late', active: 'bg-yellow-500 text-white', idle: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100' },
-  { value: 'ABSENT', label: 'Absent', active: 'bg-red-600 text-white', idle: 'bg-red-50 text-red-700 hover:bg-red-100' },
-];
-
+// The DM walks classrooms three times a day (after the 2nd, 5th, and 8th
+// period bells). The backend now picks which of the three slots to record
+// based on wall-clock time, so this page is stateless in that sense — the
+// DM opens it, marks the exceptions, hits Save, and moves on to the next
+// subclass. No slot dropdown to hunt through.
 export default function DmRollCallPage() {
+  const { t } = useLanguage();
+  const STATUS_OPTIONS: { value: DMRollCallStatus; label: string; active: string; idle: string }[] = [
+    { value: 'PRESENT', label: t('Present'), active: 'bg-green-600 text-white', idle: 'bg-green-50 text-green-700 hover:bg-green-100' },
+    { value: 'LATE', label: t('Late'), active: 'bg-yellow-500 text-white', idle: 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100' },
+    { value: 'ABSENT', label: t('Absent'), active: 'bg-red-600 text-white', idle: 'bg-red-50 text-red-700 hover:bg-red-100' },
+  ];
+
   const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
   const [subClassId, setSubClassId] = useState<number | ''>('');
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [slot, setSlot] = useState<RollCallSlot>('SLOT_2');
 
   const [slotStatus, setSlotStatus] = useState<DmRollCallStatusData | null>(null);
+  const [currentSlot, setCurrentSlot] = useState<RollCallSlot | null>(null);
   const [roster, setRoster] = useState<DmRosterEntry[]>([]);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const [statuses, setStatuses] = useState<Record<number, DMRollCallStatus>>({});
@@ -47,6 +54,8 @@ export default function DmRollCallPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const subClassSelectRef = useRef<HTMLSelectElement>(null);
 
   // Load sub-classes once
   useEffect(() => {
@@ -60,7 +69,7 @@ export default function DmRollCallPage() {
         }));
         setSubClasses(sortSubClassesByLevel(list));
       } catch {
-        toast.error('Failed to load sub-classes.');
+        toast.error(t('Failed to load sub-classes.'));
       }
     })();
   }, []);
@@ -70,14 +79,18 @@ export default function DmRollCallPage() {
     setIsLoading(true);
     setLoadError(null);
     try {
+      // Both endpoints let the backend pick the current slot when the query
+      // omits it. Fetching the status endpoint in parallel keeps the day
+      // summary (3 traffic lights) live without extra clicks.
       const [statusData, rollCallData] = await Promise.all([
         getDmRollCallStatus(subClassId, date),
-        getDmRollCall(subClassId, date, slot),
+        getDmRollCall(subClassId, date),
       ]);
       setSlotStatus(statusData);
+      setCurrentSlot((rollCallData as any).slot ?? null);
       setRoster(rollCallData.roster || []);
       setAlreadyRecorded(!!rollCallData.rollCall);
-      // Pre-fill: recorded entries keep their status, unrecorded default to PRESENT
+      // Pre-fill: recorded entries keep their status, unrecorded default to PRESENT.
       const next: Record<number, DMRollCallStatus> = {};
       (rollCallData.roster || []).forEach(r => {
         next[r.enrollmentId] = r.status ?? 'PRESENT';
@@ -85,12 +98,13 @@ export default function DmRollCallPage() {
       setStatuses(next);
     } catch (error: any) {
       setSlotStatus(null);
+      setCurrentSlot(null);
       setRoster([]);
-      setLoadError(error.message || 'Failed to load roll call.');
+      setLoadError(error.message || t('Failed to load roll call.'));
     } finally {
       setIsLoading(false);
     }
-  }, [subClassId, date, slot]);
+  }, [subClassId, date]);
 
   useEffect(() => {
     refresh();
@@ -111,26 +125,42 @@ export default function DmRollCallPage() {
     setStatuses(next);
   };
 
+  // Reset just enough state to record another subclass immediately without
+  // re-entering the date. The subclass dropdown is auto-focused so the DM
+  // can keep his rhythm.
+  const resetForNext = () => {
+    setSubClassId('');
+    setSlotStatus(null);
+    setCurrentSlot(null);
+    setRoster([]);
+    setAlreadyRecorded(false);
+    setStatuses({});
+    setLoadError(null);
+    setTimeout(() => subClassSelectRef.current?.focus(), 50);
+  };
+
   const handleSubmit = async () => {
     if (!subClassId || roster.length === 0) return;
     setIsSubmitting(true);
     try {
+      // No slot in the payload — backend picks based on server time.
       const result = await recordDmRollCall({
         subClassId: Number(subClassId),
         date,
-        slot,
         entries: roster.map(r => ({ enrollmentId: r.enrollmentId, status: statuses[r.enrollmentId] || 'PRESENT' })),
       });
-      const newWarnings = (result.triggers || []).reduce((n, t) => n + (t.warnings?.length || 0), 0);
-      const newSummons = (result.triggers || []).reduce((n, t) => n + (t.summons?.length || 0), 0);
+      const newWarnings = (result.triggers || []).reduce((n, tr) => n + (tr.warnings?.length || 0), 0);
+      const newSummons = (result.triggers || []).reduce((n, tr) => n + (tr.summons?.length || 0), 0);
+      const slotLabel = ROLL_CALL_SLOTS.find(s => s.value === result.slot)?.label ?? result.slot;
+      const base = t('Roll call saved') + (result.slot ? ` (${slotLabel})` : '') + '.';
       toast.success(
         newWarnings || newSummons
-          ? `Roll call saved. Auto-created ${newWarnings} warning(s) and ${newSummons} summons.`
-          : 'Roll call saved.'
+          ? `${base} ${newWarnings} ${t('Warnings')}, ${newSummons} ${t('Summons')}.`
+          : base
       );
-      refresh();
+      resetForNext();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to save roll call.');
+      toast.error(error.message || t('Failed to save roll call.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -142,29 +172,34 @@ export default function DmRollCallPage() {
     return info.status === 'recorded' ? (
       <CheckCircleIcon className="w-4 h-4 text-green-500" />
     ) : (
-      <XCircleIcon className="w-4 h-4 text-red-400" />
+      <XCircleIcon className="w-4 h-4 text-gray-300" />
     );
   };
+
+  const currentSlotLabel = currentSlot
+    ? ROLL_CALL_SLOTS.find(s => s.value === currentSlot)?.label ?? currentSlot
+    : '';
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-3xl mx-auto overflow-x-clip">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Roll Call</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Roll Call')}</h1>
         <p className="text-xs sm:text-sm text-gray-500 mt-1">
-          Record attendance for the three daily control slots. Absences and lateness automatically feed the discipline system.
+          {t('Record attendance. The slot is picked automatically from the time you save.')}
         </p>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <div className="min-w-0">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sub-class</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Sub-class')}</label>
           <select
+            ref={subClassSelectRef}
             value={subClassId}
             onChange={e => setSubClassId(Number(e.target.value) || '')}
             className="block w-full min-w-0 rounded-md border-gray-300 border px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm bg-white"
           >
-            <option value="">Select sub-class</option>
+            <option value="">{t('Select sub-class')}</option>
             {subClasses.map(s => (
               <option key={s.id} value={s.id}>
                 {s.className ? `${s.className} — ${s.name}` : s.name}
@@ -174,7 +209,7 @@ export default function DmRollCallPage() {
         </div>
         <div className="flex items-end gap-2 sm:col-span-2 min-w-0">
           <div className="flex-1 min-w-0">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Date')}</label>
             {/* appearance-none + min-w-0 stop iOS date inputs from forcing the
                 page wider than the screen */}
             <input
@@ -187,33 +222,32 @@ export default function DmRollCallPage() {
           <button
             onClick={refresh}
             disabled={!subClassId || isLoading}
-            title="Refresh"
+            title={t('Refresh')}
             className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm shrink-0"
           >
             <ArrowPathIcon className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Refresh</span>
+            <span className="hidden sm:inline">{t('Refresh')}</span>
           </button>
         </div>
       </div>
 
-      {/* Slot tabs (traffic-light strip) — compact on phones */}
-      {subClassId && (
-        <div className="flex gap-2">
+      {/* Day summary — passive traffic lights for the three slots, and the
+          slot the current save will be recorded to. No manual switching. */}
+      {subClassId && slotStatus && (
+        <div className="bg-white rounded-lg shadow px-3 sm:px-4 py-2.5 text-xs sm:text-sm flex flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="text-gray-500">{t('Today')}:</span>
           {ROLL_CALL_SLOTS.map(s => (
-            <button
-              key={s.value}
-              onClick={() => setSlot(s.value)}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-2 sm:px-4 py-2 rounded-md border text-xs sm:text-sm font-medium ${
-                slot === s.value
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
-              }`}
-            >
-              <span className="sm:hidden">{s.label.split(' (')[0]}</span>
-              <span className="hidden sm:inline">{s.label}</span>
+            <span key={s.value} className={`inline-flex items-center gap-1 ${currentSlot === s.value ? 'font-semibold text-gray-900' : 'text-gray-500'}`}>
               {slotBadge(s.value)}
-            </button>
+              <span className="hidden sm:inline">{s.label}</span>
+              <span className="sm:hidden">{s.label.split(' (')[0]}</span>
+            </span>
           ))}
+          {currentSlotLabel && (
+            <span className="ml-auto text-[11px] sm:text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+              {t('Will save to')}: {currentSlotLabel}
+            </span>
+          )}
         </div>
       )}
 
@@ -223,21 +257,21 @@ export default function DmRollCallPage() {
 
       {!subClassId ? (
         <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-          Select a sub-class to start.
+          {t('Select a sub-class to start.')}
         </div>
       ) : isLoading ? (
-        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">Loading roster…</div>
+        <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">{t('Loading roster…')}</div>
       ) : roster.length > 0 ? (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-3 sm:px-6 py-3 border-b border-gray-200 flex flex-wrap items-center justify-between gap-2">
             <div className="text-xs sm:text-sm text-gray-600 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span className="font-semibold text-gray-900">{roster.length} students</span>
+              <span className="font-semibold text-gray-900">{roster.length} {t('students')}</span>
               <span className="text-green-700">{counts.PRESENT} P</span>
               <span className="text-yellow-700">{counts.LATE} L</span>
               <span className="text-red-700">{counts.ABSENT} A</span>
               {alreadyRecorded && (
                 <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                  <ClockIcon className="w-3 h-3" /> recorded — saving replaces
+                  <ClockIcon className="w-3 h-3" /> {t('recorded — saving replaces')}
                 </span>
               )}
             </div>
@@ -245,7 +279,7 @@ export default function DmRollCallPage() {
               onClick={() => setAll('PRESENT')}
               className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 whitespace-nowrap"
             >
-              Mark all present
+              {t('Mark all present')}
             </button>
           </div>
 
@@ -282,21 +316,21 @@ export default function DmRollCallPage() {
           {/* Sticky save bar — stays visible while scrolling long rosters */}
           <div className="sticky bottom-0 px-3 sm:px-6 py-3 border-t border-gray-200 bg-white/95 backdrop-blur flex items-center justify-between gap-2">
             <span className="text-[11px] sm:text-xs text-gray-500">
-              {counts.PRESENT} present · {counts.LATE} late · {counts.ABSENT} absent
+              {counts.PRESENT} {t('present')} · {counts.LATE} {t('late')} · {counts.ABSENT} {t('absent')}
             </span>
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
               className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 text-sm font-medium shrink-0"
             >
-              {isSubmitting ? 'Saving…' : alreadyRecorded ? 'Replace Roll Call' : 'Save Roll Call'}
+              {isSubmitting ? t('Saving…') : alreadyRecorded ? t('Replace Roll Call') : t('Save Roll Call')}
             </button>
           </div>
         </div>
       ) : (
         !loadError && (
           <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            No students found for this sub-class.
+            {t('No students found for this sub-class.')}
           </div>
         )
       )}

@@ -349,24 +349,27 @@ export const getDmRollCallStatus = async (subClassId: number | string, date: str
   return res.data;
 };
 
+// slot is optional; when omitted the backend picks it from the current time
+// in the school's timezone. Pass it explicitly only for edits / corrections.
 export const getDmRollCall = async (
   subClassId: number | string,
   date: string,
-  slot: RollCallSlot
+  slot?: RollCallSlot
 ): Promise<DmRollCallData> => {
-  const res = await apiService.get<{ data: DmRollCallData }>(
-    `/discipline/dm-roll-call?subClassId=${subClassId}&date=${date}&slot=${slot}`
-  );
+  const qs = slot
+    ? `subClassId=${subClassId}&date=${date}&slot=${slot}`
+    : `subClassId=${subClassId}&date=${date}`;
+  const res = await apiService.get<{ data: DmRollCallData }>(`/discipline/dm-roll-call?${qs}`);
   return res.data;
 };
 
 export const recordDmRollCall = async (body: {
   subClassId: number;
   date: string;
-  slot: RollCallSlot;
+  slot?: RollCallSlot;
   entries: Array<{ enrollmentId: number; status: DMRollCallStatus }>;
-}): Promise<{ rollCall: any; triggers: DmRollCallTrigger[] }> => {
-  const res = await apiService.post<{ data: { rollCall: any; triggers: DmRollCallTrigger[] } }>(
+}): Promise<{ rollCall: any; triggers: DmRollCallTrigger[]; slot: RollCallSlot }> => {
+  const res = await apiService.post<{ data: { rollCall: any; triggers: DmRollCallTrigger[]; slot: RollCallSlot } }>(
     '/discipline/dm-roll-call',
     body
   );
