@@ -57,11 +57,13 @@ export default function DmRollCallPage() {
 
   const subClassSelectRef = useRef<HTMLSelectElement>(null);
 
-  // Load sub-classes once
+  // Load sub-classes the caller may actually record for. A plain DM only sees
+  // their assigned sub-classes; admin/senior roles (VP/Principal/DoD/SDM/SM)
+  // still see everything since they share this page for corrections.
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiService.get('/classes/sub-classes?limit=200');
+        const res = await apiService.get('/discipline/dm-roll-call/my-subclasses');
         const list = (res.data || []).map((s: any) => ({
           id: s.id,
           name: s.name,
@@ -69,7 +71,7 @@ export default function DmRollCallPage() {
         }));
         setSubClasses(sortSubClassesByLevel(list));
       } catch {
-        toast.error(t('Failed to load sub-classes.'));
+        toast.error(t('Failed to load your assigned sub-classes.'));
       }
     })();
   }, []);
