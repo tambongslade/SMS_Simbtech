@@ -7,8 +7,9 @@ import {
     ExclamationTriangleIcon,
     PhoneIcon,
     MagnifyingGlassIcon,
+    ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge, Input, Select } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge, Input, Select, Button } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel } from '@/lib/classOrdering';
@@ -97,14 +98,65 @@ export default function DefaultersReport() {
     const maxClassAmount = Math.max(0, ...(report?.byClass ?? []).map(c => c.outstandingAmount));
     const maxRangeAmount = Math.max(0, ...(report?.byAmountRange ?? []).map(r => r.totalAmount));
 
+    const exportCsv = () => {
+        if (students.length === 0) {
+            toast.error('Nothing to export.');
+            return;
+        }
+        // RFC-4180 style escape: wrap in quotes, double any internal quote.
+        const csvCell = (v: string | number | null | undefined) => {
+            const s = v == null ? '' : String(v);
+            return `"${s.replace(/"/g, '""')}"`;
+        };
+        const header = ['Student', 'Matricule', 'Class', 'Subclass', 'Outstanding (FCFA)', 'Days Overdue', 'Due Date'];
+        if (showContacts) header.push('Parent Phone');
+        const lines = students.map(s => {
+            const row: (string | number)[] = [
+                s.studentName,
+                s.matricule,
+                s.className,
+                s.subClassName ?? '',
+                s.outstandingAmount ?? 0,
+                s.daysOverdue,
+                s.dueDate ? new Date(s.dueDate).toISOString().slice(0, 10) : '',
+            ];
+            if (showContacts) row.push(s.contactParentPhone ?? '');
+            return row.map(csvCell).join(',');
+        });
+        // BOM keeps Excel from mangling FCFA / accented names.
+        const blob = new Blob(['﻿' + [header.map(csvCell).join(','), ...lines].join('\n')], {
+            type: 'text/csv;charset=utf-8;',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const yearSlug = (selectedAcademicYear?.name || 'year').replace(/\s+/g, '-');
+        const dateSlug = new Date().toISOString().slice(0, 10);
+        link.download = `fee-defaulters-${yearSlug}-${dateSlug}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="p-4 sm:p-6 space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">Fee Defaulters</h1>
-                <p className="text-gray-600">
-                    Students with outstanding fees
-                    {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Fee Defaulters</h1>
+                    <p className="text-gray-600">
+                        Students with outstanding fees
+                        {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
+                    </p>
+                </div>
+                <Button
+                    variant="outline"
+                    leftIcon={ArrowDownTrayIcon}
+                    onClick={exportCsv}
+                    disabled={isLoading || students.length === 0}
+                >
+                    Export CSV
+                </Button>
             </div>
 
             {error && error.message !== 'Unauthorized' && (
