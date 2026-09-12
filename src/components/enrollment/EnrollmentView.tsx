@@ -12,8 +12,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, Input } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 interface SubClassSummary {
   id: number;
@@ -160,6 +162,7 @@ function ClassCard({ cls }: { cls: ClassSummary }) {
  */
 export default function EnrollmentView() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   const [search, setSearch] = useState('');
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
@@ -206,14 +209,7 @@ export default function EnrollmentView() {
       (c) => `"${c.name}",${c.studentCount ?? 0},${c.subClasses?.length ?? 0}`,
     );
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `enrollment-${selectedAcademicYear?.name || 'year'}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(blob, `enrollment-${selectedAcademicYear?.name || 'year'}.csv`);
   };
 
   return (
@@ -221,9 +217,9 @@ export default function EnrollmentView() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Enrollment</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Enrollment')}</h1>
           <p className="text-gray-600 mt-1 text-sm">
-            How many students are in each class, and in each subclass
+            {t('How many students are in each class, and in each subclass')}
             {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
           </p>
         </div>
@@ -235,7 +231,7 @@ export default function EnrollmentView() {
             onClick={() => mutate()}
             disabled={isLoading}
           >
-            Refresh
+            {t('Refresh')}
           </Button>
           <Button
             variant="outline"
@@ -244,22 +240,22 @@ export default function EnrollmentView() {
             onClick={exportCsv}
             disabled={!data}
           >
-            Export CSV
+            {t('Export CSV')}
           </Button>
         </div>
       </div>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-          Could not load enrollment. Try refreshing.
+          {t('Could not load enrollment. Try refreshing.')}
         </div>
       )}
 
       {/* Totals */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <StatCard label="Students" value={totals.students.toLocaleString()} sub="All classes" />
-        <StatCard label="Classes" value={totals.classes.toLocaleString()} />
-        <StatCard label="Subclasses" value={totals.subClasses.toLocaleString()} />
+        <StatCard label={t('Students')} value={totals.students.toLocaleString()} sub={t('All classes')} />
+        <StatCard label={t('Classes')} value={totals.classes.toLocaleString()} />
+        <StatCard label={t('Subclasses')} value={totals.subClasses.toLocaleString()} />
       </div>
 
       {/* Search */}
@@ -268,7 +264,7 @@ export default function EnrollmentView() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter by class or subclass…"
+            placeholder={t('Filter by class or subclass…')}
           />
           <MagnifyingGlassIcon className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
         </div>
@@ -277,10 +273,10 @@ export default function EnrollmentView() {
       {/* Breakdown */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {isLoading ? (
-          <div className="px-4 py-12 text-center text-gray-500">Loading classes…</div>
+          <div className="px-4 py-12 text-center text-gray-500">{t('Loading classes…')}</div>
         ) : classes.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-500">
-            {data ? 'No classes found.' : 'Nothing to show yet.'}
+            {data ? t('No classes found.') : t('Nothing to show yet.')}
           </div>
         ) : (
           <>
@@ -290,13 +286,13 @@ export default function EnrollmentView() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      Class / Subclass
+                      {t('Class / Subclass')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Students
+                      {t('Students')}
                     </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                      Subclasses
+                      {t('Subclasses')}
                     </th>
                   </tr>
                 </thead>
@@ -344,7 +340,7 @@ export default function EnrollmentView() {
 
       <p className="flex items-center gap-2 text-xs text-gray-500">
         <UsersIcon className="h-4 w-4" />
-        Counts reflect students enrolled in the current academic year.
+        {t('Counts reflect students enrolled in the current academic year.')}
       </p>
     </div>
   );

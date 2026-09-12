@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, Input, Modal } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
   fetchFeeStats,
   fmtMoney,
@@ -21,6 +22,7 @@ import {
   type FeeStudentRow,
 } from '@/lib/feeStatsApi';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 type Drill = { title: string; rows: FeeStudentRow[] } | null;
 
@@ -63,6 +65,7 @@ function StatCard({
 
 export default function BursarFeeStatisticsPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
@@ -76,7 +79,7 @@ export default function BursarFeeStatisticsPage() {
     {
       revalidateOnFocus: false,
       onError: (err) => {
-        if (err?.message !== 'Unauthorized') toast.error('Could not load fee statistics.');
+        if (err?.message !== 'Unauthorized') toast.error(t('Could not load fee statistics.'));
       },
     },
   );
@@ -117,14 +120,7 @@ export default function BursarFeeStatisticsPage() {
       ),
     ]);
     const blob = new Blob([[header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `fee-statistics-${selectedAcademicYear?.name || 'year'}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(blob, `fee-statistics-${selectedAcademicYear?.name || 'year'}.csv`);
   };
 
   const totals = data?.totals;
@@ -134,9 +130,9 @@ export default function BursarFeeStatisticsPage() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Fee Payment Statistics</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Fee Payment Statistics')}</h1>
           <p className="text-gray-600 mt-1 text-sm">
-            Who has paid in full and who hasn&apos;t, per class and subclass
+            {t("Who has paid in full and who hasn't, per class and subclass")}
             {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
           </p>
         </div>
@@ -148,7 +144,7 @@ export default function BursarFeeStatisticsPage() {
             onClick={() => mutate()}
             disabled={isLoading}
           >
-            Refresh
+            {t('Refresh')}
           </Button>
           <Button
             variant="outline"
@@ -157,20 +153,20 @@ export default function BursarFeeStatisticsPage() {
             onClick={exportCsv}
             disabled={!data}
           >
-            Export CSV
+            {t('Export CSV')}
           </Button>
         </div>
       </div>
 
       {!yearId && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-900">
-          Select an academic year to see fee statistics.
+          {t('Select an academic year to see fee statistics.')}
         </div>
       )}
 
       {error && yearId && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-          Could not load fee statistics. Try refreshing.
+          {t('Could not load fee statistics. Try refreshing.')}
         </div>
       )}
 
@@ -178,26 +174,26 @@ export default function BursarFeeStatisticsPage() {
       {totals && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <StatCard
-            label="Students with fees"
+            label={t('Students with fees')}
             value={totals.studentCount.toLocaleString()}
-            sub={`${fmtMoney(totals.expected)} expected`}
+            sub={`${fmtMoney(totals.expected)} ${t('expected')}`}
           />
           <StatCard
-            label="Paid in full"
+            label={t('Paid in full')}
             value={totals.paidCount.toLocaleString()}
             sub={fmtPct(totals.paidRate)}
             tone="good"
           />
           <StatCard
-            label="Not fully paid"
+            label={t('Not fully paid')}
             value={totals.unpaidCount.toLocaleString()}
-            sub={`${totals.partialCount.toLocaleString()} part-paid`}
+            sub={`${totals.partialCount.toLocaleString()} ${t('part-paid')}`}
             tone="bad"
           />
           <StatCard
-            label="Collected"
+            label={t('Collected')}
             value={fmtMoney(totals.collected)}
-            sub={`${fmtMoney(totals.outstanding)} outstanding`}
+            sub={`${fmtMoney(totals.outstanding)} ${t('outstanding')}`}
           />
         </div>
       )}
@@ -208,7 +204,7 @@ export default function BursarFeeStatisticsPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter by class or subclass…"
+            placeholder={t('Filter by class or subclass…')}
           />
           <MagnifyingGlassIcon className="absolute right-3 top-2.5 h-5 w-5 text-gray-400 pointer-events-none" />
         </div>
@@ -217,10 +213,10 @@ export default function BursarFeeStatisticsPage() {
       {/* Breakdown */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {isLoading ? (
-          <div className="px-4 py-12 text-center text-gray-500">Loading fee statistics…</div>
+          <div className="px-4 py-12 text-center text-gray-500">{t('Loading fee statistics…')}</div>
         ) : classes.length === 0 ? (
           <div className="px-4 py-12 text-center text-gray-500">
-            {data ? 'No fee records for this academic year.' : 'Nothing to show yet.'}
+            {data ? t('No fee records for this academic year.') : t('Nothing to show yet.')}
           </div>
         ) : (
           <>
@@ -229,13 +225,13 @@ export default function BursarFeeStatisticsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class / Subclass</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Students</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Not paid</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">% paid</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Collected</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Outstanding</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Class / Subclass')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Students')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Paid')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Not paid')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('% paid')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Collected')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Outstanding')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -407,8 +403,7 @@ export default function BursarFeeStatisticsPage() {
       </div>
 
       <p className="text-xs text-gray-500 px-1">
-        Counts cover students who have a fee record for the year. A student with no fee record yet
-        is in neither column.
+        {t('Counts cover students who have a fee record for the year. A student with no fee record yet is in neither column.')}
       </p>
 
       {/* Student drill-down */}
@@ -420,7 +415,7 @@ export default function BursarFeeStatisticsPage() {
                 {drill.rows.length} student{drill.rows.length === 1 ? '' : 's'}
               </p>
               <Button variant="outline" size="xs" leftIcon={XMarkIcon} onClick={() => setDrill(null)}>
-                Close
+                {t('Close')}
               </Button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
@@ -434,9 +429,9 @@ export default function BursarFeeStatisticsPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold text-gray-900">{fmtMoney(row.paid)}</p>
-                    <p className="text-xs text-gray-500">of {fmtMoney(row.expected)}</p>
+                    <p className="text-xs text-gray-500">{t('of')} {fmtMoney(row.expected)}</p>
                     {row.balance > 0 && (
-                      <p className="text-xs font-medium text-red-700">{fmtMoney(row.balance)} owing</p>
+                      <p className="text-xs font-medium text-red-700">{fmtMoney(row.balance)} {t('owing')}</p>
                     )}
                   </div>
                 </div>

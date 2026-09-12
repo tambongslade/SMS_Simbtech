@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import { saveBlob } from '@/lib/downloadFile';
 
 export type RefundMethod =
   | 'CASH'
@@ -148,12 +149,5 @@ export const fmtMoney = (v: any) => {
 };
 
 export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  saveBlob(blob, filename);
 };

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import {
   CurrencyDollarIcon,
@@ -20,6 +21,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +117,7 @@ interface NewPaymentModalProps {
 }
 
 function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModalProps) {
+  const { t } = useLanguage();
   const [studentSearch, setStudentSearch] = useState('');
   const [studentResults, setStudentResults] = useState<Array<{ id: number; name: string; matricule: string; enrollmentId?: number }>>([]);
   const [selectedStudent, setSelectedStudent] = useState<{ id: number; name: string; enrollmentId?: number } | null>(null);
@@ -158,9 +161,9 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedStudent) { toast.error('Please select a student'); return; }
+    if (!selectedStudent) { toast.error(t('Please select a student')); return; }
     const numAmount = parseFloat(amount);
-    if (!numAmount || numAmount <= 0) { toast.error('Please enter a valid amount'); return; }
+    if (!numAmount || numAmount <= 0) { toast.error(t('Please enter a valid amount')); return; }
     setLoading(true);
     try {
       await apiService.post('/control-fees/payments', {
@@ -172,11 +175,11 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
         ...(receiptNumber ? { receiptNumber } : {}),
         academicYearId,
       });
-      toast.success('Payment recorded successfully');
+      toast.success(t('Payment recorded successfully'));
       onSuccess();
       onClose();
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || err?.message || 'Failed to record payment');
+      toast.error(err?.response?.data?.error || err?.message || t('Failed to record payment'));
     } finally {
       setLoading(false);
     }
@@ -186,7 +189,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
     <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[95vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-200 sticky top-0 bg-white z-10">
-          <h2 className="text-lg font-semibold text-gray-900">Record Payment</h2>
+          <h2 className="text-lg font-semibold text-gray-900">{t('Record Payment')}</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -194,7 +197,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Student search */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')} *</label>
             {selectedStudent ? (
               <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-md px-3 py-2.5">
                 <span className="text-sm text-blue-900 font-medium">{selectedStudent.name}</span>
@@ -209,7 +212,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
                   type="text"
                   value={studentSearch}
                   onChange={e => handleSearchChange(e.target.value)}
-                  placeholder="Search by name or matricule…"
+                  placeholder={t('Search by name or matricule…')}
                   className="w-full pl-9 pr-3 py-2.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   autoFocus
                 />
@@ -238,7 +241,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount (XAF) *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Amount (XAF)')} *</label>
             <input
               type="number"
               min="1"
@@ -246,12 +249,12 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
               onChange={e => setAmount(e.target.value)}
               required
               className="w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g. 50000"
+              placeholder={t('e.g. 50000')}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Payment Date')} *</label>
             <input
               type="date"
               value={paymentDate}
@@ -262,7 +265,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Payment Method')} *</label>
             <select
               value={paymentMethod}
               onChange={e => setPaymentMethod(e.target.value as PaymentMethod)}
@@ -275,7 +278,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Receipt Number (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Receipt Number (optional)')}</label>
             <input
               type="text"
               value={receiptNumber}
@@ -291,14 +294,14 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
               onClick={onClose}
               className="flex-1 px-4 py-3 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="submit"
               disabled={loading || !selectedStudent}
               className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Recording…' : 'Record Payment'}
+              {loading ? t('Recording…') : t('Record Payment')}
             </button>
           </div>
         </form>
@@ -315,6 +318,7 @@ interface PaymentHistoryModalProps {
 }
 
 function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
+  const { t } = useLanguage();
   const [transactions, setTransactions] = useState<ControlPaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -324,21 +328,21 @@ function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
         const res = await apiService.get(`/control-fees/${record.id}/payments`);
         setTransactions(res?.data || res || []);
       } catch {
-        toast.error('Failed to load payment history');
+        toast.error(t('Failed to load payment history'));
       } finally {
         setLoading(false);
       }
     })();
   }, [record.id]);
 
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('Payment History')}</h2>
             <p className="text-sm text-gray-500 mt-0.5">{record.enrollment?.student?.name}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -353,28 +357,28 @@ function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
           ) : transactions.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               <ClipboardDocumentListIcon className="h-10 w-10 mx-auto mb-2 text-gray-300" />
-              <p>No payments recorded yet</p>
+              <p>{t('No payments recorded yet')}</p>
             </div>
           ) : (
             <>
               <div className="space-y-3">
-                {transactions.map(t => (
-                  <div key={t.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                {transactions.map(tx => (
+                  <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{formatCurrency(t.amount)}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{formatDate(t.paymentDate)}</p>
-                      {t.receiptNumber && (
-                        <p className="text-xs text-gray-400">Receipt: {t.receiptNumber}</p>
+                      <p className="text-sm font-medium text-gray-900">{formatCurrency(tx.amount)}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{formatDate(tx.paymentDate)}</p>
+                      {tx.receiptNumber && (
+                        <p className="text-xs text-gray-400">{t('Receipt')}: {tx.receiptNumber}</p>
                       )}
                     </div>
                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {paymentMethodLabels[t.paymentMethod as PaymentMethod] || t.paymentMethod}
+                      {paymentMethodLabels[tx.paymentMethod as PaymentMethod] || tx.paymentMethod}
                     </span>
                   </div>
                 ))}
               </div>
               <div className="mt-4 pt-4 border-t border-gray-200 flex justify-between">
-                <span className="text-sm font-medium text-gray-700">Total Paid</span>
+                <span className="text-sm font-medium text-gray-700">{t('Total Paid')}</span>
                 <span className="text-sm font-bold text-green-700">{formatCurrency(total)}</span>
               </div>
             </>
@@ -385,7 +389,7 @@ function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
             onClick={onClose}
             className="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
           >
-            Close
+            {t('Close')}
           </button>
         </div>
       </div>
@@ -403,6 +407,7 @@ interface SubclassSummaryModalProps {
 }
 
 function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClose }: SubclassSummaryModalProps) {
+  const { t } = useLanguage();
   const [summary, setSummary] = useState<SubclassSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -412,7 +417,7 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
         const res = await apiService.get(`/control-fees/sub_class/${subClassId}/summary`, { params: { academicYearId } });
         setSummary(res?.data || null);
       } catch {
-        toast.error('Failed to load subclass summary');
+        toast.error(t('Failed to load subclass summary'));
       } finally {
         setLoading(false);
       }
@@ -424,7 +429,7 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Subclass Summary</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('Subclass Summary')}</h2>
             <p className="text-sm text-gray-500 mt-0.5">{subClassName}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -437,39 +442,39 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
               <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full" />
             </div>
           ) : !summary ? (
-            <p className="text-center text-gray-500 py-4">No data available</p>
+            <p className="text-center text-gray-500 py-4">{t('No data available')}</p>
           ) : (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Class</p>
+                  <p className="text-xs text-gray-500">{t('Class')}</p>
                   <p className="text-sm font-semibold text-gray-900">{summary.className}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Subclass</p>
+                  <p className="text-xs text-gray-500">{t('Subclass')}</p>
                   <p className="text-sm font-semibold text-gray-900">{summary.subClassName}</p>
                 </div>
                 <div className="bg-blue-50 rounded-lg p-3">
-                  <p className="text-xs text-blue-600">Students with Fees</p>
+                  <p className="text-xs text-blue-600">{t('Students with Fees')}</p>
                   <p className="text-xl font-bold text-blue-900">{summary.totalStudentsWithControlFees}</p>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3">
-                  <p className="text-xs text-green-600">Collection Rate</p>
+                  <p className="text-xs text-green-600">{t('Collection Rate')}</p>
                   <p className="text-xl font-bold text-green-900">{summary.paymentPercentage.toFixed(1)}%</p>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Expected</span>
+                  <span className="text-gray-600">{t('Total Expected')}</span>
                   <span className="font-medium">{formatCurrency(summary.totalExpected)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total Paid</span>
+                  <span className="text-gray-600">{t('Total Paid')}</span>
                   <span className="font-medium text-green-700">{formatCurrency(summary.totalPaid)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Outstanding</span>
+                  <span className="text-gray-600">{t('Outstanding')}</span>
                   <span className="font-medium text-red-700">{formatCurrency(summary.outstanding)}</span>
                 </div>
               </div>
@@ -477,7 +482,7 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
               {/* Progress bar */}
               <div>
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>Collection Progress</span>
+                  <span>{t('Collection Progress')}</span>
                   <span>{summary.paymentPercentage.toFixed(1)}%</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-3">
@@ -493,7 +498,7 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
             onClick={onClose}
             className="w-full mt-6 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
           >
-            Close
+            {t('Close')}
           </button>
         </div>
       </div>
@@ -505,6 +510,7 @@ function SubclassSummaryModal({ subClassId, subClassName, academicYearId, onClos
 
 export default function ControllerFeeManagementPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const academicYearId = selectedAcademicYear?.id;
 
   // Filters
@@ -558,7 +564,7 @@ export default function ControllerFeeManagementPage() {
   const hasFilters = search || selectedClassId;
 
   const handleExport = async (format: ExportFormat) => {
-    if (!academicYearId) { toast.error('No academic year selected'); return; }
+    if (!academicYearId) { toast.error(t('No academic year selected')); return; }
     setExportLoading(true);
     setShowExportMenu(false);
     try {
@@ -567,17 +573,10 @@ export default function ControllerFeeManagementPage() {
         { params: { format, academicYearId, ...(selectedClassId ? { classId: selectedClassId } : {}) } },
         'blob',
       );
-      const url = window.URL.createObjectURL(blob as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `control-fees-${selectedAcademicYear?.name || 'export'}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Export downloaded');
+      saveBlob(blob as Blob, `control-fees-${selectedAcademicYear?.name || 'export'}.${format}`);
+      toast.success(t('Export downloaded'));
     } catch {
-      toast.error('Export failed. Try again.');
+      toast.error(t('Export failed. Try again.'));
     } finally {
       setExportLoading(false);
     }
@@ -588,8 +587,8 @@ export default function ControllerFeeManagementPage() {
       <div className="p-6 flex items-center justify-center min-h-64">
         <div className="text-center">
           <ExclamationCircleIcon className="h-12 w-12 text-yellow-400 mx-auto mb-3" />
-          <p className="text-gray-600 font-medium">No academic year selected</p>
-          <p className="text-sm text-gray-400 mt-1">Please select an academic year to continue.</p>
+          <p className="text-gray-600 font-medium">{t('No academic year selected')}</p>
+          <p className="text-sm text-gray-400 mt-1">{t('Please select an academic year to continue.')}</p>
         </div>
       </div>
     );
@@ -600,9 +599,9 @@ export default function ControllerFeeManagementPage() {
       {/* ── Header ────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Control Fee Management</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Control Fee Management')}</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Academic Year: <span className="font-medium text-blue-700">{selectedAcademicYear?.name}</span>
+            {t('Academic Year')}: <span className="font-medium text-blue-700">{selectedAcademicYear?.name}</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -611,7 +610,7 @@ export default function ControllerFeeManagementPage() {
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm"
           >
             <PlusIcon className="h-4 w-4" />
-            Record Payment
+            {t('Record Payment')}
           </button>
 
           {/* Export dropdown */}
@@ -622,7 +621,7 @@ export default function ControllerFeeManagementPage() {
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
-              {exportLoading ? 'Exporting…' : 'Export'}
+              {exportLoading ? t('Exporting…') : t('Export')}
             </button>
             {showExportMenu && (
               <div className="absolute right-0 mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg z-10">
@@ -644,8 +643,8 @@ export default function ControllerFeeManagementPage() {
       {/* ── Stats ─────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">
         {[
-          { label: 'Total Records', value: meta.total.toString(), icon: ClipboardDocumentListIcon, color: 'blue' },
-          { label: 'Total Collected', value: formatCurrency(totalPaid), icon: CurrencyDollarIcon, color: 'green' },
+          { label: t('Total Records'), value: meta.total.toString(), icon: ClipboardDocumentListIcon, color: 'blue' },
+          { label: t('Total Collected'), value: formatCurrency(totalPaid), icon: CurrencyDollarIcon, color: 'green' },
         ].map(stat => {
           const Icon = stat.icon;
           const colorMap: Record<string, string> = {
@@ -678,7 +677,7 @@ export default function ControllerFeeManagementPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search student name or matricule…"
+              placeholder={t('Search student name or matricule…')}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -689,7 +688,7 @@ export default function ControllerFeeManagementPage() {
             onChange={e => setSelectedClassId(e.target.value)}
             className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
           >
-            <option value="">All Classes</option>
+            <option value="">{t('All Classes')}</option>
             {classes.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -701,7 +700,7 @@ export default function ControllerFeeManagementPage() {
               className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-md hover:bg-gray-50 whitespace-nowrap"
             >
               <XMarkIcon className="h-4 w-4" />
-              Clear
+              {t('Clear')}
             </button>
           )}
         </div>
@@ -712,15 +711,15 @@ export default function ControllerFeeManagementPage() {
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-            <span className="ml-3 text-gray-500 text-sm">Loading control fees…</span>
+            <span className="ml-3 text-gray-500 text-sm">{t('Loading control fees…')}</span>
           </div>
         ) : records.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16">
             <ChartBarIcon className="h-12 w-12 text-gray-300 mb-3" />
-            <p className="text-gray-500 font-medium">No control fees found</p>
+            <p className="text-gray-500 font-medium">{t('No control fees found')}</p>
             {hasFilters && (
               <button onClick={clearFilters} className="mt-2 text-sm text-blue-600 hover:underline">
-                Clear filters
+                {t('Clear filters')}
               </button>
             )}
           </div>
@@ -731,7 +730,7 @@ export default function ControllerFeeManagementPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {['Student', 'Class / Subclass', 'Total Paid', 'Last Payment', 'Actions'].map(h => (
+                    {[t('Student'), t('Class / Subclass'), t('Total Paid'), t('Last Payment'), t('Actions')].map(h => (
                       <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {h}
                       </th>
@@ -769,14 +768,14 @@ export default function ControllerFeeManagementPage() {
                           <div className="flex items-center gap-1.5">
                             <button
                               onClick={() => setHistoryFor(record)}
-                              title="View Payment History"
+                              title={t('View Payment History')}
                               className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
                             >
                               <ClockIcon className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => setSummaryFor({ id: subClass?.id ?? 0, name: subClass?.name ?? '' })}
-                              title="Subclass Summary"
+                              title={t('Subclass Summary')}
                               className="p-1.5 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
                             >
                               <BuildingLibraryIcon className="h-4 w-4" />
@@ -809,21 +808,21 @@ export default function ControllerFeeManagementPage() {
                       <p className="text-[11px] font-semibold text-green-700">
                         {formatCurrency(record.amountPaid)}
                         <span className="text-gray-400 font-normal">
-                          {lastTx ? ` · ${formatDate(lastTx.paymentDate)}` : ' · no payments yet'}
+                          {lastTx ? ` · ${formatDate(lastTx.paymentDate)}` : ` · ${t('no payments yet')}`}
                         </span>
                       </p>
                     </div>
                     <div className="flex gap-1.5 shrink-0">
                       <button
                         onClick={() => setHistoryFor(record)}
-                        title="Payment history"
+                        title={t('Payment history')}
                         className="p-2 text-gray-500 hover:text-blue-600 bg-gray-50 hover:bg-blue-50 rounded-md"
                       >
                         <ClockIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => setSummaryFor({ id: subClass?.id ?? 0, name: subClass?.name ?? '' })}
-                        title="Subclass summary"
+                        title={t('Subclass summary')}
                         className="p-2 text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-md"
                       >
                         <BuildingLibraryIcon className="h-4 w-4" />
@@ -841,7 +840,7 @@ export default function ControllerFeeManagementPage() {
       {meta.totalPages > 1 && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-600">
-            Page <strong>{meta.page}</strong> of <strong>{meta.totalPages}</strong> ({meta.total} records)
+            {t('Page')} <strong>{meta.page}</strong> {t('of')} <strong>{meta.totalPages}</strong> ({meta.total} {t('records')})
           </p>
           <div className="flex gap-2">
             <button
@@ -850,14 +849,14 @@ export default function ControllerFeeManagementPage() {
               className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ChevronLeftIcon className="h-4 w-4" />
-              Previous
+              {t('Previous')}
             </button>
             <button
               onClick={() => setPage(p => Math.min(meta.totalPages, p + 1))}
               disabled={page >= meta.totalPages}
               className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              Next
+              {t('Next')}
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>

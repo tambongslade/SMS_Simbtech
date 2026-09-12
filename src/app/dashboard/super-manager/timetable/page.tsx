@@ -10,7 +10,9 @@ import { ArrowDownTrayIcon, DocumentArrowDownIcon, PrinterIcon } from '@heroicon
 import { toast } from 'react-hot-toast';
 import { downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
 import { downloadTimetablesPdf, PdfSubclassTimetable } from '@/lib/clientTimetablePdf';
+import { saveBlob } from '@/lib/downloadFile';
 import { BatchPrintModal } from '@/components/timetable/BatchPrintModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
@@ -29,6 +31,7 @@ const TimetablePage = () => {
 };
 
 const TimetableContent = () => {
+  const { t } = useLanguage();
   const {
     subClasses,
     fetchTimetableForSubclass,
@@ -51,14 +54,14 @@ const TimetableContent = () => {
 
   // Turn context timetables into the plain shape the PDF renderer wants.
   const buildPdfPayload = (subClassId: string): PdfSubclassTimetable | null => {
-    const t = timetables[subClassId];
-    if (!t) return null;
+    const tt = timetables[subClassId];
+    if (!tt) return null;
     const sc = subClasses.find((s: any) => s.id === subClassId);
     return {
       subClassId,
       subClassName: sc?.name ?? `Class ${subClassId}`,
       className: (sc as any)?.className,
-      periods: t.periods.map((p) => ({
+      periods: tt.periods.map((p) => ({
         id: p.id,
         name: p.name,
         dayOfWeek: p.dayOfWeek,
@@ -67,7 +70,7 @@ const TimetableContent = () => {
         sequence: p.sequence,
         type: p.type,
       })),
-      slots: t.slots.map((s) => ({
+      slots: tt.slots.map((s) => ({
         periodId: s.periodId,
         assignments: s.assignments.map((a) => ({
           subjectName: a.subjectName,
@@ -148,14 +151,7 @@ const TimetableContent = () => {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(blob, filename);
       toast.success('Timetable exported successfully!');
     } catch (err: any) {
       const message = err instanceof Error ? err.message : 'Export failed';
@@ -217,11 +213,11 @@ const TimetableContent = () => {
   return (
     <div className={`p-4 sm:p-6 space-y-4 sm:space-y-6 ${isZoomed ? 'fixed inset-0 bg-white z-[100] overflow-auto' : ''}`}>
       <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
-        <h1 className="text-2xl sm:text-3xl font-bold">Timetable Management</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('Timetable Management')}</h1>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {academicYears.length > 0 && selectedAcademicYearId && (
             <div className="flex items-center gap-2">
-              <label htmlFor="academic-year-select" className="shrink-0 text-gray-700 text-sm font-medium">Academic Year:</label>
+              <label htmlFor="academic-year-select" className="shrink-0 text-gray-700 text-sm font-medium">{t('Academic Year')}:</label>
               <Select
                 id="academic-year-select"
                 value={selectedAcademicYearId}
@@ -239,7 +235,7 @@ const TimetableContent = () => {
             onClick={() => setIsZoomed(!isZoomed)}
             color="secondary"
             className="hidden md:inline-flex"
-            title={isZoomed ? "Exit Fullscreen" : "Enter Fullscreen"}
+            title={isZoomed ? t('Exit Fullscreen') : t('Enter Fullscreen')}
           >
             {isZoomed ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

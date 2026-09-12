@@ -1,4 +1,5 @@
 import apiService from '@/lib/apiService';
+import { saveBlob as saveBlobShared } from '@/lib/downloadFile';
 
 // ===========================================================================
 // Subject Schemes of Work & Teacher Logbook — API client
@@ -44,7 +45,7 @@ export interface SchemeLesson {
   weekNumber?: number | null;
   periodsCount?: number;
   // Present on the coverage endpoint.
-  _count?: { logbookEntries: number };
+  logbookEntryCount?: number;
   logbookEntries?: LogbookEntry[];
 }
 
@@ -75,8 +76,9 @@ export interface SubjectScheme {
   subject?: { id: number; name: string };
   class?: { id: number; name: string };
   modules: SchemeModule[];
-  // Convenience counts some list responses include.
-  _count?: { modules?: number };
+  // Module count returned by the list endpoint (full-tree endpoints return
+  // `modules` populated instead).
+  moduleCount?: number;
 }
 
 // ---- Lesson / module / chapter input shapes ----
@@ -252,14 +254,7 @@ export const downloadSchemeTemplate = async (): Promise<Blob> =>
   apiService.get<Blob>('/subject-schemes/import/template', undefined, 'blob');
 
 export const saveBlob = (blob: Blob, filename: string) => {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  saveBlobShared(blob, filename);
 };
 
 export interface SchemeImportCreated {

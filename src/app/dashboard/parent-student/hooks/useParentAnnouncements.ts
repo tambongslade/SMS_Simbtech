@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import { toast } from 'react-hot-toast';
+import { saveBlob } from '@/lib/downloadFile';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -239,10 +240,7 @@ export function useParentAnnouncements() {
 
       // Handle file download
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
+
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `attachment_${attachmentId}`;
@@ -252,12 +250,8 @@ export function useParentAnnouncements() {
           filename = filenameMatch[1];
         }
       }
-      
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+
+      saveBlob(blob, filename);
 
       toast.success('Attachment downloaded successfully');
       return true;

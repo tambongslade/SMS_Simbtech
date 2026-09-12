@@ -10,7 +10,9 @@ import { ArrowDownTrayIcon, DocumentArrowDownIcon, PrinterIcon } from '@heroicon
 import { toast } from 'react-hot-toast';
 import { downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
 import { downloadTimetablesPdf, PdfSubclassTimetable } from '@/lib/clientTimetablePdf';
+import { saveBlob } from '@/lib/downloadFile';
 import { BatchPrintModal } from '@/components/timetable/BatchPrintModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
 
@@ -29,6 +31,7 @@ const TimetablePage = () => {
 };
 
 const TimetableContent = () => {
+  const { t } = useLanguage();
   const {
     subClasses,
     fetchTimetableForSubclass,
@@ -108,7 +111,7 @@ const TimetableContent = () => {
   const handleExport = async (type: 'subclass' | 'school') => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Authentication token not found.');
+      toast.error(t('Authentication token not found.'));
       return;
     }
 
@@ -119,7 +122,7 @@ const TimetableContent = () => {
 
       if (type === 'subclass') {
         if (!selectedSubClassId) {
-          toast.error('Please select a subclass first.');
+          toast.error(t('Please select a subclass first.'));
           return;
         }
         url = `${API_BASE_URL}/timetables/subclass/${selectedSubClassId}/export`;
@@ -147,19 +150,12 @@ const TimetableContent = () => {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
-      toast.success('Timetable exported successfully!');
+      saveBlob(blob, filename);
+      toast.success(t('Timetable exported successfully!'));
     } catch (err: any) {
-      const message = err instanceof Error ? err.message : 'Export failed';
+      const message = err instanceof Error ? err.message : t('Export failed');
       console.error('Export error:', err);
-      toast.error(`Export failed: ${message}`);
+      toast.error(`${t('Export failed:')} ${message}`);
     } finally {
       setIsExporting(false);
     }
@@ -169,7 +165,7 @@ const TimetableContent = () => {
   // (single landscape A4, guaranteed to fit) so mobile prints don't get cut off.
   const handleExportPdf = async (type: 'subclass' | 'school') => {
     if (type === 'subclass' && !selectedSubClassId) {
-      toast.error('Please select a subclass first.');
+      toast.error(t('Please select a subclass first.'));
       return;
     }
 
@@ -178,7 +174,7 @@ const TimetableContent = () => {
       if (type === 'subclass') {
         const payload = buildPdfPayload(selectedSubClassId);
         if (!payload) {
-          toast.error('Timetable is still loading — try again in a moment.');
+          toast.error(t('Timetable is still loading — try again in a moment.'));
           return;
         }
         const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name ?? undefined;
@@ -199,7 +195,7 @@ const TimetableContent = () => {
         .map((id) => buildPdfPayload(id))
         .filter((p): p is PdfSubclassTimetable => p !== null);
       if (payloads.length === 0) {
-        toast.error('No timetable data loaded yet.');
+        toast.error(t('No timetable data loaded yet.'));
         return;
       }
       const yearName = academicYears.find(y => y.id === selectedAcademicYearId)?.name ?? undefined;
@@ -216,11 +212,11 @@ const TimetableContent = () => {
   return (
     <div className={`p-4 sm:p-6 space-y-4 sm:space-y-6 ${isZoomed ? 'fixed inset-0 bg-white z-[100] overflow-auto' : ''}`}>
       <div className="flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
-        <h1 className="text-2xl sm:text-3xl font-bold">Timetable Management</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold">{t('Timetable Management')}</h1>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
           {academicYears.length > 0 && selectedAcademicYearId && (
             <div className="flex items-center gap-2">
-              <label htmlFor="academic-year-select" className="shrink-0 text-gray-700 text-sm font-medium">Academic Year:</label>
+              <label htmlFor="academic-year-select" className="shrink-0 text-gray-700 text-sm font-medium">{t('Academic Year')}:</label>
               <Select
                 id="academic-year-select"
                 value={selectedAcademicYearId}
@@ -238,7 +234,7 @@ const TimetableContent = () => {
             onClick={() => setIsZoomed(!isZoomed)}
             color="secondary"
             className="hidden md:inline-flex"
-            title={isZoomed ? "Exit Fullscreen" : "Enter Fullscreen"}
+            title={isZoomed ? t('Exit Fullscreen') : t('Enter Fullscreen')}
           >
             {isZoomed ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -255,24 +251,24 @@ const TimetableContent = () => {
               onClick={() => setViewMode('class')}
               color={viewMode === 'class' ? 'primary' : 'secondary'}
             >
-              Class View
+              {t('Class View')}
             </Button>
             <Button
               onClick={() => setViewMode('school')}
               color={viewMode === 'school' ? 'primary' : 'secondary'}
             >
-              School-Wide
+              {t('School-Wide')}
             </Button>
           </div>
           <Button
             onClick={() => setIsBatchOpen(true)}
             color="primary"
             disabled={subClasses.length === 0}
-            title="Pick several classes and download a single PDF (one page per class)"
+            title={t('Pick several classes and download a single PDF (one page per class)')}
             className="w-full sm:w-auto"
           >
             <PrinterIcon className="h-5 w-5 mr-1 inline" />
-            Batch Print
+            {t('Batch Print')}
           </Button>
         </div>
       </div>
@@ -295,7 +291,7 @@ const TimetableContent = () => {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <Card className="flex-grow">
               <CardHeader>
-                <CardTitle>Select Subclass</CardTitle>
+                <CardTitle>{t('Select Subclass')}</CardTitle>
               </CardHeader>
               <CardBody>
                 <Select
@@ -313,19 +309,19 @@ const TimetableContent = () => {
                 onClick={() => handleExport('subclass')}
                 disabled={!selectedSubClassId || isExporting || !hasTimetableData}
                 color="secondary"
-                title="Export this class timetable as Excel"
+                title={t('Export this class timetable as Excel')}
               >
                 <ArrowDownTrayIcon className="h-5 w-5 mr-1 inline" />
-                {isExporting ? 'Exporting...' : 'Excel'}
+                {isExporting ? t('Exporting...') : t('Excel')}
               </Button>
               <Button
                 onClick={() => handleExportPdf('subclass')}
                 disabled={!selectedSubClassId || isExportingPdf || !hasTimetableData}
                 color="secondary"
-                title="Download this class timetable as a print-ready PDF"
+                title={t('Download this class timetable as a print-ready PDF')}
               >
                 <DocumentArrowDownIcon className="h-5 w-5 mr-1 inline" />
-                {isExportingPdf ? 'Preparing...' : 'PDF'}
+                {isExportingPdf ? t('Preparing...') : t('PDF')}
               </Button>
               {/* Assignments save on selection. The button stays as a
                   manual re-sync — useful after an auto-save failure, and
@@ -334,13 +330,13 @@ const TimetableContent = () => {
                 onClick={() => saveChanges(selectedSubClassId)}
                 disabled={!selectedSubClassId || isLoadingTimetable || !hasTimetableData}
                 color={autoSaveStatus === 'error' ? 'primary' : 'secondary'}
-                title="Re-send any unsaved changes and reload from the server"
+                title={t('Re-send any unsaved changes and reload from the server')}
               >
                 {isLoadingTimetable
-                  ? 'Saving...'
+                  ? t('Saving...')
                   : autoSaveStatus === 'error'
-                    ? 'Retry save'
-                    : 'Sync'}
+                    ? t('Retry save')
+                    : t('Sync')}
               </Button>
             </div>
           </div>
@@ -348,7 +344,7 @@ const TimetableContent = () => {
           <div className="relative min-h-[300px]">
             {isLoadingTimetable && selectedSubClassId && (
               <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
-                <p className="text-xl font-semibold text-gray-700">Loading Timetable...</p>
+                <p className="text-xl font-semibold text-gray-700">{t('Loading Timetable...')}</p>
               </div>
             )}
 
@@ -363,7 +359,7 @@ const TimetableContent = () => {
               </Card>
             ) : (
               <Card className="text-center text-gray-500 py-10">
-                <p>Please select a subclass to view or edit its timetable.</p>
+                <p>{t('Please select a subclass to view or edit its timetable.')}</p>
               </Card>
             )}
           </div>

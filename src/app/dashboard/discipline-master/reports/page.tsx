@@ -5,8 +5,10 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
+import { saveBlob } from '@/lib/downloadFile';
 import {
   DocumentTextIcon,
   ChartBarIcon,
@@ -29,6 +31,7 @@ interface ReportTemplate {
 
 export default function ReportsPage() {
   const { user, currentAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [selectedReport, setSelectedReport] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -38,43 +41,43 @@ export default function ReportsPage() {
   const reportTemplates: ReportTemplate[] = [
     {
       id: 'daily-summary',
-      name: 'Daily Discipline Summary',
-      description: 'Summary of all discipline incidents for a specific day',
+      name: t('Daily Discipline Summary'),
+      description: t('Summary of all discipline incidents for a specific day'),
       type: 'daily'
     },
     {
       id: 'weekly-trends',
-      name: 'Weekly Trends Analysis',
-      description: 'Weekly discipline trends and patterns',
+      name: t('Weekly Trends Analysis'),
+      description: t('Weekly discipline trends and patterns'),
       type: 'weekly'
     },
     {
       id: 'monthly-comprehensive',
-      name: 'Monthly Comprehensive Report',
-      description: 'Detailed monthly analysis with statistics and insights',
+      name: t('Monthly Comprehensive Report'),
+      description: t('Detailed monthly analysis with statistics and insights'),
       type: 'monthly'
     },
     {
       id: 'custom-range',
-      name: 'Custom Date Range Report',
-      description: 'Generate reports for any custom date range',
+      name: t('Custom Date Range Report'),
+      description: t('Generate reports for any custom date range'),
       type: 'custom'
     }
   ];
 
   const handleGenerateReport = async () => {
     if (!selectedReport) {
-      toast.error('Please select a report type');
+      toast.error(t('Please select a report type'));
       return;
     }
 
     if (selectedReport === 'custom-range' && (!startDate || !endDate)) {
-      toast.error('Please select start and end dates for custom report');
+      toast.error(t('Please select start and end dates for custom report'));
       return;
     }
 
     if (!currentAcademicYear?.id) {
-      toast.error('Please select an academic year to generate reports.');
+      toast.error(t('Please select an academic year to generate reports.'));
       return;
     }
 
@@ -103,10 +106,10 @@ export default function ReportsPage() {
       const response = await apiService.get(endpoint);
 
       setReportData(response.data);
-      toast.success('Report generated successfully');
+      toast.success(t('Report generated successfully'));
     } catch (error) {
       console.error('Error generating report:', error);
-      toast.error('Failed to generate report');
+      toast.error(t('Failed to generate report'));
     } finally {
       setLoading(false);
     }
@@ -114,22 +117,15 @@ export default function ReportsPage() {
 
   const handleDownloadReport = () => {
     if (!reportData) {
-      toast.error('No report data available to download');
+      toast.error(t('No report data available to download'));
       return;
     }
 
     const reportText = JSON.stringify(reportData, null, 2);
     const blob = new Blob([reportText], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `discipline-report-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    saveBlob(blob, `discipline-report-${new Date().toISOString().split('T')[0]}.json`);
 
-    toast.success('Report downloaded');
+    toast.success(t('Report downloaded'));
   };
 
   const renderExecutiveSummary = (summary: any) => {
@@ -141,7 +137,7 @@ export default function ReportsPage() {
           <div className="flex items-center">
             <ExclamationTriangleIcon className="h-8 w-8 text-blue-500" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-blue-700">Active Issues</p>
+              <p className="text-sm font-medium text-blue-700">{t('Active Issues')}</p>
               <p className="text-2xl font-bold text-blue-900">{summary.totalActiveIssues || 0}</p>
             </div>
           </div>
@@ -151,7 +147,7 @@ export default function ReportsPage() {
           <div className="flex items-center">
             <UserGroupIcon className="h-8 w-8 text-green-500" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-green-700">Students Affected</p>
+              <p className="text-sm font-medium text-green-700">{t('Students Affected')}</p>
               <p className="text-2xl font-bold text-green-900">{summary.studentsWithIssues || 0}</p>
             </div>
           </div>
@@ -161,7 +157,7 @@ export default function ReportsPage() {
           <div className="flex items-center">
             <ChartBarIcon className="h-8 w-8 text-yellow-500" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-yellow-700">Behavior Score</p>
+              <p className="text-sm font-medium text-yellow-700">{t('Behavior Score')}</p>
               <p className="text-2xl font-bold text-yellow-900">{summary.behaviorScore || 0}</p>
             </div>
           </div>
@@ -171,7 +167,7 @@ export default function ReportsPage() {
           <div className="flex items-center">
             <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-red-700">Critical Cases</p>
+              <p className="text-sm font-medium text-red-700">{t('Critical Cases')}</p>
               <p className="text-2xl font-bold text-red-900">{summary.criticalCases || 0}</p>
             </div>
           </div>
@@ -181,7 +177,7 @@ export default function ReportsPage() {
           <div className="flex items-center">
             <CheckCircleIcon className="h-8 w-8 text-purple-500" />
             <div className="ml-3">
-              <p className="text-sm font-medium text-purple-700">Resolution Rate</p>
+              <p className="text-sm font-medium text-purple-700">{t('Resolution Rate')}</p>
               <p className="text-2xl font-bold text-purple-900">{summary.resolutionRate || 0}%</p>
             </div>
           </div>
@@ -200,12 +196,12 @@ export default function ReportsPage() {
             <div className="flex justify-between items-start mb-2">
               <h4 className="font-semibold text-gray-900">{issue.type?.replace('_', ' ')}</h4>
               <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                {issue.count} cases
+                {issue.count} {t('cases')}
               </span>
             </div>
             <div className="text-sm text-gray-600 space-y-1">
-              <p>Trend: <span className="font-medium">{issue.trend}</span></p>
-              <p>Resolution Rate: <span className="font-medium">{issue.resolutionRate}%</span></p>
+              <p>{t('Trend')}: <span className="font-medium">{issue.trend}</span></p>
+              <p>{t('Resolution Rate')}: <span className="font-medium">{issue.resolutionRate}%</span></p>
             </div>
           </div>
         ))}
@@ -223,15 +219,15 @@ export default function ReportsPage() {
             <div className="flex justify-between items-start">
               <div>
                 <h4 className="font-semibold text-gray-900">{intervention.studentName}</h4>
-                <p className="text-sm text-gray-600">Student ID: {intervention.studentId}</p>
-                <p className="text-sm text-gray-600">Issue Count: {intervention.issueCount}</p>
-                <p className="text-sm text-gray-600">Last Incident: {new Date(intervention.lastIncident).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-600">{t('Student ID')}: {intervention.studentId}</p>
+                <p className="text-sm text-gray-600">{t('Issue Count')}: {intervention.issueCount}</p>
+                <p className="text-sm text-gray-600">{t('Last Incident')}: {new Date(intervention.lastIncident).toLocaleDateString()}</p>
               </div>
               <span className={`px-2 py-1 text-xs rounded-full ${intervention.riskLevel === 'HIGH' ? 'bg-red-100 text-red-800' :
                   intervention.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                     'bg-green-100 text-green-800'
                 }`}>
-                {intervention.riskLevel} Risk
+                {intervention.riskLevel} {t('Risk')}
               </span>
             </div>
             <p className="text-sm text-gray-700 mt-2">{intervention.recommendedAction}</p>
@@ -253,7 +249,7 @@ export default function ReportsPage() {
             <div className="flex justify-between items-start">
               <div>
                 <h4 className="font-semibold text-gray-900">{hotspot.className} - {hotspot.subClassName}</h4>
-                <p className="text-sm text-gray-600">Risk Score: {hotspot.riskScore}</p>
+                <p className="text-sm text-gray-600">{t('Risk Score')}: {hotspot.riskScore}</p>
                 <div className="flex flex-wrap gap-1 mt-2">
                   {hotspot.primaryIssues?.map((issue: string, idx: number) => (
                     <span key={idx} className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">
@@ -263,13 +259,13 @@ export default function ReportsPage() {
                 </div>
               </div>
               <span className="px-2 py-1 text-xs rounded-full bg-red-100 text-red-800">
-                {hotspot.incidentCount} incidents
+                {hotspot.incidentCount} {t('incidents')}
               </span>
             </div>
           </div>
         ))}
         {activeHotspots.length === 0 && (
-          <p className="text-gray-500 text-center py-4">No classroom hotspots identified.</p>
+          <p className="text-gray-500 text-center py-4">{t('No classroom hotspots identified.')}</p>
         )}
       </div>
     );
@@ -280,9 +276,9 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Discipline Reports</h1>
+          <h1 className="text-3xl font-bold text-gray-900">{t('Discipline Reports')}</h1>
           <p className="text-gray-600 mt-1">
-            Generate and view discipline reports for {currentAcademicYear?.name}
+            {t('Generate and view discipline reports for')} {currentAcademicYear?.name}
           </p>
         </div>
       </div>
@@ -293,20 +289,20 @@ export default function ReportsPage() {
           <Card>
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Generate Report
+                {t('Generate Report')}
               </h3>
 
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Report Type
+                    {t('Report Type')}
                   </label>
                   <select
                     value={selectedReport}
                     onChange={(e) => setSelectedReport(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="">Select a report type</option>
+                    <option value="">{t('Select a report type')}</option>
                     {reportTemplates.map((template) => (
                       <option key={template.id} value={template.id}>
                         {template.name}
@@ -324,7 +320,7 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {selectedReport === 'daily-summary' ? 'Date' : 'Start Date'}
+                        {selectedReport === 'daily-summary' ? t('Date') : t('Start Date')}
                       </label>
                       <Input
                         type="date"
@@ -335,7 +331,7 @@ export default function ReportsPage() {
                     {selectedReport === 'custom-range' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          End Date
+                          {t('End Date')}
                         </label>
                         <Input
                           type="date"
@@ -354,7 +350,7 @@ export default function ReportsPage() {
                     className="flex items-center gap-2"
                   >
                     <DocumentTextIcon className="h-4 w-4" />
-                    Generate Report
+                    {t('Generate Report')}
                   </Button>
 
                   {reportData && (
@@ -364,7 +360,7 @@ export default function ReportsPage() {
                       className="flex items-center gap-2"
                     >
                       <ArrowDownTrayIcon className="h-4 w-4" />
-                      Download
+                      {t('Download')}
                     </Button>
                   )}
                 </div>
@@ -378,7 +374,7 @@ export default function ReportsPage() {
           <Card>
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Quick Reports
+                {t('Quick Reports')}
               </h3>
 
               <div className="space-y-3">
@@ -391,7 +387,7 @@ export default function ReportsPage() {
                   }}
                 >
                   <CalendarIcon className="h-4 w-4" />
-                  Today's Summary
+                  {t("Today's Summary")}
                 </Button>
 
                 <Button
