@@ -12,6 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 import { useAuth } from '../../../../components/context/AuthContext'; // Add useAuth import
 import { StudentPhoto } from '../../../../components/ui';
 import StudentExtrasModal from '@/components/students/StudentExtrasModal';
@@ -767,15 +768,8 @@ export default function StudentManagement() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
       const filename = `${subClassName.replace(/s+/g, '_')}_students_${new Date().toISOString().split('T')[0]}.${format}`;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(blob, filename);
       toast.success(`Export for ${subClassName} downloaded successfully.`, { id: 'export-toast' });
 
     } catch (error: any) {

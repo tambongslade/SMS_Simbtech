@@ -97,6 +97,7 @@ const ROLES_REQUIRING_ACADEMIC_YEAR = [
     'DISCIPLINE_MASTER',
     'SENIOR_DISCIPLINE_MASTER',
     'DEAN_OF_DISCIPLINE',
+    'DISCIPLINE_COORDINATOR',
     'DEAN_OF_STUDIES',
     'GUIDANCE_COUNSELOR',
     'BURSAR',
@@ -116,6 +117,7 @@ const DASHBOARD_ROUTES: Record<string, string> = {
     'DISCIPLINE_MASTER': '/dashboard/discipline-master',
     'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
     'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+    'DISCIPLINE_COORDINATOR': '/dashboard/discipline-coordinator',
     'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
     'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
     'FEE_AUDITOR': '/dashboard/fee-auditor',
@@ -256,16 +258,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const login = async (email: string, password: string): Promise<void> => {
         setIsLoading(true);
         try {
-            // Determine if input is email or matricule
-            const isEmail = email.includes('@');
-            const requestBody: any = {
-                password
-            };
+            const trimmed = email.trim();
+            const requestBody: any = { password };
 
-            if (isEmail) {
-                requestBody.email = email;
+            if (trimmed.includes('@')) {
+                requestBody.email = trimmed;
+            } else if (/^\+?[\d\s-]+$/.test(trimmed)) {
+                // Digits (with optional +, spaces, dashes) → phone. Staff-only on the backend.
+                requestBody.phone = trimmed;
             } else {
-                requestBody.matricule = email;
+                requestBody.matricule = trimmed;
             }
 
             const response: LoginResponse = await apiCall('/auth/login', {

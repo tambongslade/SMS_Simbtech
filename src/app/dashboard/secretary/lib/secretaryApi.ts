@@ -1,5 +1,6 @@
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 // ---- Shared types for the Secretary dashboard ----
 
@@ -376,14 +377,7 @@ export const createTeacher = async (payload: CreateTeacherPayload, academicYearI
 // ---- Export / download helpers ----
 
 export const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.setAttribute('download', filename);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  window.URL.revokeObjectURL(url);
+  saveBlob(blob, filename);
 };
 
 const buildExportQuery = (format: string, academicYearId?: number) => {

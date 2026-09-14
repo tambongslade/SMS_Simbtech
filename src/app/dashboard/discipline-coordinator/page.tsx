@@ -6,10 +6,10 @@ import { useLanguage } from '@/components/context/LanguageContext';
 import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
 import { getQuickActionsForRole } from '@/lib/roleMenus';
 
-export default function ManagerMenu() {
+export default function DisciplineCoordinatorMenu() {
   const { selectedAcademicYear, user } = useAuth();
   const { t } = useLanguage();
-  const quickActions = useMemo(() => getQuickActionsForRole('manager', t), [t]);
+  const quickActions = useMemo(() => getQuickActionsForRole('discipline-coordinator', t), [t]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">

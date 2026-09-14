@@ -10,6 +10,7 @@ import apiService from '../../../../../lib/apiService'; // Import apiService
 import feeService, { UnifiedPaymentRequest } from '../../../../../lib/feeService';
 import { useAuth } from '@/components/context/AuthContext';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 // API Configuration - REMOVED
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -338,15 +339,8 @@ export const useFeeManagement = () => {
       // Assuming the export endpoint initiates a download and returns a success/error message or a blob
       const response = await apiService.get(exportUrl, {}, 'blob');
 
-      const downloadUrl = window.URL.createObjectURL(response); // response is already a Blob
-      const link = document.createElement('a');
-      link.href = downloadUrl;
       const filename = `fees_export_${new Date().toISOString().split('T')[0]}.${format}`;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(response as Blob, filename);
       toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-toast' });
 
     } catch (error: any) {
@@ -540,15 +534,8 @@ export const useFeeManagement = () => {
       toast.loading(`Preparing ${reportType} ${format.toUpperCase()} export...`, { id: 'export-enhanced-toast' });
       const response = await apiService.get(exportUrl, {}, 'blob');
 
-      const downloadUrl = window.URL.createObjectURL(response);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
       const filename = `fees_${reportType}_${new Date().toISOString().split('T')[0]}.${format}`;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(response as Blob, filename);
       toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-enhanced-toast' });
     } catch (error: any) {
       console.error(`Export failed for ${format}:`, error);

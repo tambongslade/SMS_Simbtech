@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
@@ -21,16 +22,20 @@ import {
 } from '@heroicons/react/24/outline';
 import { Card, CardBody, CardHeader, CardTitle } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import {
     fetchOverview,
     overviewEndpoint,
     type AcademicOverview,
     type AttendanceOverview,
     type AuditOverview,
+    type ClassUtilization,
     type CommunicationOverview,
     type DisciplineOverview,
     type EnrollmentOverview,
+    type FeeClassBreakdown,
     type FinancialOverview,
+    type InstallmentBreakdown,
     type HealthOverview,
     type InventoryOverview,
     type OverviewModuleKey,
@@ -45,6 +50,7 @@ import {
     BarList,
     DonutChart,
     Meter,
+    MoneyResponsive,
     StatGrid,
     StatTile,
     formatLabel,
@@ -399,13 +405,16 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
             const d = data as FinancialOverview;
             return (
                 <div className="space-y-5">
-                    <Meter
-                        label="Fee Collection"
-                        rate={d.summary?.collectionRate ?? 0}
-                        detail={`${formatMoney(d.summary?.totalCollected)} collected of ${formatMoney(d.summary?.totalExpected)} · ${formatMoney(d.summary?.outstanding)} outstanding`}
-                    />
+                    <Meter label="Fee Collection" rate={d.summary?.collectionRate ?? 0} />
+                    <InstallmentCollectionChart byInstallment={d.summary?.byInstallment} />
                     <StatGrid>
-                        <StatTile label="Payments · 7 days" value={formatNumber(d.summary?.paymentsLast7Days)} />
+                        <StatTile label="Collected" value={formatMoney(d.summary?.totalCollected)} />
+                        <StatTile label="Expected" value={formatMoney(d.summary?.totalExpected)} />
+                        <StatTile
+                            label="Outstanding"
+                            value={formatMoney(d.summary?.outstanding)}
+                            tone={(d.summary?.outstanding ?? 0) > 0 ? 'alert' : 'default'}
+                        />
                         <StatTile label="Expenditures YTD" value={formatMoney(d.summary?.totalExpendituresYTD)} />
                         <StatTile label="Refunds" value={formatMoney(d.summary?.totalRefunds)} sub={`${formatNumber(d.summary?.refundCount)} refund(s)`} />
                         <StatTile label="Pending Finance Requests" value={formatNumber(d.summary?.pendingFinanceRequests)} tone={(d.summary?.pendingFinanceRequests ?? 0) > 0 ? 'alert' : 'default'} />
@@ -421,7 +430,10 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                                 label: formatLabel(x.method),
                                 value: x.totalAmount,
                                 display: formatMoney(x.totalAmount),
-                            })))}
+                            }))).map(seg => ({
+                                ...seg,
+                                displayNode: <MoneyResponsive amount={seg.value} />,
+                            }))}
                         />
                         <Section title="Expenditures by Category · YTD">
                             <BarList rows={(d.expendituresByCategoryYTD ?? []).map(x => ({
@@ -431,6 +443,7 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                             }))} />
                         </Section>
                     </TwoCol>
+                    <FeesByClassBreakdown feesByClass={d.feesByClass ?? []} />
                     <DonutChart title="Finance Requests by Status" centerSub="requests" segments={toStatusSegments(d.financeRequestsByStatus ?? [])} />
                 </div>
             );
@@ -440,7 +453,7 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
             return (
                 <div className="space-y-5">
                     <StatGrid>
-                        <StatTile label="Total Users" value={formatNumber(d.summary?.totalUsers)} />
+                        <StatTile label="Total Staff" value={formatNumber(d.summary?.totalUsers)} />
                         <StatTile label="Teachers" value={formatNumber(d.summary?.totalTeachers)} />
                         <StatTile label="Avg. Teaching Hours" value={formatNumber(d.summary?.averageTeachingHours)} />
                         <StatTile label="New Staff This Month" value={formatNumber(d.summary?.newStaffThisMonth)} />
@@ -627,17 +640,7 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                         <StatTile label="Assignment Rate" value={formatPercent(d.summary?.assignmentRate)} />
                     </StatGrid>
                     <Section title="Class Utilization">
-                        <div className="space-y-3">
-                            {(d.classUtilization ?? []).map(c => (
-                                <Meter
-                                    key={c.classId}
-                                    label={`${c.className} · ${formatNumber(c.currentStudents)}/${formatNumber(c.maxStudents)} students`}
-                                    rate={c.utilizationRate}
-                                    critical={c.utilizationRate > 95}
-                                />
-                            ))}
-                            {(d.classUtilization ?? []).length === 0 && <p className="text-sm text-gray-500">No data.</p>}
-                        </div>
+                        <ClassUtilizationList classes={d.classUtilization ?? []} />
                     </Section>
                     <TwoCol>
                         <DonutChart title="Gender Split" centerSub="students" segments={toCategoricalSegments((d.genderSplit ?? []).map(x => ({ label: x.gender, value: x.count })))} />
@@ -649,4 +652,261 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
         default:
             return null;
     }
+}
+
+// ── Installment collection chart — % collected vs outstanding, toggleable ──
+
+type InstallmentKey = 'first' | 'second' | 'total';
+
+const INSTALLMENT_TABS: { key: InstallmentKey; label: string }[] = [
+    { key: 'first', label: '1st Installment' },
+    { key: 'second', label: '2nd Installment' },
+    { key: 'total', label: 'Total' },
+];
+
+function InstallmentCollectionChart({ byInstallment }: {
+    byInstallment?: FinancialOverview['summary']['byInstallment'];
+}) {
+    const [tab, setTab] = useState<InstallmentKey>('total');
+    if (!byInstallment) return null;
+    const bucket: InstallmentBreakdown = byInstallment[tab];
+    const collectedPct = Math.min(100, Math.max(0, bucket.collectionRate));
+    const outstandingPct = Math.max(0, 100 - collectedPct);
+    return (
+        <Section title="Collection vs Outstanding">
+            <div className="rounded-lg border border-gray-100 bg-white p-4 space-y-4">
+                <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Installment view">
+                    {INSTALLMENT_TABS.map(t => {
+                        const active = t.key === tab;
+                        return (
+                            <button
+                                key={t.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={active}
+                                onClick={() => setTab(t.key)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                                    active
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        );
+                    })}
+                </div>
+                {bucket.expected <= 0 ? (
+                    <p className="text-sm text-gray-500">No expected fees configured for this installment.</p>
+                ) : (
+                    <>
+                        <DonutChart
+                            centerText={formatPercent(bucket.collectionRate)}
+                            centerSub="collected"
+                            segments={[
+                                { label: 'Collected', value: bucket.collected, color: '#0ca30c', display: formatMoney(bucket.collected) },
+                                { label: 'Outstanding', value: Math.max(bucket.expected - bucket.collected, 0), color: '#d03b3b', display: formatMoney(bucket.outstanding) },
+                            ]}
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                            <div className="rounded-md bg-gray-50 p-2">
+                                <p className="text-gray-500">Expected</p>
+                                <p className="font-semibold text-gray-900 tabular-nums">{formatMoney(bucket.expected)}</p>
+                            </div>
+                            <div className="rounded-md bg-green-50 p-2">
+                                <p className="text-gray-500">Collected · {formatPercent(collectedPct)}</p>
+                                <p className="font-semibold text-green-700 tabular-nums">{formatMoney(bucket.collected)}</p>
+                            </div>
+                            <div className="rounded-md bg-red-50 p-2">
+                                <p className="text-gray-500">Outstanding · {formatPercent(outstandingPct)}</p>
+                                <p className="font-semibold text-red-700 tabular-nums">{formatMoney(bucket.outstanding)}</p>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
+        </Section>
+    );
+}
+
+// ── Class utilisation — one row per class, expands to per-subclass meters ──
+
+function ClassUtilizationList({ classes }: { classes: ClassUtilization[] }) {
+    const [openId, setOpenId] = useState<number | null>(null);
+    const ordered = useMemo(
+        () => sortClassesByLevel(classes.map(c => ({ ...c, id: c.classId, name: c.className }))),
+        [classes]
+    );
+    if (ordered.length === 0) return <p className="text-sm text-gray-500">No data.</p>;
+    return (
+        <div className="space-y-2">
+            {ordered.map(c => {
+                const open = openId === c.classId;
+                const hasSubs = (c.subClasses?.length ?? 0) > 0;
+                const orderedSubs = sortSubClassesByLevel(
+                    (c.subClasses ?? []).map(sc => ({ ...sc, id: sc.subClassId, name: sc.subClassName, className: c.className }))
+                );
+                return (
+                    <div key={c.classId} className="rounded-lg border border-gray-100 bg-white">
+                        <button
+                            type="button"
+                            onClick={() => setOpenId(open ? null : c.classId)}
+                            className="w-full flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg"
+                            aria-expanded={open}
+                        >
+                            {hasSubs
+                                ? (open ? <ChevronDownIcon className="w-4 h-4 shrink-0 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 shrink-0 text-gray-400" />)
+                                : <span className="w-4 h-4 shrink-0" />}
+                            <div className="flex-1 min-w-0">
+                                <Meter
+                                    label={`${c.className} · ${formatNumber(c.currentStudents)}/${formatNumber(c.maxStudents)} students`}
+                                    rate={c.utilizationRate}
+                                    critical={c.utilizationRate > 95}
+                                />
+                            </div>
+                        </button>
+                        {open && hasSubs && (
+                            <div className="border-t border-gray-100 px-3 py-3 space-y-2 bg-gray-50/40 rounded-b-lg">
+                                {orderedSubs.map(sc => (
+                                    <Meter
+                                        key={sc.subClassId}
+                                        label={`${sc.subClassName} · ${formatNumber(sc.currentStudents)}/${formatNumber(sc.maxStudents)} students`}
+                                        rate={sc.utilizationRate}
+                                        critical={sc.utilizationRate > 95}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+// ── Fees & Finance per-class + per-subclass breakdown ──
+
+function FeesByClassBreakdown({ feesByClass }: { feesByClass: FeeClassBreakdown[] }) {
+    const [openId, setOpenId] = useState<number | null>(null);
+    const ordered = useMemo(
+        () => sortClassesByLevel(feesByClass.map(c => ({ ...c, id: c.classId, name: c.className }))),
+        [feesByClass]
+    );
+    if (ordered.length === 0) {
+        return (
+            <Section title="Fee Collection by Class">
+                <p className="text-sm text-gray-500">No data.</p>
+            </Section>
+        );
+    }
+    return (
+        <Section title="Fee Collection by Class">
+            <div className="space-y-2">
+                {ordered.map(c => {
+                    const open = openId === c.classId;
+                    const hasSubs = (c.subClasses?.length ?? 0) > 0;
+                    const orderedSubs = sortSubClassesByLevel(
+                        (c.subClasses ?? []).map(sc => ({ ...sc, id: sc.subClassId, name: sc.subClassName, className: c.className }))
+                    );
+                    return (
+                        <div key={c.classId} className="rounded-lg border border-gray-100 bg-white">
+                            <button
+                                type="button"
+                                onClick={() => setOpenId(open ? null : c.classId)}
+                                className="w-full flex items-center gap-2 p-3 text-left hover:bg-gray-50 rounded-lg"
+                                aria-expanded={open}
+                            >
+                                {hasSubs
+                                    ? (open ? <ChevronDownIcon className="w-4 h-4 shrink-0 text-gray-400" /> : <ChevronRightIcon className="w-4 h-4 shrink-0 text-gray-400" />)
+                                    : <span className="w-4 h-4 shrink-0" />}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <p className="text-sm font-medium text-gray-800 truncate">
+                                            {c.className}
+                                            <span className="ml-2 text-xs font-normal text-gray-400">{formatNumber(c.studentCount)} student(s)</span>
+                                        </p>
+                                        <p className="text-sm font-semibold tabular-nums text-gray-900">{formatPercent(c.collectionRate)}</p>
+                                    </div>
+                                    <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+                                        <div
+                                            className="h-2 rounded-full bg-blue-500"
+                                            style={{ width: `${Math.min(100, Math.max(0, c.collectionRate))}%` }}
+                                        />
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        {formatMoney(c.collected)} collected · {formatMoney(c.outstanding)} outstanding
+                                    </p>
+                                </div>
+                            </button>
+                            {open && hasSubs && (
+                                <div className="border-t border-gray-100 px-3 py-3 space-y-3 bg-gray-50/40 rounded-b-lg">
+                                    {orderedSubs.map(sc => (
+                                        <div key={sc.subClassId} className="rounded-md bg-white border border-gray-100 p-3">
+                                            <div className="flex items-baseline justify-between gap-2">
+                                                <p className="text-sm font-medium text-gray-800 truncate">
+                                                    {sc.subClassName}
+                                                    <span className="ml-2 text-xs font-normal text-gray-400">{formatNumber(sc.studentCount)} student(s)</span>
+                                                </p>
+                                                <p className="text-sm font-semibold tabular-nums text-gray-900">{formatPercent(sc.collectionRate)}</p>
+                                            </div>
+                                            <div className="mt-1 h-2 w-full rounded-full bg-gray-100">
+                                                <div
+                                                    className="h-2 rounded-full bg-blue-500"
+                                                    style={{ width: `${Math.min(100, Math.max(0, sc.collectionRate))}%` }}
+                                                />
+                                            </div>
+                                            <dl className="mt-2 space-y-1 text-xs sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
+                                                <div className="flex items-baseline justify-between gap-2 min-w-0 sm:block">
+                                                    <dt className="text-gray-400">Collected</dt>
+                                                    <dd className="font-medium text-gray-900 tabular-nums text-right sm:text-left">{formatMoney(sc.collected)}</dd>
+                                                </div>
+                                                <div className="flex items-baseline justify-between gap-2 min-w-0 sm:block">
+                                                    <dt className="text-gray-400">Expected</dt>
+                                                    <dd className="font-medium text-gray-900 tabular-nums text-right sm:text-left">{formatMoney(sc.expected)}</dd>
+                                                </div>
+                                                <div className="flex items-baseline justify-between gap-2 min-w-0 sm:block">
+                                                    <dt className="text-gray-400">Outstanding</dt>
+                                                    <dd className={`font-medium tabular-nums text-right sm:text-left ${sc.outstanding > 0 ? 'text-red-600' : 'text-gray-900'}`}>{formatMoney(sc.outstanding)}</dd>
+                                                </div>
+                                            </dl>
+                                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                                                <span className="inline-flex items-center gap-1.5 text-gray-600">
+                                                    <span className="w-2 h-2 rounded-full bg-green-500" /> Paid
+                                                    <span className="font-medium text-gray-900 tabular-nums">{formatNumber(sc.studentsPaid)}</span>
+                                                </span>
+                                                <span className="inline-flex items-center gap-1.5 text-gray-600">
+                                                    <span className="w-2 h-2 rounded-full bg-yellow-500" /> Partial
+                                                    <span className="font-medium text-gray-900 tabular-nums">{formatNumber(sc.studentsPartial)}</span>
+                                                </span>
+                                                <span className="inline-flex items-center gap-1.5 text-gray-600">
+                                                    <span className="w-2 h-2 rounded-full bg-red-500" /> Unpaid
+                                                    <span className="font-medium text-gray-900 tabular-nums">{formatNumber(sc.studentsUnpaid)}</span>
+                                                </span>
+                                            </div>
+                                            {sc.paymentsByMethod.length > 0 && (
+                                                <div className="mt-2 border-t border-gray-100 pt-2">
+                                                    <p className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Payments by method</p>
+                                                    <ul className="space-y-0.5">
+                                                        {sc.paymentsByMethod.map(pm => (
+                                                            <li key={pm.method} className="flex items-center justify-between text-xs gap-2">
+                                                                <span className="text-gray-600 truncate">{formatLabel(pm.method)}</span>
+                                                                <span className="tabular-nums text-gray-900 font-medium shrink-0">
+                                                                    <MoneyResponsive amount={pm.totalAmount} />
+                                                                    <span className="ml-1 text-gray-400 font-normal">· {formatNumber(pm.transactionCount)}</span>
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </Section>
+    );
 }

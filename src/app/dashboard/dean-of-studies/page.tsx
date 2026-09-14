@@ -1,68 +1,27 @@
 'use client';
 
-import {
-  ArchiveBoxIcon,
-  BookOpenIcon,
-  CalendarDaysIcon,
-  ChatBubbleLeftRightIcon,
-  ClipboardDocumentCheckIcon,
-} from '@heroicons/react/24/outline';
+import { useMemo } from 'react';
 import { useAuth } from '@/components/context/AuthContext';
-import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
-
-const quickActions: QuickAction[] = [
-  {
-    label: 'Timetable',
-    description: "View & manage class timetables",
-    href: '/dashboard/dean-of-studies/timetable',
-    icon: CalendarDaysIcon,
-    color: 'indigo',
-  },
-  {
-    label: 'Schemes of Work',
-    description: "Review teacher schemes of work",
-    href: '/dashboard/dean-of-studies/schemes-of-work',
-    icon: BookOpenIcon,
-    color: 'blue',
-  },
-  {
-    label: 'Logbook Review',
-    description: "Review teacher logbooks",
-    href: '/dashboard/dean-of-studies/teacher-logbook',
-    icon: ClipboardDocumentCheckIcon,
-    color: 'purple',
-  },
-  {
-    label: 'Chat',
-    description: "Message staff in real time",
-    href: '/dashboard/dean-of-studies/chat',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'green',
-  },
-  {
-    label: 'Inventory',
-    description: "Your stock & transfers",
-    href: '/dashboard/dean-of-studies/inventory',
-    icon: ArchiveBoxIcon,
-    color: 'amber',
-  },
-];
+import { useLanguage } from '@/components/context/LanguageContext';
+import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
+import { getQuickActionsForRole } from '@/lib/roleMenus';
 
 export default function DeanOfStudiesMenu() {
   const { selectedAcademicYear, user } = useAuth();
+  const { t } = useLanguage();
+  const quickActions = useMemo(() => getQuickActionsForRole('dean-of-studies', t), [t]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+          {t('Welcome')}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
         </h1>
         <p className="text-sm text-gray-600 mt-0.5">
-          What would you like to do?
+          {t('What would you like to do?')}
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
         </p>
       </div>
-
       <QuickActionGrid actions={quickActions} />
     </div>
   );

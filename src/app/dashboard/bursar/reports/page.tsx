@@ -7,6 +7,8 @@ import { sortClassesByLevel } from '@/lib/classOrdering';
 import { ArrowDownTrayIcon, DocumentTextIcon, TableCellsIcon } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService'; // Import apiService
 import { toast } from 'react-hot-toast'; // Import toast
+import { saveBlob } from '@/lib/downloadFile';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // --- Types ---
 interface ClassInfo {
@@ -67,6 +69,7 @@ interface PaymentMethodAnalytics {
 }
 
 const FinancialReportsPage = () => {
+  const { t } = useLanguage();
   const [selectedClass, setSelectedClass] = useState<string | number>('all');
   const [academicYear, setAcademicYear] = useState<string | number>('');
   const [term, setTerm] = useState<string | number>('all'); // Retain for future use or filter if API supports
@@ -98,10 +101,10 @@ const FinancialReportsPage = () => {
           setAcademicYear(currentYear.id);
         }
 
-        toast.success("Filter options loaded!");
+        toast.success(t("Filter options loaded!"));
       } catch (error: any) {
         console.error('Error fetching filter options:', error);
-        toast.error(`Failed to load filter options: ${error.message}`);
+        toast.error(`${t('Failed to load filter options')}: ${error.message}`);
       } finally {
         setIsLoading(false);
       }
@@ -142,20 +145,20 @@ const FinancialReportsPage = () => {
       if (actualReportType === 'summary') {
         // Class summary data
         setReportData(responseData || []);
-        toast.success('Class fee summary generated successfully!');
+        toast.success(t('Class fee summary generated successfully!'));
       } else if (actualReportType === 'detailed') {
         // Student detailed data
         setStudentDetailedData(responseData || []);
-        toast.success('Detailed student fees generated successfully!');
+        toast.success(t('Detailed student fees generated successfully!'));
       } else if (actualReportType === 'analytics') {
         // Payment method analytics data
         setPaymentAnalyticsData(responseData || []);
-        toast.success('Payment method analytics generated successfully!');
+        toast.success(t('Payment method analytics generated successfully!'));
       }
 
     } catch (error: any) {
       console.error("Failed to generate report:", error);
-      toast.error(`Failed to generate report: ${error.message}`);
+      toast.error(`${t('Failed to generate report')}: ${error.message}`);
       setReportData([]);
       setStudentDetailedData([]);
       setPaymentAnalyticsData([]);
@@ -195,9 +198,6 @@ const FinancialReportsPage = () => {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
 
       // Enhanced filename with report type
       const reportTypeNames = {
@@ -209,16 +209,12 @@ const FinancialReportsPage = () => {
       const classFilter = selectedClass === 'all' ? 'all-classes' : `class-${selectedClass}`;
       const filename = `${reportTypeName}_${academicYear}_${classFilter}.${format}`;
 
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(blob, filename);
 
-      toast.success(`${reportTypeName.replace('-', ' ')} exported as ${format.toUpperCase()}!`);
+      toast.success(`${reportTypeName.replace('-', ' ')} ${t('exported as')} ${format.toUpperCase()}!`);
     } catch (error: any) {
       console.error("Export failed:", error);
-      toast.error(`Export failed: ${error.message}`);
+      toast.error(`${t('Export failed')}: ${error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -234,7 +230,7 @@ const FinancialReportsPage = () => {
   return (
     <div className="p-4 sm:p-6 bg-gray-100 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Financial Reports</h1>
+        <h1 className="text-2xl font-bold">{t('Financial Reports')}</h1>
         <div className="flex space-x-2 mt-4 md:mt-0">
           <button
             onClick={() => handleExport('csv')}
@@ -242,7 +238,7 @@ const FinancialReportsPage = () => {
             className="flex items-center space-x-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm hover:bg-blue-700 disabled:opacity-50"
           >
             <DocumentTextIcon className="w-4 h-4" />
-            <span>Word</span>
+            <span>{t('Word')}</span>
           </button>
           <button
             onClick={() => handleExport('xlsx')}
@@ -250,7 +246,7 @@ const FinancialReportsPage = () => {
             className="flex items-center space-x-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
           >
             <TableCellsIcon className="w-4 h-4" />
-            <span>Excel</span>
+            <span>{t('Excel')}</span>
           </button>
           <button
             onClick={() => handleExport('pdf')}
@@ -258,7 +254,7 @@ const FinancialReportsPage = () => {
             className="flex items-center space-x-1 bg-red-600 text-white px-3 py-2 rounded-md text-sm hover:bg-red-700 disabled:opacity-50"
           >
             <ArrowDownTrayIcon className="w-4 h-4" />
-            <span>PDF</span>
+            <span>{t('PDF')}</span>
           </button>
         </div>
       </div>
@@ -267,48 +263,48 @@ const FinancialReportsPage = () => {
       <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium text-blue-800">Current Report Type</h3>
+            <h3 className="text-sm font-medium text-blue-800">{t('Current Report Type')}</h3>
             <p className="text-blue-700">
-              {reportType === 'class' && '📊 By Class (Fee Summary) - Aggregated fee collection statistics grouped by class'}
-              {reportType === 'student' && '👥 By Student (Detailed Fees) - Individual student fee records with payment history'}
-              {reportType === 'payment-method' && '💳 By Payment Method (Analytics) - Payment method analysis and trends'}
+              {reportType === 'class' && '📊 ' + t('By Class (Fee Summary) - Aggregated fee collection statistics grouped by class')}
+              {reportType === 'student' && '👥 ' + t('By Student (Detailed Fees) - Individual student fee records with payment history')}
+              {reportType === 'payment-method' && '💳 ' + t('By Payment Method (Analytics) - Payment method analysis and trends')}
             </p>
           </div>
           <div className="text-xs text-blue-600 bg-white px-2 py-1 rounded border">
-            Export ready: {reportType === 'class' ? 'summary' : reportType === 'student' ? 'detailed' : 'analytics'}
+            {t('Export ready')}: {reportType === 'class' ? t('summary') : reportType === 'student' ? t('detailed') : t('analytics')}
           </div>
         </div>
       </div>
 
       {/* Report Filters */}
       <div className="mb-8 bg-white p-6 rounded-lg shadow-md">
-        <h2 className="text-lg font-semibold mb-4">Generate Report</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('Generate Report')}</h2>
         <form onSubmit={handleGenerateReport} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Report Type</label>
-              <select 
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Report Type')}</label>
+              <select
                 value={reportType}
                 onChange={(e) => setReportType(e.target.value)}
                 className="w-full p-2 border rounded"
                 disabled={isLoading}
               >
-                <option value="class">By Class (Fee Summary)</option>
-                <option value="student">By Student (Detailed Fees)</option>
-                <option value="payment-method">By Payment Method (Analytics)</option>
+                <option value="class">{t('By Class (Fee Summary)')}</option>
+                <option value="student">{t('By Student (Detailed Fees)')}</option>
+                <option value="payment-method">{t('By Payment Method (Analytics)')}</option>
                 {/* <option value="date">By Date</option> */}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
-              <select 
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Academic Year')}</label>
+              <select
                 value={academicYear}
                 onChange={(e) => setAcademicYear(e.target.value)}
                 className="w-full p-2 border rounded"
                 disabled={isLoading || academicYears.length === 0}
               >
-                <option value="">Select Academic Year</option>
+                <option value="">{t('Select Academic Year')}</option>
                 {academicYears.map((year) => (
                   <option key={year.id} value={year.id}>{year.name}</option>
                 ))}
@@ -316,14 +312,14 @@ const FinancialReportsPage = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Class')}</label>
               <select
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 className="w-full p-2 border rounded"
                 disabled={isLoading || classes.length === 0}
               >
-                <option value="all">All Classes</option>
+                <option value="all">{t('All Classes')}</option>
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>{cls.name}</option>
                 ))}
@@ -373,7 +369,7 @@ const FinancialReportsPage = () => {
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:bg-blue-300"
               disabled={isLoading || !academicYear}
             >
-              {isLoading ? 'Generating...' : 'Generate Report'}
+              {isLoading ? t('Generating...') : t('Generate Report')}
             </button>
           </div>
         </form>
@@ -381,11 +377,11 @@ const FinancialReportsPage = () => {
 
       {/* Report Table */}
       <div className="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
-        <h2 className="text-lg font-semibold mb-4">Report Data</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('Report Data')}</h2>
         {isLoading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-500">Loading report data...</p>
+            <p className="text-gray-500">{t('Loading report data...')}</p>
           </div>
         ) : (
           <>
@@ -393,21 +389,21 @@ const FinancialReportsPage = () => {
             {reportType === 'class' && reportData.length > 0 && (
               <div>
                 <div className="flex items-center mb-4">
-                  <h3 className="text-md font-medium text-gray-700">📊 Class Fee Summary</h3>
-                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{reportData.length} classes</span>
+                  <h3 className="text-md font-medium text-gray-700">📊 {t('Class Fee Summary')}</h3>
+                  <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{reportData.length} {t('classes')}</span>
                 </div>
                 <div className="hidden md:block overflow-x-auto">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-50">
-                        <th className="text-left py-3 px-4 font-medium text-gray-700">Class Name</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Total Students</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Expected Amount</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Paid Amount</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Outstanding</th>
-                        <th className="text-center py-3 px-4 font-medium text-gray-700">Payment Rate</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Students w/ Payments</th>
-                        <th className="text-right py-3 px-4 font-medium text-gray-700">Students w/o Payments</th>
+                        <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Class Name')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Total Students')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Expected Amount')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Paid Amount')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Outstanding')}</th>
+                        <th className="text-center py-3 px-4 font-medium text-gray-700">{t('Payment Rate')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Students w/ Payments')}</th>
+                        <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Students w/o Payments')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -439,23 +435,23 @@ const FinancialReportsPage = () => {
                     <div key={item?.className || `row-${index}`} className="p-4 space-y-1.5">
                       <div className="text-sm font-semibold text-gray-900 break-words">{item?.className || 'N/A'}</div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Total Students</span>
+                        <span className="text-xs text-gray-500">{t("Total Students")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{item?.totalStudents || 0}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Expected Amount</span>
+                        <span className="text-xs text-gray-500">{t("Expected Amount")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(item?.totalExpected)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Paid Amount</span>
+                        <span className="text-xs text-gray-500">{t("Paid Amount")}</span>
                         <span className="text-sm text-right break-words text-green-600">{formatCurrency(item?.totalPaid)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Outstanding</span>
+                        <span className="text-xs text-gray-500">{t("Outstanding")}</span>
                         <span className="text-sm text-right break-words text-red-600">{formatCurrency(item?.totalOutstanding)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Payment Rate</span>
+                        <span className="text-xs text-gray-500">{t("Payment Rate")}</span>
                         <span className={`px-2 py-1 rounded text-xs ${
                           (item?.paymentPercentage || 0) >= 80 ? 'bg-green-100 text-green-800' :
                           (item?.paymentPercentage || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' :
@@ -465,11 +461,11 @@ const FinancialReportsPage = () => {
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Students w/ Payments</span>
+                        <span className="text-xs text-gray-500">{t("Students w/ Payments")}</span>
                         <span className="text-sm text-right break-words text-green-600">{item?.studentsWithPayments || 0}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Students w/o Payments</span>
+                        <span className="text-xs text-gray-500">{t("Students w/o Payments")}</span>
                         <span className="text-sm text-right break-words text-red-600">{item?.studentsWithoutPayments || 0}</span>
                       </div>
                     </div>
@@ -482,23 +478,23 @@ const FinancialReportsPage = () => {
             {reportType === 'student' && studentDetailedData.length > 0 && (
               <div>
                 <div className="flex items-center mb-4">
-                  <h3 className="text-md font-medium text-gray-700">👥 Student Fee Details</h3>
-                  <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} students</span>
+                  <h3 className="text-md font-medium text-gray-700">👥 {t('Student Fee Details')}</h3>
+                  <span className="ml-2 bg-green-100 text-green-800 text-xs px-2 py-1 rounded">{studentDetailedData.length} {t('students')}</span>
                 </div>
                 <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Student Name</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Matricule</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Class</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Subclass</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Expected</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Paid</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Outstanding</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Status</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Payments</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Last Payment</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Student Name')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Matricule')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Class')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Subclass')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Expected')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Paid')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Outstanding')}</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">{t('Status')}</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">{t('Payments')}</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Last Payment')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -517,8 +513,8 @@ const FinancialReportsPage = () => {
                             (student?.paymentPercentage || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-red-100 text-red-800'
                           }`}>
-                            {(student?.paymentPercentage || 0) >= 100 ? 'Paid' :
-                             (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : 'Unpaid'}
+                            {(student?.paymentPercentage || 0) >= 100 ? t('Paid') :
+                             (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : t('Unpaid')}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-center">{student?.paymentsCount || 0}</td>
@@ -542,46 +538,46 @@ const FinancialReportsPage = () => {
                     <div key={`student-${index}`} className="p-4 space-y-1.5">
                       <div className="text-sm font-semibold text-gray-900 break-words">{student?.studentName || 'N/A'}</div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Matricule</span>
+                        <span className="text-xs text-gray-500">{t("Matricule")}</span>
                         <span className="text-sm text-gray-900 text-right break-words font-mono">{student?.studentMatricule || '-'}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Class</span>
+                        <span className="text-xs text-gray-500">{t("Class")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{student?.className || 'N/A'}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Subclass</span>
+                        <span className="text-xs text-gray-500">{t("Subclass")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{student?.subClassName || '-'}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Expected</span>
+                        <span className="text-xs text-gray-500">{t("Expected")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(student?.expectedAmount)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Paid</span>
+                        <span className="text-xs text-gray-500">{t("Paid")}</span>
                         <span className="text-sm text-right break-words text-green-600">{formatCurrency(student?.paidAmount)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Outstanding</span>
+                        <span className="text-xs text-gray-500">{t("Outstanding")}</span>
                         <span className="text-sm text-right break-words text-red-600">{formatCurrency(student?.outstanding)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Status</span>
+                        <span className="text-xs text-gray-500">{t("Status")}</span>
                         <span className={`px-2 py-1 rounded text-xs ${
                           (student?.paymentPercentage || 0) >= 100 ? 'bg-green-100 text-green-800' :
                           (student?.paymentPercentage || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
                           'bg-red-100 text-red-800'
                         }`}>
-                          {(student?.paymentPercentage || 0) >= 100 ? 'Paid' :
-                           (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : 'Unpaid'}
+                          {(student?.paymentPercentage || 0) >= 100 ? t('Paid') :
+                           (student?.paymentPercentage || 0) > 0 ? `${(student?.paymentPercentage || 0).toFixed(2)}%` : t('Unpaid')}
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Payments</span>
+                        <span className="text-xs text-gray-500">{t("Payments")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{student?.paymentsCount || 0}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Last Payment</span>
+                        <span className="text-xs text-gray-500">{t("Last Payment")}</span>
                         <div className="text-sm text-gray-900 text-right break-words">
                           {student?.lastPaymentDate ?
                             <div>
@@ -603,19 +599,19 @@ const FinancialReportsPage = () => {
             {reportType === 'payment-method' && paymentAnalyticsData.length > 0 && (
               <div>
                 <div className="flex items-center mb-4">
-                  <h3 className="text-md font-medium text-gray-700">💳 Payment Method Analytics</h3>
-                  <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} methods</span>
+                  <h3 className="text-md font-medium text-gray-700">💳 {t('Payment Method Analytics')}</h3>
+                  <span className="ml-2 bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded">{paymentAnalyticsData.length} {t('methods')}</span>
                 </div>
                 <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Payment Method</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Transactions</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Total Amount</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Avg Amount</th>
-                      <th className="text-right py-3 px-4 font-medium text-gray-700">Unique Students</th>
-                      <th className="text-center py-3 px-4 font-medium text-gray-700">Market Share</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">{t('Payment Method')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Transactions')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Total Amount')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Avg Amount')}</th>
+                      <th className="text-right py-3 px-4 font-medium text-gray-700">{t('Unique Students')}</th>
+                      <th className="text-center py-3 px-4 font-medium text-gray-700">{t('Market Share')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -647,23 +643,23 @@ const FinancialReportsPage = () => {
                     <div key={method?.paymentMethod || `method-${index}`} className="p-4 space-y-1.5">
                       <div className="text-sm font-semibold text-gray-900 break-words">{method?.paymentMethod || 'N/A'}</div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Transactions</span>
+                        <span className="text-xs text-gray-500">{t("Transactions")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{(method?.totalTransactions || 0).toLocaleString()}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Total Amount</span>
+                        <span className="text-xs text-gray-500">{t("Total Amount")}</span>
                         <span className="text-sm text-right break-words text-green-600">{formatCurrency(method?.totalAmount)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Avg Amount</span>
+                        <span className="text-xs text-gray-500">{t("Avg Amount")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{formatCurrency(method?.averageAmount)}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Unique Students</span>
+                        <span className="text-xs text-gray-500">{t("Unique Students")}</span>
                         <span className="text-sm text-gray-900 text-right break-words">{method?.uniqueStudents || 0}</span>
                       </div>
                       <div className="flex items-start justify-between gap-3">
-                        <span className="text-xs text-gray-500">Market Share</span>
+                        <span className="text-xs text-gray-500">{t("Market Share")}</span>
                         <div className="flex items-center justify-end">
                           <div className="w-20 bg-gray-200 rounded-full h-2 mr-2">
                             <div
@@ -684,8 +680,8 @@ const FinancialReportsPage = () => {
             {reportData.length === 0 && studentDetailedData.length === 0 && paymentAnalyticsData.length === 0 && (
               <div className="text-center py-12">
                 <div className="text-gray-400 text-6xl mb-4">📊</div>
-                <p className="text-gray-500 text-lg">No report data available</p>
-                <p className="text-gray-400 text-sm">Generate a report using the form above to see data here</p>
+                <p className="text-gray-500 text-lg">{t('No report data available')}</p>
+                <p className="text-gray-400 text-sm">{t('Generate a report using the form above to see data here')}</p>
               </div>
             )}
           </>

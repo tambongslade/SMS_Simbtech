@@ -11,6 +11,7 @@ import apiService from '../../../../../lib/apiService'; // Import apiService
 // API Configuration - REMOVED
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
 // One recorded payment transaction, flattened with its student/class context
@@ -333,15 +334,8 @@ export const useFeeManagement = () => {
       // Assuming the export endpoint initiates a download and returns a success/error message or a blob
       const response = await apiService.get(exportUrl, {}, 'blob');
 
-      const downloadUrl = window.URL.createObjectURL(response); // response is already a Blob
-      const link = document.createElement('a');
-      link.href = downloadUrl;
       const filename = `fees_export_${new Date().toISOString().split('T')[0]}.${format}`;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(response as Blob, filename);
       toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-toast' });
 
     } catch (error: any) {
@@ -520,17 +514,8 @@ export const useFeeManagement = () => {
 
       const response = await apiService.get(exportUrl, {}, 'blob');
 
-      const downloadUrl = window.URL.createObjectURL(response);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-
       const filename = `fees_${reportType}_${new Date().toISOString().split('T')[0]}.${format}`;
-
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(response as Blob, filename);
 
       toast.success(`${format.toUpperCase()} export downloaded successfully.`, { id: 'export-toast' });
     } catch (error: any) {

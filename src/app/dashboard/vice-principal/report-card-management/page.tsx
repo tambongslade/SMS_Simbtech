@@ -4,7 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { saveBlob } from '@/lib/downloadFile';
 
 // --- Types --- (Using refined types)
 
@@ -80,6 +82,7 @@ const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem(
 // --- Main Page Component ---
 export default function ReportCardGenerationPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   // Data States
   const [allSubClassesData, setAllSubClassesData] = useState<SubClass[]>([]);
@@ -281,17 +284,17 @@ export default function ReportCardGenerationPage() {
   // --- Download existing report ---
   const downloadExistingReport = useCallback(async (type: 'student' | 'subclass') => {
     if (!selectedAcademicYear?.id || !selectedSequenceId) {
-      toast.error("Please select Academic Year and Exam Sequence.");
+      toast.error(t("Please select Academic Year and Exam Sequence."));
       return;
     }
 
     const token = getAuthToken();
     if (!token) {
-      toast.error("Authentication failed. Please log in again.");
+      toast.error(t("Authentication failed. Please log in again."));
       return;
     }
 
-    const toastId = toast.loading(`Downloading ${type} report...`);
+    const toastId = toast.loading(`${t('Downloading')} ${type} ${t('report...')}`);
 
     try {
       let url: string;
@@ -337,14 +340,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report downloaded successfully!`, { id: toastId });
 
@@ -357,24 +353,24 @@ export default function ReportCardGenerationPage() {
   // --- Generate and download new report ---
   const generateAndDownloadReport = useCallback(async (type: 'student' | 'subclass') => {
     if (!selectedAcademicYear?.id || !selectedSequenceId) {
-      toast.error("Please select Academic Year and Exam Sequence.");
+      toast.error(t("Please select Academic Year and Exam Sequence."));
       return;
     }
 
     if (type === 'student' && (!selectedStudentId || selectedStudentId === 'all')) {
-      toast.error("Please select a specific student.");
+      toast.error(t("Please select a specific student."));
       return;
     }
 
     if (type === 'subclass' && !selectedSubClassId) {
-      toast.error("Please select a subclass.");
+      toast.error(t("Please select a subclass."));
       return;
     }
 
     setIsGenerating(true);
     const token = getAuthToken();
     if (!token) {
-      toast.error("Authentication failed. Please log in again.");
+      toast.error(t("Authentication failed. Please log in again."));
       setIsGenerating(false);
       return;
     }
@@ -423,14 +419,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
+      saveBlob(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report generated and downloaded successfully!`, { id: toastId });
 
@@ -510,7 +499,7 @@ export default function ReportCardGenerationPage() {
         className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
       >
         <option value="">
-          {isLoading ? 'Loading...' : (placeholder || (options.length === 0 && !disabled ? `No ${label} available` : `Select ${label}...`))}
+          {isLoading ? t('Loading...') : (placeholder || (options.length === 0 && !disabled ? `${t('No')} ${label} ${t('available')}` : `${t('Select')} ${label}...`))}
         </option>
         {options.map(option => (
           <option key={option.id} value={option.id}>{option.name}</option>
@@ -522,23 +511,23 @@ export default function ReportCardGenerationPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-full mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Report Card Generation</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('Report Card Generation')}</h1>
 
-        {error && <div className="mb-4 p-4 bg-red-100 text-red-700 border border-red-300 rounded">Error: {error}</div>}
+        {error && <div className="mb-4 p-4 bg-red-100 text-red-700 border border-red-300 rounded">{t('Error')}: {error}</div>}
 
         {/* Filter Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 p-4 bg-white rounded-lg shadow-sm">
           {/* Academic Year */}
           {/* Removed Academic Year dropdown as it's now from AuthContext */}
           {/* Term */}
-          {renderFilterDropdown("Term", selectedTermId, e => setSelectedTermId(e.target.value ? Number(e.target.value) : null), derivedTerms, isLoadingFilters, selectedAcademicYear?.id === null)}
+          {renderFilterDropdown(t("Term"), selectedTermId, e => setSelectedTermId(e.target.value ? Number(e.target.value) : null), derivedTerms, isLoadingFilters, selectedAcademicYear?.id === null)}
           {/* Sequence/Evaluation */}
-          {renderFilterDropdown("Evaluation", selectedSequenceId, e => setSelectedSequenceId(e.target.value ? Number(e.target.value) : null), derivedExamSequences, isLoadingFilters, selectedTermId === null)}
+          {renderFilterDropdown(t("Evaluation"), selectedSequenceId, e => setSelectedSequenceId(e.target.value ? Number(e.target.value) : null), derivedExamSequences, isLoadingFilters, selectedTermId === null)}
           {/* SubClass */}
-          {renderFilterDropdown("Subclass", selectedSubClassId, e => setSelectedSubClassId(e.target.value ? Number(e.target.value) : null), allSubClassesData, isLoadingFilters, false)}
+          {renderFilterDropdown(t("Subclass"), selectedSubClassId, e => setSelectedSubClassId(e.target.value ? Number(e.target.value) : null), allSubClassesData, isLoadingFilters, false)}
           {/* Student Selection */}
           <div>
-            <label htmlFor="student" className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+            <label htmlFor="student" className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
             <select
               id="student"
               value={selectedStudentId === null ? '' : selectedStudentId === 'all' ? 'all' : selectedStudentId}
@@ -546,9 +535,9 @@ export default function ReportCardGenerationPage() {
               disabled={isLoadingStudents || selectedSubClassId === null || selectedAcademicYear?.id === null}
               className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="">{isLoadingStudents ? 'Loading...' : 'Select Student'}</option>
-              {students.length > 0 && <option value="all">-- All Students in Subclass --</option>}
-              {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.matricule || 'No ID'})</option>)}
+              <option value="">{isLoadingStudents ? t('Loading...') : t('Select Student')}</option>
+              {students.length > 0 && <option value="all">{t('-- All Students in Subclass --')}</option>}
+              {students.map(s => <option key={s.id} value={s.id}>{s.name} ({s.matricule || t('No ID')})</option>)}
             </select>
           </div>
         </div>
@@ -556,14 +545,14 @@ export default function ReportCardGenerationPage() {
         {/* Report Availability Status */}
         {(studentReportAvailability || subclassReportAvailability) && (
           <div className="mb-6 p-4 bg-white rounded-lg shadow-sm">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Report Availability Status</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">{t('Report Availability Status')}</h3>
 
             {studentReportAvailability && selectedStudentId && selectedStudentId !== 'all' && (
               <div className="mb-3 p-3 border rounded-lg">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     {getStatusIcon(studentReportAvailability.status)}
-                    <span className="ml-2 font-medium">Student Report</span>
+                    <span className="ml-2 font-medium">{t('Student Report')}</span>
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full ${studentReportAvailability.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                     studentReportAvailability.status === 'PROCESSING' || studentReportAvailability.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -575,7 +564,7 @@ export default function ReportCardGenerationPage() {
                 <p className="text-sm text-gray-600 mt-1">{studentReportAvailability.message}</p>
                 {studentReportAvailability.reportData?.generatedAt && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Generated: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString()}
+                    {t('Generated')}: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -586,7 +575,7 @@ export default function ReportCardGenerationPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     {getStatusIcon(subclassReportAvailability.status)}
-                    <span className="ml-2 font-medium">Subclass Report</span>
+                    <span className="ml-2 font-medium">{t('Subclass Report')}</span>
                   </div>
                   <span className={`px-2 py-1 text-xs rounded-full ${subclassReportAvailability.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
                     subclassReportAvailability.status === 'PROCESSING' || subclassReportAvailability.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
@@ -598,7 +587,7 @@ export default function ReportCardGenerationPage() {
                 <p className="text-sm text-gray-600 mt-1">{subclassReportAvailability.message}</p>
                 {subclassReportAvailability.reportData?.generatedAt && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Generated: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString()}
+                    {t('Generated')}: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString()}
                   </p>
                 )}
               </div>
@@ -608,12 +597,12 @@ export default function ReportCardGenerationPage() {
 
         {/* Action Buttons Section */}
         <div className="mt-6 p-4 bg-white rounded-lg shadow-sm">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Actions</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">{t('Actions')}</h3>
 
           {/* Student Report Actions */}
           {selectedStudentId && selectedStudentId !== 'all' && (
             <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-700 mb-3">Student Report</h4>
+              <h4 className="text-md font-medium text-gray-700 mb-3">{t('Student Report')}</h4>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => downloadExistingReport('student')}
@@ -621,7 +610,7 @@ export default function ReportCardGenerationPage() {
                   className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                  Download Existing Report
+                  {t('Download Existing Report')}
                 </button>
 
                 <button
@@ -630,7 +619,7 @@ export default function ReportCardGenerationPage() {
                   className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                  Generate New Report
+                  {t('Generate New Report')}
                 </button>
               </div>
             </div>
@@ -639,7 +628,7 @@ export default function ReportCardGenerationPage() {
           {/* Subclass Report Actions */}
           {selectedSubClassId && (
             <div className="mb-6">
-              <h4 className="text-md font-medium text-gray-700 mb-3">Subclass Report</h4>
+              <h4 className="text-md font-medium text-gray-700 mb-3">{t('Subclass Report')}</h4>
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
                   onClick={() => downloadExistingReport('subclass')}
@@ -647,7 +636,7 @@ export default function ReportCardGenerationPage() {
                   className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                  Download Existing Report
+                  {t('Download Existing Report')}
                 </button>
 
                 <button
@@ -656,7 +645,7 @@ export default function ReportCardGenerationPage() {
                   className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <DocumentArrowDownIcon className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
-                  Generate New Report
+                  {t('Generate New Report')}
                 </button>
               </div>
             </div>
@@ -666,7 +655,7 @@ export default function ReportCardGenerationPage() {
             <div className="text-center py-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
               <p className="mt-2 text-sm text-gray-500">
-                {isGenerating ? 'Generating report(s)... Please wait.' : 'Checking availability...'}
+                {isGenerating ? t('Generating report(s)... Please wait.') : t('Checking availability...')}
               </p>
             </div>
           )}

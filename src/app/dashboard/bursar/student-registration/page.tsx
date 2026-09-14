@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import apiService from '../../../../lib/apiService';
 import { useAuth } from '../../../../components/context/AuthContext';
 import { formatDOB } from '@/lib/formatDate';
+import { saveBlob } from '@/lib/downloadFile';
 
 // --- Types ---
 type ParentLink = {
@@ -875,15 +876,8 @@ export default function StudentManagement() {
             }
 
             const blob = await response.blob();
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
             const filename = `${subClassName.replace(/s+/g, '_')}_students_${new Date().toISOString().split('T')[0]}.${format}`;
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(downloadUrl);
+            saveBlob(blob, filename);
             toast.success(`Export for ${subClassName} downloaded successfully.`, { id: 'export-toast' });
 
         } catch (error: any) {

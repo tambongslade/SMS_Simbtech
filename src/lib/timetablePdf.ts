@@ -1,5 +1,6 @@
 import { toast } from 'react-hot-toast';
 import apiService from '@/lib/apiService';
+import { saveBlob } from '@/lib/downloadFile';
 
 // Server-rendered timetable PDFs (landscape A4 grids). The backend owns the
 // layout; the frontend only asks for the right endpoint and saves the blob.
@@ -14,17 +15,6 @@ import apiService from '@/lib/apiService';
 const fileNamePart = (value: string | undefined | null, fallback: string): string => {
     const cleaned = (value ?? '').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return cleaned || fallback;
-};
-
-const saveBlob = (blob: Blob, filename: string) => {
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(downloadUrl);
 };
 
 const downloadPdf = async (
