@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardBody, Input, Button } from '@/components/ui';
 import { UserIcon, LockClosedIcon, CheckCircleIcon, AtSymbolIcon, IdentificationIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import AcademicYearSelector from '@/components/auth/AcademicYearSelector';
 import { toast } from 'react-hot-toast';
 
@@ -20,6 +21,7 @@ interface RoleSelectionModalProps {
 const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose, roles, onRoleSelect }) => {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const { isLoading } = useAuth();
+  const { t } = useLanguage();
 
   if (!isOpen) return null;
 
@@ -41,25 +43,26 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
   // Function to get role description
   const getRoleDescription = (role: string): string => {
     const descriptions: Record<string, string> = {
-      'SUPER_MANAGER': 'Full administrative access to all school operations',
-      'PRINCIPAL': 'Overall school leadership and management',
-      'VICE_PRINCIPAL': 'Support principal in administrative duties',
-      'TEACHER': 'Teaching and student assessment responsibilities',
-      'HOD': 'Head of Department - subject area management',
-      'BURSAR': 'Financial management and fee collection',
-      'DISCIPLINE_MASTER': 'Student discipline and behavior management',
-      'SENIOR_DISCIPLINE_MASTER': 'Aggregates discipline reports across discipline masters',
-      'DEAN_OF_DISCIPLINE': 'Head of the discipline chain and oversight',
-      'DEAN_OF_STUDIES': 'Academic dean and curriculum oversight',
-      'GUIDANCE_COUNSELOR': 'Student guidance and counseling services',
-      'FEE_AUDITOR': 'Fee auditing and financial discrepancy review',
-      'SECRETARY': 'Student/teacher records, photos and class list exports',
-      'NURSE': 'School health and student medical records',
-      'PARENT': 'View child(ren) information and progress',
-      'STUDENT': 'Access your academic information and results',
-      'MANAGER': 'General management and operational oversight'
+      'SUPER_MANAGER': t('Full administrative access to all school operations'),
+      'PRINCIPAL': t('Overall school leadership and management'),
+      'VICE_PRINCIPAL': t('Support principal in administrative duties'),
+      'TEACHER': t('Teaching and student assessment responsibilities'),
+      'HOD': t('Head of Department - subject area management'),
+      'BURSAR': t('Financial management and fee collection'),
+      'DISCIPLINE_MASTER': t('Student discipline and behavior management'),
+      'SENIOR_DISCIPLINE_MASTER': t('Aggregates discipline reports across discipline masters'),
+      'DEAN_OF_DISCIPLINE': t('Head of the discipline chain and oversight'),
+      'DISCIPLINE_COORDINATOR': t('Oversees all Deans of Discipline and Discipline Masters; personnel management for the discipline chain'),
+      'DEAN_OF_STUDIES': t('Academic dean and curriculum oversight'),
+      'GUIDANCE_COUNSELOR': t('Student guidance and counseling services'),
+      'FEE_AUDITOR': t('Fee auditing and financial discrepancy review'),
+      'SECRETARY': t('Student/teacher records, photos and class list exports'),
+      'NURSE': t('School health and student medical records'),
+      'PARENT': t('View child(ren) information and progress'),
+      'STUDENT': t('Access your academic information and results'),
+      'MANAGER': t('General management and operational oversight')
     };
-    return descriptions[role] || 'Access to role-specific features';
+    return descriptions[role] || t('Access to role-specific features');
   };
 
   return (
@@ -67,10 +70,10 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
       <div className="relative mx-auto p-6 border w-full max-w-lg shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
         <div className="text-center mb-6">
           <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            Select Your Role
+            {t('Select Your Role')}
           </h3>
           <p className="text-sm text-gray-600">
-            You have multiple roles associated with your account. Please choose the role you want to use for this session.
+            {t('You have multiple roles associated with your account. Please choose the role you want to use for this session.')}
           </p>
         </div>
 
@@ -110,14 +113,14 @@ const RoleSelectionModal: React.FC<RoleSelectionModalProps> = ({ isOpen, onClose
             onClick={onClose}
             disabled={isLoading}
           >
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!selectedRole || isLoading}
             className="min-w-[120px]"
           >
-            {isLoading ? 'Loading...' : 'Continue'}
+            {isLoading ? t('Loading...') : t('Continue')}
           </Button>
         </div>
       </div>
@@ -135,6 +138,7 @@ const backgroundImages = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const {
     login,
     loginParent,
@@ -245,6 +249,7 @@ export default function LoginPage() {
         'DISCIPLINE_MASTER': '/dashboard/discipline-master',
         'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
         'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+        'DISCIPLINE_COORDINATOR': '/dashboard/discipline-coordinator',
         'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
         'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
         'FEE_AUDITOR': '/dashboard/fee-auditor',
@@ -273,7 +278,7 @@ export default function LoginPage() {
     if (loginType === 'matricule') {
       const identifier = formData.email.trim().toUpperCase();
       if (!identifier) {
-        toast.error("Please enter your child's matricule");
+        toast.error(t("Please enter your child's matricule"));
         return;
       }
       try {
@@ -292,7 +297,7 @@ export default function LoginPage() {
     }
 
     if (!formData.email || !formData.password) {
-      toast.error('Please fill in all fields');
+      toast.error(t('Please fill in all fields'));
       return;
     }
 
@@ -363,7 +368,7 @@ export default function LoginPage() {
           // User cancelled academic year selection
           // You might want to log out, or go back to role selection
           // For now, let's clear the selected role to force re-selection
-          toast.error('Academic year selection cancelled. Please re-select your role.');
+          toast.error(t('Academic year selection cancelled. Please re-select your role.'));
           selectRole(''); // This will effectively clear selected role and available years
         }}
       />
@@ -421,10 +426,10 @@ export default function LoginPage() {
 
             <CardHeader className="text-center pb-6 pt-0">
               <CardTitle className="text-2xl font-bold text-gray-900">
-                Welcome Back
+                {t('Welcome Back')}
               </CardTitle>
               <p className="mt-2 text-sm text-gray-700">
-                Sign in to access your dashboard
+                {t('Sign in to access your dashboard')}
               </p>
             </CardHeader>
 
@@ -436,7 +441,7 @@ export default function LoginPage() {
                     <IdentificationIcon className="w-7 h-7 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-gray-500">Welcome back</p>
+                    <p className="text-sm text-gray-500">{t('Welcome Back')}</p>
                     <p className="text-lg font-semibold text-gray-900">{quickLogin.identifier}</p>
                   </div>
                   <Button
@@ -445,14 +450,14 @@ export default function LoginPage() {
                     disabled={isLoading}
                     className="w-full justify-center"
                   >
-                    {isLoading ? 'Signing in…' : 'Sign In'}
+                    {isLoading ? t('Signing in…') : t('Sign In')}
                   </Button>
                   <button
                     type="button"
                     onClick={forgetQuickLogin}
                     className="text-sm text-blue-600 hover:text-blue-800"
                   >
-                    Use a different account
+                    {t('Use a different account')}
                   </button>
                 </div>
               ) : (
@@ -469,7 +474,7 @@ export default function LoginPage() {
                         }`}
                     >
                       <AtSymbolIcon className="h-4 w-4 inline mr-1" />
-                      Email (Staff/Student)
+                      {t('Email or Phone (Staff)')}
                     </button>
                     <button
                       type="button"
@@ -480,16 +485,18 @@ export default function LoginPage() {
                         }`}
                     >
                       <IdentificationIcon className="h-4 w-4 inline mr-1" />
-                      Matricule (Parent)
+                      {t('Matricule (Parent)')}
                     </button>
                   </div>
                 </div>
 
                 <Input
-                  label={loginType === 'email' ? 'Email Address' : "Child's Matricule"}
+                  label={loginType === 'email' ? t('Email or Phone Number') : t("Child's Matricule")}
                   name="email"
-                  type={loginType === 'email' ? 'email' : 'text'}
-                  placeholder={loginType === 'email' ? 'Enter your email address' : 'e.g. SS24STD0001'}
+                  type="text"
+                  inputMode={loginType === 'email' ? 'text' : 'text'}
+                  autoComplete={loginType === 'email' ? 'username' : 'off'}
+                  placeholder={loginType === 'email' ? t('e.g. teacher@ssic.com or 674816735') : t('e.g. SS24STD0001')}
                   value={formData.email}
                   onChange={handleInputChange}
                   leftIcon={
@@ -498,18 +505,18 @@ export default function LoginPage() {
                       : <IdentificationIcon className="h-5 w-5 text-gray-400" />
                   }
                   helperText={loginType === 'matricule'
-                    ? "Enter your child's matricule — no password needed."
-                    : undefined}
+                    ? t("Enter your child's matricule — no password needed.")
+                    : t('Use your email or the phone number registered on your account.')}
                   required
                   disabled={isLoading}
                 />
 
                 {loginType === 'email' && (
                   <Input
-                    label="Password"
+                    label={t('Password')}
                     name="password"
                     type="password"
-                    placeholder="Enter your password"
+                    placeholder={t('Enter your password')}
                     value={formData.password}
                     onChange={handleInputChange}
                     leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
@@ -525,7 +532,7 @@ export default function LoginPage() {
                     onChange={e => setRememberMe(e.target.checked)}
                     className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  Remember me on this device
+                  {t('Remember me on this device')}
                 </label>
 
                 <Button
@@ -537,16 +544,16 @@ export default function LoginPage() {
                   className="mt-6 bg-blue-700 hover:bg-blue-800 text-white"
                   disabled={!formData.email || (loginType === 'email' && !formData.password) || isLoading}
                 >
-                  {isLoading ? 'Signing in...' : loginType === 'matricule' ? "View My Child" : 'Sign In'}
+                  {isLoading ? t('Signing in...') : loginType === 'matricule' ? t('View My Child') : t('Sign In')}
                 </Button>
               </form>
               )}
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
-                  Having trouble signing in?{' '}
+                  {t('Having trouble signing in?')}{' '}
                   <a href="#" className="text-blue-600 hover:text-blue-700 font-medium">
-                    Contact Support
+                    {t('Contact Support')}
                   </a>
                 </p>
               </div>

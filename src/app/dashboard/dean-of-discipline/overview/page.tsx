@@ -1,0 +1,193 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
+import { apiService } from '@/lib/apiService';
+import { Card } from '@/components/ui/Card';
+import { StatsCard } from '@/components/ui/StatsCard';
+import {
+  ClockIcon,
+  ExclamationTriangleIcon,
+  ClipboardDocumentListIcon,
+  ChartBarIcon,
+} from '@heroicons/react/24/outline';
+
+// Shared Discipline Overview — used by Dean of Discipline and Discipline Coordinator.
+// Consumes GET /discipline/daily-overview which now accepts from/to for arbitrary ranges.
+
+type Range = 'today' | 'week' | 'month' | 'all';
+
+interface OverviewData {
+  from: string | null;
+  to: string | null;
+  academic_year_id: number | null;
+  lateTodayCount: number;
+  dailyAbsencesCount: number;
+  disciplinaryActionsTodayCount: number;
+  personsOfInterest: Array<{
+    enrollment_id: number;
+    absence_count: number;
+    student: { id: number; name: string; matricule: string | null } | null;
+    sub_class: { id: number; name: string; class: { id: number; name: string } } | null;
+  }>;
+}
+
+function rangeToDates(range: Range): { from?: string; to?: string } {
+  const now = new Date();
+  const toISO = (d: Date) => d.toISOString().slice(0, 10);
+  if (range === 'today') return { from: toISO(now), to: toISO(now) };
+  if (range === 'week') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    return { from: toISO(start), to: toISO(now) };
+  }
+  if (range === 'month') {
+    const start = new Date(now);
+    start.setDate(now.getDate() - 29);
+    return { from: toISO(start), to: toISO(now) };
+  }
+  // 'all' — leave from/to unset; backend defaults to today, so we approximate "all-time" by
+  // sending a wide window from the start of the academic year on the server side (falls back to today).
+  const yearStart = new Date(now.getFullYear() - 1, 8, 1); // Sept 1 last year
+  return { from: toISO(yearStart), to: toISO(now) };
+}
+
+export default function DisciplineOverviewPage() {
+  const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
+  const [range, setRange] = useState<Range>('today');
+  const [data, setData] = useState<OverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const dates = useMemo(() => rangeToDates(range), [range]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    const params = new URLSearchParams();
+    if (selectedAcademicYear?.id) params.set('academic_year_id', String(selectedAcademicYear.id));
+    if (dates.from) params.set('from', dates.from);
+    if (dates.to) params.set('to', dates.to);
+    apiService
+      .get(`/discipline/daily-overview?${params.toString()}`)
+      .then((res: any) => {
+        if (cancelled) return;
+        setData(res.data ?? res);
+      })
+      .catch((err: any) => {
+        if (cancelled) return;
+        setError(err?.message ?? 'Failed to load overview');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAcademicYear?.id, dates.from, dates.to]);
+
+  const rangeLabel: Record<Range, string> = {
+    today: t('Today'),
+    week: t('Last 7 days'),
+    month: t('Last 30 days'),
+    all: t('Academic year'),
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <ChartBarIcon className="w-6 h-6" />
+            {t('Discipline Overview')}
+          </h1>
+          <p className="text-sm text-gray-600 mt-0.5">
+            {t('Aggregate discipline metrics for the selected time range.')}
+            {data?.from && data?.to ? ` · ${data.from} → ${data.to}` : ''}
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {(['today', 'week', 'month', 'all'] as Range[]).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRange(r)}
+              className={`px-3 py-1.5 text-sm rounded-md border ${range === r
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                }`}
+            >
+              {rangeLabel[r]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <Card className="p-4 bg-red-50 border-red-200 text-red-800 text-sm">{error}</Card>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatsCard
+          title={t('Lateness')}
+          value={loading ? '—' : String(data?.lateTodayCount ?? 0)}
+          icon={ClockIcon}
+          color="amber"
+        />
+        <StatsCard
+          title={t('Class Absences')}
+          value={loading ? '—' : String(data?.dailyAbsencesCount ?? 0)}
+          icon={ExclamationTriangleIcon}
+          color="red"
+        />
+        <StatsCard
+          title={t('Disciplinary Actions')}
+          value={loading ? '—' : String(data?.disciplinaryActionsTodayCount ?? 0)}
+          icon={ClipboardDocumentListIcon}
+          color="purple"
+        />
+      </div>
+
+      <Card className="p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          {t('Persons of Interest')}
+        </h2>
+        {loading ? (
+          <p className="text-sm text-gray-500">{t('Loading...')}</p>
+        ) : (data?.personsOfInterest ?? []).length === 0 ? (
+          <p className="text-sm text-gray-500">
+            {t('No students exceed the unexcused-absence threshold in this range.')}
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="text-xs uppercase text-gray-500 border-b">
+                <tr>
+                  <th className="text-left py-2 pr-4">{t('Student')}</th>
+                  <th className="text-left py-2 pr-4">{t('Matricule')}</th>
+                  <th className="text-left py-2 pr-4">{t('Class')}</th>
+                  <th className="text-right py-2">{t('Unexcused Absences')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data!.personsOfInterest.map((p) => (
+                  <tr key={p.enrollment_id} className="border-b last:border-none">
+                    <td className="py-2 pr-4">{p.student?.name ?? '—'}</td>
+                    <td className="py-2 pr-4 text-gray-500">{p.student?.matricule ?? '—'}</td>
+                    <td className="py-2 pr-4">
+                      {p.sub_class ? `${p.sub_class.class.name} · ${p.sub_class.name}` : '—'}
+                    </td>
+                    <td className="py-2 text-right font-semibold">{p.absence_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
