@@ -11,6 +11,7 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardBody, StatsCard } from '@/components/ui';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { getExpenditureSummary, CATEGORY_LABELS, ExpenditureSummary } from '@/lib/expendituresApi';
 
@@ -47,6 +48,7 @@ function BarListRow({ label, value, max, display }: { label: string; value: numb
 
 export default function ManagerFinancialReportsPage() {
     const { selectedAcademicYear } = useAuth();
+    const { t } = useLanguage();
 
     // Fall back to the current academic year when none is selected in the sidebar
     const { data: yearsResult } = useSWR<{ data: { id: number; name: string; isCurrent: boolean }[] }>(
@@ -67,7 +69,7 @@ export default function ManagerFinancialReportsPage() {
             onError: (err) => {
                 // 403 for MANAGER is expected — stay silent
                 if (err?.status !== 403 && err?.message !== 'Unauthorized') {
-                    toast.error('Failed to load financial overview');
+                    toast.error(t('Failed to load financial overview'));
                 }
             },
         }
@@ -100,43 +102,43 @@ export default function ManagerFinancialReportsPage() {
         <div className="p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('Financial Reports')}</h1>
                 <p className="text-gray-600">
-                    Outstanding balances and expenditures
+                    {t('Outstanding balances and expenditures')}
                     {effectiveYear ? ` · ${effectiveYear.name}` : ''}
                 </p>
             </div>
 
             {overviewError && overviewError.status !== 403 && overviewError.message !== 'Unauthorized' && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
-                    <strong className="font-bold">Error!</strong>
-                    <span className="block sm:inline"> Failed to load financial data. Please try again.</span>
+                    <strong className="font-bold">{t('Error!')}</strong>
+                    <span className="block sm:inline"> {t('Failed to load financial data. Please try again.')}</span>
                 </div>
             )}
 
             {/* Overview cards — receivables + expenditure only */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                <StatsCard title="Outstanding Fees" value={isLoadingOverview ? '...' : formatCurrency(receivables?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
+                <StatsCard title={t('Outstanding Fees')} value={isLoadingOverview ? '...' : formatCurrency(receivables?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
                 <StatsCard
-                    title="Students Owing"
+                    title={t('Students Owing')}
                     value={isLoadingOverview ? '...' : receivables?.studentsOwing != null
                         ? `${receivables.studentsOwing.toLocaleString()}${receivables.totalAccounts ? ` / ${receivables.totalAccounts.toLocaleString()}` : ''}`
                         : '—'}
                     icon={ReceiptPercentIcon}
                     color="warning"
                 />
-                <StatsCard title="Spent This Month" value={formatCurrency(expenditureSummary?.totalAmount)} icon={ReceiptRefundIcon} color="primary" />
+                <StatsCard title={t('Spent This Month')} value={formatCurrency(expenditureSummary?.totalAmount)} icon={ReceiptRefundIcon} color="primary" />
             </div>
 
             {/* This month's expenditures by category */}
             <Card>
                 <CardHeader className="flex items-center justify-between">
-                    <CardTitle>Expenditures This Month ({currentMonth})</CardTitle>
-                    <Link href="/dashboard/manager/expenditures" className="text-xs font-medium text-blue-600 hover:text-blue-800">View ledger →</Link>
+                    <CardTitle>{t('Expenditures This Month')} ({currentMonth})</CardTitle>
+                    <Link href="/dashboard/manager/expenditures" className="text-xs font-medium text-blue-600 hover:text-blue-800">{t('View ledger')} →</Link>
                 </CardHeader>
                 <CardBody className="space-y-2">
                     {(expenditureSummary?.byCategory?.length ?? 0) === 0 ? (
-                        <p className="text-sm text-gray-500">No expenditures recorded this month.</p>
+                        <p className="text-sm text-gray-500">{t('No expenditures recorded this month.')}</p>
                     ) : (
                         <>
                             {expenditureSummary!.byCategory.map((cat) => (
@@ -149,8 +151,8 @@ export default function ManagerFinancialReportsPage() {
                                 />
                             ))}
                             <p className="pt-2 text-sm text-gray-600 text-right">
-                                Total: <span className="font-semibold text-gray-900">{formatCurrency(expenditureSummary!.totalAmount)}</span>
-                                {' '}across {expenditureSummary!.count} entries
+                                {t('Total')}: <span className="font-semibold text-gray-900">{formatCurrency(expenditureSummary!.totalAmount)}</span>
+                                {' '}{t('across')} {expenditureSummary!.count} {t('entries')}
                             </p>
                         </>
                     )}
@@ -160,25 +162,25 @@ export default function ManagerFinancialReportsPage() {
             {/* Quick links to sibling finance pages */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Related</CardTitle>
+                    <CardTitle>{t('Related')}</CardTitle>
                 </CardHeader>
                 <CardBody>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <Link href="/dashboard/manager/expenditures" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Expenditure ledger</p>
-                            <p className="text-xs text-gray-500">Review school spending</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Expenditure ledger')}</p>
+                            <p className="text-xs text-gray-500">{t('Review school spending')}</p>
                         </Link>
                         <Link href="/dashboard/manager/finance-requests" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Expense requisitions</p>
-                            <p className="text-xs text-gray-500">Approvals &amp; verifications</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Expense requisitions')}</p>
+                            <p className="text-xs text-gray-500">{t('Approvals & verifications')}</p>
                         </Link>
                         <Link href="/dashboard/manager/salaries" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Salary management</p>
-                            <p className="text-xs text-gray-500">Payroll overview</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Salary management')}</p>
+                            <p className="text-xs text-gray-500">{t('Payroll overview')}</p>
                         </Link>
                         <Link href="/dashboard/manager/defaulters" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Fee defaulters</p>
-                            <p className="text-xs text-gray-500">Who has outstanding balances</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Fee defaulters')}</p>
+                            <p className="text-xs text-gray-500">{t('Who has outstanding balances')}</p>
                         </Link>
                     </div>
                 </CardBody>

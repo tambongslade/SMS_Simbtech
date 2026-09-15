@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardBody, Button, Input } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { 
   Cog6ToothIcon,
   UserIcon,
@@ -66,6 +67,7 @@ interface NotificationPreferences {
 // matricule parents get the device-based PortalSettings instead — see the
 // default export at the bottom of this file.
 function AccountSettingsPage() {
+  const { t } = useLanguage();
   const { profile, preferences, isLoading, error, updateProfile, updatePreferences } = useParentSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [showPassword, setShowPassword] = useState(false);
@@ -119,10 +121,10 @@ function AccountSettingsPage() {
   });
 
   const tabs = [
-    { id: 'profile', label: 'Profile', icon: UserIcon },
-    { id: 'notifications', label: 'Notifications', icon: BellIcon },
-    { id: 'security', label: 'Security', icon: ShieldCheckIcon },
-    { id: 'children', label: 'Children', icon: UserGroupIcon },
+    { id: 'profile', label: t('Profile'), icon: UserIcon },
+    { id: 'notifications', label: t('Notifications'), icon: BellIcon },
+    { id: 'security', label: t('Security'), icon: ShieldCheckIcon },
+    { id: 'children', label: t('Children'), icon: UserGroupIcon },
   ];
 
   const handleProfileUpdate = async () => {
@@ -143,12 +145,12 @@ function AccountSettingsPage() {
 
   const handlePasswordChange = async () => {
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      alert(t('New passwords do not match'));
       return;
     }
-    
+
     if (passwordData.newPassword.length < 8) {
-      alert('Password must be at least 8 characters long');
+      alert(t('Password must be at least 8 characters long'));
       return;
     }
 
@@ -187,9 +189,9 @@ function AccountSettingsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900 flex items-center">
           <Cog6ToothIcon className="w-7 h-7 mr-2" />
-          Settings
+          {t('Settings')}
         </h1>
-        <p className="text-gray-600">Manage your profile, notifications, and security preferences</p>
+        <p className="text-gray-600">{t('Manage your profile, notifications, and security preferences')}</p>
       </div>
 
       {/* Tabs */}
@@ -220,31 +222,31 @@ function AccountSettingsPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+              <CardTitle>{t('Personal Information')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Full Name')}</label>
                   <Input
                     value={profileData.name}
                     onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                    placeholder="Enter your full name"
+                    placeholder={t('Enter your full name')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Email Address')}</label>
                   <Input
                     type="email"
                     value={profileData.email}
                     onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
-                    placeholder="Enter your email"
+                    placeholder={t('Enter your email')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Phone Number')}</label>
                   <Input
                     value={profileData.phone}
                     onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
@@ -253,7 +255,7 @@ function AccountSettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">WhatsApp Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('WhatsApp Number')}</label>
                   <Input
                     value={profileData.whatsapp || ''}
                     onChange={(e) => setProfileData({ ...profileData, whatsapp: e.target.value })}
@@ -262,30 +264,30 @@ function AccountSettingsPage() {
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Address')}</label>
                   <textarea
                     value={profileData.address}
                     onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
                     rows={3}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    placeholder="Enter your address"
+                    placeholder={t('Enter your address')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Preferred Language</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Preferred Language')}</label>
                   <select
                     value={profileData.preferredLanguage}
                     onChange={(e) => setProfileData({ ...profileData, preferredLanguage: e.target.value })}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
-                    <option value="English">English</option>
-                    <option value="French">French</option>
+                    <option value="English">{t('English')}</option>
+                    <option value="French">{t('French')}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Timezone')}</label>
                   <select
                     value={profileData.timezone}
                     onChange={(e) => setProfileData({ ...profileData, timezone: e.target.value })}
@@ -302,24 +304,24 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Emergency Contact</CardTitle>
+              <CardTitle>{t('Emergency Contact')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Contact Name')}</label>
                   <Input
                     value={profileData.emergencyContact.name}
                     onChange={(e) => setProfileData({
                       ...profileData,
                       emergencyContact: { ...profileData.emergencyContact, name: e.target.value }
                     })}
-                    placeholder="Emergency contact name"
+                    placeholder={t('Emergency contact name')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Phone Number')}</label>
                   <Input
                     value={profileData.emergencyContact.phone}
                     onChange={(e) => setProfileData({
@@ -331,7 +333,7 @@ function AccountSettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Relationship</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Relationship')}</label>
                   <select
                     value={profileData.emergencyContact.relationship}
                     onChange={(e) => setProfileData({
@@ -340,11 +342,11 @@ function AccountSettingsPage() {
                     })}
                     className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   >
-                    <option value="Spouse">Spouse</option>
-                    <option value="Parent">Parent</option>
-                    <option value="Sibling">Sibling</option>
-                    <option value="Friend">Friend</option>
-                    <option value="Other">Other</option>
+                    <option value="Spouse">{t('Spouse')}</option>
+                    <option value="Parent">{t('Parent')}</option>
+                    <option value="Sibling">{t('Sibling')}</option>
+                    <option value="Friend">{t('Friend')}</option>
+                    <option value="Other">{t('Other')}</option>
                   </select>
                 </div>
               </div>
@@ -353,7 +355,7 @@ function AccountSettingsPage() {
 
           <div className="flex justify-end">
             <Button onClick={handleProfileUpdate}>
-              Save Profile Changes
+              {t('Save Profile Changes')}
             </Button>
           </div>
         </div>
@@ -364,7 +366,7 @@ function AccountSettingsPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Notification Methods</CardTitle>
+              <CardTitle>{t('Notification Methods')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
@@ -372,8 +374,8 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <EnvelopeIcon className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="font-medium">Email Notifications</div>
-                      <div className="text-sm text-gray-500">Receive notifications via email</div>
+                      <div className="font-medium">{t('Email Notifications')}</div>
+                      <div className="text-sm text-gray-500">{t('Receive notifications via email')}</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -394,8 +396,8 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <DevicePhoneMobileIcon className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="font-medium">SMS Notifications</div>
-                      <div className="text-sm text-gray-500">Receive notifications via SMS</div>
+                      <div className="font-medium">{t('SMS Notifications')}</div>
+                      <div className="text-sm text-gray-500">{t('Receive notifications via SMS')}</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -416,8 +418,8 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <BellIcon className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="font-medium">Push Notifications</div>
-                      <div className="text-sm text-gray-500">Receive browser push notifications</div>
+                      <div className="font-medium">{t('Push Notifications')}</div>
+                      <div className="text-sm text-gray-500">{t('Receive browser push notifications')}</div>
                     </div>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -439,7 +441,7 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Priority Levels</CardTitle>
+              <CardTitle>{t('Priority Levels')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -454,7 +456,7 @@ function AccountSettingsPage() {
                       })}
                       className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
                     />
-                    <span className="text-sm capitalize">{level}</span>
+                    <span className="text-sm capitalize">{t(level)}</span>
                   </label>
                 ))}
               </div>
@@ -463,7 +465,7 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Categories</CardTitle>
+              <CardTitle>{t('Categories')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -478,7 +480,7 @@ function AccountSettingsPage() {
                       })}
                       className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
                     />
-                    <span className="text-sm capitalize">{category.replace('_', ' ')}</span>
+                    <span className="text-sm capitalize">{t(category.replace('_', ' '))}</span>
                   </label>
                 ))}
               </div>
@@ -487,7 +489,7 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Quiet Hours</CardTitle>
+              <CardTitle>{t('Quiet Hours')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
@@ -501,13 +503,13 @@ function AccountSettingsPage() {
                     })}
                     className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200"
                   />
-                  <span className="text-sm">Enable quiet hours</span>
+                  <span className="text-sm">{t('Enable quiet hours')}</span>
                 </label>
                 
                 {notificationData.quietHours.enabled && (
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Start Time</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('Start Time')}</label>
                       <input
                         type="time"
                         value={notificationData.quietHours.startTime}
@@ -519,7 +521,7 @@ function AccountSettingsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">End Time</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('End Time')}</label>
                       <input
                         type="time"
                         value={notificationData.quietHours.endTime}
@@ -538,7 +540,7 @@ function AccountSettingsPage() {
 
           <div className="flex justify-end">
             <Button onClick={handleNotificationUpdate}>
-              Save Notification Preferences
+              {t('Save Notification Preferences')}
             </Button>
           </div>
         </div>
@@ -549,18 +551,18 @@ function AccountSettingsPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Change Password</CardTitle>
+              <CardTitle>{t('Change Password')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4 max-w-md">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Current Password')}</label>
                   <div className="relative">
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       value={passwordData.currentPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                      placeholder="Enter current password"
+                      placeholder={t('Enter current password')}
                     />
                     <button
                       type="button"
@@ -577,28 +579,28 @@ function AccountSettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('New Password')}</label>
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     value={passwordData.newPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                    placeholder="Enter new password"
+                    placeholder={t('Enter new password')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">{t('Confirm New Password')}</label>
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     value={passwordData.confirmPassword}
                     onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                    placeholder="Confirm new password"
+                    placeholder={t('Confirm new password')}
                   />
                 </div>
 
                 {passwordData.newPassword && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">Password Requirements:</h4>
+                    <h4 className="text-sm font-medium text-gray-700">{t('Password Requirements:')}</h4>
                     <div className="space-y-1">
                       {Object.entries(passwordChecks).map(([check, passed]) => (
                         <div key={check} className="flex items-center space-x-2 text-sm">
@@ -608,11 +610,11 @@ function AccountSettingsPage() {
                             <ExclamationTriangleIcon className="w-4 h-4 text-red-500" />
                           )}
                           <span className={passed ? 'text-green-700' : 'text-red-700'}>
-                            {check === 'length' && 'At least 8 characters'}
-                            {check === 'uppercase' && 'At least one uppercase letter'}
-                            {check === 'lowercase' && 'At least one lowercase letter'}
-                            {check === 'number' && 'At least one number'}
-                            {check === 'special' && 'At least one special character'}
+                            {check === 'length' && t('At least 8 characters')}
+                            {check === 'uppercase' && t('At least one uppercase letter')}
+                            {check === 'lowercase' && t('At least one lowercase letter')}
+                            {check === 'number' && t('At least one number')}
+                            {check === 'special' && t('At least one special character')}
                           </span>
                         </div>
                       ))}
@@ -620,13 +622,13 @@ function AccountSettingsPage() {
                   </div>
                 )}
 
-                <Button 
+                <Button
                   onClick={handlePasswordChange}
-                  disabled={!Object.values(passwordChecks).every(Boolean) || 
+                  disabled={!Object.values(passwordChecks).every(Boolean) ||
                            passwordData.newPassword !== passwordData.confirmPassword ||
                            !passwordData.currentPassword}
                 >
-                  Change Password
+                  {t('Change Password')}
                 </Button>
               </div>
             </CardBody>
@@ -634,7 +636,7 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Account Security</CardTitle>
+              <CardTitle>{t('Account Security')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
@@ -642,12 +644,12 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <CheckCircleIcon className="w-5 h-5 text-green-600" />
                     <div>
-                      <div className="font-medium text-green-800">Two-Factor Authentication</div>
-                      <div className="text-sm text-green-600">Enabled via SMS</div>
+                      <div className="font-medium text-green-800">{t('Two-Factor Authentication')}</div>
+                      <div className="text-sm text-green-600">{t('Enabled via SMS')}</div>
                     </div>
                   </div>
                   <Button variant="outline" size="sm">
-                    Manage
+                    {t('Manage')}
                   </Button>
                 </div>
 
@@ -655,12 +657,12 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <KeyIcon className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="font-medium text-gray-800">Login Sessions</div>
-                      <div className="text-sm text-gray-600">Manage active sessions</div>
+                      <div className="font-medium text-gray-800">{t('Login Sessions')}</div>
+                      <div className="text-sm text-gray-600">{t('Manage active sessions')}</div>
                     </div>
                   </div>
                   <Button variant="outline" size="sm">
-                    View Sessions
+                    {t('View Sessions')}
                   </Button>
                 </div>
 
@@ -668,12 +670,12 @@ function AccountSettingsPage() {
                   <div className="flex items-center space-x-3">
                     <ShieldCheckIcon className="w-5 h-5 text-gray-600" />
                     <div>
-                      <div className="font-medium text-gray-800">Privacy Settings</div>
-                      <div className="text-sm text-gray-600">Control data sharing and privacy</div>
+                      <div className="font-medium text-gray-800">{t('Privacy Settings')}</div>
+                      <div className="text-sm text-gray-600">{t('Control data sharing and privacy')}</div>
                     </div>
                   </div>
                   <Button variant="outline" size="sm">
-                    Configure
+                    {t('Configure')}
                   </Button>
                 </div>
               </div>
@@ -687,7 +689,7 @@ function AccountSettingsPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Linked Children</CardTitle>
+              <CardTitle>{t('Linked Children')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
@@ -697,15 +699,15 @@ function AccountSettingsPage() {
                     <div>
                       <div className="font-medium text-blue-800">John Doe Jr.</div>
                       <div className="text-sm text-blue-600">Form 5A - Science Stream</div>
-                      <div className="text-xs text-blue-500">Student ID: STU2024001</div>
+                      <div className="text-xs text-blue-500">{t('Student ID')}: STU2024001</div>
                     </div>
                   </div>
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm">
-                      View Details
+                      {t('View Details')}
                     </Button>
                     <Button variant="outline" size="sm">
-                      Permissions
+                      {t('Permissions')}
                     </Button>
                   </div>
                 </div>
@@ -716,27 +718,27 @@ function AccountSettingsPage() {
                     <div>
                       <div className="font-medium text-green-800">Mary Doe</div>
                       <div className="text-sm text-green-600">Form 3B - General Studies</div>
-                      <div className="text-xs text-green-500">Student ID: STU2024002</div>
+                      <div className="text-xs text-green-500">{t('Student ID')}: STU2024002</div>
                     </div>
                   </div>
                   <div className="flex space-x-2">
                     <Button variant="outline" size="sm">
-                      View Details
+                      {t('View Details')}
                     </Button>
                     <Button variant="outline" size="sm">
-                      Permissions
+                      {t('Permissions')}
                     </Button>
                   </div>
                 </div>
               </div>
 
               <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-gray-800 mb-2">Link Additional Child</h4>
+                <h4 className="font-medium text-gray-800 mb-2">{t('Link Additional Child')}</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                  Contact the school administration to link additional children to your account.
+                  {t('Contact the school administration to link additional children to your account.')}
                 </p>
                 <Button variant="outline">
-                  Contact School Office
+                  {t('Contact School Office')}
                 </Button>
               </div>
             </CardBody>
@@ -744,40 +746,40 @@ function AccountSettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Permissions & Access</CardTitle>
+              <CardTitle>{t('Permissions & Access')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">View Academic Records</div>
-                    <div className="text-sm text-gray-500">Access to grades, reports, and academic progress</div>
+                    <div className="font-medium">{t('View Academic Records')}</div>
+                    <div className="text-sm text-gray-500">{t('Access to grades, reports, and academic progress')}</div>
                   </div>
-                  <span className="text-green-600 text-sm font-medium">Granted</span>
+                  <span className="text-green-600 text-sm font-medium">{t('Granted')}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Financial Information</div>
-                    <div className="text-sm text-gray-500">Access to fee records and payment history</div>
+                    <div className="font-medium">{t('Financial Information')}</div>
+                    <div className="text-sm text-gray-500">{t('Access to fee records and payment history')}</div>
                   </div>
-                  <span className="text-green-600 text-sm font-medium">Granted</span>
+                  <span className="text-green-600 text-sm font-medium">{t('Granted')}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Discipline Records</div>
-                    <div className="text-sm text-gray-500">Access to behavioral and discipline information</div>
+                    <div className="font-medium">{t('Discipline Records')}</div>
+                    <div className="text-sm text-gray-500">{t('Access to behavioral and discipline information')}</div>
                   </div>
-                  <span className="text-green-600 text-sm font-medium">Granted</span>
+                  <span className="text-green-600 text-sm font-medium">{t('Granted')}</span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="font-medium">Communication Access</div>
-                    <div className="text-sm text-gray-500">Ability to message teachers and staff</div>
+                    <div className="font-medium">{t('Communication Access')}</div>
+                    <div className="text-sm text-gray-500">{t('Ability to message teachers and staff')}</div>
                   </div>
-                  <span className="text-green-600 text-sm font-medium">Granted</span>
+                  <span className="text-green-600 text-sm font-medium">{t('Granted')}</span>
                 </div>
               </div>
             </CardBody>

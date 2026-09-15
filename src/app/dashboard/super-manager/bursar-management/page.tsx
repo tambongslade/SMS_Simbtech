@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-hot-toast";
 import { AddEditPersonnelModal } from "../personnel-management/components/AddEditPersonnelModal";
 import apiService from "../../../../lib/apiService";
+import { useLanguage } from "@/components/context/LanguageContext";
 
 // Bursar type
 type Bursar = {
@@ -23,6 +24,7 @@ function formatDate(dateString?: string) {
 }
 
 export default function BursarManagementPage() {
+    const { t } = useLanguage();
     const [bursars, setBursars] = useState<Bursar[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -99,23 +101,23 @@ export default function BursarManagementPage() {
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Bursar Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('Bursar Management')}</h1>
                 <div className="bg-white rounded-lg shadow-sm overflow-hidden">
                     {isLoading && bursars.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500 italic">Loading bursars...</div>
+                        <div className="p-6 text-center text-gray-500 italic">{t('Loading bursars...')}</div>
                     ) : !isLoading && bursars.length === 0 ? (
-                        <div className="p-6 text-center text-gray-500">No bursars found.</div>
+                        <div className="p-6 text-center text-gray-500">{t('No bursars found.')}</div>
                     ) : (
                         <>
                         <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date Joined</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Name')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Email')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Phone')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Date Joined')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -131,7 +133,7 @@ export default function BursarManagementPage() {
                                                     className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                                                     disabled={isLoading}
                                                 >
-                                                    Edit
+                                                    {t('Edit')}
                                                 </button>
                                             </td>
                                         </tr>
@@ -144,15 +146,15 @@ export default function BursarManagementPage() {
                                 <div key={bursar.id} className="p-4 space-y-1.5">
                                     <div className="text-sm font-semibold text-gray-900 break-words">{bursar.name}</div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Email</span>
+                                        <span className="text-xs text-gray-500">{t('Email')}</span>
                                         <span className="text-sm text-gray-900 text-right break-words">{bursar.email}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Phone</span>
+                                        <span className="text-xs text-gray-500">{t('Phone')}</span>
                                         <span className="text-sm text-gray-900 text-right break-words">{bursar.phone || '-'}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Date Joined</span>
+                                        <span className="text-xs text-gray-500">{t('Date Joined')}</span>
                                         <span className="text-sm text-gray-900 text-right break-words">{formatDate(bursar.dateJoined)}</span>
                                     </div>
                                     <div className="flex flex-wrap gap-2 pt-1.5">
@@ -180,7 +182,7 @@ export default function BursarManagementPage() {
                     formData={formData}
                     setFormData={setFormData}
                     isLoading={isLoading}
-                    allRoles={[{ value: "BURSAR", label: "Bursar" }]}
+                    allRoles={[{ value: "BURSAR", label: t('Bursar') }]}
                 />
             )}
         </div>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiService } from '@/lib/apiService';
 import ThinkingIndicator from '@/components/ai/ThinkingIndicator';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
     SparklesIcon,
     PaperAirplaneIcon,
@@ -47,6 +48,7 @@ const SUGGESTIONS = [
 ];
 
 export default function AskAssistant() {
+    const { t } = useLanguage();
     const [question, setQuestion] = useState('');
     const [entries, setEntries] = useState<Entry[]>([]);
     const [busy, setBusy] = useState(false);
@@ -86,7 +88,7 @@ export default function AskAssistant() {
             setEntries(prev =>
                 prev.map(x =>
                     x.id === id
-                        ? { id, question: q, error: e?.data?.error ?? e?.message ?? 'Something went wrong.', detail: e?.data?.detail }
+                        ? { id, question: q, error: e?.data?.error ?? e?.message ?? t('Something went wrong.'), detail: e?.data?.detail }
                         : x
                 )
             );
@@ -102,11 +104,10 @@ export default function AskAssistant() {
             <header className="mb-4">
                 <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
                     <SparklesIcon className="w-7 h-7 text-indigo-600" />
-                    Ask about your school
+                    {t('Ask about your school')}
                 </h1>
                 <p className="mt-1 text-sm text-gray-600">
-                    Questions are answered from live school data. The assistant can only read —
-                    it cannot change any record.
+                    {t('Questions are answered from live school data. The assistant can only read — it cannot change any record.')}
                 </p>
             </header>
 
@@ -115,15 +116,15 @@ export default function AskAssistant() {
                     <ExclamationTriangleIcon className="w-5 h-5 flex-shrink-0" />
                     <span>
                         {!status?.configured
-                            ? 'The assistant has no read-only database connection configured.'
-                            : `The language model (${status?.model}) is not reachable. Common questions will still work.`}
+                            ? t('The assistant has no read-only database connection configured.')
+                            : t('The language model ({model}) is not reachable. Common questions will still work.').replace('{model}', status?.model || '')}
                     </span>
                 </div>
             )}
 
             {entries.length === 0 && (
                 <div className="mb-4">
-                    <p className="mb-2 text-sm font-medium text-gray-700">Try one of these:</p>
+                    <p className="mb-2 text-sm font-medium text-gray-700">{t('Try one of these:')}</p>
                     <div className="flex flex-wrap gap-2">
                         {SUGGESTIONS.map(s => (
                             <button
@@ -132,7 +133,7 @@ export default function AskAssistant() {
                                 disabled={busy}
                                 className="rounded-full border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition hover:border-indigo-400 hover:bg-indigo-50 disabled:opacity-50"
                             >
-                                {s}
+                                {t(s)}
                             </button>
                         ))}
                     </div>
@@ -193,7 +194,7 @@ export default function AskAssistant() {
                                                 </table>
                                                 {entry.result.truncated && (
                                                     <p className="mt-1 text-xs text-amber-700">
-                                                        Showing the first {entry.result.rowCount} rows only.
+                                                        {t('Showing the first {n} rows only.').replace('{n}', String(entry.result.rowCount))}
                                                     </p>
                                                 )}
                                             </div>
@@ -202,16 +203,16 @@ export default function AskAssistant() {
                                         <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-gray-500">
                                             <span className="inline-flex items-center gap-1">
                                                 {entry.result.source === 'fast-intent' ? (
-                                                    <><BoltIcon className="w-3.5 h-3.5 text-emerald-600" /> direct query</>
+                                                    <><BoltIcon className="w-3.5 h-3.5 text-emerald-600" /> {t('direct query')}</>
                                                 ) : (
-                                                    <><CpuChipIcon className="w-3.5 h-3.5 text-indigo-600" /> generated</>
+                                                    <><CpuChipIcon className="w-3.5 h-3.5 text-indigo-600" /> {t('generated')}</>
                                                 )}
                                             </span>
                                             <span>{entry.result.tookMs.toLocaleString()} ms</span>
                                             {entry.result.sql && (
                                                 <details className="w-full">
                                                     <summary className="inline-flex cursor-pointer items-center gap-1 hover:text-gray-700">
-                                                        <CodeBracketIcon className="w-3.5 h-3.5" /> show the query
+                                                        <CodeBracketIcon className="w-3.5 h-3.5" /> {t('show the query')}
                                                     </summary>
                                                     <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded bg-gray-50 p-2 text-[11px] text-gray-700">
                                                         {entry.result.sql}
@@ -235,7 +236,7 @@ export default function AskAssistant() {
                 <input
                     value={question}
                     onChange={e => setQuestion(e.target.value)}
-                    placeholder="e.g. How many students are owing school fees?"
+                    placeholder={t('e.g. How many students are owing school fees?')}
                     disabled={busy}
                     className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50"
                 />
@@ -245,7 +246,7 @@ export default function AskAssistant() {
                     className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2.5 text-white transition hover:bg-indigo-700 disabled:opacity-40"
                 >
                     <PaperAirplaneIcon className="w-4 h-4" />
-                    Ask
+                    {t('Ask')}
                 </button>
             </form>
         </div>

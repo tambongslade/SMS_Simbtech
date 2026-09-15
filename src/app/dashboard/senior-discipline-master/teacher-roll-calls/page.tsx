@@ -10,6 +10,7 @@ import {
   getOversightRollCall,
 } from '@/lib/teacherRollCallApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SubClassOption {
   id: number;
@@ -20,6 +21,7 @@ interface SubClassOption {
 // Oversight over teacher per-period roll calls (SDM, Dean of Discipline, VP,
 // Principal, Manager, Super-Manager).
 export default function TeacherRollCallsOversightPage() {
+  const { t } = useLanguage();
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [subClassId, setSubClassId] = useState<number | ''>('');
   const [onlyAbsences, setOnlyAbsences] = useState(true);
@@ -50,7 +52,7 @@ export default function TeacherRollCallsOversightPage() {
         limit: 200,
       }));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load roll calls.');
+      toast.error(error.message || t('Failed to load roll calls.'));
     } finally {
       setIsLoading(false);
     }
@@ -66,7 +68,7 @@ export default function TeacherRollCallsOversightPage() {
     try {
       setDetail(await getOversightRollCall(rc.id));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load detail.');
+      toast.error(error.message || t('Failed to load detail.'));
       setExpandedId(null);
     } finally {
       setIsLoadingDetail(false);
@@ -78,22 +80,22 @@ export default function TeacherRollCallsOversightPage() {
   return (
     <div className="p-4 md:p-6 space-y-5 max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Teacher Roll Calls</h1>
-        <p className="text-sm text-gray-500 mt-1">Per-period roll calls submitted by teachers.</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('Teacher Roll Calls')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t('Per-period roll calls submitted by teachers.')}</p>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Date')}</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sub-class</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Sub-class')}</label>
           <select value={subClassId} onChange={e => setSubClassId(Number(e.target.value) || '')}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white">
-            <option value="">All sub-classes</option>
+            <option value="">{t('All sub-classes')}</option>
             {subClasses.map(s => (
               <option key={s.id} value={s.id}>{s.className ? `${s.className} — ${s.name}` : s.name}</option>
             ))}
@@ -102,21 +104,21 @@ export default function TeacherRollCallsOversightPage() {
         <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
           <input type="checkbox" checked={onlyAbsences} onChange={e => setOnlyAbsences(e.target.checked)}
             className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-          Only with absences
+          {t('Only with absences')}
         </label>
         <button onClick={refresh}
           className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">
-          <ArrowPathIcon className="w-4 h-4" /> Refresh
+          <ArrowPathIcon className="w-4 h-4" /> {t('Refresh')}
         </button>
       </div>
 
       {/* List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         {isLoading ? (
-          <p className="p-6 text-gray-500">Loading roll calls…</p>
+          <p className="p-6 text-gray-500">{t('Loading roll calls…')}</p>
         ) : rollCalls.length === 0 ? (
           <p className="p-6 text-gray-500 text-center">
-            No roll calls found for these filters{onlyAbsences ? ' (try unticking "Only with absences")' : ''}.
+            {t('No roll calls found for these filters')}{onlyAbsences ? ` (${t('Only with absences enabled')})` : ''}.
           </p>
         ) : (
           <ul className="divide-y divide-gray-100">
@@ -132,10 +134,10 @@ export default function TeacherRollCallsOversightPage() {
                         {expanded ? <ChevronDownIcon className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRightIcon className="w-4 h-4 text-gray-400 shrink-0" />}
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">
-                            {rc.teacherPeriod?.subject?.name || 'Subject'} — {rc.teacherPeriod?.subClass?.class?.name} {rc.teacherPeriod?.subClass?.name}
+                            {rc.teacherPeriod?.subject?.name || t('Subject')} — {rc.teacherPeriod?.subClass?.class?.name} {rc.teacherPeriod?.subClass?.name}
                           </p>
                           <p className="text-xs text-gray-500 truncate">
-                            {rc.teacherPeriod?.teacher?.name || rc.recordedBy?.name || 'Teacher'}
+                            {rc.teacherPeriod?.teacher?.name || rc.recordedBy?.name || t('Teacher')}
                             {rc.teacherPeriod?.period?.startTime ? ` · ${rc.teacherPeriod.period.startTime}–${rc.teacherPeriod.period.endTime}` : ''}
                             {` · ${new Date(rc.date).toLocaleDateString()}`}
                             {rc.notes ? ` · ${rc.notes}` : ''}
@@ -143,10 +145,10 @@ export default function TeacherRollCallsOversightPage() {
                         </div>
                       </div>
                       <div className="flex gap-1.5 shrink-0 text-xs">
-                        {absent > 0 && <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded-full">{absent} absent</span>}
-                        {late > 0 && <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 rounded-full">{late} late</span>}
-                        {absent === 0 && late === 0 && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-full">all present</span>}
-                        <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full">{rc._count?.entries ?? 0} students</span>
+                        {absent > 0 && <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded-full">{absent} {t('absent')}</span>}
+                        {late > 0 && <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 rounded-full">{late} {t('late')}</span>}
+                        {absent === 0 && late === 0 && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-full">{t('all present')}</span>}
+                        <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full">{rc._count?.entries ?? 0} {t('students')}</span>
                       </div>
                     </div>
                   </button>
@@ -154,7 +156,7 @@ export default function TeacherRollCallsOversightPage() {
                   {expanded && (
                     <div className="px-6 pb-3 bg-gray-50">
                       {isLoadingDetail ? (
-                        <p className="text-sm text-gray-400 py-2">Loading detail…</p>
+                        <p className="text-sm text-gray-400 py-2">{t('Loading detail…')}</p>
                       ) : detail ? (
                         <ul className="divide-y divide-gray-100">
                           {(detail.entries || []).map((e: any) => {
@@ -162,7 +164,7 @@ export default function TeacherRollCallsOversightPage() {
                             return (
                               <li key={e.id} className="py-1.5 flex items-center justify-between gap-2 text-sm">
                                 <span className="text-gray-800">
-                                  {s.name || 'Student'}
+                                  {s.name || t('Student')}
                                   <span className="text-xs text-gray-400"> {s.matricule || ''}</span>
                                   {e.notes && <span className="text-xs text-gray-500"> · {e.notes}</span>}
                                 </span>

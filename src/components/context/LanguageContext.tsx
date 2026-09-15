@@ -1,69 +1,58 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+import { Language, translate } from '@/lib/i18n/translations';
 
-// Minimal pass-through i18n: every call site does `t('English sentence')` and
-// treats the English text itself as the key (see the ~37 dashboard pages that
-// already call useLanguage() this way). There's no translation table yet, so
-// `t` is the identity function -- it hands back whatever it was given. Swap
-// TRANSLATIONS below for real dictionaries per language and `t` starts
-// translating without touching a single call site.
-export type Language = 'en' | 'fr';
-
-const TRANSLATIONS: Partial<Record<Language, Record<string, string>>> = {
-    // fr: { 'Students': 'Élèves', ... }
-};
-
-interface LanguageContextType {
-    language: Language;
-    setLanguage: (language: Language) => void;
-    t: (text: string) => string;
+interface LanguageContextValue {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
 }
 
-const defaultContext: LanguageContextType = {
-    language: 'en',
-    setLanguage: () => { },
-    t: (text: string) => text,
+const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
+
+const STORAGE_KEY = 'app-language';
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>('en');
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'en' || stored === 'fr') {
+        setLanguageState(stored);
+        document.documentElement.lang = stored;
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const setLanguage = useCallback((lang: Language) => {
+    setLanguageState(lang);
+    try {
+      localStorage.setItem(STORAGE_KEY, lang);
+      document.documentElement.lang = lang;
+    } catch { /* ignore */ }
+  }, []);
+
+  const t = useCallback((key: string) => translate(key, language), [language]);
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+// Fallback used during static prerendering of leaf routes (e.g. /not-found)
+// that render outside the root layout's provider tree. Returning defaults
+// lets those pages render in English rather than crashing the build.
+const FALLBACK_VALUE: LanguageContextValue = {
+  language: 'en',
+  setLanguage: () => { /* no-op */ },
+  t: (key: string) => translate(key, 'en'),
 };
 
-const LanguageContext = createContext<LanguageContextType>(defaultContext);
-
-const LANGUAGE_STORAGE_KEY = 'sms_language';
-
-export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [language, setLanguageState] = useState<Language>(() => {
-        if (typeof window === 'undefined') return 'en';
-        try {
-            const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-            return stored === 'fr' ? 'fr' : 'en';
-        } catch {
-            return 'en';
-        }
-    });
-
-    const setLanguage = useCallback((next: Language) => {
-        setLanguageState(next);
-        try {
-            window.localStorage.setItem(LANGUAGE_STORAGE_KEY, next);
-        } catch {
-            // localStorage unavailable (private mode, etc.) - language still
-            // switches for this session, just doesn't persist.
-        }
-    }, []);
-
-    const t = useCallback((text: string) => {
-        return TRANSLATIONS[language]?.[text] ?? text;
-    }, [language]);
-
-    return (
-        <LanguageContext.Provider value={{ language, setLanguage, t }}>
-            {children}
-        </LanguageContext.Provider>
-    );
-};
-
-// No provider required: the context's default value already does identity
-// translation, so every existing call site works whether or not the tree is
-// wrapped in <LanguageProvider>. Wrap the root layout in it only once real
-// language switching is wanted.
-export const useLanguage = (): LanguageContextType => useContext(LanguageContext);
+export function useLanguage(): LanguageContextValue {
+  const ctx = useContext(LanguageContext);
+  return ctx ?? FALLBACK_VALUE;
+}

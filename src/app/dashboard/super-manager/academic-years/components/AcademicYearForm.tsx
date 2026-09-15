@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { AcademicYear, Term } from '../types/academic-year';
 import apiService from '../../../../../lib/apiService';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface AcademicYearFormProps {
   initialData?: AcademicYear;
@@ -37,6 +38,7 @@ const buildDefaultTerms = (): Term[] => ([
 ]);
 
 export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }: AcademicYearFormProps) {
+  const { t } = useLanguage();
   // Load classes for the holiday-term multi-select
   const { data: classesResult } = useSWR<{ data: ClassOption[] }>(
     '/classes?limit=200',
@@ -167,21 +169,21 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
       <div className="p-6">
         <div className="border-b pb-4 mb-6">
           <h2 className="text-xl font-semibold text-gray-800">
-            {initialData ? 'Edit Academic Year' : 'Create Academic Year'}
+            {initialData ? t('Edit Academic Year') : t('Create Academic Year')}
           </h2>
         </div>
 
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Academic Year Name
+              {t('Academic Year Name')}
             </label>
             <input
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g., 2024-2025"
+              placeholder={t('e.g., 2024-2025')}
               required
             />
           </div>
@@ -189,7 +191,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start Date
+                {t('Start Date')}
               </label>
               <input
                 type="date"
@@ -201,7 +203,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                End Date
+                {t('End Date')}
               </label>
               <input
                 type="date"
@@ -215,13 +217,13 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
 
           <div className="space-y-4 pt-4 border-t border-gray-200">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-800">Terms</h3>
+              <h3 className="text-lg font-medium text-gray-800">{t('Terms')}</h3>
               <button
                 type="button"
                 onClick={addHolidayTerm}
                 className="text-sm px-3 py-1.5 bg-amber-100 text-amber-800 rounded-md hover:bg-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
               >
-                + Add Holiday Term
+                + {t('Add Holiday Term')}
               </button>
             </div>
             {formData.terms?.map((term, index) => {
@@ -239,7 +241,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                         onChange={(e) => handleTermChange(index, 'isHoliday', e.target.checked)}
                         className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                       />
-                      Holiday term
+                      {t('Holiday term')}
                     </label>
                     {isHoliday && (
                       <button
@@ -247,14 +249,14 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                         onClick={() => removeTerm(index)}
                         className="text-xs text-red-600 hover:text-red-800"
                       >
-                        Remove
+                        {t('Remove')}
                       </button>
                     )}
                   </div>
 
                   <div className="mb-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Term Name
+                      {t('Term Name')}
                     </label>
                     <input
                       type="text"
@@ -268,7 +270,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date
+                        {t('Start Date')}
                       </label>
                       <input
                         type="date"
@@ -280,7 +282,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
+                        {t('End Date')}
                       </label>
                       <input
                         type="date"
@@ -293,7 +295,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                     {!isHoliday && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Fee Deadline
+                          {t('Fee Deadline')}
                         </label>
                         <input
                           type="date"
@@ -309,10 +311,10 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                   {isHoliday && (
                     <div className="mt-4">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Classes concerned <span className="text-red-500">*</span>
+                        {t('Classes concerned')} <span className="text-red-500">*</span>
                       </label>
                       {classOptions.length === 0 ? (
-                        <p className="text-sm text-gray-500 italic">Loading classes...</p>
+                        <p className="text-sm text-gray-500 italic">{t('Loading classes...')}</p>
                       ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-white border border-gray-200 rounded-md">
                           {classOptions.map((cls) => {
@@ -332,7 +334,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
                         </div>
                       )}
                       <p className="mt-1 text-xs text-gray-500">
-                        The holiday only applies to the selected classes.
+                        {t('The holiday only applies to the selected classes.')}
                       </p>
                     </div>
                   )}
@@ -349,7 +351,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
               onClick={onCancel}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Cancel
+              {t('Cancel')}
             </button>
           )}
           <button
@@ -357,7 +359,7 @@ export function AcademicYearForm({ initialData, onSubmit, isLoading, onCancel }:
             disabled={isLoading}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Saving...' : initialData ? 'Update Academic Year' : 'Create Academic Year'}
+            {isLoading ? t('Saving...') : initialData ? t('Update Academic Year') : t('Create Academic Year')}
           </button>
         </div>
       </div>

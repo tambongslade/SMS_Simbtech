@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { notificationLink } from '@/lib/notificationLinks';
 
 interface NotificationsListProps {
@@ -29,6 +30,7 @@ interface NotificationsListProps {
 export default function NotificationsList({ onNotificationUpdate }: NotificationsListProps) {
     const router = useRouter();
     const { selectedRole } = useAuth();
+    const { t } = useLanguage();
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
@@ -135,24 +137,24 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
     };
 
     const confirmDelete = (notificationId: number) => {
-        toast((t) => (
+        toast((toastInstance) => (
             <div className="flex flex-col space-y-3">
-                <p className="font-medium">Are you sure you want to delete this notification?</p>
+                <p className="font-medium">{t('Are you sure you want to delete this notification?')}</p>
                 <div className="flex space-x-2">
                     <button
                         onClick={() => {
-                            toast.dismiss(t.id);
+                            toast.dismiss(toastInstance.id);
                             handleDelete(notificationId);
                         }}
                         className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm"
                     >
-                        Confirm Delete
+                        {t('Confirm Delete')}
                     </button>
                     <button
-                        onClick={() => toast.dismiss(t.id)}
+                        onClick={() => toast.dismiss(toastInstance.id)}
                         className="w-full bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-md text-sm"
                     >
-                        Cancel
+                        {t('Cancel')}
                     </button>
                 </div>
             </div>
@@ -240,15 +242,15 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
             <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                     <BellIcon className="h-6 w-6 text-blue-600" />
-                    <h2 className="text-xl font-semibold text-gray-900">Notifications</h2>
+                    <h2 className="text-xl font-semibold text-gray-900">{t('Notifications')}</h2>
                     {summary && (
                         <div className="flex items-center space-x-2">
                             <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-sm">
-                                {totalItems} total
+                                {totalItems} {t('total')}
                             </span>
                             {summary.totalUnread > 0 && (
                                 <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full text-sm font-medium">
-                                    {summary.totalUnread} unread
+                                    {summary.totalUnread} {t('unread')}
                                 </span>
                             )}
                         </div>
@@ -280,7 +282,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                             </svg>
                         )}
                         <CheckIcon className="h-4 w-4" />
-                        <span>Mark All Read</span>
+                        <span>{t('Mark All Read')}</span>
                     </button>
                 )}
             </div>
@@ -289,9 +291,9 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
             {notifications.length === 0 ? (
                 <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200">
                     <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications yet</h3>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No notifications yet')}</h3>
                     <p className="text-gray-500">
-                        You'll see notifications here when you receive announcements or messages.
+                        {t("You'll see notifications here when you receive announcements or messages.")}
                     </p>
                 </div>
             ) : (
@@ -328,7 +330,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                                                 <button
                                                     onClick={() => handleMarkAsRead(notification.id)}
                                                     className="text-blue-600 hover:text-blue-800 text-xs flex items-center space-x-1"
-                                                    title="Mark as read"
+                                                    title={t('Mark as read')}
                                                 >
                                                     <CheckIcon className="h-4 w-4" />
                                                 </button>
@@ -348,7 +350,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                                                 className="flex items-center text-xs font-medium text-blue-600 hover:text-blue-800"
                                             >
                                                 <ArrowTopRightOnSquareIcon className="h-4 w-4 mr-1" />
-                                                Open
+                                                {t('Open')}
                                             </button>
                                         )}
                                         {notification.status !== 'READ' && (
@@ -357,7 +359,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                                                 className="flex items-center text-xs font-medium text-blue-600 hover:text-blue-800"
                                             >
                                                 <CheckIcon className="h-4 w-4 mr-1" />
-                                                Mark as Read
+                                                {t('Mark as Read')}
                                             </button>
                                         )}
                                         <button
@@ -365,7 +367,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                                             className="flex items-center text-xs font-medium text-red-600 hover:text-red-800"
                                         >
                                             <TrashIcon className="h-4 w-4 mr-1" />
-                                            Delete
+                                            {t('Delete')}
                                         </button>
                                     </div>
                                 </div>
@@ -379,7 +381,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
             {totalPages > 1 && (
                 <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-700">
-                        Showing {((currentPage - 1) * 30) + 1} to {Math.min(currentPage * 30, totalItems)} of {totalItems} notifications
+                        {t('Showing')} {((currentPage - 1) * 30) + 1} {t('to')} {Math.min(currentPage * 30, totalItems)} {t('of')} {totalItems} {t('notifications')}
                     </div>
 
                     <div className="flex space-x-2">
@@ -388,7 +390,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                             disabled={currentPage === 1}
                             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Previous
+                            {t('Previous')}
                         </button>
 
                         {[...Array(Math.min(5, totalPages))].map((_, i) => {
@@ -412,7 +414,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                             disabled={currentPage === totalPages}
                             className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Next
+                            {t('Next')}
                         </button>
                     </div>
                 </div>
@@ -424,7 +426,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
                     onClick={refreshNotifications}
                     className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                 >
-                    Refresh Notifications
+                    {t('Refresh Notifications')}
                 </button>
             </div>
         </div>

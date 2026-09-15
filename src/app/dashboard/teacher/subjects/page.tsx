@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface Subject {
   id: number;
@@ -34,6 +35,7 @@ interface SubjectStats {
 }
 
 export default function TeacherSubjects() {
+  const { t } = useLanguage();
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
@@ -65,11 +67,11 @@ export default function TeacherSubjects() {
     if (subjectsError) {
       console.error("Subjects Fetch Error:", subjectsError);
       if (subjectsError.status === 403) {
-        toast.error('Access denied: Unable to load your assigned subjects');
+        toast.error(t('Access denied: Unable to load your assigned subjects'));
       } else if (subjectsError.status === 401) {
-        toast.error('Please log in to view your subjects');
+        toast.error(t('Please log in to view your subjects'));
       } else {
-        toast.error('Failed to load subjects');
+        toast.error(t('Failed to load subjects'));
       }
     }
   }, [subjectsError]);
@@ -123,14 +125,14 @@ export default function TeacherSubjects() {
       <div className="p-6 space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">My Subjects</h1>
-            <p className="text-gray-600">Manage your assigned subjects and classes</p>
+            <h1 className="text-2xl font-bold">{t('My Subjects')}</h1>
+            <p className="text-gray-600">{t('Manage your assigned subjects and classes')}</p>
           </div>
         </div>
 
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-2 text-gray-600">Loading subjects...</p>
+          <p className="mt-2 text-gray-600">{t('Loading subjects...')}</p>
         </div>
       </div>
     );
@@ -150,14 +152,14 @@ export default function TeacherSubjects() {
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
           >
             <ClipboardDocumentListIcon className="h-5 w-5 mr-2" />
-            Manage Questions
+            {t('Manage Questions')}
           </button>
           <button
             onClick={navigateToExams}
             className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
           >
             <AcademicCapIcon className="h-5 w-5 mr-2" />
-            Create Exam
+            {t('Create Exam')}
           </button>
         </div>
       </div>
@@ -168,7 +170,7 @@ export default function TeacherSubjects() {
           <div className="flex items-center">
             <AcademicCapIcon className="h-8 w-8 text-blue-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Total Subjects</p>
+              <p className="text-sm text-gray-600">{t('Total Subjects')}</p>
               <p className="text-2xl font-bold">{subjectsLoading ? '...' : stats.totalSubjects}</p>
             </div>
           </div>
@@ -177,7 +179,7 @@ export default function TeacherSubjects() {
           <div className="flex items-center">
             <UserGroupIcon className="h-8 w-8 text-green-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Total Students</p>
+              <p className="text-sm text-gray-600">{t('Total Students')}</p>
               <p className="text-2xl font-bold">{subjectsLoading ? '...' : stats.totalStudents}</p>
             </div>
           </div>
@@ -186,7 +188,7 @@ export default function TeacherSubjects() {
           <div className="flex items-center">
             <ClipboardDocumentListIcon className="h-8 w-8 text-purple-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Total Classes</p>
+              <p className="text-sm text-gray-600">{t('Total Classes')}</p>
               <p className="text-2xl font-bold">{subjectsLoading ? '...' : stats.totalClasses}</p>
             </div>
           </div>
@@ -195,7 +197,7 @@ export default function TeacherSubjects() {
           <div className="flex items-center">
             <ChartBarIcon className="h-8 w-8 text-orange-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Weekly Periods</p>
+              <p className="text-sm text-gray-600">{t('Weekly Periods')}</p>
               <p className="text-2xl font-bold">{subjectsLoading ? '...' : stats.totalPeriods}</p>
             </div>
           </div>
@@ -205,19 +207,19 @@ export default function TeacherSubjects() {
       {/* Subjects List */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Assigned Subjects</h2>
+          <h2 className="text-lg font-semibold">{t('Assigned Subjects')}</h2>
         </div>
 
         {subjectsLoading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading subjects...</p>
+            <p className="mt-2 text-gray-600">{t('Loading subjects...')}</p>
           </div>
         ) : subjects.length === 0 ? (
           <div className="text-center py-8">
             <AcademicCapIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No subjects assigned</p>
-            <p className="text-sm text-gray-500">Contact your administrator for subject assignments</p>
+            <p className="text-gray-600">{t('No subjects assigned')}</p>
+            <p className="text-sm text-gray-500">{t('Contact your administrator for subject assignments')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
@@ -245,20 +247,20 @@ export default function TeacherSubjects() {
 
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Classes:</span>
+                    <span className="text-gray-600">{t('Classes')}:</span>
                     <span className="font-medium">{subject.subClasses?.length || 0}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Students:</span>
+                    <span className="text-gray-600">{t('Students')}:</span>
                     <span className="font-medium">{subject.totalStudents || 0}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Weekly Periods:</span>
+                    <span className="text-gray-600">{t('Weekly Periods')}:</span>
                     <span className="font-medium">{subject.totalPeriods || 0}</span>
                   </div>
                   {subject.avgPerformance !== undefined && (
                     <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Avg. Performance:</span>
+                      <span className="text-gray-600">{t('Avg. Performance')}:</span>
                       <span className="font-medium">{subject.avgPerformance.toFixed(1)}%</span>
                     </div>
                   )}
@@ -286,7 +288,7 @@ export default function TeacherSubjects() {
                     }}
                     className="flex-1 px-3 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                   >
-                    Submit Marks
+                    {t('Submit Marks')}
                   </button>
                   <button
                     onClick={(e) => {
@@ -297,7 +299,7 @@ export default function TeacherSubjects() {
                     }}
                     className="flex-1 px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200"
                   >
-                    View Students
+                    {t('View Students')}
                   </button>
                 </div>
               </div>
@@ -325,23 +327,23 @@ export default function TeacherSubjects() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-3">Subject Statistics</h3>
+                <h3 className="text-lg font-medium mb-3">{t('Subject Statistics')}</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span>Total Students:</span>
+                    <span>{t('Total Students')}:</span>
                     <span className="font-medium">{selectedSubject.totalStudents || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Classes Teaching:</span>
+                    <span>{t('Classes Teaching')}:</span>
                     <span className="font-medium">{selectedSubject.subClasses?.length || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Weekly Periods:</span>
+                    <span>{t('Weekly Periods')}:</span>
                     <span className="font-medium">{selectedSubject.totalPeriods || 0}</span>
                   </div>
                   {selectedSubject.avgPerformance !== undefined && (
                     <div className="flex justify-between">
-                      <span>Average Performance:</span>
+                      <span>{t('Average Performance')}:</span>
                       <span className="font-medium">{selectedSubject.avgPerformance.toFixed(1)}%</span>
                     </div>
                   )}
@@ -349,7 +351,7 @@ export default function TeacherSubjects() {
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-medium mb-3">Quick Actions</h3>
+                <h3 className="text-lg font-medium mb-3">{t('Quick Actions')}</h3>
                 <div className="space-y-2">
                   <button
                     onClick={() => {
@@ -367,7 +369,7 @@ export default function TeacherSubjects() {
                     }}
                     className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
                   >
-                    Create New Exam
+                    {t('Create New Exam')}
                   </button>
                   <button
                     onClick={() => {
@@ -376,32 +378,32 @@ export default function TeacherSubjects() {
                     }}
                     className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
                   >
-                    Manage Questions
+                    {t('Manage Questions')}
                   </button>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-lg font-medium mb-4">Assigned Classes</h3>
+              <h3 className="text-lg font-medium mb-4">{t('Assigned Classes')}</h3>
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Class
+                        {t('Class')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Students
+                        {t('Students')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Periods/Week
+                        {t('Periods/Week')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Coefficient
+                        {t('Coefficient')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
+                        {t('Actions')}
                       </th>
                     </tr>
                   </thead>
@@ -433,7 +435,7 @@ export default function TeacherSubjects() {
                               }}
                               className="text-blue-600 hover:text-blue-900"
                             >
-                              View Students
+                              {t('View Students')}
                             </button>
                             <button
                               onClick={() => {
@@ -442,7 +444,7 @@ export default function TeacherSubjects() {
                               }}
                               className="text-green-600 hover:text-green-900"
                             >
-                              Submit Marks
+                              {t('Submit Marks')}
                             </button>
                           </div>
                         </td>
@@ -458,15 +460,15 @@ export default function TeacherSubjects() {
                       {subClass.className} - {subClass.name}
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Students</span>
+                      <span className="text-xs text-gray-500">{t('Students')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{subClass.studentCount || 0}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Periods/Week</span>
+                      <span className="text-xs text-gray-500">{t('Periods/Week')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{subClass.periodsPerWeek}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Coefficient</span>
+                      <span className="text-xs text-gray-500">{t('Coefficient')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{subClass.coefficient}</span>
                     </div>
                     <div className="flex flex-wrap gap-2 pt-1.5">
@@ -499,7 +501,7 @@ export default function TeacherSubjects() {
                 onClick={() => setShowDetailModal(false)}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
               >
-                Close
+                {t('Close')}
               </button>
             </div>
           </div>

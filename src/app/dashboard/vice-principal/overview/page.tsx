@@ -15,6 +15,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { toast } from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
@@ -57,6 +58,7 @@ const priorityColor = (priority: string): 'red' | 'yellow' | 'gray' => {
 
 export default function VicePrincipalDashboard() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const yearParam = selectedAcademicYear?.id ? `?academicYearId=${selectedAcademicYear.id}` : '';
 
   const { data: dashboardRes, error: dashboardError, isLoading } = useSWR<{ data?: VicePrincipalDashboardData }>(
@@ -68,7 +70,7 @@ export default function VicePrincipalDashboard() {
   useEffect(() => {
     if (dashboardError && dashboardError.message !== 'Unauthorized') {
       console.error('Error fetching vice principal dashboard:', dashboardError);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     }
   }, [dashboardError]);
 
@@ -88,22 +90,22 @@ export default function VicePrincipalDashboard() {
   }
 
   const statCards = [
-    { title: 'Total Students', value: dashboardData?.totalStudents, icon: AcademicCapIcon, color: 'primary' as const, href: '/dashboard/vice-principal/students' },
-    { title: 'Assigned Students', value: dashboardData?.studentsAssigned, icon: UserGroupIcon, color: 'success' as const, href: '/dashboard/vice-principal/students' },
-    { title: 'Pending Interviews', value: dashboardData?.pendingInterviews, icon: UsersIcon, color: 'warning' as const, href: '/dashboard/vice-principal/interviews' },
-    { title: 'Completed Interviews', value: dashboardData?.completedInterviews, icon: BookOpenIcon, color: 'secondary' as const, href: '/dashboard/vice-principal/interviews' },
-    { title: 'Recent Discipline Issues', value: dashboardData?.recentDisciplineIssues, icon: ExclamationTriangleIcon, color: 'danger' as const, href: '/dashboard/vice-principal/disciplinary-actions' },
-    { title: 'Classes w/ Pending Reports', value: dashboardData?.classesWithPendingReports, icon: BookOpenIcon, color: 'warning' as const, href: '/dashboard/vice-principal/report-card-management' },
-    { title: 'Teacher Absences', value: dashboardData?.teacherAbsences, icon: ClockIcon, color: 'danger' as const, href: '/dashboard/vice-principal/teacher-attendance' },
-    { title: 'Awaiting Assignment', value: dashboardData?.awaitingAssignment, icon: UsersIcon, color: 'neutral' as const, href: '/dashboard/vice-principal/interviews' },
+    { title: t('Total Students'), value: dashboardData?.totalStudents, icon: AcademicCapIcon, color: 'primary' as const, href: '/dashboard/vice-principal/students' },
+    { title: t('Assigned Students'), value: dashboardData?.studentsAssigned, icon: UserGroupIcon, color: 'success' as const, href: '/dashboard/vice-principal/students' },
+    { title: t('Pending Interviews'), value: dashboardData?.pendingInterviews, icon: UsersIcon, color: 'warning' as const, href: '/dashboard/vice-principal/interviews' },
+    { title: t('Completed Interviews'), value: dashboardData?.completedInterviews, icon: BookOpenIcon, color: 'secondary' as const, href: '/dashboard/vice-principal/interviews' },
+    { title: t('Recent Discipline Issues'), value: dashboardData?.recentDisciplineIssues, icon: ExclamationTriangleIcon, color: 'danger' as const, href: '/dashboard/vice-principal/disciplinary-actions' },
+    { title: t('Classes w/ Pending Reports'), value: dashboardData?.classesWithPendingReports, icon: BookOpenIcon, color: 'warning' as const, href: '/dashboard/vice-principal/report-card-management' },
+    { title: t('Teacher Absences'), value: dashboardData?.teacherAbsences, icon: ClockIcon, color: 'danger' as const, href: '/dashboard/vice-principal/teacher-attendance' },
+    { title: t('Awaiting Assignment'), value: dashboardData?.awaitingAssignment, icon: UsersIcon, color: 'neutral' as const, href: '/dashboard/vice-principal/interviews' },
   ];
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Vice Principal Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('Vice Principal Dashboard')}</h1>
         <div className="text-sm text-gray-500">
-          Academic Year: {selectedAcademicYear?.name || 'Current'}
+          {t('Academic Year')}: {selectedAcademicYear?.name || t('Current')}
         </div>
       </div>
 
@@ -126,7 +128,7 @@ export default function VicePrincipalDashboard() {
       {/* Subclass Capacity Utilization (real data) */}
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-medium text-gray-900">Subclass Capacity Utilization</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('Subclass Capacity Utilization')}</h3>
         </CardHeader>
         <CardBody>
           <div className="space-y-3">
@@ -153,11 +155,11 @@ export default function VicePrincipalDashboard() {
             })}
             {(dashboardData?.subclassCapacityUtilization?.length || 0) > 8 && (
               <p className="text-sm text-gray-500 text-center">
-                … and {(dashboardData?.subclassCapacityUtilization?.length || 0) - 8} more subclasses
+                {t('… and')} {(dashboardData?.subclassCapacityUtilization?.length || 0) - 8} {t('more subclasses')}
               </p>
             )}
             {(!dashboardData?.subclassCapacityUtilization || dashboardData.subclassCapacityUtilization.length === 0) && (
-              <p className="text-gray-500 text-center py-4">No subclass capacity data available</p>
+              <p className="text-gray-500 text-center py-4">{t('No subclass capacity data available')}</p>
             )}
           </div>
         </CardBody>
@@ -167,7 +169,7 @@ export default function VicePrincipalDashboard() {
       {(dashboardData?.urgentTasks?.length ?? 0) > 0 && (
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Urgent Items</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Urgent Items')}</h3>
           </CardHeader>
           <CardBody>
             <div className="space-y-3">
@@ -194,29 +196,29 @@ export default function VicePrincipalDashboard() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('Quick Actions')}</h3>
         </CardHeader>
         <CardBody>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Link href="/dashboard/vice-principal/classes" className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition-colors block">
               <BuildingOffice2Icon className="w-8 h-8 text-blue-600 mb-2" />
-              <h4 className="font-medium text-gray-900">My Classes</h4>
-              <p className="text-sm text-gray-600">Manage assigned subclasses</p>
+              <h4 className="font-medium text-gray-900">{t('My Classes')}</h4>
+              <p className="text-sm text-gray-600">{t('Manage assigned subclasses')}</p>
             </Link>
             <Link href="/dashboard/vice-principal/teachers" className="p-4 bg-green-50 hover:bg-green-100 rounded-lg text-left transition-colors block">
               <UsersIcon className="w-8 h-8 text-green-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Teachers</h4>
-              <p className="text-sm text-gray-600">Manage teacher assignments</p>
+              <h4 className="font-medium text-gray-900">{t('Teachers')}</h4>
+              <p className="text-sm text-gray-600">{t('Manage teacher assignments')}</p>
             </Link>
             <Link href="/dashboard/vice-principal/report-card-management" className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-left transition-colors block">
               <BookOpenIcon className="w-8 h-8 text-purple-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Report Cards</h4>
-              <p className="text-sm text-gray-600">Generate class report cards</p>
+              <h4 className="font-medium text-gray-900">{t('Report Cards')}</h4>
+              <p className="text-sm text-gray-600">{t('Generate class report cards')}</p>
             </Link>
             <Link href="/dashboard/vice-principal/timetable" className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg text-left transition-colors block">
               <ChartBarIcon className="w-8 h-8 text-orange-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Timetable</h4>
-              <p className="text-sm text-gray-600">View school timetable</p>
+              <h4 className="font-medium text-gray-900">{t('Timetable')}</h4>
+              <p className="text-sm text-gray-600">{t('View school timetable')}</p>
             </Link>
           </div>
         </CardBody>

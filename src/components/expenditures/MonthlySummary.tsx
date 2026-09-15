@@ -12,6 +12,7 @@ import {
   type ExpenditureCategory,
 } from '@/lib/expendituresApi';
 import { CATEGORY_BAR_COLOR } from './CategoryBadge';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface MonthlySummaryProps {
   // Notified when the user clicks a category (for deep-linking to a filtered list).
@@ -21,6 +22,7 @@ interface MonthlySummaryProps {
 }
 
 export function MonthlySummary({ onSelectCategory, onMonthChange }: MonthlySummaryProps) {
+  const { t } = useLanguage();
   const [month, setMonth] = useState(currentMonth());
   const [summary, setSummary] = useState<ExpenditureSummary | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,8 +49,8 @@ export function MonthlySummary({ onSelectCategory, onMonthChange }: MonthlySumma
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-gray-900">Monthly Summary</h2>
-          <p className="text-sm text-gray-500">Total spending broken down by category.</p>
+          <h2 className="text-lg font-semibold text-gray-900">{t('Monthly Summary')}</h2>
+          <p className="text-sm text-gray-500">{t('Total spending broken down by category.')}</p>
         </div>
         <div className="flex items-center gap-2">
           <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
@@ -64,16 +66,16 @@ export function MonthlySummary({ onSelectCategory, onMonthChange }: MonthlySumma
       </div>
 
       {isLoading ? (
-        <div className="text-center text-gray-500 py-8">Loading summary…</div>
+        <div className="text-center text-gray-500 py-8">{t('Loading summary…')}</div>
       ) : !summary || summary.count === 0 ? (
-        <div className="text-center text-gray-500 py-8">No expenditures recorded for this month.</div>
+        <div className="text-center text-gray-500 py-8">{t('No expenditures recorded for this month.')}</div>
       ) : (
         <>
           <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
             <div>
               <div className="text-3xl font-bold text-gray-900">{fmtMoney(summary.totalAmount)}</div>
               <div className="text-sm text-gray-500">
-                {summary.count} expenditure{summary.count === 1 ? '' : 's'}
+                {summary.count} {summary.count === 1 ? t('expenditure') : t('expenditures')}
               </div>
             </div>
           </div>

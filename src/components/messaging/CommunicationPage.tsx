@@ -13,6 +13,7 @@ import {
     ChatBubbleLeftIcon,
     BellIcon
 } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface CommunicationPageProps {
     userRole: string;
@@ -23,6 +24,7 @@ export default function CommunicationPage({
     userRole,
     defaultTab = 'announcements'
 }: CommunicationPageProps) {
+    const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
     const [showComposeMessage, setShowComposeMessage] = useState(false);
@@ -66,19 +68,19 @@ export default function CommunicationPage({
     const tabs = [
         {
             id: 'announcements',
-            name: 'Announcements',
+            name: t('Announcements'),
             icon: SpeakerWaveIcon,
             color: 'text-blue-600'
         },
         {
             id: 'messages',
-            name: 'Messages',
+            name: t('Messages'),
             icon: ChatBubbleLeftIcon,
             color: 'text-green-600'
         },
         {
             id: 'notifications',
-            name: 'Notifications',
+            name: t('Notifications'),
             icon: BellIcon,
             color: 'text-purple-600',
             badge: unreadCount > 0 ? unreadCount : undefined
@@ -91,11 +93,11 @@ export default function CommunicationPage({
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Communication</h1>
+                        <h1 className="text-2xl font-bold text-gray-900">{t('Communication')}</h1>
                         <p className="text-gray-600 mt-1">
                             {canCreate
-                                ? 'Manage announcements, messages, and notifications'
-                                : 'View announcements, send messages, and check notifications'
+                                ? t('Manage announcements, messages, and notifications')
+                                : t('View announcements, send messages, and check notifications')
                             }
                         </p>
                     </div>
@@ -108,7 +110,7 @@ export default function CommunicationPage({
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                             >
                                 <SpeakerWaveIcon className="h-4 w-4" />
-                                <span>New Announcement</span>
+                                <span>{t('New Announcement')}</span>
                             </button>
                         )}
                         <button
@@ -116,7 +118,7 @@ export default function CommunicationPage({
                             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                         >
                             <ChatBubbleLeftIcon className="h-4 w-4" />
-                            <span>Compose Message</span>
+                            <span>{t('Compose Message')}</span>
                         </button>
                     </div>
                 </div>

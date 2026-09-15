@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
@@ -82,6 +83,7 @@ interface TeacherInDepartment {
 
 export default function HODDashboard() {
   const { user, academicYear } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [departmentOverview, setDepartmentOverview] = useState<DepartmentOverview[]>([]);
@@ -118,7 +120,7 @@ export default function HODDashboard() {
       setTeachers(teachersResponse.data);
     } catch (error) {
       console.error('Error fetching HOD dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
@@ -148,9 +150,9 @@ export default function HODDashboard() {
       {/* Header */}
       <div className="flex flex-wrap justify-between items-center gap-2">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">HOD Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('HOD Dashboard')}</h1>
           <p className="text-gray-600 mt-1">
-            Department management and oversight for {academicYear?.name}
+            {t('Department management and oversight for')} {academicYear?.name}
           </p>
         </div>
       </div>
@@ -158,25 +160,25 @@ export default function HODDashboard() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Subjects Managed"
+          title={t('Subjects Managed')}
           value={dashboardData?.totalSubjects || 0}
           icon={BookOpenIcon}
           color="blue"
         />
         <StatsCard
-          title="Department Teachers"
+          title={t('Department Teachers')}
           value={dashboardData?.totalTeachers || 0}
           icon={UserGroupIcon}
           color="green"
         />
         <StatsCard
-          title="Students Taught"
+          title={t('Students Taught')}
           value={dashboardData?.totalStudents || 0}
           icon={UsersIcon}
           color="purple"
         />
         <StatsCard
-          title="Classes Covered"
+          title={t('Classes Covered')}
           value={dashboardData?.totalClasses || 0}
           icon={AcademicCapIcon}
           color="orange"
@@ -189,7 +191,7 @@ export default function HODDashboard() {
           <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Department Average</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('Department Average')}</h3>
                 <p className="text-3xl font-bold text-blue-600 mt-2">
                   {dashboardData?.departmentAverage?.toFixed(1) || '0.0'}
                 </p>
@@ -203,7 +205,7 @@ export default function HODDashboard() {
           <div className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Overall Pass Rate</h3>
+                <h3 className="text-lg font-semibold text-gray-900">{t('Overall Pass Rate')}</h3>
                 <p className="text-3xl font-bold text-green-600 mt-2">
                   {dashboardData?.overallPassRate?.toFixed(1) || '0.0'}%
                 </p>
@@ -224,7 +226,7 @@ export default function HODDashboard() {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
-            Department Overview
+            {t('Department Overview')}
           </button>
           <button
             onClick={() => setActiveTab('teachers')}
@@ -233,7 +235,7 @@ export default function HODDashboard() {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
-            Teachers Performance
+            {t('Teachers Performance')}
           </button>
           <button
             onClick={() => setActiveTab('subjects')}
@@ -242,7 +244,7 @@ export default function HODDashboard() {
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
           >
-            Subject Analytics
+            {t('Subject Analytics')}
           </button>
         </nav>
       </div>
@@ -253,7 +255,7 @@ export default function HODDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Subjects Managed
+                {t('Subjects Managed')}
               </h3>
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {dashboardData?.subjectsManaged?.map((subject) => (
@@ -265,7 +267,7 @@ export default function HODDashboard() {
                     <p className="text-sm text-gray-600 mt-1">{subject.category}</p>
                   </div>
                 )) || (
-                    <p className="text-gray-500 col-span-full">No subjects assigned yet</p>
+                    <p className="text-gray-500 col-span-full">{t('No subjects assigned yet')}</p>
                   )}
               </div>
             </div>
@@ -278,26 +280,26 @@ export default function HODDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Teacher Performance Overview
+                {t('Teacher Performance Overview')}
               </h3>
               <div className="hidden md:block overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Teacher
+                        {t('Teacher')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Subjects
+                        {t('Subjects')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Students
+                        {t('Students')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Avg. Marks
+                        {t('Avg. Marks')}
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pass Rate
+                        {t('Pass Rate')}
                       </th>
                     </tr>
                   </thead>
@@ -336,29 +338,29 @@ export default function HODDashboard() {
                       {teacher.name}
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Matricule</span>
+                      <span className="text-xs text-gray-500">{t('Matricule')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{teacher.matricule}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Subjects</span>
+                      <span className="text-xs text-gray-500">{t('Subjects')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {teacher.subjectsTeaching.length}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Students</span>
+                      <span className="text-xs text-gray-500">{t('Students')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {teacher.performanceMetrics.totalStudents}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Avg. Marks</span>
+                      <span className="text-xs text-gray-500">{t('Avg. Marks')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {teacher.performanceMetrics.averageMarks.toFixed(1)}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Pass Rate</span>
+                      <span className="text-xs text-gray-500">{t('Pass Rate')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {teacher.performanceMetrics.passRate.toFixed(1)}%
                       </span>
@@ -388,25 +390,25 @@ export default function HODDashboard() {
 
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                      <p className="text-sm text-gray-600">Teachers</p>
+                      <p className="text-sm text-gray-600">{t('Teachers')}</p>
                       <p className="text-lg font-semibold text-gray-900">
                         {subject.totalTeachers}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Students</p>
+                      <p className="text-sm text-gray-600">{t('Students')}</p>
                       <p className="text-lg font-semibold text-gray-900">
                         {subject.totalStudents}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Classes</p>
+                      <p className="text-sm text-gray-600">{t('Classes')}</p>
                       <p className="text-lg font-semibold text-gray-900">
                         {subject.totalClasses}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600">Avg. Performance</p>
+                      <p className="text-sm text-gray-600">{t('Avg. Performance')}</p>
                       <p className="text-lg font-semibold text-gray-900">
                         {subject.averagePerformance.toFixed(1)}
                       </p>
@@ -415,7 +417,7 @@ export default function HODDashboard() {
 
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-2">
-                      Top Teachers
+                      {t('Top Teachers')}
                     </h4>
                     <div className="space-y-2">
                       {subject.teachersAssigned

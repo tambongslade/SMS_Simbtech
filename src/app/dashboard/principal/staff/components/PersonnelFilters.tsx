@@ -1,5 +1,6 @@
 'use client'
 import React from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 type Role = {
   value: string;
@@ -25,13 +26,14 @@ export const PersonnelFilters: React.FC<PersonnelFiltersProps> = ({
   isLoading,
   resultCount
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <input
             type="text"
-            placeholder="Search by name, email, username..."
+            placeholder={t('Search by name, email, username...')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -45,7 +47,7 @@ export const PersonnelFilters: React.FC<PersonnelFiltersProps> = ({
             className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={isLoading}
           >
-            <option value="all">All Roles</option>
+            <option value="all">{t('All Roles')}</option>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
                 {role.label}
@@ -54,7 +56,7 @@ export const PersonnelFilters: React.FC<PersonnelFiltersProps> = ({
           </select>
         </div>
         <div className="flex items-center justify-end text-gray-600">
-         {isLoading ? <span className="italic">Loading...</span> : <span>{resultCount} personnel found</span>}
+         {isLoading ? <span className="italic">{t('Loading...')}</span> : <span>{resultCount} {t('personnel found')}</span>}
         </div>
       </div>
     </div>

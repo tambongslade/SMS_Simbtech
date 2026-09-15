@@ -11,6 +11,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { Button, Select, Input } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { fmtMoney } from '@/lib/feeItemsApi';
@@ -21,6 +22,7 @@ type SubClassInfo = { id: number; name: string; classId?: number; className?: st
 
 export default function BursarReportCardReadinessPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
@@ -59,7 +61,7 @@ export default function BursarReportCardReadinessPage() {
       setStatus(data);
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Failed to load fee status.');
+        toast.error(error?.message || t('Failed to load fee status.'));
       }
       setStatus(null);
     } finally {
@@ -93,9 +95,9 @@ export default function BursarReportCardReadinessPage() {
     <div className="max-w-7xl mx-auto space-y-6">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Report Card Readiness</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('Report Card Readiness')}</h1>
         <p className="text-gray-600 mt-1">
-          See which students are cleared (school fees paid in full) for report cards
+          {t('See which students are cleared (school fees paid in full) for report cards')}
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
         </p>
       </div>
@@ -104,11 +106,11 @@ export default function BursarReportCardReadinessPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[240px]">
           <Select
-            label="Subclass"
+            label={t('Subclass')}
             value={subClassId}
             onChange={(e) => setSubClassId(e.target.value)}
             options={[
-              { value: '', label: 'Select a subclass' },
+              { value: '', label: t('Select a subclass') },
               ...subClasses.map((sc) => ({
                 value: String(sc.id),
                 label: sc.className ? `${sc.name} (${sc.className})` : sc.name,
@@ -117,22 +119,22 @@ export default function BursarReportCardReadinessPage() {
           />
         </div>
         <Button variant="outline" leftIcon={ArrowPathIcon} onClick={loadStatus} disabled={!subClassId || isLoading}>
-          Refresh
+          {t('Refresh')}
         </Button>
       </div>
 
       {/* Empty / loading states */}
       {!subClassId ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-          Select a subclass to view fee readiness.
+          {t('Select a subclass to view fee readiness.')}
         </div>
       ) : isLoading ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-          Loading fee status…
+          {t('Loading fee status…')}
         </div>
       ) : !status || status.totalStudents === 0 ? (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-          No enrolled students found for this subclass.
+          {t('No enrolled students found for this subclass.')}
         </div>
       ) : (
         <>
@@ -144,14 +146,14 @@ export default function BursarReportCardReadinessPage() {
                   {status.paidInFullCount} / {status.totalStudents}
                 </div>
                 <div className="text-sm text-gray-500">
-                  students cleared for report cards
+                  {t('students cleared for report cards')}
                   {selectedSubClassName ? ` · ${selectedSubClassName}` : ''}
                 </div>
               </div>
               <div className="flex gap-3">
-                <Tile label="Cleared" value={status.paidInFullCount} tone="success" />
-                <Tile label="Outstanding" value={status.unpaidCount} tone={status.unpaidCount > 0 ? 'danger' : 'default'} />
-                <Tile label="Total" value={status.totalStudents} tone="default" />
+                <Tile label={t('Cleared')} value={status.paidInFullCount} tone="success" />
+                <Tile label={t('Outstanding')} value={status.unpaidCount} tone={status.unpaidCount > 0 ? 'danger' : 'default'} />
+                <Tile label={t('Total')} value={status.totalStudents} tone="default" />
               </div>
             </div>
             <div className="mt-4">
@@ -161,7 +163,7 @@ export default function BursarReportCardReadinessPage() {
                   style={{ width: `${clearedPct}%` }}
                 />
               </div>
-              <div className="text-xs text-gray-500 mt-1">{clearedPct}% cleared</div>
+              <div className="text-xs text-gray-500 mt-1">{clearedPct}% {t('cleared')}</div>
             </div>
           </div>
 
@@ -169,8 +171,8 @@ export default function BursarReportCardReadinessPage() {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
             <div className="flex-1 min-w-[220px]">
               <Input
-                label="Search"
-                placeholder="Name or matricule"
+                label={t('Search')}
+                placeholder={t('Name or matricule')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 leftIcon={<MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />}
@@ -178,7 +180,7 @@ export default function BursarReportCardReadinessPage() {
             </div>
             <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
               <input type="checkbox" checked={onlyUnpaid} onChange={(e) => setOnlyUnpaid(e.target.checked)} />
-              Only outstanding
+              {t('Only outstanding')}
             </label>
           </div>
 
@@ -188,20 +190,20 @@ export default function BursarReportCardReadinessPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Matricule</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Expected</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Shortfall</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Student')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Matricule')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Expected')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Paid')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Shortfall')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Status')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {visibleStudents.length === 0 ? (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                        {onlyUnpaid ? 'No outstanding students 🎉' : 'No students match your search.'}
+                        {onlyUnpaid ? t('No outstanding students 🎉') : t('No students match your search.')}
                       </td>
                     </tr>
                   ) : (
@@ -217,11 +219,11 @@ export default function BursarReportCardReadinessPage() {
                         <td className="px-4 py-3 text-sm">
                           {s.paidInFull ? (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
-                              <CheckCircleIcon className="h-3.5 w-3.5" /> Cleared
+                              <CheckCircleIcon className="h-3.5 w-3.5" /> {t('Cleared')}
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
-                              <ExclamationTriangleIcon className="h-3.5 w-3.5" /> Outstanding
+                              <ExclamationTriangleIcon className="h-3.5 w-3.5" /> {t('Outstanding')}
                             </span>
                           )}
                         </td>
@@ -233,7 +235,7 @@ export default function BursarReportCardReadinessPage() {
                               leftIcon={EyeIcon}
                               onClick={() => router.push(`/dashboard/bursar/student-registration/${s.studentId}`)}
                             >
-                              View
+                              {t('View')}
                             </Button>
                           </div>
                         </td>
@@ -246,40 +248,40 @@ export default function BursarReportCardReadinessPage() {
             <div className="md:hidden divide-y divide-gray-100">
               {visibleStudents.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500">
-                  {onlyUnpaid ? 'No outstanding students 🎉' : 'No students match your search.'}
+                  {onlyUnpaid ? t('No outstanding students 🎉') : t('No students match your search.')}
                 </div>
               ) : (
                 visibleStudents.map((s) => (
                   <div key={s.studentId} className={`p-4 space-y-1.5 ${s.paidInFull ? '' : 'bg-red-50/40'}`}>
                     <div className="text-sm font-semibold text-gray-900 break-words">{s.name}</div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Matricule</span>
+                      <span className="text-xs text-gray-500">{t('Matricule')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{s.matricule}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Expected</span>
+                      <span className="text-xs text-gray-500">{t('Expected')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(s.amountExpected)}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Paid</span>
+                      <span className="text-xs text-gray-500">{t('Paid')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(s.amountPaid)}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Shortfall</span>
+                      <span className="text-xs text-gray-500">{t('Shortfall')}</span>
                       <span className={`text-sm text-right break-words ${s.shortfall > 0 ? 'text-red-600 font-medium' : 'text-gray-400'}`}>
                         {s.shortfall > 0 ? fmtMoney(s.shortfall) : '—'}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Status</span>
+                      <span className="text-xs text-gray-500">{t('Status')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {s.paidInFull ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800">
-                            <CheckCircleIcon className="h-3.5 w-3.5" /> Cleared
+                            <CheckCircleIcon className="h-3.5 w-3.5" /> {t('Cleared')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5" /> Outstanding
+                            <ExclamationTriangleIcon className="h-3.5 w-3.5" /> {t('Outstanding')}
                           </span>
                         )}
                       </span>

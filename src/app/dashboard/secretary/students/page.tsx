@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -75,6 +75,24 @@ const emptyForm: CreateStudentPayload = {
 
 const LIMIT = 20;
 
+const LIST_STATE_STORAGE_KEY = 'sm.secretaryStudents.listState.v1';
+
+type PersistedListState = {
+  searchTerm: string;
+  subClassFilter: string;
+  page: number;
+};
+
+const readPersistedListState = (): Partial<PersistedListState> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(LIST_STATE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<PersistedListState>) : {};
+  } catch {
+    return {};
+  }
+};
+
 // Edit form mirrors the registration form fields (all editable to fix mistakes).
 type EditFormState = {
   nom: string;
@@ -116,16 +134,18 @@ function SecretaryStudentsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Hydrate from sessionStorage so filters/search/page persist across profile navigation.
+  const persistedListState = useMemo(readPersistedListState, []);
   const [students, setStudents] = useState<SecretaryStudent[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(persistedListState.page ?? 1);
   const [isLoading, setIsLoading] = useState(false);
 
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [subClassFilter, setSubClassFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [subClassFilter, setSubClassFilter] = useState<string>(persistedListState.subClassFilter ?? 'all');
+  const [searchTerm, setSearchTerm] = useState(persistedListState.searchTerm ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(persistedListState.searchTerm?.trim() ?? '');
   const [mobileView, setMobileView] = useState<'cards' | 'list'>('list');
   const [expandedListRow, setExpandedListRow] = useState<number | null>(null);
 
@@ -227,8 +247,29 @@ function SecretaryStudentsPageInner() {
     loadStudents();
   }, [loadStudents]);
 
-  // Reset to first page when the filter or search changes
+  // Persist filter/search/page state so returning from a student profile restores it.
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const snapshot: PersistedListState = {
+        searchTerm,
+        subClassFilter,
+        page,
+      };
+      window.sessionStorage.setItem(LIST_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      /* sessionStorage unavailable — ignore */
+    }
+  }, [searchTerm, subClassFilter, page]);
+
+  // Reset to first page when the filter or search changes. Skip the initial mount so
+  // a restored page (from sessionStorage) isn't wiped on hydration.
+  const skipFilterResetOnMountRef = useRef(true);
+  useEffect(() => {
+    if (skipFilterResetOnMountRef.current) {
+      skipFilterResetOnMountRef.current = false;
+      return;
+    }
     setPage(1);
   }, [subClassFilter, debouncedSearch]);
 

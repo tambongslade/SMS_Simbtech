@@ -8,6 +8,7 @@ import {
     UsersIcon,
 } from '@heroicons/react/24/outline';
 import type { UseTeacherSearchResult, FilterOption, SubClassOption } from '@/hooks/useTeacherSearch';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface TeacherSearchFiltersProps {
     search: UseTeacherSearchResult;
@@ -31,10 +32,12 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
     subjects,
     subClasses,
     showAdvanced = true,
-    searchPlaceholder = 'Search by name, email, matricule or phone…',
+    searchPlaceholder,
 }) => {
+    const { t } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
     const { filters, setFilter, meta, isLoading, searchHint } = search;
+    const effectivePlaceholder = searchPlaceholder ?? t('Search by name, email, matricule or phone…');
 
     return (
         <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-6 space-y-4">
@@ -49,7 +52,7 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                         id="teacher-search"
                         type="search"
                         autoComplete="off"
-                        placeholder={searchPlaceholder}
+                        placeholder={effectivePlaceholder}
                         value={search.searchInput}
                         onChange={(e) => search.setSearchInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -63,7 +66,7 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                             type="button"
                             onClick={() => search.setSearchInput('')}
                             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                            aria-label="Clear search"
+                            aria-label={t('Clear search')}
                         >
                             <XMarkIcon className="h-4 w-4" />
                         </button>
@@ -77,7 +80,7 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                         className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
                         <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1.5" />
-                        {isExpanded ? 'Hide filters' : 'Filters'}
+                        {isExpanded ? t('Hide filters') : t('Filters')}
                     </button>
                 )}
 
@@ -85,13 +88,13 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                     {isLoading ? (
                         <>
                             <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 mr-2" />
-                            <span className="italic">Searching…</span>
+                            <span className="italic">{t('Searching…')}</span>
                         </>
                     ) : (
                         <>
                             <UsersIcon className="h-4 w-4 text-gray-400 mr-1.5" />
                             <span className="font-medium">{meta.total}</span>
-                            <span className="ml-1">teacher{meta.total === 1 ? '' : 's'} found</span>
+                            <span className="ml-1">{meta.total === 1 ? t('teacher found') : t('teachers found')}</span>
                         </>
                     )}
                 </div>
@@ -100,21 +103,21 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
             {searchHint && <p className="text-xs text-gray-500">{searchHint}</p>}
             {search.degraded && (
                 <p className="text-xs text-amber-600">
-                    Advanced teacher search is unavailable on this server — showing basic results.
+                    {t('Advanced teacher search is unavailable on this server — showing basic results.')}
                 </p>
             )}
 
             {showAdvanced && isExpanded && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-gray-100">
                     <div>
-                        <label className={labelClass} htmlFor="filter-subject">Subject</label>
+                        <label className={labelClass} htmlFor="filter-subject">{t('Subject')}</label>
                         <select
                             id="filter-subject"
                             className={selectClass}
                             value={filters.subjectId ?? ''}
                             onChange={(e) => setFilter('subjectId', e.target.value ? Number(e.target.value) : undefined)}
                         >
-                            <option value="">All subjects</option>
+                            <option value="">{t('All subjects')}</option>
                             {subjects.map((s) => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
@@ -122,14 +125,14 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-subclass">Class</label>
+                        <label className={labelClass} htmlFor="filter-subclass">{t('Class')}</label>
                         <select
                             id="filter-subclass"
                             className={selectClass}
                             value={filters.subClassId ?? ''}
                             onChange={(e) => setFilter('subClassId', e.target.value ? Number(e.target.value) : undefined)}
                         >
-                            <option value="">All classes</option>
+                            <option value="">{t('All classes')}</option>
                             {subClasses.map((sc) => (
                                 <option key={sc.id} value={sc.id}>
                                     {sc.className ? `${sc.className} — ${sc.name}` : sc.name}
@@ -139,78 +142,78 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-status">Status</label>
+                        <label className={labelClass} htmlFor="filter-status">{t('Status')}</label>
                         <select
                             id="filter-status"
                             className={selectClass}
                             value={filters.status ?? ''}
                             onChange={(e) => setFilter('status', (e.target.value || undefined) as never)}
                         >
-                            <option value="">Any status</option>
-                            <option value="ACTIVE">Active</option>
-                            <option value="INACTIVE">Inactive</option>
-                            <option value="SUSPENDED">Suspended</option>
+                            <option value="">{t('Any status')}</option>
+                            <option value="ACTIVE">{t('Active')}</option>
+                            <option value="INACTIVE">{t('Inactive')}</option>
+                            <option value="SUSPENDED">{t('Suspended')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-gender">Gender</label>
+                        <label className={labelClass} htmlFor="filter-gender">{t('Gender')}</label>
                         <select
                             id="filter-gender"
                             className={selectClass}
                             value={filters.gender ?? ''}
                             onChange={(e) => setFilter('gender', (e.target.value || undefined) as never)}
                         >
-                            <option value="">Any gender</option>
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
+                            <option value="">{t('Any gender')}</option>
+                            <option value="Male">{t('Male')}</option>
+                            <option value="Female">{t('Female')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-hod">Head of Department</label>
+                        <label className={labelClass} htmlFor="filter-hod">{t('Head of Department')}</label>
                         <select
                             id="filter-hod"
                             className={selectClass}
                             value={boolValue(filters.isHod)}
                             onChange={(e) => setFilter('isHod', parseBool(e.target.value))}
                         >
-                            <option value="">All teachers</option>
-                            <option value="true">HODs only</option>
-                            <option value="false">Exclude HODs</option>
+                            <option value="">{t('All teachers')}</option>
+                            <option value="true">{t('HODs only')}</option>
+                            <option value="false">{t('Exclude HODs')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-classmaster">Class master</label>
+                        <label className={labelClass} htmlFor="filter-classmaster">{t('Class master')}</label>
                         <select
                             id="filter-classmaster"
                             className={selectClass}
                             value={boolValue(filters.isClassMaster)}
                             onChange={(e) => setFilter('isClassMaster', parseBool(e.target.value))}
                         >
-                            <option value="">All teachers</option>
-                            <option value="true">Class masters only</option>
-                            <option value="false">Exclude class masters</option>
+                            <option value="">{t('All teachers')}</option>
+                            <option value="true">{t('Class masters only')}</option>
+                            <option value="false">{t('Exclude class masters')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-assignments">Assignments</label>
+                        <label className={labelClass} htmlFor="filter-assignments">{t('Assignments')}</label>
                         <select
                             id="filter-assignments"
                             className={selectClass}
                             value={boolValue(filters.hasAssignments)}
                             onChange={(e) => setFilter('hasAssignments', parseBool(e.target.value))}
                         >
-                            <option value="">Any</option>
-                            <option value="true">With assignments</option>
-                            <option value="false">Without assignments</option>
+                            <option value="">{t('Any')}</option>
+                            <option value="true">{t('With assignments')}</option>
+                            <option value="false">{t('Without assignments')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label className={labelClass} htmlFor="filter-sort">Sort by</label>
+                        <label className={labelClass} htmlFor="filter-sort">{t('Sort by')}</label>
                         <div className="flex gap-2">
                             <select
                                 id="filter-sort"
@@ -218,32 +221,32 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                                 value={filters.sortBy ?? 'name'}
                                 onChange={(e) => setFilter('sortBy', e.target.value as never)}
                             >
-                                <option value="name">Name</option>
-                                <option value="matricule">Matricule</option>
-                                <option value="email">Email</option>
-                                <option value="totalHoursPerWeek">Hours / week</option>
-                                <option value="createdAt">Date added</option>
-                                <option value="lastSeenAt">Last seen</option>
+                                <option value="name">{t('Name')}</option>
+                                <option value="matricule">{t('Matricule')}</option>
+                                <option value="email">{t('Email')}</option>
+                                <option value="totalHoursPerWeek">{t('Hours / week')}</option>
+                                <option value="createdAt">{t('Date added')}</option>
+                                <option value="lastSeenAt">{t('Last seen')}</option>
                             </select>
                             <select
-                                aria-label="Sort order"
+                                aria-label={t('Sort order')}
                                 className={selectClass}
                                 value={filters.sortOrder ?? 'asc'}
                                 onChange={(e) => setFilter('sortOrder', e.target.value as never)}
                             >
-                                <option value="asc">Asc</option>
-                                <option value="desc">Desc</option>
+                                <option value="asc">{t('Asc')}</option>
+                                <option value="desc">{t('Desc')}</option>
                             </select>
                         </div>
                     </div>
 
                     <div className="sm:col-span-2 lg:col-span-2">
-                        <label className={labelClass}>Weekly hours</label>
+                        <label className={labelClass}>{t('Weekly hours')}</label>
                         <div className="flex items-center gap-2">
                             <input
                                 type="number"
                                 min={0}
-                                placeholder="Min"
+                                placeholder={t('Min')}
                                 value={filters.minHoursPerWeek ?? ''}
                                 onChange={(e) => setFilter('minHoursPerWeek', e.target.value ? Number(e.target.value) : undefined)}
                                 className="block w-full py-2 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -252,7 +255,7 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                             <input
                                 type="number"
                                 min={0}
-                                placeholder="Max"
+                                placeholder={t('Max')}
                                 value={filters.maxHoursPerWeek ?? ''}
                                 onChange={(e) => setFilter('maxHoursPerWeek', e.target.value ? Number(e.target.value) : undefined)}
                                 className="block w-full py-2 px-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -268,7 +271,7 @@ export const TeacherSearchFilters: React.FC<TeacherSearchFiltersProps> = ({
                             className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                         >
                             <XMarkIcon className="h-4 w-4 mr-1.5" />
-                            Clear all filters
+                            {t('Clear all filters')}
                         </button>
                     </div>
                 </div>

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ExclamationCircleIcon, CheckCircleIcon, TrashIcon, PlusIcon, ShieldExclamationIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import Link from 'next/link';
 
 // Define types for our data
@@ -96,6 +97,7 @@ const mockBehaviorRecords: BehaviorRecord[] = [
 
 // Component that uses useSearchParams - needs to be wrapped in Suspense
 function BehaviorPageContent() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const studentIdParam = searchParams.get('studentId');
   const autocompleteRef = useRef<HTMLDivElement>(null);
@@ -208,18 +210,18 @@ function BehaviorPageContent() {
     if (!newRecord.studentId || !newRecord.description || !newRecord.actionTaken) {
       setToast({
         show: true,
-        message: 'Please fill in all required fields',
+        message: t('Please fill in all required fields'),
         type: 'error'
       });
       return;
     }
 
     const student = students.find(s => s.id === newRecord.studentId);
-    
+
     if (!student) {
       setToast({
         show: true,
-        message: 'Selected student not found',
+        message: t('Selected student not found'),
         type: 'error'
       });
       return;
@@ -258,10 +260,10 @@ function BehaviorPageContent() {
     
     setToast({
       show: true,
-      message: 'Behavior record added successfully',
+      message: t('Behavior record added successfully'),
       type: 'success'
     });
-    
+
     setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
   };
 
@@ -269,31 +271,31 @@ function BehaviorPageContent() {
     const updatedRecords = behaviorRecords.filter(record => record.id !== id);
     setBehaviorRecords(updatedRecords);
     setFilteredRecords(filteredRecords.filter(record => record.id !== id));
-    
+
     setToast({
       show: true,
-      message: 'Behavior record deleted successfully',
+      message: t('Behavior record deleted successfully'),
       type: 'success'
     });
-    
+
     setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
   };
 
   const handleToggleResolved = (id: string) => {
-    const updatedRecords = behaviorRecords.map(record => 
+    const updatedRecords = behaviorRecords.map(record =>
       record.id === id ? { ...record, resolved: !record.resolved } : record
     );
-    
+
     setBehaviorRecords(updatedRecords);
-    setFilteredRecords(filteredRecords.map(record => 
+    setFilteredRecords(filteredRecords.map(record =>
       record.id === id ? { ...record, resolved: !record.resolved } : record
     ));
-    
+
     const record = behaviorRecords.find(r => r.id === id);
-    
+
     setToast({
       show: true,
-      message: `Behavior record marked as ${record?.resolved ? 'unresolved' : 'resolved'}`,
+      message: `${t('Behavior record marked as')} ${record?.resolved ? t('unresolved') : t('resolved')}`,
       type: 'success'
     });
     
@@ -350,25 +352,25 @@ function BehaviorPageContent() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Behavior Monitoring</h1>
+          <h1 className="text-2xl font-bold">{t('Behavior Monitoring')}</h1>
           <p className="text-gray-600 mt-1">
-            Track and manage student behavior incidents and interventions
+            {t('Track and manage student behavior incidents and interventions')}
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-3">
           <Link href="/dashboard/guidancecounselor">
             <Button className="bg-gray-200 text-gray-700 hover:bg-gray-300">
-              Dashboard
+              {t('Dashboard')}
             </Button>
           </Link>
           <Link href="/dashboard/guidancecounselor/students">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              Student Management
+              {t('Student Management')}
             </Button>
           </Link>
           <Link href="/dashboard/guidancecounselor/remarks">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              Manage Remarks
+              {t('Manage Remarks')}
             </Button>
           </Link>
         </div>
@@ -378,34 +380,34 @@ function BehaviorPageContent() {
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Search')}</label>
             <input
               type="text"
               className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search by student name, ID, or description..."
+              placeholder={t('Search by student name, ID, or description...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Filter</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Filter')}</label>
             <select
               className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={recordFilter}
               onChange={(e) => setRecordFilter(e.target.value)}
             >
-              <option value="all">All Records</option>
-              <option value="disruptive">Disruptive Behavior</option>
-              <option value="bullying">Bullying</option>
-              <option value="attendance">Attendance Issues</option>
-              <option value="academic">Academic Dishonesty</option>
-              <option value="high">High Severity</option>
-              <option value="unresolved">Unresolved Issues</option>
-              <option value="resolved">Resolved Issues</option>
+              <option value="all">{t('All Records')}</option>
+              <option value="disruptive">{t('Disruptive Behavior')}</option>
+              <option value="bullying">{t('Bullying')}</option>
+              <option value="attendance">{t('Attendance Issues')}</option>
+              <option value="academic">{t('Academic Dishonesty')}</option>
+              <option value="high">{t('High Severity')}</option>
+              <option value="unresolved">{t('Unresolved Issues')}</option>
+              <option value="resolved">{t('Resolved Issues')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
             <select
               className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={selectedStudent?.id || ''}
@@ -421,7 +423,7 @@ function BehaviorPageContent() {
                 }
               }}
             >
-              <option value="">All Students</option>
+              <option value="">{t('All Students')}</option>
               {students.map((student) => (
                 <option key={student.id} value={student.id}>
                   {student.name} ({student.id})
@@ -437,12 +439,12 @@ function BehaviorPageContent() {
         {/* Add Record Button */}
         {!showAddForm && (
           <div className="flex justify-end">
-            <Button 
+            <Button
               onClick={() => setShowAddForm(true)}
               className="bg-yellow-500 hover:bg-yellow-600 text-white flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
-              Add Behavior Record
+              {t('Add Behavior Record')}
             </Button>
           </div>
         )}
@@ -451,17 +453,17 @@ function BehaviorPageContent() {
         {showAddForm && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold">Add Behavior Record</CardTitle>
+              <CardTitle className="text-lg font-bold">{t('Add Behavior Record')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
                 <div ref={autocompleteRef} className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
                   <div className="relative">
                     <input
                       type="text"
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Type to search for a student..."
+                      placeholder={t('Type to search for a student...')}
                       value={studentSearchTerm}
                       onChange={(e) => {
                         setStudentSearchTerm(e.target.value);
@@ -503,13 +505,13 @@ function BehaviorPageContent() {
                   
                   {showSuggestions && studentSearchTerm && filteredStudents.length === 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200">
-                      <p className="px-4 py-2 text-gray-500">No students found</p>
+                      <p className="px-4 py-2 text-gray-500">{t('No students found')}</p>
                     </div>
                   )}
                 </div>
-                
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Incident Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Incident Type')}</label>
                   <select
                     className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newRecord.incidentType}
@@ -518,15 +520,15 @@ function BehaviorPageContent() {
                       incidentType: e.target.value as 'Disruptive' | 'Bullying' | 'Attendance' | 'Academic Dishonesty' | 'Other'
                     })}
                   >
-                    <option value="Disruptive">Disruptive Behavior</option>
-                    <option value="Bullying">Bullying</option>
-                    <option value="Attendance">Attendance Issues</option>
-                    <option value="Academic Dishonesty">Academic Dishonesty</option>
-                    <option value="Other">Other</option>
+                    <option value="Disruptive">{t('Disruptive Behavior')}</option>
+                    <option value="Bullying">{t('Bullying')}</option>
+                    <option value="Attendance">{t('Attendance Issues')}</option>
+                    <option value="Academic Dishonesty">{t('Academic Dishonesty')}</option>
+                    <option value="Other">{t('Other')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Severity')}</label>
                   <select
                     className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newRecord.severity}
@@ -535,13 +537,13 @@ function BehaviorPageContent() {
                       severity: e.target.value as 'Low' | 'Medium' | 'High'
                     })}
                   >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
+                    <option value="Low">{t('Low')}</option>
+                    <option value="Medium">{t('Medium')}</option>
+                    <option value="High">{t('High')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Incident Description</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Incident Description')}</label>
                   <textarea
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={3}
@@ -550,12 +552,12 @@ function BehaviorPageContent() {
                       ...newRecord,
                       description: e.target.value
                     })}
-                    placeholder="Describe the incident in detail..."
+                    placeholder={t('Describe the incident in detail...')}
                     required
                   ></textarea>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Action Taken</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Action Taken')}</label>
                   <textarea
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={3}
@@ -564,7 +566,7 @@ function BehaviorPageContent() {
                       ...newRecord,
                       actionTaken: e.target.value
                     })}
-                    placeholder="Describe the actions taken to address the incident..."
+                    placeholder={t('Describe the actions taken to address the incident...')}
                     required
                   ></textarea>
                 </div>
@@ -580,7 +582,7 @@ function BehaviorPageContent() {
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
                   <label htmlFor="resolved" className="ml-2 block text-sm text-gray-900">
-                    Mark as resolved
+                    {t('Mark as resolved')}
                   </label>
                 </div>
                 <div className="flex justify-end space-x-3">
@@ -599,13 +601,13 @@ function BehaviorPageContent() {
                     }}
                     className="bg-gray-200 text-gray-700 hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('Cancel')}
                   </Button>
                   <Button
                     onClick={handleAddRecord}
                     className="bg-yellow-500 hover:bg-yellow-600 text-white"
                   >
-                    Add Record
+                    {t('Add Record')}
                   </Button>
                 </div>
               </div>
@@ -618,9 +620,9 @@ function BehaviorPageContent() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div>
               <CardTitle className="text-lg font-bold">
-                {selectedStudent ? `Behavior Records for ${selectedStudent.name}` : 'All Behavior Records'}
+                {selectedStudent ? `${t('Behavior Records for')} ${selectedStudent.name}` : t('All Behavior Records')}
               </CardTitle>
-              <p className="text-xs text-gray-500">{filteredRecords.length} records</p>
+              <p className="text-xs text-gray-500">{filteredRecords.length} {t('records')}</p>
             </div>
           </CardHeader>
           <CardBody className="px-0">
@@ -641,7 +643,7 @@ function BehaviorPageContent() {
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               record.resolved ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
                             }`}>
-                              {record.resolved ? 'Resolved' : 'Unresolved'}
+                              {record.resolved ? t('Resolved') : t('Unresolved')}
                             </span>
                           </div>
                           <div className="flex items-center mb-2">
@@ -660,16 +662,16 @@ function BehaviorPageContent() {
                               record.severity === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {record.severity} Severity
+                              {record.severity} {t('Severity')}
                             </span>
                           </div>
                           <div className="space-y-2">
                             <div>
-                              <h4 className="text-sm font-medium text-gray-700">Incident Description:</h4>
+                              <h4 className="text-sm font-medium text-gray-700">{t('Incident Description:')}</h4>
                               <p className="text-sm text-gray-700 mt-1">{record.description}</p>
                             </div>
                             <div>
-                              <h4 className="text-sm font-medium text-gray-700">Action Taken:</h4>
+                              <h4 className="text-sm font-medium text-gray-700">{t('Action Taken:')}</h4>
                               <p className="text-sm text-gray-700 mt-1">{record.actionTaken}</p>
                             </div>
                           </div>
@@ -678,17 +680,17 @@ function BehaviorPageContent() {
                           <button
                             onClick={() => handleToggleResolved(record.id)}
                             className={`p-1 rounded ${
-                              record.resolved ? 'text-green-500 hover:text-green-700 hover:bg-green-50' : 
+                              record.resolved ? 'text-green-500 hover:text-green-700 hover:bg-green-50' :
                               'text-yellow-500 hover:text-yellow-700 hover:bg-yellow-50'
                             }`}
-                            title={record.resolved ? 'Mark as unresolved' : 'Mark as resolved'}
+                            title={record.resolved ? t('Mark as unresolved') : t('Mark as resolved')}
                           >
                             <CheckCircleIcon className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteRecord(record.id)}
                             className="p-1 rounded text-red-500 hover:text-red-700 hover:bg-red-50"
-                            title="Delete record"
+                            title={t('Delete record')}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -700,14 +702,14 @@ function BehaviorPageContent() {
               ) : (
                 <div className="text-center py-8">
                   <ShieldExclamationIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900">No behavior records found</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('No behavior records found')}</h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    {selectedStudent 
-                      ? `No behavior incidents have been recorded for ${selectedStudent.name}.` 
-                      : 'No behavior records match your search criteria.'}
+                    {selectedStudent
+                      ? `${t('No behavior incidents have been recorded for')} ${selectedStudent.name}.`
+                      : t('No behavior records match your search criteria.')}
                   </p>
                   <div className="mt-4">
-                    <Button 
+                    <Button
                       onClick={() => {
                         setShowAddForm(true);
                         if (selectedStudent) {
@@ -719,7 +721,7 @@ function BehaviorPageContent() {
                       }}
                       className="bg-yellow-500 hover:bg-yellow-600 text-white"
                     >
-                      Add a Behavior Record
+                      {t('Add a Behavior Record')}
                     </Button>
                   </div>
                 </div>

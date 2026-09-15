@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Class } from '../types/class';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface ClassFormProps {
   initialData?: Partial<Class>; // Use Partial for initial data, ID might be missing for create
@@ -12,6 +13,7 @@ interface ClassFormProps {
 // configured by the Super Manager under Fees Management → Class Fees.
 // Existing fee values are passed through unchanged on update (0 on create).
 export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassFormProps) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initialData?.name || '');
 
   useEffect(() => {
@@ -21,7 +23,7 @@ export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassF
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Please enter a class name.');
+      alert(t('Please enter a class name.'));
       return;
     }
 
@@ -40,10 +42,10 @@ export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassF
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h2 className="text-xl font-semibold text-gray-800 mb-6">
-        {initialData?.id ? 'Edit Class' : 'Create New Class'}
+        {initialData?.id ? t('Edit Class') : t('Create New Class')}
       </h2>
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Class Name *</label>
+        <label htmlFor="name" className="block text-sm font-medium text-gray-700">{t('Class Name')} *</label>
         <input
           type="text"
           id="name"
@@ -52,12 +54,12 @@ export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassF
           onChange={(e) => setName(e.target.value)}
           required
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="e.g., Form 1, Grade 5"
+          placeholder={t('e.g., Form 1, Grade 5')}
         />
       </div>
 
       <p className="text-xs text-gray-500 bg-blue-50 border border-blue-100 rounded-md p-2.5">
-        Class fees are configured in <span className="font-medium">Fees Management → Class Fees</span>.
+        {t('Class fees are configured in')} <span className="font-medium">{t('Fees Management → Class Fees')}</span>.
       </p>
 
       {/* Form actions */}
@@ -68,14 +70,14 @@ export function ClassForm({ initialData, onSubmit, isLoading, onCancel }: ClassF
           className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
           disabled={isLoading}
         >
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           type="submit"
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           disabled={isLoading}
         >
-          {isLoading ? 'Saving...' : (initialData?.id ? 'Update Class' : 'Create Class')}
+          {isLoading ? t('Saving...') : (initialData?.id ? t('Update Class') : t('Create Class'))}
         </button>
       </div>
     </form>

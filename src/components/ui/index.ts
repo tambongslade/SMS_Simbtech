@@ -11,4 +11,4 @@ export { default as StudentPhoto } from './StudentPhoto';
 export { default as PhotoUploadModal } from './PhotoUploadModal';
 export { BulkPhotoUploadModal } from './BulkPhotoUploadModal';
 export { PullToRefresh } from './PullToRefresh';
-export { LanguageSwitcher } from './LanguageSwitcher';
+export { default as LanguageSwitcher } from './LanguageSwitcher';

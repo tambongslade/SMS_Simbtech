@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
@@ -137,12 +138,25 @@ export default function DisciplineOverviewPage() {
           icon={ClockIcon}
           color="amber"
         />
-        <StatsCard
-          title={t('Class Absences')}
-          value={loading ? '—' : String(data?.dailyAbsencesCount ?? 0)}
-          icon={ExclamationTriangleIcon}
-          color="red"
-        />
+        <Link
+          href={{
+            pathname: '/dashboard/dean-of-discipline/absences',
+            query: {
+              ...(dates.from ? { from: dates.from } : {}),
+              ...(dates.to ? { to: dates.to } : {}),
+              range,
+            },
+          }}
+          className="block rounded-lg transition hover:shadow-md hover:ring-2 hover:ring-red-200 focus:outline-none focus:ring-2 focus:ring-red-400"
+          aria-label={t('View all class absences')}
+        >
+          <StatsCard
+            title={t('Class Absences')}
+            value={loading ? '—' : String(data?.dailyAbsencesCount ?? 0)}
+            icon={ExclamationTriangleIcon}
+            color="red"
+          />
+        </Link>
         <StatsCard
           title={t('Disciplinary Actions')}
           value={loading ? '—' : String(data?.disciplinaryActionsTodayCount ?? 0)}

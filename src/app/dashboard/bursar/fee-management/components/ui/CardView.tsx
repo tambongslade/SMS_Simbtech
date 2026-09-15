@@ -2,28 +2,7 @@
 
 import { Student } from '../../types';
 import { StudentPhoto } from '@/components/ui/StudentPhoto';
-
-// Helper function to format class/subclass display
-const formatClassDisplay = (student: Student): string => {
-  if (student.subclass) {
-    // Student is enrolled in a subclass
-    return `${student.class} - ${student.subclass}`;
-  } else if (student.class) {
-    // Student has class but no subclass (not fully enrolled)
-    return `${student.class} (Class Only)`;
-  }
-  return 'N/A';
-};
-
-// Helper function to get styling for enrollment status
-const getEnrollmentStatusStyle = (student: Student): string => {
-  if (student.subclass) {
-    return 'text-gray-400'; // Fully enrolled - normal style
-  } else if (student.class) {
-    return 'text-orange-500'; // Class only - warning style
-  }
-  return 'text-gray-400'; // No class info
-};
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface CardViewProps {
   students: Student[];
@@ -38,10 +17,34 @@ export const CardView: React.FC<CardViewProps> = ({
   onViewHistory,
   onViewTransactions
 }) => {
+  const { t } = useLanguage();
+
+  // Helper function to format class/subclass display
+  const formatClassDisplay = (student: Student): string => {
+    if (student.subclass) {
+      // Student is enrolled in a subclass
+      return `${student.class} - ${student.subclass}`;
+    } else if (student.class) {
+      // Student has class but no subclass (not fully enrolled)
+      return `${student.class} (${t('Class Only')})`;
+    }
+    return 'N/A';
+  };
+
+  // Helper function to get styling for enrollment status
+  const getEnrollmentStatusStyle = (student: Student): string => {
+    if (student.subclass) {
+      return 'text-gray-400'; // Fully enrolled - normal style
+    } else if (student.class) {
+      return 'text-orange-500'; // Class only - warning style
+    }
+    return 'text-gray-400'; // No class info
+  };
+
   if (students.length === 0) {
     return (
       <div className="text-center p-8 bg-gray-50 rounded-lg">
-        <p className="text-gray-500">No students found matching your filters.</p>
+        <p className="text-gray-500">{t('No students found matching your filters.')}</p>
       </div>
     );
   }
@@ -79,25 +82,25 @@ export const CardView: React.FC<CardViewProps> = ({
 
           <div className="mt-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Expected (FCFA):</span>
+              <span className="text-sm text-gray-600">{t('Expected')} (FCFA):</span>
               <span className="text-sm font-medium">
                 {student.expectedFees.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Paid (FCFA):</span>
+              <span className="text-sm text-gray-600">{t('Paid')} (FCFA):</span>
               <span className="text-sm font-medium">
                 {student.paidFees.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-600">Balance (FCFA):</span>
+              <span className="text-sm text-gray-600">{t('Balance')} (FCFA):</span>
               <span className="text-sm font-medium">
                 {student.balance.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Last Payment:</span>
+              <span className="text-gray-600">{t('Last Payment')}:</span>
               <span>
                 {student.lastPaymentDate ? new Date(student.lastPaymentDate).toLocaleDateString() : '—'}
               </span>
@@ -109,13 +112,13 @@ export const CardView: React.FC<CardViewProps> = ({
               onClick={() => onRecordPayment(student)}
               className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-blue-700 transition-colors"
             >
-              Record Payment
+              {t('Record Payment')}
             </button>
             <button
               onClick={() => onViewTransactions(student)}
               className="w-full bg-indigo-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
-              View Transactions
+              {t('View Transactions')}
             </button>
           </div>
         </div>

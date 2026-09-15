@@ -13,6 +13,7 @@ import {
 import { Button, Badge, Modal } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { LogbookForm } from '@/components/logbook/LogbookForm';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
   listLogbook,
   deleteLogbookEntry,
@@ -40,6 +41,7 @@ const statusColor = (s: LogbookStatus): 'green' | 'yellow' | 'red' =>
   s === 'COMPLETED' ? 'green' : s === 'PARTIAL' ? 'yellow' : 'red';
 
 export default function TeacherLogbookPage() {
+  const { t } = useLanguage();
   const { data } = useSWR<TimetableResponse>('/teachers/me/timetable', (url: string) => apiService.get(url));
 
   const [fillTarget, setFillTarget] = useState<TimeSlot | null>(null);
@@ -87,12 +89,12 @@ export default function TeacherLogbookPage() {
     setIsDeleting(true);
     try {
       await deleteLogbookEntry(deleteTarget.id);
-      toast.success('Entry deleted.');
+      toast.success(t('Entry deleted.'));
       setDeleteTarget(null);
       loadEntries();
     } catch (error) {
       const message = error instanceof Error ? error.message : '';
-      if (message !== 'Unauthorized') toast.error(message || 'Could not delete the entry.');
+      if (message !== 'Unauthorized') toast.error(message || t('Could not delete the entry.'));
     } finally {
       setIsDeleting(false);
     }
@@ -104,10 +106,10 @@ export default function TeacherLogbookPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <BookOpenIcon className="h-7 w-7 text-blue-600" />
-            Teacher Logbook
+            {t('Teacher Logbook')}
           </h1>
           <p className="text-gray-600 mt-1">
-            Pick a period and log the lesson you taught against the scheme of work.
+            {t('Pick a period and log the lesson you taught against the scheme of work.')}
           </p>
         </div>
 
@@ -133,7 +135,7 @@ export default function TeacherLogbookPage() {
                       </div>
                     </div>
                     <Button size="sm" color="primary" variant="outline" leftIcon={PlusIcon} onClick={() => setFillTarget(s)}>
-                      Fill logbook
+                      {t('Fill logbook')}
                     </Button>
                   </div>
                 ))}
@@ -142,7 +144,7 @@ export default function TeacherLogbookPage() {
           ))}
           {!data && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-              Loading your timetable…
+              {t('Loading your timetable…')}
             </div>
           )}
         </div>
@@ -150,24 +152,24 @@ export default function TeacherLogbookPage() {
         {/* History */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-800">
-            My logbook history
+            {t('My logbook history')}
           </div>
           {isLoadingEntries ? (
-            <div className="px-4 py-8 text-center text-gray-500">Loading…</div>
+            <div className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</div>
           ) : entries.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">No entries yet.</div>
+            <div className="px-4 py-8 text-center text-gray-500">{t('No entries yet.')}</div>
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                   <tr>
-                    <th className="px-4 py-2 text-left">Date</th>
-                    <th className="px-4 py-2 text-left">Class · Subject</th>
-                    <th className="px-4 py-2 text-left">Lesson</th>
-                    <th className="px-4 py-2 text-left">Status</th>
-                    <th className="px-4 py-2 text-left">Reviewed</th>
-                    <th className="px-4 py-2 text-right">Actions</th>
+                    <th className="px-4 py-2 text-left">{t('Date')}</th>
+                    <th className="px-4 py-2 text-left">{t('Class · Subject')}</th>
+                    <th className="px-4 py-2 text-left">{t('Lesson')}</th>
+                    <th className="px-4 py-2 text-left">{t('Status')}</th>
+                    <th className="px-4 py-2 text-left">{t('Reviewed')}</th>
+                    <th className="px-4 py-2 text-right">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -183,14 +185,14 @@ export default function TeacherLogbookPage() {
                         <Badge color={statusColor(e.status)} variant="subtle">{e.status.replace('_', ' ')}</Badge>
                       </td>
                       <td className="px-4 py-2">
-                        {e.reviewedAt ? <Badge color="green" variant="subtle">Reviewed</Badge> : <span className="text-xs text-gray-400">—</span>}
+                        {e.reviewedAt ? <Badge color="green" variant="subtle">{t('Reviewed')}</Badge> : <span className="text-xs text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex justify-end gap-1">
-                          <button type="button" title="Edit" onClick={() => setEditTarget(e)} className="p-1 text-gray-400 hover:text-blue-600">
+                          <button type="button" title={t('Edit')} onClick={() => setEditTarget(e)} className="p-1 text-gray-400 hover:text-blue-600">
                             <PencilSquareIcon className="h-4 w-4" />
                           </button>
-                          <button type="button" title="Delete" onClick={() => setDeleteTarget(e)} className="p-1 text-gray-400 hover:text-red-600">
+                          <button type="button" title={t('Delete')} onClick={() => setDeleteTarget(e)} className="p-1 text-gray-400 hover:text-red-600">
                             <TrashIcon className="h-4 w-4" />
                           </button>
                         </div>
@@ -205,24 +207,24 @@ export default function TeacherLogbookPage() {
                 <div key={e.id} className="p-4 space-y-1.5">
                   <div className="text-sm font-semibold text-gray-900 break-words">{e.dateTaught?.split('T')[0]}</div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Class · Subject</span>
+                    <span className="text-xs text-gray-500">{t('Class · Subject')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {e.teacherPeriod?.subClass?.name || '—'}
                       {e.teacherPeriod?.subject?.name ? ` · ${e.teacherPeriod.subject.name}` : ''}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Lesson</span>
+                    <span className="text-xs text-gray-500">{t('Lesson')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">{e.lesson?.title || `Lesson #${e.lessonId}`}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Status</span>
+                    <span className="text-xs text-gray-500">{t('Status')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       <Badge color={statusColor(e.status)} variant="subtle">{e.status.replace('_', ' ')}</Badge>
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Reviewed</span>
+                    <span className="text-xs text-gray-500">{t('Reviewed')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {e.reviewedAt ? <Badge color="green" variant="subtle">Reviewed</Badge> : <span className="text-xs text-gray-400">—</span>}
                     </span>
@@ -252,10 +254,10 @@ export default function TeacherLogbookPage() {
         }}
         title={
           editTarget
-            ? 'Edit logbook entry'
+            ? t('Edit logbook entry')
             : fillTarget
-              ? `Log lesson — ${fillTarget.subject?.name} · ${fillTarget.subClass?.name}`
-              : 'Logbook'
+              ? `${t('Log lesson')} — ${fillTarget.subject?.name} · ${fillTarget.subClass?.name}`
+              : t('Logbook')
         }
         size="lg"
       >
@@ -273,17 +275,17 @@ export default function TeacherLogbookPage() {
       </Modal>
 
       {/* Delete confirm */}
-      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete entry" size="sm">
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title={t('Delete entry')} size="sm">
         {deleteTarget && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Delete the logbook entry for{' '}
+              {t('Delete the logbook entry for')}{' '}
               <span className="font-medium text-gray-900">{deleteTarget.lesson?.title || `lesson #${deleteTarget.lessonId}`}</span>{' '}
-              on {deleteTarget.dateTaught?.split('T')[0]}?
+              {t('on')} {deleteTarget.dateTaught?.split('T')[0]}?
             </p>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>Cancel</Button>
-              <Button color="danger" isLoading={isDeleting} onClick={handleDelete}>Delete</Button>
+              <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>{t('Cancel')}</Button>
+              <Button color="danger" isLoading={isDeleting} onClick={handleDelete}>{t('Delete')}</Button>
             </div>
           </div>
         )}

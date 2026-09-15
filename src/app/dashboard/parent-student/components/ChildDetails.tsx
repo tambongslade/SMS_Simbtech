@@ -1,6 +1,5 @@
 
 import { FC, useState, useEffect, useCallback } from 'react';
-import { getAuthToken } from '@/lib/auth';
 import { toast } from 'react-hot-toast';
 import {
     ArrowLeftIcon,
@@ -11,349 +10,88 @@ import {
     AcademicCapIcon,
     ClipboardDocumentListIcon,
     ExclamationTriangleIcon,
-    ChartBarIcon
+    ChartBarIcon,
+    ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { Button, Tabs } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import ParentStudentFeesPage from '../fees/page';
 import ParentStudentResultsPage from '../results/page';
 import { formatDOB } from '@/lib/formatDate';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+import Link from 'next/link';
+import {
+    fetchChildDetails,
+    fetchChildQuizResults,
+    fetchChildDisciplinaryActions,
+    formatMoney,
+    QuizResult,
+} from '@/lib/parentPortalApi';
 
 interface ChildDetailsProps {
     childId: number;
+    matricule?: string;
     onBack: () => void;
 }
 
-// Quiz interface
-interface Quiz {
-    id: number;
-    title: string;
-    subject: string;
-    score: number | null;
-    totalMarks: number;
-    completedAt: string | null;
-    status: string;
-}
-
-// Overview Tab Component
+// ─── Overview tab ────────────────────────────────────────────────────────────
 const OverviewTab: FC<{ childData: any }> = ({ childData }) => {
+    const { t } = useLanguage();
+    const attendance = Number(childData?.attendance?.attendanceRate ?? 0);
+    const overallAvg = Number(childData?.academicPerformance?.overallAverage ?? 0);
+    const outstanding = Number(childData?.fees?.outstandingBalance ?? 0);
+    const rank = childData?.academicPerformance?.positionInClass;
+
     return (
-        <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-            {/* Student Information */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                    <div className="flex items-start gap-3 sm:gap-4">
+        <div className="p-4 sm:p-6 space-y-6">
+            {/* Identity card */}
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 sm:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex items-start gap-4">
                         {childData?.photo ? (
-                            <img src={childData.photo} alt={childData.name} className="w-14 h-14 sm:w-16 sm:h-16 rounded-full shrink-0" />
+                            <img src={childData.photo} alt={childData.name} className="w-16 h-16 rounded-2xl object-cover shrink-0 ring-1 ring-slate-100" />
                         ) : (
-                            <UserCircleIcon className="w-14 h-14 sm:w-16 sm:h-16 text-gray-400 shrink-0" />
+                            <UserCircleIcon className="w-16 h-16 text-slate-300 shrink-0" />
                         )}
                         <div className="min-w-0">
-                            <h4 className="text-lg sm:text-xl font-bold text-gray-900 break-words leading-snug">{childData?.name}</h4>
-                            <p className="text-sm sm:text-base text-gray-600 break-words">Matricule: {childData?.matricule || 'N/A'}</p>
-                            <p className="text-sm sm:text-base text-gray-600 break-words">Class: {childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
+                            <h4 className="text-xl font-semibold text-slate-900">{childData?.name}</h4>
+                            <p className="text-sm text-slate-500 mt-0.5">{t('Matricule')}: {childData?.matricule || '—'}</p>
+                            <p className="text-sm text-slate-500">
+                                {childData?.classInfo?.className || t('Not enrolled')}
+                                {childData?.classInfo?.subclassName ? ` · ${childData.classInfo.subclassName}` : ''}
+                            </p>
                         </div>
                     </div>
-                    <div className="space-y-2 text-sm sm:text-base">
-                        <p className="break-words"><span className="font-medium">Class Master:</span> {childData?.classInfo?.classMaster || 'N/A'}</p>
-                        <p><span className="font-medium">Date of Birth:</span> {formatDOB(childData?.dateOfBirth) === '-' ? 'N/A' : formatDOB(childData?.dateOfBirth)}</p>
-                        <p><span className="font-medium">Enrollment Status:</span>
-                            <span className={`ml-2 px-2 py-1 rounded-full text-xs ${childData?.enrollmentStatus === 'ACTIVE'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-red-100 text-red-800'
-                                }`}>
-                                {childData?.enrollmentStatus || 'Unknown'}
-                            </span>
-                        </p>
+                    <div className="space-y-2 text-sm">
+                        <p><span className="font-medium text-slate-700">{t('Class Master')}:</span> <span className="text-slate-600">{childData?.classInfo?.classMaster || '—'}</span></p>
+                        <p><span className="font-medium text-slate-700">{t('Date of Birth')}:</span> <span className="text-slate-600">{formatDOB(childData?.dateOfBirth) === '-' ? '—' : formatDOB(childData?.dateOfBirth)}</span></p>
                     </div>
                 </div>
             </div>
 
-            {/* Quick Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <AcademicCapIcon className="w-8 h-8 text-blue-600" />
-                        <div className="ml-2.5 sm:ml-3 min-w-0">
-                            <div className="text-lg sm:text-2xl font-bold text-blue-900 truncate">{childData?.academicPerformance?.overallAverage || 'N/A'}</div>
-                            <div className="text-xs sm:text-sm text-blue-600">Overall Average</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-green-50 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                            <span className="text-green-600 font-bold">✓</span>
-                        </div>
-                        <div className="ml-2.5 sm:ml-3 min-w-0">
-                            <div className="text-lg sm:text-2xl font-bold text-green-900 truncate">{childData?.attendance?.attendanceRate || 0}%</div>
-                            <div className="text-xs sm:text-sm text-green-600">Attendance Rate</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-purple-50 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                            <span className="text-purple-600 font-bold">#</span>
-                        </div>
-                        <div className="ml-2.5 sm:ml-3 min-w-0">
-                            <div className="text-lg sm:text-2xl font-bold text-purple-900 truncate">{childData?.academicPerformance?.positionInClass || 'N/A'}</div>
-                            <div className="text-xs sm:text-sm text-purple-600">Class Rank</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-red-50 rounded-lg p-4">
-                    <div className="flex items-center">
-                        <CurrencyDollarIcon className="w-8 h-8 text-red-600" />
-                        <div className="ml-2.5 sm:ml-3 min-w-0">
-                            <div className="text-lg sm:text-2xl font-bold text-red-900 truncate">{(childData?.fees?.outstandingBalance || 0).toLocaleString()}</div>
-                            <div className="text-xs sm:text-sm text-red-600">Pending Fees (FCFA)</div>
-                        </div>
-                    </div>
-                </div>
+            {/* Metric tiles */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <MetricTile label={t('Overall Average')} value={`${overallAvg.toFixed(1)}/20`} tone="blue" icon={AcademicCapIcon} />
+                <MetricTile label={t('Attendance Rate')} value={`${attendance.toFixed(1)}%`} tone={attendance >= 90 ? 'emerald' : attendance >= 75 ? 'amber' : 'rose'} icon={ClipboardDocumentListIcon} />
+                <MetricTile label={t('Class Rank')} value={rank ? `#${rank}` : '—'} tone="slate" icon={ChartBarIcon} />
+                <MetricTile label={t('Pending Fees')} value={formatMoney(outstanding)} tone={outstanding > 0 ? 'rose' : 'emerald'} icon={CurrencyDollarIcon} />
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-                <div className="space-y-3">
-                    <div className="flex items-center space-x-3 text-sm">
-                        <AcademicCapIcon className="w-4 h-4 text-green-500" />
-                        <span>Math Quiz: 85% (2 days ago)</span>
+            {/* Latest marks (real, from details) */}
+            {childData?.academicPerformance?.subjects && childData.academicPerformance.subjects.length > 0 && (
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-5 sm:p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-base font-semibold text-slate-900">{t('Subject Averages')}</h3>
                     </div>
-                    <div className="flex items-center space-x-3 text-sm">
-                        <CurrencyDollarIcon className="w-4 h-4 text-blue-500" />
-                        <span>Fee payment recorded: 25,000 FCFA (1 week ago)</span>
-                    </div>
-                    <div className="flex items-center space-x-3 text-sm">
-                        <ClipboardDocumentListIcon className="w-4 h-4 text-gray-500" />
-                        <span>Attendance marked present (today)</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// Quizzes Tab Component
-const QuizzesTab: FC<{ studentId: number }> = ({ studentId }) => {
-    const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        // Mock quiz data
-        setTimeout(() => {
-            setQuizzes([
-                {
-                    id: 1,
-                    title: 'Mathematics - Algebra',
-                    subject: 'Mathematics',
-                    score: 85,
-                    totalMarks: 100,
-                    completedAt: '2024-01-20',
-                    status: 'COMPLETED'
-                },
-                {
-                    id: 2,
-                    title: 'English - Grammar Test',
-                    subject: 'English',
-                    score: 92,
-                    totalMarks: 100,
-                    completedAt: '2024-01-18',
-                    status: 'COMPLETED'
-                },
-                {
-                    id: 3,
-                    title: 'Physics - Motion',
-                    subject: 'Physics',
-                    score: null,
-                    totalMarks: 100,
-                    completedAt: null,
-                    status: 'AVAILABLE'
-                }
-            ]);
-            setIsLoading(false);
-        }, 1000);
-    }, [studentId]);
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Quiz Results & Available Quizzes</h3>
-                <p className="text-gray-600">Track quiz performance and access new quizzes</p>
-            </div>
-
-            {/* Quiz Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-blue-900">{quizzes.filter((q: Quiz) => q.status === 'COMPLETED').length}</div>
-                    <div className="text-sm text-blue-600">Completed Quizzes</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-green-900">
-                        {Math.round(quizzes.filter((q: Quiz) => q.score !== null).reduce((avg: number, q: Quiz) => avg + (q.score || 0), 0) / quizzes.filter((q: Quiz) => q.score !== null).length) || 0}%
-                    </div>
-                    <div className="text-sm text-green-600">Average Score</div>
-                </div>
-                <div className="bg-yellow-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-yellow-900">{quizzes.filter((q: Quiz) => q.status === 'AVAILABLE').length}</div>
-                    <div className="text-sm text-yellow-600">Available Quizzes</div>
-                </div>
-            </div>
-
-            {/* Quiz List */}
-            <div className="space-y-4">
-                {quizzes.map((quiz: Quiz) => (
-                    <div key={quiz.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-medium text-gray-900">{quiz.title}</h4>
-                                <p className="text-sm text-gray-500">{quiz.subject}</p>
-                                {quiz.completedAt && (
-                                    <p className="text-xs text-gray-400">Completed: {new Date(quiz.completedAt).toLocaleDateString()}</p>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                {quiz.status === 'COMPLETED' ? (
-                                    <div>
-                                        <div className="text-lg font-bold text-green-600">{quiz.score}%</div>
-                                        <div className="text-sm text-gray-500">{quiz.score}/{quiz.totalMarks}</div>
-                                    </div>
-                                ) : (
-                                    <Button size="sm">Start Quiz</Button>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
-// Discipline Tab Component
-const DisciplineTab: FC<{ studentId: number }> = ({ studentId }) => {
-    const [disciplineData, setDisciplineData] = useState<any>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        // Mock discipline data
-        setTimeout(() => {
-            setDisciplineData({
-                totalIssues: 2,
-                resolvedIssues: 2,
-                pendingIssues: 0,
-                recentIssues: [
-                    {
-                        id: 1,
-                        type: 'MORNING_LATENESS',
-                        description: 'Arrived at 8:30 AM',
-                        dateOccurred: '2023-12-05',
-                        status: 'RESOLVED',
-                        resolvedAt: '2023-12-06'
-                    },
-                    {
-                        id: 2,
-                        type: 'CLASS_ABSENCE',
-                        description: 'Missed History class',
-                        dateOccurred: '2023-11-20',
-                        status: 'RESOLVED',
-                        resolvedAt: '2023-11-21'
-                    }
-                ],
-                behavioralScore: 95,
-                recommendations: [
-                    'Continue maintaining good behavior',
-                    'Work on punctuality during morning hours'
-                ]
-            });
-            setIsLoading(false);
-        }, 1000);
-    }, [studentId]);
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Discipline & Behavior</h3>
-                <p className="text-gray-600">Track behavioral patterns and discipline records</p>
-            </div>
-
-            {/* Discipline Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-gray-900">{disciplineData?.totalIssues || 0}</div>
-                    <div className="text-sm text-gray-600">Total Issues</div>
-                </div>
-                <div className="bg-green-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-green-900">{disciplineData?.resolvedIssues || 0}</div>
-                    <div className="text-sm text-green-600">Resolved</div>
-                </div>
-                <div className="bg-yellow-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-yellow-900">{disciplineData?.pendingIssues || 0}</div>
-                    <div className="text-sm text-yellow-600">Pending</div>
-                </div>
-                <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="text-2xl font-bold text-blue-900">{disciplineData?.behavioralScore || 0}%</div>
-                    <div className="text-sm text-blue-600">Behavior Score</div>
-                </div>
-            </div>
-
-            {/* Recent Issues */}
-            <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-                <h4 className="font-medium text-gray-900 mb-4">Recent Discipline Records</h4>
-                {disciplineData?.recentIssues?.length > 0 ? (
-                    <div className="space-y-3">
-                        {disciplineData.recentIssues.map((issue: any) => (
-                            <div key={issue.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div>
-                                    <div className="font-medium text-gray-900">{issue.type.replace('_', ' ')}</div>
-                                    <div className="text-sm text-gray-600">{issue.description}</div>
-                                    <div className="text-xs text-gray-500">Date: {new Date(issue.dateOccurred).toLocaleDateString()}</div>
+                    <ul className="divide-y divide-slate-100">
+                        {childData.academicPerformance.subjects.slice(0, 5).map((s: any, i: number) => (
+                            <li key={i} className="py-3 flex items-center justify-between">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 truncate">{s.subjectName}</p>
+                                    <p className="text-xs text-slate-500">{s.teacherName || '—'}</p>
                                 </div>
-                                <span className={`px-2 py-1 rounded-full text-xs ${issue.status === 'RESOLVED'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                    }`}>
-                                    {issue.status}
+                                <span className="text-sm font-semibold text-slate-900 tabular-nums">
+                                    {Number(s.average || 0).toFixed(1)}/20
                                 </span>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-gray-500 text-center py-4">No discipline issues recorded</p>
-                )}
-            </div>
-
-            {/* Recommendations */}
-            {disciplineData?.recommendations?.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                    <h4 className="font-medium text-blue-900 mb-3">Behavioral Recommendations</h4>
-                    <ul className="space-y-2">
-                        {disciplineData.recommendations.map((rec: string, index: number) => (
-                            <li key={index} className="text-sm text-blue-800 flex items-start">
-                                <span className="text-blue-500 mr-2">•</span>
-                                {rec}
                             </li>
                         ))}
                     </ul>
@@ -363,147 +101,338 @@ const DisciplineTab: FC<{ studentId: number }> = ({ studentId }) => {
     );
 };
 
-// Analytics Tab Component
-const AnalyticsTab: FC<{ studentId: number }> = ({ studentId }) => {
+const MetricTile: FC<{ label: string; value: string; icon: any; tone: 'blue' | 'emerald' | 'amber' | 'rose' | 'slate' }> = ({ label, value, icon: Icon, tone }) => {
+    const toneMap: Record<string, string> = {
+        blue: 'from-blue-50 text-blue-900',
+        emerald: 'from-emerald-50 text-emerald-900',
+        amber: 'from-amber-50 text-amber-900',
+        rose: 'from-rose-50 text-rose-900',
+        slate: 'from-slate-50 text-slate-900',
+    };
     return (
-        <div className="p-6">
-            <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">Performance Analytics</h3>
-                <p className="text-gray-600">Detailed insights and trends for this student</p>
+        <div className={`rounded-2xl border border-slate-100 shadow-sm bg-gradient-to-br ${toneMap[tone]} to-white p-4`}>
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-slate-500">
+                <Icon className="w-4 h-4" />
+                <span className="truncate">{label}</span>
+            </div>
+            <div className="mt-1.5 text-xl font-semibold truncate">{value}</div>
+        </div>
+    );
+};
+
+// ─── Quizzes tab (real fetch) ────────────────────────────────────────────────
+const QuizzesTab: FC<{ matricule: string }> = ({ matricule }) => {
+    const { t } = useLanguage();
+    const [quizzes, setQuizzes] = useState<QuizResult[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await fetchChildQuizResults(matricule);
+            setQuizzes(Array.isArray(data) ? data : []);
+        } catch (e: any) {
+            setError(e?.message || 'Failed to load quizzes.');
+        } finally {
+            setLoading(false);
+        }
+    }, [matricule]);
+
+    useEffect(() => { load(); }, [load]);
+
+    if (loading) {
+        return (
+            <div className="p-6 space-y-3">
+                {[0, 1, 2].map(i => <div key={i} className="rounded-xl h-20 bg-slate-100 animate-pulse" />)}
+            </div>
+        );
+    }
+
+    if (error) {
+        return <div className="p-6 text-center text-sm text-rose-600">{error}</div>;
+    }
+
+    const completed = quizzes.filter(q => q.status === 'COMPLETED');
+    const avgScore = completed.length > 0
+        ? Math.round(completed.reduce((s, q) => s + (Number(q.percentage) || 0), 0) / completed.length)
+        : 0;
+
+    return (
+        <div className="p-4 sm:p-6 space-y-6">
+            <div>
+                <h3 className="text-lg font-semibold text-slate-900">{t('Quiz Results')}</h3>
+                <p className="text-sm text-slate-500">{t('Track quiz performance over time')}</p>
             </div>
 
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <p className="text-gray-500 text-center">
-                    For comprehensive analytics, please visit the main
-                    <Button variant="outline" size="sm" className="mx-2">
-                        Analytics Dashboard
-                    </Button>
-                </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                <MetricTile label={t('Completed')} value={String(completed.length)} tone="blue" icon={ClipboardDocumentListIcon} />
+                <MetricTile label={t('Average Score')} value={`${avgScore}%`} tone={avgScore >= 75 ? 'emerald' : 'amber'} icon={ChartBarIcon} />
+                <MetricTile label={t('Total attempts')} value={String(quizzes.length)} tone="slate" icon={AcademicCapIcon} />
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm divide-y divide-slate-100">
+                {quizzes.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-slate-500">{t('No quiz submissions yet.')}</div>
+                ) : (
+                    quizzes.map(q => (
+                        <div key={q.submissionId} className="p-4 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">{q.quizTitle}</p>
+                                <p className="text-xs text-slate-500 truncate">
+                                    {q.subject}{q.submittedAt ? ` · ${new Date(q.submittedAt).toLocaleDateString()}` : ''}
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                {q.percentage !== null && q.percentage !== undefined ? (
+                                    <>
+                                        <div className={`text-sm font-semibold ${Number(q.percentage) >= 75 ? 'text-emerald-600' : Number(q.percentage) >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                            {Number(q.percentage).toFixed(0)}%
+                                        </div>
+                                        <div className="text-xs text-slate-500">{q.score}/{q.totalMarks}</div>
+                                    </>
+                                ) : (
+                                    <span className="inline-flex px-2 py-1 text-xs rounded-full bg-slate-100 text-slate-600">{q.status}</span>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );
 };
 
-export const ChildDetails: FC<ChildDetailsProps> = ({ childId, onBack }) => {
+// ─── Discipline tab (real fetch) ─────────────────────────────────────────────
+const DisciplineTab: FC<{ matricule: string; disciplineFromDetails?: any }> = ({ matricule, disciplineFromDetails }) => {
+    const { t } = useLanguage();
+    const [items, setItems] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const data: any = await fetchChildDisciplinaryActions(matricule);
+                setItems(Array.isArray(data) ? data : data?.items || []);
+            } catch (e: any) {
+                setError(e?.message || 'Failed to load discipline records.');
+            } finally {
+                setLoading(false);
+            }
+        })();
+    }, [matricule]);
+
+    // Merge with recent_issues from details (which have derived status)
+    const recentFromDetails: any[] = disciplineFromDetails?.recentIssues || [];
+    const total = disciplineFromDetails?.totalIssues ?? recentFromDetails.length;
+    const resolved = recentFromDetails.filter(i => i.status === 'RESOLVED').length;
+    const pending = Math.max(0, total - resolved);
+
+    if (loading) {
+        return (
+            <div className="p-6 space-y-3">
+                {[0, 1, 2].map(i => <div key={i} className="rounded-xl h-20 bg-slate-100 animate-pulse" />)}
+            </div>
+        );
+    }
+
+    return (
+        <div className="p-4 sm:p-6 space-y-6">
+            <div>
+                <h3 className="text-lg font-semibold text-slate-900">{t('Discipline & Behavior')}</h3>
+                <p className="text-sm text-slate-500">{t('Track behavioral patterns and discipline records')}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+                <MetricTile label={t('Total Issues')} value={String(total)} tone="slate" icon={ExclamationTriangleIcon} />
+                <MetricTile label={t('Resolved')} value={String(resolved)} tone="emerald" icon={ClipboardDocumentListIcon} />
+                <MetricTile label={t('Pending')} value={String(pending)} tone={pending > 0 ? 'amber' : 'emerald'} icon={ExclamationCircleIcon} />
+            </div>
+
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm">
+                <div className="p-5 border-b border-slate-100">
+                    <h4 className="text-sm font-semibold text-slate-900">{t('Recent Discipline Records')}</h4>
+                </div>
+                {recentFromDetails.length === 0 ? (
+                    <div className="p-8 text-center text-sm text-slate-500">{t('No discipline issues recorded')}</div>
+                ) : (
+                    <ul className="divide-y divide-slate-100">
+                        {recentFromDetails.map((issue: any) => (
+                            <li key={issue.id} className="p-4 flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-900">
+                                        {String(issue.type || '').replace(/_/g, ' ')}
+                                    </p>
+                                    <p className="text-sm text-slate-600 line-clamp-2">{issue.description}</p>
+                                    <p className="text-xs text-slate-400 mt-0.5">
+                                        {issue.dateOccurred ? new Date(issue.dateOccurred).toLocaleDateString() : ''}
+                                    </p>
+                                </div>
+                                <span className={`shrink-0 inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
+                                    issue.status === 'RESOLVED'
+                                        ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
+                                        : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+                                }`}>
+                                    {issue.status}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+
+            {items.length > 0 && (
+                <div className="rounded-2xl bg-white border border-slate-100 shadow-sm">
+                    <div className="p-5 border-b border-slate-100">
+                        <h4 className="text-sm font-semibold text-slate-900">{t('Disciplinary Actions')}</h4>
+                    </div>
+                    <ul className="divide-y divide-slate-100">
+                        {items.slice(0, 10).map((a: any) => (
+                            <li key={a.id} className="p-4">
+                                <p className="text-sm font-medium text-slate-900">{a.actionType || a.type || t('Action')}</p>
+                                {a.reason && <p className="text-sm text-slate-600 mt-0.5">{a.reason}</p>}
+                                <p className="text-xs text-slate-400 mt-0.5">
+                                    {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}
+                                </p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {error && <div className="text-sm text-rose-600">{error}</div>}
+        </div>
+    );
+};
+
+// ─── Analytics tab (link to full analytics) ──────────────────────────────────
+const AnalyticsTab: FC = () => {
+    const { t } = useLanguage();
+    return (
+        <div className="p-4 sm:p-6">
+            <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-8 text-center">
+                <ChartBarIcon className="mx-auto h-12 w-12 text-slate-300" />
+                <h3 className="mt-3 text-base font-semibold text-slate-900">{t('Full analytics for this child')}</h3>
+                <p className="mt-1 text-sm text-slate-500">
+                    {t('View trends, class comparisons and quiz breakdowns.')}
+                </p>
+                <Link href="/dashboard/parent-student/analytics">
+                    <Button variant="outline" className="mt-5 rounded-full inline-flex items-center">
+                        {t('Open Analytics')}
+                        <ArrowRightIcon className="w-4 h-4 ml-1" />
+                    </Button>
+                </Link>
+            </div>
+        </div>
+    );
+};
+
+// ─── Container ───────────────────────────────────────────────────────────────
+export const ChildDetails: FC<ChildDetailsProps> = ({ childId, matricule: propMatricule, onBack }) => {
+    const { t } = useLanguage();
     const [childData, setChildData] = useState<any>(null);
+    const [matricule, setMatricule] = useState<string | null>(propMatricule ?? null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchChildData = useCallback(async () => {
+    // If no matricule was passed, look up from local storage children list by id.
+    useEffect(() => {
+        if (propMatricule) { setMatricule(propMatricule); return; }
+        if (typeof window === 'undefined') return;
+        try {
+            // Callers who don't pass matricule pass a numeric child id; we can't
+            // resolve id → matricule without the dashboard payload. Fall back to
+            // the active portal matricule.
+            const raw = localStorage.getItem('parentPortal');
+            if (!raw) return;
+            const parsed = JSON.parse(raw);
+            setMatricule(parsed?.active || parsed?.matricules?.[0] || null);
+        } catch { /* ignore */ }
+    }, [propMatricule, childId]);
+
+    const fetchData = useCallback(async () => {
+        if (!matricule) return;
         setIsLoading(true);
         setError(null);
-
         try {
-            const token = getAuthToken();
-            if (!token) throw new Error('Authentication token not found.');
-
-            const response = await fetch(`${API_BASE_URL}/parents/children/${childId}`, {
-                headers: { 'Authorization': `Bearer ${token}` },
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch child details.');
-            }
-
-            const result = await response.json();
-            setChildData(result.data);
+            const data = await fetchChildDetails(matricule);
+            setChildData(data);
         } catch (err: any) {
-            setError(err.message);
-            toast.error(err.message);
+            setError(err?.message || t('Failed to fetch child details.'));
+            toast.error(err?.message || 'Failed to fetch child details.');
         } finally {
             setIsLoading(false);
         }
-    }, [childId]);
+    }, [matricule, t]);
 
     useEffect(() => {
-        fetchChildData();
-    }, [fetchChildData]);
+        if (matricule) fetchData();
+    }, [fetchData, matricule]);
 
-    const tabs = [
-        {
-            id: 'overview',
-            label: 'Overview',
-            icon: HomeIcon,
-            content: <OverviewTab childData={childData} />
-        },
-        {
-            id: 'fees',
-            label: 'Fees',
-            icon: CurrencyDollarIcon,
-            content: <ParentStudentFeesPage studentId={childId} />
-        },
-        {
-            id: 'academics',
-            label: 'Academics',
-            icon: AcademicCapIcon,
-            content: <ParentStudentResultsPage studentId={childId} />
-        },
-        {
-            id: 'quizzes',
-            label: 'Quizzes',
-            icon: ClipboardDocumentListIcon,
-            content: <QuizzesTab studentId={childId} />
-        },
-        {
-            id: 'discipline',
-            label: 'Discipline',
-            icon: ExclamationTriangleIcon,
-            content: <DisciplineTab studentId={childId} />
-        },
-        {
-            id: 'analytics',
-            label: 'Analytics',
-            icon: ChartBarIcon,
-            content: <AnalyticsTab studentId={childId} />
-        },
-    ];
+    const tabs = matricule ? [
+        { id: 'overview',   label: t('Overview'),   icon: HomeIcon,                     content: <OverviewTab childData={childData} /> },
+        { id: 'fees',       label: t('Fees'),       icon: CurrencyDollarIcon,           content: <ParentStudentFeesPage studentId={childId} matricule={matricule} /> },
+        { id: 'academics',  label: t('Academics'),  icon: AcademicCapIcon,              content: <ParentStudentResultsPage studentId={childId} matricule={matricule} /> },
+        { id: 'quizzes',    label: t('Quizzes'),    icon: ClipboardDocumentListIcon,    content: <QuizzesTab matricule={matricule} /> },
+        { id: 'discipline', label: t('Discipline'), icon: ExclamationTriangleIcon,      content: <DisciplineTab matricule={matricule} disciplineFromDetails={childData?.discipline} /> },
+        { id: 'analytics',  label: t('Analytics'),  icon: ChartBarIcon,                 content: <AnalyticsTab /> },
+    ] : [];
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="min-h-screen bg-slate-50 p-6 space-y-4">
+                <div className="rounded-2xl h-16 bg-slate-100 animate-pulse" />
+                <div className="rounded-2xl h-64 bg-slate-100 animate-pulse" />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="text-red-500 text-center">
-                    <ExclamationCircleIcon className="w-12 h-12 mx-auto" />
-                    <h2 className="mt-2 text-xl font-semibold">Failed to load child details</h2>
-                    <p>{error}</p>
-                    <Button onClick={onBack} className="mt-4">Go Back</Button>
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full rounded-3xl bg-white shadow-sm border border-slate-100 p-8 text-center">
+                    <ExclamationCircleIcon className="mx-auto h-12 w-12 text-rose-400" />
+                    <h2 className="mt-4 text-lg font-semibold text-slate-900">{t('Failed to load child details')}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{error}</p>
+                    <Button onClick={onBack} className="mt-6 rounded-full" variant="outline">{t('Go Back')}</Button>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-full flex flex-col">
-            {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4">
-                <div className="flex items-center">
-                    <Button variant="ghost" onClick={onBack} className="mr-1 sm:mr-4 shrink-0 px-2">
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            {/* Sticky header */}
+            <div className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-100 px-3 sm:px-6 py-3 sm:py-4">
+                <div className="max-w-6xl mx-auto flex items-center">
+                    <Button variant="ghost" onClick={onBack} className="mr-1 sm:mr-3 shrink-0 px-2 rounded-full">
                         <ArrowLeftIcon className="w-5 h-5" />
                     </Button>
                     {childData?.photo ? (
-                        <img src={childData.photo} alt={childData.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mr-3 sm:mr-4 shrink-0" />
+                        <img src={childData.photo} alt={childData.name} className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl object-cover mr-3 shrink-0 ring-1 ring-slate-100" />
                     ) : (
-                        <UserCircleIcon className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mr-3 sm:mr-4 shrink-0" />
+                        <UserCircleIcon className="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 mr-3 shrink-0" />
                     )}
                     <div className="min-w-0 flex-1">
-                        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 leading-tight break-words">{childData?.name}</h1>
-                        <p className="text-sm sm:text-base text-gray-600 truncate">{childData?.classInfo?.className} - {childData?.classInfo?.subclassName}</p>
+                        <h1 className="text-lg sm:text-2xl font-semibold text-slate-900 leading-tight truncate">{childData?.name}</h1>
+                        <p className="text-xs sm:text-sm text-slate-500 truncate">
+                            {childData?.classInfo?.className || t('Not enrolled')}
+                            {childData?.classInfo?.subclassName ? ` · ${childData.classInfo.subclassName}` : ''}
+                        </p>
                     </div>
                 </div>
             </div>
 
-            {/* Tabs Content */}
+            {/* Tabs */}
             <div className="flex-1 overflow-hidden">
-                <Tabs tabs={tabs} />
+                <div className="max-w-6xl mx-auto">
+                    <Tabs tabs={tabs} />
+                </div>
             </div>
         </div>
     );
-}; 
+};

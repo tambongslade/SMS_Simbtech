@@ -1,5 +1,6 @@
 'use client';
 import React, { Dispatch, SetStateAction } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Assuming Personnel and Role types are defined elsewhere (e.g., in the hook or a types file)
 // For now, let's define basic versions here if not imported.
@@ -49,6 +50,7 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
     isLoading,
     allRoles, // Though roles might be managed in a separate modal, it might be needed for initial assignment context
 }) => {
+    const { t } = useLanguage();
     if (!isOpen) return null;
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -63,7 +65,7 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
             <div className="relative mx-auto p-6 border w-full max-w-2xl shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-medium leading-6 text-gray-900">
-                        {initialData ? 'Edit Personnel' : 'Add New Personnel'}
+                        {initialData ? t('Edit Personnel') : t('Add New Personnel')}
                     </h3>
                     <button
                         onClick={onClose}
@@ -78,10 +80,10 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                 <form onSubmit={(e) => { e.preventDefault(); onSubmit(); }} className="space-y-6">
                     {/* Personal Information Section */}
                     <div className="bg-gray-50 p-4 rounded-lg">
-                        <h4 className="text-md font-semibold text-gray-700 mb-4">Personal Information</h4>
+                        <h4 className="text-md font-semibold text-gray-700 mb-4">{t('Personal Information')}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">{t('Full Name')} *</label>
                                 <input
                                     type="text"
                                     name="name"
@@ -91,11 +93,11 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     required
                                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
-                                    placeholder="Enter full name"
+                                    placeholder={t('Enter full name')}
                                 />
                             </div>
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">{t('Email')} *</label>
                                 <input
                                     type="email"
                                     name="email"
@@ -105,11 +107,11 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     required
                                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
-                                    placeholder="Enter email address"
+                                    placeholder={t('Enter email address')}
                                 />
                             </div>
                             <div>
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">{t('Phone')}</label>
                                 <input
                                     type="tel"
                                     name="phone"
@@ -118,11 +120,11 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     onChange={handleChange}
                                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
-                                    placeholder="Enter phone number"
+                                    placeholder={t('Enter phone number')}
                                 />
                             </div>
                             <div>
-                                <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                                <label htmlFor="gender" className="block text-sm font-medium text-gray-700 mb-1">{t('Gender')} *</label>
                                 <select
                                     name="gender"
                                     id="gender"
@@ -132,14 +134,14 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     className="block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
                                 >
-                                    <option value="" disabled>Select Gender</option>
-                                    <option value="Male">Male</option>
-                                    <option value="Female">Female</option>
-                                    <option value="Other">Other</option>
+                                    <option value="" disabled>{t('Select Gender')}</option>
+                                    <option value="Male">{t('Male')}</option>
+                                    <option value="Female">{t('Female')}</option>
+                                    <option value="Other">{t('Other')}</option>
                                 </select>
                             </div>
                             <div>
-                                <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+                                <label htmlFor="date_of_birth" className="block text-sm font-medium text-gray-700 mb-1">{t('Date of Birth')} *</label>
                                 <input
                                     type="date"
                                     name="date_of_birth"
@@ -153,7 +155,7 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                             </div>
                         </div>
                         <div className="mt-4">
-                            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">{t('Address')}</label>
                             <textarea
                                 name="address"
                                 id="address"
@@ -162,18 +164,18 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                 rows={3}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                 disabled={isLoading}
-                                placeholder="Enter address"
+                                placeholder={t('Enter address')}
                             ></textarea>
                         </div>
                     </div>
 
                     {/* Account Information Section */}
                     <div className="bg-blue-50 p-4 rounded-lg">
-                        <h4 className="text-md font-semibold text-gray-700 mb-4">Account Information</h4>
+                        <h4 className="text-md font-semibold text-gray-700 mb-4">{t('Account Information')}</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {initialData ? ( // Only show New Password for existing users
                                 <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">New Password (optional)</label>
+                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">{t('New Password (optional)')}</label>
                                     <input
                                         type="password"
                                         name="password"
@@ -181,13 +183,13 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                         value={formData.password || ''}
                                         onChange={handleChange}
                                         className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                                        placeholder="Leave blank to keep current password"
+                                        placeholder={t('Leave blank to keep current password')}
                                         disabled={isLoading}
                                     />
                                 </div>
                             ) : ( // Only show password for new users
                                 <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">{t('Password')} *</label>
                                     <input
                                         type="password"
                                         name="password"
@@ -196,13 +198,13 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                         onChange={handleChange}
                                         required
                                         className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                                        placeholder="Minimum 6 characters"
+                                        placeholder={t('Minimum 6 characters')}
                                         disabled={isLoading}
                                     />
                                 </div>
                             )}
                             <div>
-                                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">{t('Status')}</label>
                                 <select
                                     name="status"
                                     id="status"
@@ -211,8 +213,8 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     className="block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
                                 >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                    <option value="active">{t('Active')}</option>
+                                    <option value="inactive">{t('Inactive')}</option>
                                 </select>
                             </div>
                         </div>
@@ -228,7 +230,7 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                             disabled={isLoading}
                         >
-                            Cancel
+                            {t('Cancel')}
                         </button>
                         <button
                             type="submit"
@@ -238,10 +240,10 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                             {isLoading ? (
                                 <>
                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                    Saving...
+                                    {t('Saving...')}
                                 </>
                             ) : (
-                                initialData ? 'Update Personnel' : 'Create Personnel'
+                                initialData ? t('Update Personnel') : t('Create Personnel')
                             )}
                         </button>
                     </div>

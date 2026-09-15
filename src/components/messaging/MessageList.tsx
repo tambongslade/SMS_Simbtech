@@ -16,6 +16,7 @@ import {
     FunnelIcon,
     TrashIcon
 } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface MessageListProps {
     onComposeClick?: () => void;
@@ -31,6 +32,7 @@ export default function MessageList({
     const [messageType, setMessageType] = useState<'inbox' | 'sent'>('inbox');
     const [selectedCategory, setSelectedCategory] = useState<string>('');
     const [filteredMessages, setFilteredMessages] = useState<Message[]>([]);
+    const { t } = useLanguage();
 
     const fetchMessages = async (type = messageType) => {
         setLoading(true);
@@ -135,24 +137,24 @@ export default function MessageList({
     };
 
     const confirmDelete = (messageId: number) => {
-        toast((t) => (
+        toast((toastInstance) => (
             <div className="flex flex-col space-y-3">
-                <p className="font-medium">Are you sure you want to delete this message?</p>
+                <p className="font-medium">{t('Are you sure you want to delete this message?')}</p>
                 <div className="flex space-x-2">
                     <button
                         onClick={() => {
-                            toast.dismiss(t.id);
+                            toast.dismiss(toastInstance.id);
                             handleDelete(messageId);
                         }}
                         className="w-full bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm"
                     >
-                        Confirm Delete
+                        {t('Confirm Delete')}
                     </button>
                     <button
-                        onClick={() => toast.dismiss(t.id)}
+                        onClick={() => toast.dismiss(toastInstance.id)}
                         className="w-full bg-gray-200 hover:bg-gray-300 px-3 py-1.5 rounded-md text-sm"
                     >
-                        Cancel
+                        {t('Cancel')}
                     </button>
                 </div>
             </div>
@@ -184,7 +186,7 @@ export default function MessageList({
         <div className="space-y-6">
             {/* Header */}
             <div className="flex justify-between items-center">
-                <h2 className="text-xl font-semibold text-gray-900">Messages</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{t('Messages')}</h2>
 
                 {showComposeButton && onComposeClick && (
                     <button
@@ -192,7 +194,7 @@ export default function MessageList({
                         className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
                     >
                         <PlusIcon className="h-4 w-4" />
-                        <span>Compose</span>
+                        <span>{t('Compose')}</span>
                     </button>
                 )}
             </div>
@@ -210,7 +212,7 @@ export default function MessageList({
                                 }`}
                         >
                             <InboxIcon className="h-4 w-4" />
-                            <span>Inbox</span>
+                            <span>{t('Inbox')}</span>
                             {messages.filter(m => !m.isRead).length > 0 && (
                                 <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 ml-1">
                                     {messages.filter(m => !m.isRead).length}
@@ -225,7 +227,7 @@ export default function MessageList({
                                 }`}
                         >
                             <PaperAirplaneIcon className="h-4 w-4" />
-                            <span>Sent</span>
+                            <span>{t('Sent')}</span>
                         </button>
                     </div>
 
@@ -237,7 +239,7 @@ export default function MessageList({
                             onChange={(e) => setSelectedCategory(e.target.value)}
                             className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         >
-                            <option value="">All Categories</option>
+                            <option value="">{t('All Categories')}</option>
                             {MESSAGE_CATEGORIES.map((category) => (
                                 <option key={category.value} value={category.value}>
                                     {category.icon} {category.label}
@@ -253,12 +255,12 @@ export default function MessageList({
                 <div className="text-center py-8 bg-white rounded-lg shadow-sm border border-gray-200">
                     <InboxIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                        No {selectedCategory ? 'matching' : ''} {messageType === 'inbox' ? 'messages' : 'sent messages'} found
+                        {messageType === 'inbox' ? t('No messages found') : t('No sent messages found')}
                     </h3>
                     <p className="text-gray-500">
                         {messageType === 'inbox'
-                            ? 'Your messages will appear here when you receive them.'
-                            : 'Messages you send will appear here.'
+                            ? t('Your messages will appear here when you receive them.')
+                            : t('Messages you send will appear here.')
                         }
                     </p>
                 </div>
@@ -306,7 +308,7 @@ export default function MessageList({
                                                     onClick={() => handleMarkAsRead(message.id)}
                                                     className="text-xs font-medium text-blue-600 hover:text-blue-800"
                                                 >
-                                                    Mark as Read
+                                                    {t('Mark as Read')}
                                                 </button>
                                             )}
                                             <button
@@ -314,7 +316,7 @@ export default function MessageList({
                                                 className="flex items-center text-xs font-medium text-red-600 hover:text-red-800"
                                             >
                                                 <TrashIcon className="h-4 w-4 mr-1" />
-                                                Delete
+                                                {t('Delete')}
                                             </button>
                                         </div>
                                     </div>

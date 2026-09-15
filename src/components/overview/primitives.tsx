@@ -33,13 +33,15 @@ export const formatLabel = (raw: string) =>
 
 export const formatMoney = (amount?: number | null) => `FCFA ${(amount ?? 0).toLocaleString()}`;
 
-// formatMoney as a node rather than a string, for the tight spots (donut
-// legends, per-row totals) that pass a value into someone else's layout --
-// `displayNode`/inline amounts that can't add their own wrapper. `nowrap`
-// keeps "FCFA 1,200,000" from breaking mid-number in a narrow flex row.
-export function MoneyResponsive({ amount }: { amount?: number | null }) {
-    return <span className="whitespace-nowrap">{formatMoney(amount)}</span>;
-}
+// Money renderer that hides the FCFA prefix on mobile (breakpoint < sm).
+// Use where tight layouts (chart legends, dense grids) would otherwise
+// truncate the accompanying label on narrow screens.
+export const MoneyResponsive = ({ amount }: { amount?: number | null }) => (
+    <>
+        <span className="hidden sm:inline">FCFA </span>
+        {(amount ?? 0).toLocaleString()}
+    </>
+);
 
 export const formatNumber = (n?: number | null) => (n ?? 0).toLocaleString();
 
@@ -114,6 +116,9 @@ export interface Segment {
     value: number;
     color: string;
     display?: string;
+    // Optional rich (JSX) render used in the legend body — falls back to
+    // `display`, then to the raw number. Tooltips still use `display`.
+    displayNode?: React.ReactNode;
 }
 
 // Assign fixed-order categorical slots; fold the tail past 7 into "Other"
@@ -157,7 +162,7 @@ export function SegmentBar({ segments, title }: { segments: Segment[]; title?: s
                             <span key={s.label} className="inline-flex items-center gap-1.5 text-xs text-gray-600">
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                                 {s.label}
-                                <span className="font-medium text-gray-900 tabular-nums">{s.display ?? formatNumber(s.value)}</span>
+                                <span className="font-medium text-gray-900 tabular-nums">{s.displayNode ?? s.display ?? formatNumber(s.value)}</span>
                             </span>
                         ))}
                     </div>
@@ -237,7 +242,7 @@ export function DonutChart({ segments, title, centerText, centerSub }: {
                         <li key={s.label} className="flex items-center gap-2 text-sm">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                             <span className="text-gray-600 truncate min-w-0" title={s.label}>{s.label}</span>
-                            <span className="ml-auto shrink-0 font-medium text-gray-900 tabular-nums">{s.display ?? formatNumber(s.value)}</span>
+                            <span className="ml-auto shrink-0 font-medium text-gray-900 tabular-nums">{s.displayNode ?? s.display ?? formatNumber(s.value)}</span>
                             <span className="w-12 shrink-0 text-right text-xs text-gray-400 tabular-nums">
                                 {total > 0 ? `${((s.value / total) * 100).toFixed(1)}%` : ''}
                             </span>

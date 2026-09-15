@@ -9,6 +9,7 @@ import {
     IdentificationIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { useParentDashboard, type Child } from '../hooks/useParentDashboard';
 
 // Full-screen "who do you want to check on?" picker — the parent portal's
@@ -35,6 +36,7 @@ const initials = (name: string) =>
 
 export default function ChildPicker() {
     const router = useRouter();
+    const { t } = useLanguage();
     const { logout } = useAuth();
     const { data, isLoading, addChild } = useParentDashboard();
 
@@ -64,10 +66,10 @@ export default function ChildPicker() {
         <div className="fixed inset-0 z-[60] bg-gray-950 overflow-y-auto">
             <div className="min-h-full flex flex-col items-center justify-center px-6 py-12">
                 <h1 className="text-2xl sm:text-3xl font-semibold text-white text-center">
-                    Who do you want to check on?
+                    {t('Who do you want to check on?')}
                 </h1>
                 <p className="mt-2 text-sm text-gray-400 text-center">
-                    Choose a child to see their results, fees and more.
+                    {t('Choose a child to see their results, fees and more.')}
                 </p>
 
                 {isLoading ? (
@@ -114,7 +116,7 @@ export default function ChildPicker() {
                                 <PlusIcon className="w-10 h-10 text-gray-600 group-hover:text-gray-300" />
                             </div>
                             <p className="mt-3 text-sm sm:text-base font-medium text-gray-400 group-hover:text-gray-200">
-                                Add Child
+                                {t('Add Child')}
                             </p>
                         </button>
                     </div>

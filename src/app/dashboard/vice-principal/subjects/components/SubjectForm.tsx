@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Subject, SubjectCategory } from '../types/subject';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SubjectFormProps {
     initialData?: Subject;
@@ -9,6 +10,7 @@ interface SubjectFormProps {
 }
 
 export const SubjectForm: React.FC<SubjectFormProps> = ({ initialData, onSubmit, onCancel, isLoading }) => {
+    const { t } = useLanguage();
     const [formData, setFormData] = useState<Omit<Subject, 'id'>>({
         name: '',
         category: SubjectCategory.OTHERS, // Update default category to a valid one
@@ -31,7 +33,7 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({ initialData, onSubmit,
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!formData.name) {
-            alert('Subject name is required.'); // Replace with toast later
+            alert(t('Subject name is required.')); // Replace with toast later
             return;
         }
         onSubmit(formData);
@@ -39,9 +41,9 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({ initialData, onSubmit,
 
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
-            <h2 className="text-xl font-semibold mb-4">{initialData ? 'Edit Subject' : 'Add New Subject'}</h2>
+            <h2 className="text-xl font-semibold mb-4">{initialData ? t('Edit Subject') : t('Add New Subject')}</h2>
             <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700">Subject Name</label>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700">{t('Subject Name')}</label>
                 <input
                     type="text"
                     id="name"
@@ -53,7 +55,7 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({ initialData, onSubmit,
                 />
             </div>
             <div>
-                <label htmlFor="category" className="block text-sm font-medium text-gray-700">Category</label>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700">{t('Category')}</label>
                 <select
                     id="category"
                     name="category"
@@ -77,14 +79,14 @@ export const SubjectForm: React.FC<SubjectFormProps> = ({ initialData, onSubmit,
                     disabled={isLoading}
                     className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50"
                 >
-                    Cancel
+                    {t('Cancel')}
                 </button>
                 <button
                     type="submit"
                     disabled={isLoading}
                     className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 >
-                    {isLoading ? 'Saving...' : (initialData ? 'Update Subject' : 'Create Subject')}
+                    {isLoading ? t('Saving...') : (initialData ? t('Update Subject') : t('Create Subject'))}
                 </button>
             </div>
         </form>

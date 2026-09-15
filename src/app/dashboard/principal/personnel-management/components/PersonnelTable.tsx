@@ -1,5 +1,6 @@
 'use client'
 import React from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Define types needed by the table (can be imported from a shared types file or hook)
 type Personnel = {
@@ -43,6 +44,7 @@ const PaginationControls: React.FC<Pick<PersonnelTableProps, 'currentPage' | 'to
   setItemsPerPage,
   totalItems,
 }) => {
+  const { t } = useLanguage();
   if (totalPages <= 1) return null;
 
   const handlePrevious = () => {
@@ -61,17 +63,17 @@ const PaginationControls: React.FC<Pick<PersonnelTableProps, 'currentPage' | 'to
     <div className="flex items-center justify-between bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
       <div className="flex-1 flex justify-between sm:hidden">
         <button onClick={handlePrevious} disabled={currentPage === 1} className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
-          Previous
+          {t('Previous')}
         </button>
         <button onClick={handleNext} disabled={currentPage === totalPages} className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50">
-          Next
+          {t('Next')}
         </button>
       </div>
       <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
         <div>
           <p className="text-sm text-gray-700">
-            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> of{' '}
-            <span className="font-medium">{totalItems}</span> results
+            {t('Showing')} <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> {t('to')} <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> {t('of')}{' '}
+            <span className="font-medium">{totalItems}</span> {t('results')}
           </p>
         </div>
         <div>
@@ -81,7 +83,7 @@ const PaginationControls: React.FC<Pick<PersonnelTableProps, 'currentPage' | 'to
               disabled={currentPage === 1}
               className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <span className="sr-only">Previous</span>
+              <span className="sr-only">{t('Previous')}</span>
               <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
@@ -92,7 +94,7 @@ const PaginationControls: React.FC<Pick<PersonnelTableProps, 'currentPage' | 'to
               disabled={currentPage === totalPages}
               className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
             >
-              <span className="sr-only">Next</span>
+              <span className="sr-only">{t('Next')}</span>
               <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
@@ -118,6 +120,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
   setItemsPerPage,
   totalItems,
 }) => {
+  const { t } = useLanguage();
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden">
       <div className="hidden md:block overflow-x-auto">
@@ -126,22 +129,22 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Personnel
+                {t('Personnel')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Matricule
+                {t('Matricule')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Roles
+                {t('Roles')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contact
+                {t('Contact')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
+                {t('Status')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
+                {t('Actions')}
               </th>
             </tr>
           </thead>
@@ -155,8 +158,8 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                     <svg className="h-12 w-12 text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                     </svg>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No personnel found</h3>
-                    <p className="text-gray-500 text-sm">Get started by adding your first personnel member</p>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No personnel found')}</h3>
+                    <p className="text-gray-500 text-sm">{t('Get started by adding your first personnel member')}</p>
                   </div>
                 </td>
               </tr>
@@ -166,7 +169,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                 <td colSpan={6} className="text-center py-12">
                   <div className="flex flex-col items-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-                    <p className="text-gray-500">Loading personnel...</p>
+                    <p className="text-gray-500">{t('Loading personnel...')}</p>
                   </div>
                 </td>
               </tr>
@@ -195,7 +198,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                       {person.matricule}
                     </span>
                   ) : (
-                    <span className="text-gray-400 italic text-sm">Not assigned</span>
+                    <span className="text-gray-400 italic text-sm">{t('Not assigned')}</span>
                   )}
                 </td>
 
@@ -233,7 +236,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                         );
                       })
                     ) : (
-                      <span className="text-xs text-gray-500 italic">No roles assigned</span>
+                      <span className="text-xs text-gray-500 italic">{t('No roles assigned')}</span>
                     )}
                   </div>
                 </td>
@@ -253,7 +256,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                     )}
                     {person.dateJoined && (
                       <div className="text-xs text-gray-500 mt-1">
-                        Joined: {new Date(person.dateJoined).toLocaleDateString()}
+                        {t('Joined')}: {new Date(person.dateJoined).toLocaleDateString()}
                       </div>
                     )}
                   </div>
@@ -278,34 +281,34 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                       onClick={() => onEdit(person)}
                       className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                       disabled={isLoading}
-                      title="Edit Personnel"
+                      title={t('Edit Personnel')}
                     >
                       <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                       </svg>
-                      Edit
+                      {t('Edit')}
                     </button>
                     <button
                       onClick={() => onManageRoles({ id: person.id, name: person.name, roles: person.roles || [] })}
                       className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                       disabled={isLoading}
-                      title="Manage Roles"
+                      title={t('Manage Roles')}
                     >
                       <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                       </svg>
-                      Roles
+                      {t('Roles')}
                     </button>
                     <button
                       onClick={() => onDelete({ id: person.id, name: person.name })}
                       className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                       disabled={isLoading}
-                      title="Delete Personnel"
+                      title={t('Delete Personnel')}
                     >
                       <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                       </svg>
-                      Delete
+                      {t('Delete')}
                     </button>
                   </div>
                 </td>
@@ -322,8 +325,8 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
               <svg className="h-12 w-12 text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
               </svg>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No personnel found</h3>
-              <p className="text-gray-500 text-sm">Get started by adding your first personnel member</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No personnel found')}</h3>
+              <p className="text-gray-500 text-sm">{t('Get started by adding your first personnel member')}</p>
             </div>
           </div>
         )}
@@ -331,7 +334,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
           <div className="text-center py-12">
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
-              <p className="text-gray-500">Loading personnel...</p>
+              <p className="text-gray-500">{t('Loading personnel...')}</p>
             </div>
           </div>
         )}
@@ -341,7 +344,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
             <div className="text-sm text-gray-500 break-words">{person.email}</div>
             {person.username && <div className="text-xs text-gray-400 break-words">@{person.username}</div>}
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Matricule</span>
+              <span className="text-xs text-gray-500">{t('Matricule')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 {person.matricule ? (
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -353,7 +356,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Roles</span>
+              <span className="text-xs text-gray-500">{t('Roles')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 <span className="flex flex-wrap justify-end gap-1">
                   {person.roles && person.roles.length > 0 ? (
@@ -393,21 +396,21 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Phone</span>
+              <span className="text-xs text-gray-500">{t('Phone')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 {person.phone ? person.phone : <span className="text-gray-400">-</span>}
               </span>
             </div>
             {person.dateJoined && (
               <div className="flex items-start justify-between gap-3">
-                <span className="text-xs text-gray-500">Joined</span>
+                <span className="text-xs text-gray-500">{t('Joined')}</span>
                 <span className="text-sm text-gray-900 text-right break-words">
                   {new Date(person.dateJoined).toLocaleDateString()}
                 </span>
               </div>
             )}
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Status</span>
+              <span className="text-xs text-gray-500">{t('Status')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${person.status === 'active'
                   ? 'bg-green-100 text-green-800'
@@ -424,34 +427,34 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                 onClick={() => onEdit(person)}
                 className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                 disabled={isLoading}
-                title="Edit Personnel"
+                title={t('Edit Personnel')}
               >
                 <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
                 </svg>
-                Edit
+                {t('Edit')}
               </button>
               <button
                 onClick={() => onManageRoles({ id: person.id, name: person.name, roles: person.roles || [] })}
                 className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                 disabled={isLoading}
-                title="Manage Roles"
+                title={t('Manage Roles')}
               >
                 <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                 </svg>
-                Roles
+                {t('Roles')}
               </button>
               <button
                 onClick={() => onDelete({ id: person.id, name: person.name })}
                 className="inline-flex items-center px-3 py-1 text-xs font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                 disabled={isLoading}
-                title="Delete Personnel"
+                title={t('Delete Personnel')}
               >
                 <svg className="h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
                 </svg>
-                Delete
+                {t('Delete')}
               </button>
             </div>
           </div>

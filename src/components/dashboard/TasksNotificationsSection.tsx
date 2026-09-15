@@ -5,6 +5,7 @@ import { Card, CardBody, CardHeader, Badge } from '@/components/ui';
 import { BellIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import apiService from '@/lib/apiService';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // ── Real Task model (GET /tasks?mine=true) ──
 export interface Task {
@@ -46,6 +47,7 @@ const priorityColor = (priority: string): 'red' | 'yellow' | 'gray' => {
  * cards simply show their empty states.
  */
 export function TasksNotificationsSection() {
+    const { t } = useLanguage();
     const { data: tasksRes, mutate: mutateTasks } = useSWR<{ data?: Task[] }>(
         '/tasks?mine=true&limit=10',
         fetcher,
@@ -90,17 +92,17 @@ export function TasksNotificationsSection() {
                 <CardHeader className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                         <ClipboardDocumentListIcon className="h-5 w-5 text-gray-400" />
-                        My Tasks
+                        {t('My Tasks')}
                     </h3>
                     <div className="flex gap-2">
-                        {counters && counters.overdue > 0 && <Badge color="red" size="sm">{counters.overdue} overdue</Badge>}
-                        {counters && <Badge color="yellow" size="sm">{counters.pending} pending</Badge>}
-                        {counters && <Badge color="blue" size="sm">{counters.in_progress} in progress</Badge>}
+                        {counters && counters.overdue > 0 && <Badge color="red" size="sm">{counters.overdue} {t('overdue')}</Badge>}
+                        {counters && <Badge color="yellow" size="sm">{counters.pending} {t('pending')}</Badge>}
+                        {counters && <Badge color="blue" size="sm">{counters.in_progress} {t('in progress')}</Badge>}
                     </div>
                 </CardHeader>
                 <CardBody>
                     {myTasks.length === 0 ? (
-                        <p className="text-gray-500 text-center py-4">No open tasks. 🎉</p>
+                        <p className="text-gray-500 text-center py-4">{t('No open tasks.')} 🎉</p>
                     ) : (
                         <ul className="divide-y divide-gray-100">
                             {myTasks.slice(0, 6).map((task) => (
@@ -108,8 +110,8 @@ export function TasksNotificationsSection() {
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
                                         <p className="text-xs text-gray-500 truncate">
-                                            {task.deadline ? `Due ${new Date(task.deadline).toLocaleDateString()}` : 'No deadline'}
-                                            {typeof task.progress === 'number' ? ` · ${task.progress}% done` : ''}
+                                            {task.deadline ? `${t('Due')} ${new Date(task.deadline).toLocaleDateString()}` : t('No deadline')}
+                                            {typeof task.progress === 'number' ? ` · ${task.progress}% ${t('done')}` : ''}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
@@ -119,14 +121,14 @@ export function TasksNotificationsSection() {
                                                 onClick={() => updateTaskStatus(task, 'IN_PROGRESS')}
                                                 className="px-2 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200"
                                             >
-                                                Start
+                                                {t('Start')}
                                             </button>
                                         ) : (
                                             <button
                                                 onClick={() => updateTaskStatus(task, 'COMPLETED')}
                                                 className="px-2 py-1 text-xs font-medium rounded bg-green-100 text-green-700 hover:bg-green-200"
                                             >
-                                                Complete
+                                                {t('Complete')}
                                             </button>
                                         )}
                                     </div>
@@ -142,13 +144,13 @@ export function TasksNotificationsSection() {
                 <CardHeader className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
                         <BellIcon className="h-5 w-5 text-gray-400" />
-                        Unread Notifications
+                        {t('Unread Notifications')}
                     </h3>
                     {unread && <Badge color={unread.total > 0 ? 'red' : 'gray'} size="sm">{unread.total}</Badge>}
                 </CardHeader>
                 <CardBody>
                     {!unread || unread.total === 0 ? (
-                        <p className="text-gray-500 text-center py-4">You&apos;re all caught up.</p>
+                        <p className="text-gray-500 text-center py-4">{t("You're all caught up.")}</p>
                     ) : (
                         <ul className="divide-y divide-gray-100">
                             {unreadCategories.map((cat) => (

@@ -5,6 +5,7 @@ import '@fontsource/inter/700.css';
 import './globals.css';
 import { SWRProvider } from '@/components/providers/SWRProvider';
 import { AuthProvider } from '@/components/context/AuthContext';
+import { LanguageProvider } from '@/components/context/LanguageContext';
 import { Toaster } from 'react-hot-toast';
 import { Inter } from 'next/font/google';
 import type { Metadata, Viewport } from 'next';
@@ -64,10 +65,12 @@ export default function RootLayout({
         <OneSignalInit />
         <SWRProvider>
           <AuthProvider>
-            <OfflineProvider>
-              <OfflineBanner />
-              {children}
-            </OfflineProvider>
+            <LanguageProvider>
+              <OfflineProvider>
+                <OfflineBanner />
+                {children}
+              </OfflineProvider>
+            </LanguageProvider>
             <Toaster
               position="top-right"
               containerStyle={{ top: 'calc(var(--safe-top) + 1rem)' }}

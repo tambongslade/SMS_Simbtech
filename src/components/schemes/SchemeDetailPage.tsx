@@ -110,7 +110,7 @@ export function SchemeDetailPage({ schemeId, basePath, readOnly = false }: Schem
       cov.scheme.modules?.forEach((m) =>
         m.chapters?.forEach((c) =>
           c.lessons?.forEach((l) => {
-            if ((l._count?.logbookEntries ?? 0) > 0) taught.add(l.id);
+            if ((l.logbookEntryCount ?? 0) > 0) taught.add(l.id);
           }),
         ),
       );

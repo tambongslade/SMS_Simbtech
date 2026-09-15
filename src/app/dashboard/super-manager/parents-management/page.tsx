@@ -5,8 +5,10 @@ import { ParentsTable } from './components/ParentsTable';
 import { LinkStudentModal } from './components/LinkStudentModal';
 import { ViewStudentsModal } from './components/ViewStudentsModal';
 import { EditParentModal } from './components/EditParentModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export default function ParentsManagementPage() {
+    const { t } = useLanguage();
     const {
         parents,
         isLoading,
@@ -43,7 +45,7 @@ export default function ParentsManagementPage() {
     return (
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Parents Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('Parents Management')}</h1>
 
                 {/* TODO: Add Filters if needed (e.g., search by parent name) */}
 

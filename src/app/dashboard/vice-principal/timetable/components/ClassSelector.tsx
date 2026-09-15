@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTimetable } from './TimetableContext';
 import { Select } from "@/components/ui";
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface ClassSelectorProps {
   selectedClass: string;
@@ -14,11 +15,12 @@ const ClassSelector: React.FC<ClassSelectorProps> = ({
   onClassChange 
 }) => {
   const { classes, isLoading } = useTimetable();
+  const { t } = useLanguage();
 
   return (
     <div className="w-72">
       <label className="block text-sm font-medium text-gray-700 mb-1">
-        Select Class
+        {t('Select Class')}
       </label>
       <Select
         disabled={isLoading}
