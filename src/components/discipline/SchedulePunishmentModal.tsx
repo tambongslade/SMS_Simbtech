@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Button, Input, TextArea, Modal } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { searchFinanceStudents, type FinanceStudent } from '@/lib/financeRequestsApi';
 import {
   createSaturdayPunishment,
@@ -34,6 +35,7 @@ export function SchedulePunishmentModal({
   prefill,
 }: SchedulePunishmentModalProps) {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FinanceStudent[]>([]);
@@ -101,28 +103,28 @@ export function SchedulePunishmentModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Schedule Saturday Punishment" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('Schedule Saturday Punishment')} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         {prefill ? (
           <div className="flex items-center gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2">
             <CheckCircleIcon className="h-4 w-4" />
-            Student: <span className="font-medium">{prefill.studentName}</span>
+            {t('Student')}: <span className="font-medium">{prefill.studentName}</span>
           </div>
         ) : (
           <div className="space-y-2">
             <div className="relative">
               <Input
-                label="Student *"
+                label={`${t('Student')} *`}
                 value={student ? student.name : query}
                 onChange={(e) => {
                   setStudent(null);
                   setQuery(e.target.value);
                 }}
-                placeholder="Search by name or matricule…"
+                placeholder={t('Search by name or matricule…')}
               />
               <MagnifyingGlassIcon className="absolute right-3 top-9 h-5 w-5 text-gray-400 pointer-events-none" />
             </div>
-            {isSearching && <p className="text-xs text-gray-500">Searching…</p>}
+            {isSearching && <p className="text-xs text-gray-500">{t('Searching…')}</p>}
             {results.length > 0 && !student && (
               <div className="border border-gray-200 rounded-lg divide-y max-h-48 overflow-y-auto">
                 {results.map((s) => (
@@ -145,31 +147,31 @@ export function SchedulePunishmentModal({
         )}
 
         <Input
-          label="Reason *"
+          label={`${t('Reason')} *`}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder='e.g. "3 lates in Term 2"'
+          placeholder={t('e.g. "3 lates in Term 2"')}
         />
         <Input
-          label="Scheduled Saturday *"
+          label={`${t('Scheduled Saturday')} *`}
           type="date"
           value={scheduledDate}
           onChange={(e) => setScheduledDate(e.target.value)}
         />
         <TextArea
-          label="Notes (optional)"
+          label={t('Notes (optional)')}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
-          placeholder="e.g. Cleaning duty"
+          placeholder={t('e.g. Cleaning duty')}
         />
 
         <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" color="primary" isLoading={isSaving}>
-            Schedule
+            {t('Schedule')}
           </Button>
         </div>
       </form>

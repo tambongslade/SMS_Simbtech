@@ -2,28 +2,7 @@
 
 import Link from "next/link";
 import { Student } from "../../types";
-
-// Helper function to format class/subclass display
-const formatClassDisplay = (student: Student): string => {
-  if (student.subclass) {
-    // Student is enrolled in a subclass
-    return `${student.class} - ${student.subclass}`;
-  } else if (student.class) {
-    // Student has class but no subclass (not fully enrolled)
-    return `${student.class} (Class Only)`;
-  }
-  return 'N/A';
-};
-
-// Helper function to get styling for enrollment status
-const getEnrollmentStatusStyle = (student: Student): string => {
-  if (student.subclass) {
-    return 'text-gray-500'; // Fully enrolled - normal style
-  } else if (student.class) {
-    return 'text-orange-500 font-medium'; // Class only - warning style
-  }
-  return 'text-gray-500'; // No class info
-};
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Amounts are shown as plain numbers (FCFA implied) to keep columns narrow
 const formatAmount = (amount: number) => amount.toLocaleString();
@@ -35,33 +14,57 @@ interface ListViewProps {
 }
 
 export const ListView = ({ students, onRecordPayment, onViewTransactions }: ListViewProps) => {
+  const { t } = useLanguage();
+
+  // Helper function to format class/subclass display
+  const formatClassDisplay = (student: Student): string => {
+    if (student.subclass) {
+      // Student is enrolled in a subclass
+      return `${student.class} - ${student.subclass}`;
+    } else if (student.class) {
+      // Student has class but no subclass (not fully enrolled)
+      return `${student.class} (${t('Class Only')})`;
+    }
+    return 'N/A';
+  };
+
+  // Helper function to get styling for enrollment status
+  const getEnrollmentStatusStyle = (student: Student): string => {
+    if (student.subclass) {
+      return 'text-gray-500'; // Fully enrolled - normal style
+    } else if (student.class) {
+      return 'text-orange-500 font-medium'; // Class only - warning style
+    }
+    return 'text-gray-500'; // No class info
+  };
+
   return (
     <div className="bg-white shadow-md rounded-lg overflow-hidden">
-      <div className="px-3 pt-2 text-right text-[11px] text-gray-400">Amounts in FCFA</div>
+      <div className="px-3 pt-2 text-right text-[11px] text-gray-400">{t('Amounts in FCFA')}</div>
       <div className="hidden md:block overflow-x-auto">
       <table className="min-w-full">
         <thead className="bg-gray-50">
           <tr>
             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Name
+              {t('Name')}
             </th>
             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Class / Subclass
+              {t('Class / Subclass')}
             </th>
             <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Expected
+              {t('Expected')}
             </th>
             <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Paid
+              {t('Paid')}
             </th>
             <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Balance
+              {t('Balance')}
             </th>
             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Status
+              {t('Status')}
             </th>
             <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Actions
+              {t('Actions')}
             </th>
           </tr>
         </thead>
@@ -72,7 +75,7 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
                 <Link
                   href={`/dashboard/bursar/student-registration/${student.id}`}
                   className="text-gray-900 hover:text-blue-700 hover:underline"
-                  title="View student profile"
+                  title={t('View student profile')}
                 >
                   {student.name}
                 </Link>
@@ -104,13 +107,13 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
                   onClick={() => onRecordPayment(student)}
                   className="text-blue-600 hover:text-blue-900 mr-2"
                 >
-                  Record
+                  {t('Record')}
                 </button>
                 <button
                   onClick={() => onViewTransactions(student)}
                   className="text-indigo-600 hover:text-indigo-900"
                 >
-                  History
+                  {t('History')}
                 </button>
               </td>
             </tr>
@@ -129,31 +132,31 @@ export const ListView = ({ students, onRecordPayment, onViewTransactions }: List
               {student.name}
             </Link>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Class / Subclass</span>
+              <span className="text-xs text-gray-500">{t('Class / Subclass')}</span>
               <span className={`text-sm text-right break-words ${getEnrollmentStatusStyle(student)}`}>
                 {formatClassDisplay(student)}
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Expected</span>
+              <span className="text-xs text-gray-500">{t('Expected')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 {formatAmount(student.expectedFees)}
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Paid</span>
+              <span className="text-xs text-gray-500">{t('Paid')}</span>
               <span className="text-sm text-gray-900 text-right break-words">
                 {formatAmount(student.paidFees)}
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Balance</span>
+              <span className="text-xs text-gray-500">{t('Balance')}</span>
               <span className={`text-sm text-right break-words ${student.balance > 0 ? 'font-semibold text-red-600' : 'text-gray-900'}`}>
                 {formatAmount(student.balance)}
               </span>
             </div>
             <div className="flex items-start justify-between gap-3">
-              <span className="text-xs text-gray-500">Status</span>
+              <span className="text-xs text-gray-500">{t('Status')}</span>
               <span
                 className={`px-2 py-0.5 text-xs font-semibold rounded-full
                   ${student.status === "Paid" ? "bg-green-100 text-green-800" :

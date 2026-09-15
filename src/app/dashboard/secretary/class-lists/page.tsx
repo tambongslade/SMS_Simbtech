@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { Button, Select } from '@/components/ui';
 import {
   fetchClasses,
@@ -22,6 +23,7 @@ type Format = 'pdf' | 'docx';
 
 export default function SecretaryClassListsPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   const [classes, setClasses] = useState<ClassInfo[]>([]);
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
@@ -41,17 +43,17 @@ export default function SecretaryClassListsPage() {
     const academicYearId = selectedAcademicYear?.id;
 
     if (scope === 'subclass' && !subClassId) {
-      toast.error('Please select a subclass.');
+      toast.error(t('Please select a subclass.'));
       return;
     }
     if (scope === 'class' && !classId) {
-      toast.error('Please select a class.');
+      toast.error(t('Please select a class.'));
       return;
     }
 
     const dateStr = new Date().toISOString().split('T')[0];
     setIsExporting(true);
-    toast.loading('Generating export…', { id: 'class-list-export' });
+    toast.loading(t('Generating export…'), { id: 'class-list-export' });
     try {
       let blob: Blob;
       let name: string;
@@ -65,10 +67,10 @@ export default function SecretaryClassListsPage() {
         blob = await exportClassList(Number(classId), format, academicYearId);
       }
       downloadBlob(blob, `${name.replace(/\s+/g, '_')}_students_${dateStr}.${format}`);
-      toast.success('Export downloaded.', { id: 'class-list-export' });
+      toast.success(t('Export downloaded.'), { id: 'class-list-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Export failed.', { id: 'class-list-export' });
+        toast.error(error?.message || t('Export failed.'), { id: 'class-list-export' });
       } else {
         toast.dismiss('class-list-export');
       }
@@ -85,55 +87,55 @@ export default function SecretaryClassListsPage() {
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-1.5 sm:hidden"
         >
           <ChevronLeftIcon className="h-4 w-4 mr-1" />
-          Menu
+          {t('Menu')}
         </Link>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Class Lists</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Class Lists')}</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Export student lists for a class or subclass
+          {t('Export student lists for a class or subclass')}
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
         </p>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 space-y-4">
         <Select
-          label="Export scope"
+          label={t('Export scope')}
           value={scope}
           onChange={(e) => setScope(e.target.value as Scope)}
           options={[
-            { value: 'subclass', label: 'Single subclass' },
-            { value: 'class', label: 'Whole class (all subclasses)' },
+            { value: 'subclass', label: t('Single subclass') },
+            { value: 'class', label: t('Whole class (all subclasses)') },
           ]}
         />
 
         {scope === 'subclass' ? (
           <Select
-            label="Subclass"
+            label={t('Subclass')}
             value={subClassId}
             onChange={(e) => setSubClassId(e.target.value)}
             options={[
-              { value: '', label: 'Select a subclass' },
+              { value: '', label: t('Select a subclass') },
               ...subClasses.map((sc) => ({ value: String(sc.id), label: sc.name })),
             ]}
           />
         ) : (
           <Select
-            label="Class"
+            label={t('Class')}
             value={classId}
             onChange={(e) => setClassId(e.target.value)}
             options={[
-              { value: '', label: 'Select a class' },
+              { value: '', label: t('Select a class') },
               ...classes.map((c) => ({ value: String(c.id), label: c.name })),
             ]}
           />
         )}
 
         <Select
-          label="Format"
+          label={t('Format')}
           value={format}
           onChange={(e) => setFormat(e.target.value as Format)}
           options={[
             { value: 'pdf', label: 'PDF' },
-            { value: 'docx', label: 'Word (DOCX)' },
+            { value: 'docx', label: t('Word (DOCX)') },
           ]}
         />
 
@@ -145,7 +147,7 @@ export default function SecretaryClassListsPage() {
             isLoading={isExporting}
             onClick={handleExport}
           >
-            Export List
+            {t('Export List')}
           </Button>
         </div>
       </div>

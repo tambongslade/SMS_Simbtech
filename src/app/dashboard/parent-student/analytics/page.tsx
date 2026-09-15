@@ -1,569 +1,378 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
+import { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
     ChartBarIcon,
     ArrowTrendingUpIcon,
     ArrowTrendingDownIcon,
+    MinusSmallIcon,
     AcademicCapIcon,
     ClockIcon,
-    UserGroupIcon,
     ExclamationTriangleIcon,
+    SparklesIcon,
     CheckCircleIcon,
-    ArrowTopRightOnSquareIcon,
-    CalendarIcon,
-    EyeIcon
 } from '@heroicons/react/24/outline';
-import { useParentAnalytics } from '../hooks/useParentAnalytics';
+import { getChildAnalytics, ChildAnalytics } from '@/lib/parentChildApi';
+import { getSavedMatricules, saveMatricules } from '../hooks/useParentDashboard';
+import { useParentDashboard } from '../hooks/useParentDashboard';
+import { SkeletonGrid, SkeletonCard } from '../components/Skeleton';
+import { attendanceBand, gradeBand } from '../components/design';
+import { toast } from 'react-hot-toast';
 
-interface AnalyticsData {
-    performanceAnalytics: {
-        overallAverage: number;
-        grade: string;
-        classRank?: number;
-        improvementTrend: 'IMPROVING' | 'DECLINING' | 'STABLE';
-        subjectsAboveAverage: number;
-        subjectsBelowAverage: number;
-        recommendation: string;
-    };
-    attendanceAnalytics: {
-        totalDays: number;
-        presentDays: number;
-        absentDays: number;
-        attendanceRate: number;
-        status: string;
-        monthlyTrends: Array<{
-            month: string;
-            attendanceRate: number;
-        }>;
-    };
-    quizAnalytics: {
-        totalQuizzes: number;
-        completedQuizzes: number;
-        averageScore: number;
-        highestScore: number;
-        completionRate: number;
-        recentQuizzes: Array<{
-            id: number;
-            subject: string;
-            score: number;
-            date: string;
-        }>;
-    };
-    subjectTrends: Array<{
-        subjectName: string;
-        currentAverage: number;
-        trend: 'IMPROVING' | 'DECLINING' | 'STABLE';
-        bestMark: number;
-        lowestMark: number;
-        recommendedAction?: string;
-    }>;
-    comparativeAnalytics: {
-        studentAverage: number;
-        classAverage: number;
-        aboveClassAverage: boolean;
-        percentileRank?: number;
-        subjectComparisons: Array<{
-            subject: string;
-            studentAverage: number;
-            classAverage: number;
-            rank: number;
-        }>;
-    };
-    behavioralInsights: {
-        disciplineScore: number;
-        punctualityScore: number;
-        participationLevel: 'HIGH' | 'MEDIUM' | 'LOW';
-        socialInteraction: 'EXCELLENT' | 'GOOD' | 'NEEDS_IMPROVEMENT';
-        recommendations: string[];
-    };
-}
+const TrendIcon = ({ trend }: { trend: string }) => {
+    const t = (trend || '').toUpperCase();
+    if (t.includes('IMPROV')) return <ArrowTrendingUpIcon className="w-4 h-4 text-emerald-600" />;
+    if (t.includes('DECLIN')) return <ArrowTrendingDownIcon className="w-4 h-4 text-rose-600" />;
+    return <MinusSmallIcon className="w-4 h-4 text-slate-500" />;
+};
+
+const trendLabel = (trend: string) => {
+    const t = (trend || '').toLowerCase();
+    if (t.includes('improv')) return 'Improving';
+    if (t.includes('declin')) return 'Declining';
+    if (t.includes('insuff')) return 'Not enough data yet';
+    if (t.includes('no data')) return 'No data yet';
+    return 'Stable';
+};
 
 export default function ParentAnalyticsPage() {
-    const { analytics, isLoading, error, fetchAnalytics } = useParentAnalytics();
-    const [selectedChild, setSelectedChild] = useState<number | null>(null);
-    const [timeRange, setTimeRange] = useState('current_term');
+    const { t } = useLanguage();
+    const { data: dashboard, isLoading: childrenLoading } = useParentDashboard();
+    const children = dashboard?.children ?? [];
 
-    // Mock data for demonstration
-    const mockAnalytics: AnalyticsData = {
-        performanceAnalytics: {
-            overallAverage: 15.2,
-            grade: 'B+',
-            classRank: 5,
-            improvementTrend: 'IMPROVING',
-            subjectsAboveAverage: 4,
-            subjectsBelowAverage: 2,
-            recommendation: 'Focus on Chemistry and Physics to improve overall performance'
-        },
-        attendanceAnalytics: {
-            totalDays: 120,
-            presentDays: 110,
-            absentDays: 10,
-            attendanceRate: 91.7,
-            status: 'GOOD',
-            monthlyTrends: [
-                { month: 'September', attendanceRate: 95 },
-                { month: 'October', attendanceRate: 92 },
-                { month: 'November', attendanceRate: 89 },
-                { month: 'December', attendanceRate: 94 },
-                { month: 'January', attendanceRate: 88 }
-            ]
-        },
-        quizAnalytics: {
-            totalQuizzes: 15,
-            completedQuizzes: 13,
-            averageScore: 78.5,
-            highestScore: 95,
-            completionRate: 86.7,
-            recentQuizzes: [
-                { id: 1, subject: 'Mathematics', score: 85, date: '2024-01-20' },
-                { id: 2, subject: 'English', score: 92, date: '2024-01-18' },
-                { id: 3, subject: 'Physics', score: 78, date: '2024-01-15' },
-                { id: 4, subject: 'Chemistry', score: 72, date: '2024-01-12' }
-            ]
-        },
-        subjectTrends: [
-            {
-                subjectName: 'Mathematics',
-                currentAverage: 16.2,
-                trend: 'IMPROVING',
-                bestMark: 18,
-                lowestMark: 14,
-                recommendedAction: 'Continue current study methods'
-            },
-            {
-                subjectName: 'English',
-                currentAverage: 15.8,
-                trend: 'STABLE',
-                bestMark: 17,
-                lowestMark: 15,
-                recommendedAction: 'Focus on creative writing'
-            },
-            {
-                subjectName: 'Physics',
-                currentAverage: 14.5,
-                trend: 'IMPROVING',
-                bestMark: 16,
-                lowestMark: 12,
-                recommendedAction: 'Practice more problem-solving'
-            },
-            {
-                subjectName: 'Chemistry',
-                currentAverage: 13.2,
-                trend: 'DECLINING',
-                bestMark: 15,
-                lowestMark: 11,
-                recommendedAction: 'Consider additional tutoring'
-            },
-            {
-                subjectName: 'Biology',
-                currentAverage: 17.1,
-                trend: 'STABLE',
-                bestMark: 18,
-                lowestMark: 16,
-                recommendedAction: 'Maintain current performance'
-            },
-            {
-                subjectName: 'History',
-                currentAverage: 14.8,
-                trend: 'IMPROVING',
-                bestMark: 16,
-                lowestMark: 13,
-                recommendedAction: 'Increase reading comprehension'
+    const [activeMatricule, setActiveMatricule] = useState<string>('');
+    const [analytics, setAnalytics] = useState<ChildAnalytics | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Pick the parent's saved active matricule or first child as default.
+    useEffect(() => {
+        if (activeMatricule) return;
+        if (typeof window === 'undefined') return;
+        try {
+            const portal = JSON.parse(localStorage.getItem('parentPortal') || 'null');
+            const saved = portal?.active as string | undefined;
+            const first = children[0]?.matricule;
+            const pick = saved || first || '';
+            if (pick) setActiveMatricule(pick);
+        } catch {
+            const first = children[0]?.matricule;
+            if (first) setActiveMatricule(first);
+        }
+    }, [children, activeMatricule]);
+
+    // Load analytics whenever the active child changes.
+    useEffect(() => {
+        if (!activeMatricule) return;
+        let cancelled = false;
+        (async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const data = await getChildAnalytics(activeMatricule);
+                if (!cancelled) setAnalytics(data);
+            } catch (e: any) {
+                if (!cancelled) {
+                    setError(e?.message || 'Could not load analytics.');
+                    setAnalytics(null);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
             }
-        ],
-        comparativeAnalytics: {
-            studentAverage: 15.2,
-            classAverage: 14.8,
-            aboveClassAverage: true,
-            percentileRank: 75,
-            subjectComparisons: [
-                { subject: 'Mathematics', studentAverage: 16.2, classAverage: 15.1, rank: 3 },
-                { subject: 'English', studentAverage: 15.8, classAverage: 15.5, rank: 7 },
-                { subject: 'Physics', studentAverage: 14.5, classAverage: 14.2, rank: 12 },
-                { subject: 'Chemistry', studentAverage: 13.2, classAverage: 14.0, rank: 18 },
-                { subject: 'Biology', studentAverage: 17.1, classAverage: 15.8, rank: 2 },
-                { subject: 'History', studentAverage: 14.8, classAverage: 14.5, rank: 9 }
-            ]
-        },
-        behavioralInsights: {
-            disciplineScore: 95,
-            punctualityScore: 88,
-            participationLevel: 'HIGH',
-            socialInteraction: 'GOOD',
-            recommendations: [
-                'Encourage continued positive behavior',
-                'Work on improving punctuality',
-                'Maintain high participation levels'
-            ]
-        }
+        })();
+        return () => { cancelled = true; };
+    }, [activeMatricule]);
+
+    const overallAvg = useMemo(() => {
+        const raw = analytics?.performanceAnalytics?.overall_average;
+        const n = typeof raw === 'number' ? raw : parseFloat(String(raw ?? 0));
+        return Number.isFinite(n) ? n : 0;
+    }, [analytics]);
+
+    const attendanceRate = useMemo(() => {
+        const raw = analytics?.attendanceAnalytics?.overall_attendance_rate;
+        const n = typeof raw === 'number' ? raw : parseFloat(String(raw ?? 0));
+        return Number.isFinite(n) ? n : 0;
+    }, [analytics]);
+
+    const grade = gradeBand(overallAvg);
+    const att = attendanceBand(attendanceRate);
+
+    const handleChildChange = (m: string) => {
+        setActiveMatricule(m);
+        try {
+            const list = getSavedMatricules();
+            saveMatricules(list, m);
+        } catch { /* localStorage best-effort */ }
     };
 
-    const getTrendIcon = (trend: string) => {
-        switch (trend) {
-            case 'IMPROVING': return <ArrowTrendingUpIcon className="w-4 h-4 text-green-500" />;
-            case 'DECLINING': return <ArrowTrendingDownIcon className="w-4 h-4 text-red-500" />;
-            case 'STABLE': return <div className="w-4 h-4 bg-gray-400 rounded-full"></div>;
-            default: return null;
-        }
-    };
-
-    const getTrendColor = (trend: string) => {
-        switch (trend) {
-            case 'IMPROVING': return 'text-green-600';
-            case 'DECLINING': return 'text-red-600';
-            case 'STABLE': return 'text-gray-600';
-            default: return 'text-gray-600';
-        }
-    };
-
-    const getGradeColor = (average: number) => {
-        if (average >= 16) return 'text-green-600';
-        if (average >= 14) return 'text-blue-600';
-        if (average >= 12) return 'text-yellow-600';
-        return 'text-red-600';
-    };
-
-    const getAttendanceStatus = (rate: number) => {
-        if (rate >= 95) return { label: 'Excellent', color: 'text-green-600 bg-green-100' };
-        if (rate >= 90) return { label: 'Good', color: 'text-blue-600 bg-blue-100' };
-        if (rate >= 85) return { label: 'Satisfactory', color: 'text-yellow-600 bg-yellow-100' };
-        return { label: 'Needs Improvement', color: 'text-red-600 bg-red-100' };
-    };
-
-    if (isLoading) {
+    if (childrenLoading) {
         return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
+            <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+                <SkeletonGrid count={4} />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <SkeletonCard lines={4} />
+                    <SkeletonCard lines={4} />
+                </div>
+            </div>
+        );
+    }
+
+    if (children.length === 0) {
+        return (
+            <div className="max-w-3xl mx-auto p-8 text-center">
+                <SparklesIcon className="w-12 h-12 mx-auto text-slate-300 mb-3" />
+                <h2 className="text-xl font-semibold text-slate-800">{t('No children linked yet')}</h2>
+                <p className="text-slate-500 mt-1">{t('Add a child from the Overview to see analytics.')}</p>
             </div>
         );
     }
 
     return (
-        <div className="p-6">
-            <div className="mb-6">
-                <div className="flex justify-between items-start">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+            <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+                {/* Header — child switcher (large tap targets, subtle chip style) */}
+                <header className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                            <ChartBarIcon className="w-7 h-7 mr-2" />
-                            Student Analytics
-                        </h1>
-                        <p className="text-gray-600">Comprehensive insights into academic performance and behavior</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-indigo-600">{t('Analytics')}</p>
+                        <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">{t('Performance overview')}</h1>
+                        <p className="text-sm text-slate-500 mt-1">{t('Real-time academic, attendance and quiz insights.')}</p>
                     </div>
-                    <div className="flex items-center space-x-4">
-                        <select
-                            value={timeRange}
-                            onChange={(e) => setTimeRange(e.target.value)}
-                            className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        >
-                            <option value="current_term">Current Term</option>
-                            <option value="last_term">Last Term</option>
-                            <option value="academic_year">Academic Year</option>
-                            <option value="all_time">All Time</option>
-                        </select>
-                        <Button variant="outline" onClick={() => fetchAnalytics()}>
-                            <ArrowTopRightOnSquareIcon className="w-4 h-4 mr-2" />
-                            Refresh
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Performance Overview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{mockAnalytics.performanceAnalytics.overallAverage}/20</div>
-                                <div className="text-sm text-gray-500">Overall Average</div>
-                                <div className={`text-xs font-medium ${getGradeColor(mockAnalytics.performanceAnalytics.overallAverage)}`}>
-                                    Grade: {mockAnalytics.performanceAnalytics.grade}
-                                </div>
-                            </div>
-                            <div className="flex items-center">
-                                {getTrendIcon(mockAnalytics.performanceAnalytics.improvementTrend)}
-                                <AcademicCapIcon className="w-8 h-8 text-blue-600 ml-2" />
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{mockAnalytics.performanceAnalytics.classRank}</div>
-                                <div className="text-sm text-gray-500">Class Rank</div>
-                                <div className="text-xs text-gray-500">out of 30 students</div>
-                            </div>
-                            <UserGroupIcon className="w-8 h-8 text-green-600" />
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{mockAnalytics.attendanceAnalytics.attendanceRate}%</div>
-                                <div className="text-sm text-gray-500">Attendance Rate</div>
-                                <div className={`text-xs px-2 py-1 rounded-full ${getAttendanceStatus(mockAnalytics.attendanceAnalytics.attendanceRate).color}`}>
-                                    {getAttendanceStatus(mockAnalytics.attendanceAnalytics.attendanceRate).label}
-                                </div>
-                            </div>
-                            <CheckCircleIcon className="w-8 h-8 text-green-600" />
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <div className="text-2xl font-bold text-gray-900">{mockAnalytics.quizAnalytics.averageScore}%</div>
-                                <div className="text-sm text-gray-500">Quiz Average</div>
-                                <div className="text-xs text-gray-500">
-                                    {mockAnalytics.quizAnalytics.completedQuizzes}/{mockAnalytics.quizAnalytics.totalQuizzes} completed
-                                </div>
-                            </div>
-                            <ClockIcon className="w-8 h-8 text-purple-600" />
-                        </div>
-                    </CardBody>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                {/* Subject Performance Trends */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Subject Performance Trends</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-4">
-                            {mockAnalytics.subjectTrends.map((subject) => (
-                                <div key={subject.subjectName} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex-1">
-                                        <div className="flex items-center space-x-3">
-                                            <h4 className="font-medium text-gray-900">{subject.subjectName}</h4>
-                                            {getTrendIcon(subject.trend)}
-                                            <span className={`text-sm ${getTrendColor(subject.trend)}`}>
-                                                {subject.trend.toLowerCase()}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
-                                            <span>Current: {subject.currentAverage}/20</span>
-                                            <span>Best: {subject.bestMark}</span>
-                                            <span>Lowest: {subject.lowestMark}</span>
-                                        </div>
-                                        {subject.recommendedAction && (
-                                            <div className="text-xs text-blue-600 mt-1">💡 {subject.recommendedAction}</div>
-                                        )}
-                                    </div>
-                                    <div className="w-16 bg-gray-200 rounded-full h-2 ml-4">
-                                        <div
-                                            className="bg-blue-600 h-2 rounded-full"
-                                            style={{ width: `${(subject.currentAverage / 20) * 100}%` }}
-                                        ></div>
-                                    </div>
-                                </div>
+                    {children.length > 1 && (
+                        <div className="flex flex-wrap gap-2">
+                            {children.map(c => c.matricule && (
+                                <button
+                                    key={c.matricule}
+                                    onClick={() => handleChildChange(c.matricule!)}
+                                    className={`px-3.5 py-2 rounded-full text-sm font-medium transition-all
+                                        ${activeMatricule === c.matricule
+                                            ? 'bg-slate-900 text-white shadow-sm'
+                                            : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:ring-slate-300'}`}
+                                >
+                                    {c.name.split(' ')[0]}
+                                </button>
                             ))}
                         </div>
-                    </CardBody>
-                </Card>
+                    )}
+                </header>
 
-                {/* Comparative Analytics */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Performance vs Class Average</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="mb-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm text-gray-600">Overall Performance</span>
-                                <span className={`text-sm font-medium ${mockAnalytics.comparativeAnalytics.aboveClassAverage ? 'text-green-600' : 'text-red-600'}`}>
-                                    {mockAnalytics.comparativeAnalytics.percentileRank}th Percentile
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                                    <div className="text-xl font-bold text-blue-600">{mockAnalytics.comparativeAnalytics.studentAverage}</div>
-                                    <div className="text-xs text-gray-600">Your Child</div>
-                                </div>
-                                <div className="text-center p-3 bg-gray-50 rounded-lg">
-                                    <div className="text-xl font-bold text-gray-600">{mockAnalytics.comparativeAnalytics.classAverage}</div>
-                                    <div className="text-xs text-gray-600">Class Average</div>
-                                </div>
-                            </div>
+                {loading && (
+                    <>
+                        <SkeletonGrid count={4} />
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <SkeletonCard lines={5} />
+                            <SkeletonCard lines={5} />
                         </div>
+                    </>
+                )}
 
-                        <div className="space-y-3">
-                            <h5 className="font-medium text-gray-900">Subject Comparisons</h5>
-                            {mockAnalytics.comparativeAnalytics.subjectComparisons.map((comparison) => (
-                                <div key={comparison.subject} className="flex items-center justify-between text-sm">
-                                    <span className="text-gray-700">{comparison.subject}</span>
-                                    <div className="flex items-center space-x-2">
-                                        <span className={comparison.studentAverage > comparison.classAverage ? 'text-green-600' : 'text-red-600'}>
-                                            {comparison.studentAverage.toFixed(1)}
-                                        </span>
-                                        <span className="text-gray-400">vs</span>
-                                        <span className="text-gray-600">{comparison.classAverage.toFixed(1)}</span>
-                                        <span className="text-xs text-gray-500">#{comparison.rank}</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardBody>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Recent Quiz Performance */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Quiz Results</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-3">
-                            {mockAnalytics.quizAnalytics.recentQuizzes.map((quiz) => (
-                                <div key={quiz.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                    <div>
-                                        <div className="font-medium text-gray-900">{quiz.subject}</div>
-                                        <div className="text-xs text-gray-500">{new Date(quiz.date).toLocaleDateString()}</div>
-                                    </div>
-                                    <div className={`text-lg font-bold ${quiz.score >= 80 ? 'text-green-600' : quiz.score >= 70 ? 'text-yellow-600' : 'text-red-600'}`}>
-                                        {quiz.score}%
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                            <div className="text-center">
-                                <div className="text-xl font-bold text-gray-900">{mockAnalytics.quizAnalytics.completionRate}%</div>
-                                <div className="text-sm text-gray-500">Quiz Completion Rate</div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                {/* Attendance Trends */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Attendance Trends</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-3">
-                            {mockAnalytics.attendanceAnalytics.monthlyTrends.map((month) => (
-                                <div key={month.month} className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-700">{month.month}</span>
-                                    <div className="flex items-center space-x-2">
-                                        <div className="w-20 bg-gray-200 rounded-full h-2">
-                                            <div
-                                                className={`h-2 rounded-full ${month.attendanceRate >= 95 ? 'bg-green-500' : month.attendanceRate >= 90 ? 'bg-blue-500' : 'bg-yellow-500'}`}
-                                                style={{ width: `${month.attendanceRate}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-sm font-medium">{month.attendanceRate}%</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="mt-4 pt-4 border-t border-gray-200 text-center">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <div className="text-lg font-bold text-green-600">{mockAnalytics.attendanceAnalytics.presentDays}</div>
-                                    <div className="text-xs text-gray-500">Present Days</div>
-                                </div>
-                                <div>
-                                    <div className="text-lg font-bold text-red-600">{mockAnalytics.attendanceAnalytics.absentDays}</div>
-                                    <div className="text-xs text-gray-500">Absent Days</div>
-                                </div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                {/* Behavioral Insights */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Behavioral Insights</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-gray-600">Discipline Score</span>
-                                    <span className="text-sm font-bold text-green-600">{mockAnalytics.behavioralInsights.disciplineScore}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div className="bg-green-500 h-2 rounded-full" style={{ width: `${mockAnalytics.behavioralInsights.disciplineScore}%` }}></div>
-                                </div>
-                            </div>
-
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-gray-600">Punctuality Score</span>
-                                    <span className="text-sm font-bold text-blue-600">{mockAnalytics.behavioralInsights.punctualityScore}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${mockAnalytics.behavioralInsights.punctualityScore}%` }}></div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                                    <div className="text-sm font-medium text-purple-600">{mockAnalytics.behavioralInsights.participationLevel}</div>
-                                    <div className="text-xs text-gray-600">Participation</div>
-                                </div>
-                                <div className="text-center p-3 bg-indigo-50 rounded-lg">
-                                    <div className="text-sm font-medium text-indigo-600">{mockAnalytics.behavioralInsights.socialInteraction}</div>
-                                    <div className="text-xs text-gray-600">Social</div>
-                                </div>
-                            </div>
-
-                            <div className="pt-4 border-t border-gray-200">
-                                <h5 className="text-sm font-medium text-gray-900 mb-2">Recommendations</h5>
-                                <ul className="space-y-1">
-                                    {mockAnalytics.behavioralInsights.recommendations.map((rec, index) => (
-                                        <li key={index} className="text-xs text-gray-600 flex items-start">
-                                            <span className="text-blue-500 mr-1">•</span>
-                                            {rec}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-            </div>
-
-            {/* Recommendations Section */}
-            <Card className="mt-8">
-                <CardHeader>
-                    <CardTitle className="flex items-center">
-                        <ExclamationTriangleIcon className="w-5 h-5 mr-2 text-yellow-600" />
-                        Personalized Recommendations
-                    </CardTitle>
-                </CardHeader>
-                <CardBody>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h4 className="font-medium text-blue-900 mb-2">Academic Improvement Plan</h4>
-                        <p className="text-blue-800 text-sm mb-3">{mockAnalytics.performanceAnalytics.recommendation}</p>
-                        <div className="flex space-x-3">
-                            <Button size="sm" variant="solid">
-                                View Study Plan
-                            </Button>
-                            <Button size="sm" variant="outline">
-                                Contact Teacher
-                            </Button>
-                            <Button size="sm" variant="outline">
-                                Schedule Tutoring
-                            </Button>
+                {error && !loading && (
+                    <div className="rounded-2xl bg-rose-50 ring-1 ring-rose-200 p-5 flex items-start gap-3">
+                        <ExclamationTriangleIcon className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-medium text-rose-900">{t('Could not load analytics')}</p>
+                            <p className="text-sm text-rose-700 mt-0.5">{error}</p>
+                            <button
+                                onClick={() => activeMatricule && setActiveMatricule(activeMatricule + '')}
+                                className="mt-2 text-sm font-medium text-rose-700 hover:text-rose-900"
+                            >
+                                {t('Try again')}
+                            </button>
                         </div>
                     </div>
-                </CardBody>
-            </Card>
+                )}
+
+                {analytics && !loading && (
+                    <>
+                        {/* Stat tiles — clean, elevated cards */}
+                        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <StatTile
+                                icon={<AcademicCapIcon className="w-5 h-5" />}
+                                label={t('Overall average')}
+                                value={`${overallAvg.toFixed(2)} / 20`}
+                                pill={grade.label}
+                                pillClassName={grade.className}
+                            />
+                            <StatTile
+                                icon={<ChartBarIcon className="w-5 h-5" />}
+                                label={t('Assessments')}
+                                value={String(analytics.performanceAnalytics.total_assessments || 0)}
+                                subtext={trendLabel(analytics.performanceAnalytics.improvement_trend)}
+                                subIcon={<TrendIcon trend={analytics.performanceAnalytics.improvement_trend} />}
+                            />
+                            <StatTile
+                                icon={<ClockIcon className="w-5 h-5" />}
+                                label={t('Attendance rate')}
+                                value={`${attendanceRate.toFixed(1)}%`}
+                                pill={att.label}
+                                pillClassName={att.className}
+                            />
+                            <StatTile
+                                icon={<SparklesIcon className="w-5 h-5" />}
+                                label={t('Quizzes')}
+                                value={String(analytics.quizAnalytics.total_quizzes || 0)}
+                                subtext={`${t('Avg')} ${Number(analytics.quizAnalytics.average_score || 0).toFixed(1)}%`}
+                            />
+                        </section>
+
+                        {/* Strengths & areas for improvement */}
+                        <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <Card title={t('Strengths')} accent="emerald">
+                                {(analytics.performanceAnalytics.strengths?.length ?? 0) === 0 ? (
+                                    <EmptyLine text={t('No strengths identified yet.')} />
+                                ) : (
+                                    <ul className="space-y-2.5">
+                                        {analytics.performanceAnalytics.strengths?.map((s, i) => (
+                                            <li key={i} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                                                <div className="flex items-center gap-2.5">
+                                                    <span className="w-1.5 h-6 rounded-full bg-emerald-400" />
+                                                    <span className="font-medium text-slate-800">{s.subject}</span>
+                                                </div>
+                                                <span className="text-emerald-700 font-semibold tabular-nums">{s.average} / 20</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </Card>
+
+                            <Card title={t('Focus areas')} accent="amber">
+                                {(analytics.performanceAnalytics.areas_for_improvement?.length ?? 0) === 0 ? (
+                                    <EmptyLine text={t('No focus areas at the moment.')} />
+                                ) : (
+                                    <ul className="space-y-3">
+                                        {analytics.performanceAnalytics.areas_for_improvement?.map((s, i) => (
+                                            <li key={i} className="pb-3 border-b border-slate-100 last:border-0">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-slate-800">{s.subject}</span>
+                                                    <span className="text-amber-700 font-semibold tabular-nums">{s.average} / 20</span>
+                                                </div>
+                                                {s.recommendation && (
+                                                    <p className="text-sm text-slate-500 mt-1">{s.recommendation}</p>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </Card>
+                        </section>
+
+                        {/* Attendance trend */}
+                        <section>
+                            <Card title={t('Attendance by month')}>
+                                {(analytics.attendanceAnalytics.monthly_trends?.length ?? 0) === 0 ? (
+                                    <EmptyLine text={t('No attendance data yet for this year.')} />
+                                ) : (
+                                    <div className="flex items-end gap-2 h-40 pt-2 overflow-x-auto">
+                                        {analytics.attendanceAnalytics.monthly_trends!.map((m, i) => {
+                                            const rate = parseFloat(m.attendance_rate as any) || 0;
+                                            const h = Math.max(4, Math.min(100, rate));
+                                            return (
+                                                <div key={i} className="flex flex-col items-center gap-1.5 min-w-[42px]">
+                                                    <div className="w-8 relative flex items-end justify-center" style={{ height: '100%' }}>
+                                                        <div
+                                                            className="w-full rounded-t-lg bg-gradient-to-t from-indigo-500 to-indigo-400 transition-all"
+                                                            style={{ height: `${h}%` }}
+                                                            title={`${m.attendance_rate}%`}
+                                                        />
+                                                    </div>
+                                                    <span className="text-[10px] font-medium text-slate-500">{m.month}</span>
+                                                    <span className="text-[10px] tabular-nums text-slate-700">{Math.round(rate)}%</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <div className="mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                                    <MetricInline label={t('Class absences')} value={analytics.attendanceAnalytics.class_absences ?? 0} />
+                                    <MetricInline label={t('Late arrivals')} value={analytics.attendanceAnalytics.morning_lateness ?? 0} />
+                                    <MetricInline label={t('Excused')} value={analytics.attendanceAnalytics.excused_count ?? 0} tone="emerald" />
+                                    <MetricInline label={t('Unexcused')} value={analytics.attendanceAnalytics.unexcused_count ?? 0} tone={analytics.attendanceAnalytics.at_risk ? 'rose' : 'slate'} />
+                                </div>
+                            </Card>
+                        </section>
+
+                        {/* Recent quizzes */}
+                        {(analytics.quizAnalytics.recent_quizzes?.length ?? 0) > 0 && (
+                            <section>
+                                <Card title={t('Recent quizzes')}>
+                                    <ul className="divide-y divide-slate-100">
+                                        {analytics.quizAnalytics.recent_quizzes!.map((q, i) => (
+                                            <li key={i} className="py-3 flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium text-slate-800">{q.quiz_title}</p>
+                                                    <p className="text-xs text-slate-500 mt-0.5">
+                                                        {q.subject}{q.date ? ` · ${q.date}` : ''}
+                                                    </p>
+                                                </div>
+                                                <span className="tabular-nums font-semibold text-slate-700">{q.score ?? '—'}%</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </Card>
+                            </section>
+                        )}
+                    </>
+                )}
+            </div>
         </div>
     );
-} 
+}
+
+// ─── Small presentational primitives (kept local — one-page use) ─────────────
+
+const StatTile = ({
+    icon, label, value, pill, pillClassName, subtext, subIcon,
+}: {
+    icon: React.ReactNode; label: string; value: string;
+    pill?: string; pillClassName?: string;
+    subtext?: string; subIcon?: React.ReactNode;
+}) => (
+    <div className="group rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm hover:shadow-md hover:ring-slate-300 transition-all p-5">
+        <div className="flex items-center justify-between mb-3">
+            <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 group-hover:bg-slate-900 group-hover:text-white transition-colors">
+                {icon}
+            </div>
+            {pill && <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${pillClassName}`}>{pill}</span>}
+        </div>
+        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
+        <p className="mt-1 text-2xl font-semibold text-slate-900 tabular-nums">{value}</p>
+        {subtext && (
+            <div className="mt-2 flex items-center gap-1 text-xs text-slate-500">
+                {subIcon} <span>{subtext}</span>
+            </div>
+        )}
+    </div>
+);
+
+const Card = ({ title, accent, children }: { title: string; accent?: 'emerald' | 'amber'; children: React.ReactNode }) => (
+    <div className="rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-sm overflow-hidden">
+        <div className="px-5 pt-5 pb-3 border-b border-slate-100 flex items-center gap-2">
+            {accent === 'emerald' && <span className="w-2 h-2 rounded-full bg-emerald-500" />}
+            {accent === 'amber' && <span className="w-2 h-2 rounded-full bg-amber-500" />}
+            <h3 className="font-semibold text-slate-900">{title}</h3>
+        </div>
+        <div className="p-5">{children}</div>
+    </div>
+);
+
+const EmptyLine = ({ text }: { text: string }) => (
+    <div className="flex items-center gap-2 text-sm text-slate-500 py-4">
+        <CheckCircleIcon className="w-4 h-4 text-slate-400" />
+        {text}
+    </div>
+);
+
+const MetricInline = ({ label, value, tone = 'slate' }: { label: string; value: number | string; tone?: 'slate' | 'emerald' | 'rose' }) => {
+    const map = {
+        slate: 'text-slate-800',
+        emerald: 'text-emerald-700',
+        rose: 'text-rose-700',
+    } as const;
+    return (
+        <div>
+            <p className="text-xs text-slate-500">{label}</p>
+            <p className={`text-lg font-semibold tabular-nums ${map[tone]}`}>{value}</p>
+        </div>
+    );
+};

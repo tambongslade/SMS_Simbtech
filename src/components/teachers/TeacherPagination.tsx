@@ -3,6 +3,7 @@
 import React from 'react';
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import type { TeacherSearchMeta } from '@/lib/teacherSearchApi';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface TeacherPaginationProps {
     meta: TeacherSearchMeta;
@@ -11,6 +12,7 @@ interface TeacherPaginationProps {
 }
 
 export const TeacherPagination: React.FC<TeacherPaginationProps> = ({ meta, onPageChange, isLoading }) => {
+    const { t } = useLanguage();
     if (meta.total === 0) return null;
 
     const first = (meta.page - 1) * meta.limit + 1;
@@ -21,7 +23,7 @@ export const TeacherPagination: React.FC<TeacherPaginationProps> = ({ meta, onPa
     return (
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white rounded-lg shadow-sm px-4 py-3 mt-4">
             <p className="text-sm text-gray-600">
-                Showing <span className="font-medium">{first}</span>–<span className="font-medium">{last}</span> of{' '}
+                {t('Showing')} <span className="font-medium">{first}</span>–<span className="font-medium">{last}</span> {t('of')}{' '}
                 <span className="font-medium">{meta.total}</span>
             </p>
             <div className="flex items-center gap-2">
@@ -32,10 +34,10 @@ export const TeacherPagination: React.FC<TeacherPaginationProps> = ({ meta, onPa
                     disabled={isLoading || meta.page <= 1}
                 >
                     <ChevronLeftIcon className="h-4 w-4 mr-1" />
-                    Previous
+                    {t('Previous')}
                 </button>
                 <span className="text-sm text-gray-600 px-1">
-                    Page {meta.page} of {meta.totalPages}
+                    {t('Page')} {meta.page} {t('of')} {meta.totalPages}
                 </span>
                 <button
                     type="button"
@@ -43,7 +45,7 @@ export const TeacherPagination: React.FC<TeacherPaginationProps> = ({ meta, onPa
                     onClick={() => onPageChange(meta.page + 1)}
                     disabled={isLoading || meta.page >= meta.totalPages}
                 >
-                    Next
+                    {t('Next')}
                     <ChevronRightIcon className="h-4 w-4 ml-1" />
                 </button>
             </div>

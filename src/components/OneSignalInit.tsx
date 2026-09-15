@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Initializes OneSignal push notifications inside the Capacitor mobile app.
 // The native shell injects the OneSignal Cordova plugin; on the plain website
@@ -43,6 +44,7 @@ interface PriorityAlert {
 
 export default function OneSignalInit() {
     const [alert, setAlert] = useState<PriorityAlert | null>(null);
+    const { t } = useLanguage();
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,7 +158,7 @@ export default function OneSignalInit() {
                     if (!urgent) return;
                     event.preventDefault?.();
                     setAlert({
-                        title: event.notification?.title ?? 'Urgent notification',
+                        title: event.notification?.title ?? t('Urgent notification'),
                         body: event.notification?.body ?? '',
                         actionUrl: data?.actionUrl,
                     });
@@ -211,7 +213,7 @@ export default function OneSignalInit() {
                         onClick={() => setAlert(null)}
                         className="rounded-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
                     >
-                        Dismiss
+                        {t('Dismiss')}
                     </button>
                     {alert.actionUrl && (
                         <button
@@ -223,7 +225,7 @@ export default function OneSignalInit() {
                             }}
                             className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
                         >
-                            View
+                            {t('View')}
                         </button>
                     )}
                 </div>

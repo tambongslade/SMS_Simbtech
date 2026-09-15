@@ -289,7 +289,21 @@ export const usePersonnelManagement = () => {
 
     try {
       await apiService.put(`/users/${userId}`, updateData);
-      toast.success("Personnel updated successfully!");
+
+      // The PUT /users/:id endpoint does not accept a password field from the personnel modal.
+      // If the admin typed a new password, persist it through the dedicated reset endpoint,
+      // which enforces min length and writes an audited PASSWORD_RESET row.
+      const newPassword = formData.password?.trim();
+      if (newPassword) {
+        if (newPassword.length < 8) {
+          toast.error("Password must be at least 8 characters long.");
+          return;
+        }
+        await apiService.post(`/users/${userId}/reset-password`, { newPassword });
+        toast.success("Personnel updated and password reset.");
+      } else {
+        toast.success("Personnel updated successfully!");
+      }
       closeModal();
       mutate();
     } catch (error: any) {

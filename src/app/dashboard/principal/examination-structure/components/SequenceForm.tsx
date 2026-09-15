@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SequenceFormProps {
     termId: number;
@@ -15,12 +16,13 @@ export const SequenceForm: React.FC<SequenceFormProps> = ({
     onCancel,
     isLoading,
 }) => {
+    const { t } = useLanguage();
     const [sequenceNumber, setSequenceNumber] = useState<number | ''>('');
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (sequenceNumber === '' || sequenceNumber <= 0) {
-            alert('Please enter a valid positive sequence number.'); // Replace with toast if available
+            alert(t('Please enter a valid positive sequence number.')); // Replace with toast if available
             return;
         }
 

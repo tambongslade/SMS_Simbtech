@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardDocumentCheckIcon, ExclamationCircleIcon, CheckCircleIcon, TrashIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import Link from 'next/link';
 
 // Define types for our data
@@ -46,6 +47,7 @@ const mockRemarks: Remark[] = [
 
 // Component that uses useSearchParams - needs to be wrapped in Suspense
 function RemarksPageContent() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const studentIdParam = searchParams.get('studentId');
   const actionParam = searchParams.get('action');
@@ -165,18 +167,18 @@ function RemarksPageContent() {
     if (!newRemark.studentId || !newRemark.content) {
       setToast({
         show: true,
-        message: 'Please select a student and enter remark content',
+        message: t('Please select a student and enter remark content'),
         type: 'error'
       });
       return;
     }
 
     const student = students.find(s => s.id === newRemark.studentId);
-    
+
     if (!student) {
       setToast({
         show: true,
-        message: 'Selected student not found',
+        message: t('Selected student not found'),
         type: 'error'
       });
       return;
@@ -211,10 +213,10 @@ function RemarksPageContent() {
     
     setToast({
       show: true,
-      message: 'Remark added successfully',
+      message: t('Remark added successfully'),
       type: 'success'
     });
-    
+
     setTimeout(() => setToast({ show: false, message: '', type: '' }), 3000);
   };
 
@@ -222,10 +224,10 @@ function RemarksPageContent() {
     const updatedRemarks = remarks.filter(remark => remark.id !== id);
     setRemarks(updatedRemarks);
     setFilteredRemarks(filteredRemarks.filter(remark => remark.id !== id));
-    
+
     setToast({
       show: true,
-      message: 'Remark deleted successfully',
+      message: t('Remark deleted successfully'),
       type: 'success'
     });
     
@@ -278,25 +280,25 @@ function RemarksPageContent() {
 
       <div className="flex flex-col md:flex-row md:items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Student Remarks</h1>
+          <h1 className="text-2xl font-bold">{t('Student Remarks')}</h1>
           <p className="text-gray-600 mt-1">
-            Add and manage remarks for student academic and behavioral progress
+            {t('Add and manage remarks for student academic and behavioral progress')}
           </p>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-3">
           <Link href="/dashboard/guidancecounselor">
             <Button className="bg-gray-200 text-gray-700 hover:bg-gray-300">
-              Dashboard
+              {t('Dashboard')}
             </Button>
           </Link>
           <Link href="/dashboard/guidancecounselor/students">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              Student Management
+              {t('Student Management')}
             </Button>
           </Link>
           <Link href="/dashboard/guidancecounselor/behavior">
             <Button className="bg-yellow-500 hover:bg-yellow-600 text-white">
-              Behavior Monitoring
+              {t('Behavior Monitoring')}
             </Button>
           </Link>
         </div>
@@ -306,33 +308,33 @@ function RemarksPageContent() {
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Search')}</label>
             <input
               type="text"
               className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search by student name, ID, or content..."
+              placeholder={t('Search by student name, ID, or content...')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type Filter</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Type Filter')}</label>
             <select
               className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={remarkFilter}
               onChange={(e) => setRemarkFilter(e.target.value)}
             >
-              <option value="all">All Types</option>
-              <option value="academic">Academic</option>
-              <option value="behavioral">Behavioral</option>
-              <option value="other">Other</option>
-              <option value="high">High Severity</option>
-              <option value="medium">Medium Severity</option>
-              <option value="low">Low Severity</option>
+              <option value="all">{t('All Types')}</option>
+              <option value="academic">{t('Academic')}</option>
+              <option value="behavioral">{t('Behavioral')}</option>
+              <option value="other">{t('Other')}</option>
+              <option value="high">{t('High Severity')}</option>
+              <option value="medium">{t('Medium Severity')}</option>
+              <option value="low">{t('Low Severity')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student Filter</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student Filter')}</label>
             <select
               className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               value={selectedStudent?.id || ''}
@@ -348,7 +350,7 @@ function RemarksPageContent() {
                 }
               }}
             >
-              <option value="">All Students</option>
+              <option value="">{t('All Students')}</option>
               {students.map((student) => (
                 <option key={student.id} value={student.id}>
                   {student.name} ({student.id})
@@ -364,12 +366,12 @@ function RemarksPageContent() {
         {/* Add Remark Button */}
         {!showAddRemarkForm && (
           <div className="flex justify-end">
-            <Button 
+            <Button
               onClick={() => setShowAddRemarkForm(true)}
               className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
             >
               <PlusIcon className="h-5 w-5 mr-2" />
-              Add New Remark
+              {t('Add New Remark')}
             </Button>
           </div>
         )}
@@ -378,17 +380,17 @@ function RemarksPageContent() {
         {showAddRemarkForm && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg font-bold">Add New Remark</CardTitle>
+              <CardTitle className="text-lg font-bold">{t('Add New Remark')}</CardTitle>
             </CardHeader>
             <CardBody>
               <div className="space-y-4">
                 <div ref={autocompleteRef} className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
                   <div className="relative">
                     <input
                       type="text"
                       className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Type to search for a student..."
+                      placeholder={t('Type to search for a student...')}
                       value={studentSearchTerm}
                       onChange={(e) => {
                         setStudentSearchTerm(e.target.value);
@@ -430,12 +432,12 @@ function RemarksPageContent() {
                   
                   {showSuggestions && studentSearchTerm && filteredStudents.length === 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white shadow-lg rounded-md border border-gray-200">
-                      <p className="px-4 py-2 text-gray-500">No students found</p>
+                      <p className="px-4 py-2 text-gray-500">{t('No students found')}</p>
                     </div>
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Remark Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Remark Type')}</label>
                   <select
                     className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newRemark.type}
@@ -444,13 +446,13 @@ function RemarksPageContent() {
                       type: e.target.value as 'Academic' | 'Behavioral' | 'Other'
                     })}
                   >
-                    <option value="Academic">Academic</option>
-                    <option value="Behavioral">Behavioral</option>
-                    <option value="Other">Other</option>
+                    <option value="Academic">{t('Academic')}</option>
+                    <option value="Behavioral">{t('Behavioral')}</option>
+                    <option value="Other">{t('Other')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Severity</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Severity')}</label>
                   <select
                     className="w-full p-2 border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     value={newRemark.severity}
@@ -459,13 +461,13 @@ function RemarksPageContent() {
                       severity: e.target.value as 'Low' | 'Medium' | 'High'
                     })}
                   >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
+                    <option value="Low">{t('Low')}</option>
+                    <option value="Medium">{t('Medium')}</option>
+                    <option value="High">{t('High')}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Remark Content</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('Remark Content')}</label>
                   <textarea
                     className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows={4}
@@ -474,7 +476,7 @@ function RemarksPageContent() {
                       ...newRemark,
                       content: e.target.value
                     })}
-                    placeholder="Enter detailed remarks about the student..."
+                    placeholder={t('Enter detailed remarks about the student...')}
                     required
                   ></textarea>
                 </div>
@@ -492,13 +494,13 @@ function RemarksPageContent() {
                     }}
                     className="bg-gray-200 text-gray-700 hover:bg-gray-300"
                   >
-                    Cancel
+                    {t('Cancel')}
                   </Button>
                   <Button
                     onClick={handleAddRemark}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
-                    Add Remark
+                    {t('Add Remark')}
                   </Button>
                 </div>
               </div>
@@ -511,9 +513,9 @@ function RemarksPageContent() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <div>
               <CardTitle className="text-lg font-bold">
-                {selectedStudent ? `Remarks for ${selectedStudent.name}` : 'All Remarks'}
+                {selectedStudent ? `${t('Remarks for')} ${selectedStudent.name}` : t('All Remarks')}
               </CardTitle>
-              <p className="text-xs text-gray-500">{filteredRemarks.length} remarks</p>
+              <p className="text-xs text-gray-500">{filteredRemarks.length} {t('remarks')}</p>
             </div>
           </CardHeader>
           <CardBody className="px-0">
@@ -545,7 +547,7 @@ function RemarksPageContent() {
                               remark.severity === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-red-100 text-red-800'
                             }`}>
-                              {remark.severity} Severity
+                              {remark.severity} {t('Severity')}
                             </span>
                           </div>
                           <p className="text-gray-700">{remark.content}</p>
@@ -565,14 +567,14 @@ function RemarksPageContent() {
               ) : (
                 <div className="text-center py-8">
                   <ClipboardDocumentCheckIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900">No remarks found</h3>
+                  <h3 className="text-lg font-medium text-gray-900">{t('No remarks found')}</h3>
                   <p className="mt-2 text-sm text-gray-500">
-                    {selectedStudent 
-                      ? `No remarks have been added for ${selectedStudent.name} yet.` 
-                      : 'No remarks match your search criteria.'}
+                    {selectedStudent
+                      ? `${t('No remarks have been added for')} ${selectedStudent.name}.`
+                      : t('No remarks match your search criteria.')}
                   </p>
                   <div className="mt-4">
-                    <Button 
+                    <Button
                       onClick={() => {
                         setShowAddRemarkForm(true);
                         if (selectedStudent) {
@@ -585,7 +587,7 @@ function RemarksPageContent() {
                       }}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
-                      Add a Remark
+                      {t('Add a Remark')}
                     </Button>
                   </div>
                 </div>

@@ -23,6 +23,7 @@ import {
   ReceiptRefundIcon,
   ChartBarIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -72,6 +73,7 @@ export const menuItems: MenuItemsStructure = {
         { label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Teacher Attendance', href: '/dashboard/principal/teacher-attendance', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
+        { label: 'Class Absences', href: '/dashboard/principal/absences', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
@@ -108,6 +110,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/discipline-master/dm-roll-call' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/discipline-master/teacher-attendance' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/discipline-master/absences' },
     { icon: ClipboardDocumentListIcon, label: 'Attendance & Lateness', href: '/dashboard/discipline-master/attendance' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/discipline-master/broken-property' },
@@ -164,6 +167,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
     { label: 'Discipline Overview', href: '/dashboard/super-manager/overview?module=discipline', icon: ClipboardDocumentListIcon },
+    { label: 'Class Absences', href: '/dashboard/super-manager/absences', icon: ExclamationTriangleIcon },
     { label: 'Report Requests', href: '/dashboard/super-manager/report-requests', icon: DocumentChartBarIcon },
     { label: 'Examination Structure', href: '/dashboard/super-manager/examination-structure', icon: CalendarDaysIcon },
     { label: 'Marks Management', href: '/dashboard/super-manager/marks-management', icon: ClipboardDocumentCheckIcon },
@@ -218,6 +222,7 @@ export const menuItems: MenuItemsStructure = {
         { label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls', icon: ChevronRightIcon },
         { label: 'Teacher Attendance', href: '/dashboard/vice-principal/teacher-attendance', icon: ChevronRightIcon },
         { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
+        { label: 'Class Absences', href: '/dashboard/vice-principal/absences', icon: ChevronRightIcon },
         { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
         { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
         { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
@@ -258,6 +263,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/dean-of-discipline/absences' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },

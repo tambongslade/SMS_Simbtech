@@ -16,6 +16,7 @@ import {
   ArrowTrendingDownIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { toast } from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
@@ -115,6 +116,7 @@ interface PrincipalDashboardData {
 
 export default function PrincipalDashboard() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [dashboardData, setDashboardData] = useState<PrincipalDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -130,7 +132,7 @@ export default function PrincipalDashboard() {
       setDashboardData(response.data);
     } catch (error) {
       console.error('Error fetching principal dashboard:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setIsLoading(false);
     }
@@ -173,37 +175,37 @@ export default function PrincipalDashboard() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Principal Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('Principal Dashboard')}</h1>
         <div className="text-sm text-gray-500">
-          Academic Year: {selectedAcademicYear?.name || 'Current'}
+          {t('Academic Year')}: {selectedAcademicYear?.name || t('Current')}
         </div>
       </div>
 
       {/* School Analytics Overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Total Students"
+          title={t('Total Students')}
           value={dashboardData?.schoolAnalytics.totalStudents?.toString() || '0'}
           icon={AcademicCapIcon}
           color="primary"
           className="bg-blue-50 border-blue-200"
         />
         <StatsCard
-          title="Total Teachers"
+          title={t('Total Teachers')}
           value={dashboardData?.schoolAnalytics.totalTeachers?.toString() || '0'}
           icon={UsersIcon}
           color="primary"
           className="bg-green-50 border-green-200"
         />
         <StatsCard
-          title="Total Classes"
+          title={t('Total Classes')}
           value={dashboardData?.schoolAnalytics.totalClasses?.toString() || '0'}
           icon={BuildingOffice2Icon}
           color="primary"
           className="bg-purple-50 border-purple-200"
         />
         <StatsCard
-          title="Active Exams"
+          title={t('Active Exams')}
           value={dashboardData?.schoolAnalytics.activeExamSequences?.toString() || '0'}
           icon={BookOpenIcon}
           color="primary"
@@ -214,28 +216,28 @@ export default function PrincipalDashboard() {
       {/* Performance Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Attendance Rate"
+          title={t('Attendance Rate')}
           value={`${dashboardData?.schoolAnalytics.averageAttendanceRate || 0}%`}
           icon={ClockIcon}
           color={dashboardData?.schoolAnalytics.averageAttendanceRate && dashboardData.schoolAnalytics.averageAttendanceRate > 85 ? "primary" : "secondary"}
           className="bg-indigo-50 border-indigo-200"
         />
         <StatsCard
-          title="Academic Performance"
+          title={t('Academic Performance')}
           value={`${dashboardData?.schoolAnalytics.overallAcademicPerformance || 0}%`}
           icon={ChartBarIcon}
           color={dashboardData?.schoolAnalytics.overallAcademicPerformance && dashboardData.schoolAnalytics.overallAcademicPerformance > 70 ? "primary" : "secondary"}
           className="bg-teal-50 border-teal-200"
         />
         <StatsCard
-          title="Fee Collection Rate"
+          title={t('Fee Collection Rate')}
           value={`${dashboardData?.schoolAnalytics.financialCollectionRate || 0}%`}
           icon={CurrencyDollarIcon}
           color={dashboardData?.schoolAnalytics.financialCollectionRate && dashboardData.schoolAnalytics.financialCollectionRate > 80 ? "primary" : "secondary"}
           className="bg-yellow-50 border-yellow-200"
         />
         <StatsCard
-          title="Discipline Issues"
+          title={t('Discipline Issues')}
           value={dashboardData?.schoolAnalytics.disciplineIssuesThisMonth?.toString() || '0'}
           icon={ExclamationTriangleIcon}
           color={dashboardData?.schoolAnalytics.disciplineIssuesThisMonth && dashboardData.schoolAnalytics.disciplineIssuesThisMonth > 10 ? "secondary" : "primary"}
@@ -253,20 +255,20 @@ export default function PrincipalDashboard() {
         {/* Academic Performance */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Academic Performance</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Academic Performance')}</h3>
           </CardHeader>
           <CardBody>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Overall Pass Rate:</span>
+                <span>{t('Overall Pass Rate')}:</span>
                 <span className="font-semibold">{dashboardData?.performanceMetrics.academicPerformance.overallPassRate || 0}%</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Average Grade:</span>
+                <span>{t('Average Grade')}:</span>
                 <span className="font-semibold">{dashboardData?.performanceMetrics.academicPerformance.averageGrade || 0}%</span>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Subject Performance:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Subject Performance')}:</h4>
                 <ul className="space-y-1">
                   {dashboardData?.performanceMetrics.academicPerformance.subjectPerformance.map((subject, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
@@ -277,7 +279,7 @@ export default function PrincipalDashboard() {
                 </ul>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Class Performance:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Class Performance')}:</h4>
                 <ul className="space-y-1">
                   {dashboardData?.performanceMetrics.academicPerformance.classPerformance.map((cls, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
@@ -294,28 +296,28 @@ export default function PrincipalDashboard() {
         {/* Financial Overview */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Financial Overview</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Financial Overview')}</h3>
           </CardHeader>
           <CardBody>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Total Expected Revenue:</span>
+                <span>{t('Total Expected Revenue')}:</span>
                 <span className="font-semibold">{formatCurrency(dashboardData?.financialOverview.totalExpectedRevenue || 0)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Total Collected Revenue:</span>
+                <span>{t('Total Collected Revenue')}:</span>
                 <span className="font-semibold">{formatCurrency(dashboardData?.financialOverview.totalCollectedRevenue || 0)}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Collection Rate:</span>
+                <span>{t('Collection Rate')}:</span>
                 <span className="font-semibold">{dashboardData?.financialOverview.collectionRate || 0}%</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Pending Payments:</span>
+                <span>{t('Pending Payments')}:</span>
                 <span className="font-semibold">{formatCurrency(dashboardData?.financialOverview.pendingPayments || 0)}</span>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Outstanding Debts:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Outstanding Debts')}:</h4>
                 <ul className="space-y-1">
                   {(dashboardData?.financialOverview.outstandingDebts || []).slice(0, 3).map((debt, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
@@ -324,7 +326,7 @@ export default function PrincipalDashboard() {
                     </li>
                   ))}
                   {dashboardData?.financialOverview.outstandingDebts && dashboardData.financialOverview.outstandingDebts.length > 3 && (
-                    <li className="text-xs text-gray-500 italic">and {dashboardData.financialOverview.outstandingDebts.length - 3} more...</li>
+                    <li className="text-xs text-gray-500 italic">{t('and')} {dashboardData.financialOverview.outstandingDebts.length - 3} {t('more...')}</li>
                   )}
                 </ul>
               </div>
@@ -335,28 +337,28 @@ export default function PrincipalDashboard() {
         {/* Discipline Overview */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Discipline Overview</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Discipline Overview')}</h3>
           </CardHeader>
           <CardBody>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Total Issues:</span>
+                <span>{t('Total Issues')}:</span>
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.totalIssues || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Resolved This Month:</span>
+                <span>{t('Resolved This Month')}:</span>
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.resolvedIssues || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Pending Resolution:</span>
+                <span>{t('Pending Resolution')}:</span>
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.pendingIssues || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Average Resolution Time:</span>
-                <span className="font-semibold">{dashboardData?.disciplineOverview?.averageResolutionTime || 0} days</span>
+                <span>{t('Average Resolution Time')}:</span>
+                <span className="font-semibold">{dashboardData?.disciplineOverview?.averageResolutionTime || 0} {t('days')}</span>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Issues by Type:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Issues by Type')}:</h4>
                 <ul className="space-y-1">
                   {(dashboardData?.disciplineOverview?.issuesByType || []).map((issue, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
@@ -373,24 +375,24 @@ export default function PrincipalDashboard() {
         {/* Staff Overview */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Staff Overview</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Staff Overview')}</h3>
           </CardHeader>
           <CardBody>
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span>Total Staff:</span>
+                <span>{t('Total Staff')}:</span>
                 <span className="font-semibold">{dashboardData?.staffOverview.totalStaff || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Total Teachers:</span>
+                <span>{t('Total Teachers')}:</span>
                 <span className="font-semibold">{dashboardData?.staffOverview.teacherCount || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>Administrative Staff:</span>
+                <span>{t('Administrative Staff')}:</span>
                 <span className="font-semibold">{dashboardData?.staffOverview.administrativeStaff || 0}</span>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">Staff Utilization:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Staff Utilization')}:</h4>
                 <ul className="space-y-1">
                   {dashboardData?.staffOverview.staffUtilization.map((staff, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
@@ -409,7 +411,7 @@ export default function PrincipalDashboard() {
       {dashboardData?.quickActions && dashboardData.quickActions.length > 0 && (
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Quick Actions')}</h3>
           </CardHeader>
           <CardBody>
             <div className="flex flex-wrap gap-3">

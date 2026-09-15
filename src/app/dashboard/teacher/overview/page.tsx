@@ -13,6 +13,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { toast } from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
@@ -92,6 +93,7 @@ interface CurrentAndNext {
 
 export default function TeacherDashboard() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [dashboardData, setDashboardData] = useState<TeacherDashboardData | null>(null);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [currentAndNext, setCurrentAndNext] = useState<CurrentAndNext | null>(null);
@@ -112,7 +114,7 @@ export default function TeacherDashboard() {
       setDashboardData(response.data);
     } catch (error) {
       console.error('Error fetching teacher dashboard:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +127,7 @@ export default function TeacherDashboard() {
       setSubjects(response.data || []);
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      toast.error('Failed to load subjects');
+      toast.error(t('Failed to load subjects'));
     }
   };
 
@@ -168,37 +170,37 @@ export default function TeacherDashboard() {
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('Teacher Dashboard')}</h1>
         <div className="text-sm text-gray-500">
-          Academic Year: {selectedAcademicYear?.name || 'Current'}
+          {t('Academic Year')}: {selectedAcademicYear?.name || t('Current')}
         </div>
       </div>
 
       {/* Teaching Overview Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Subjects Teaching"
+          title={t('Subjects Teaching')}
           value={dashboardData?.assignedSubjects?.toString() || '0'}
           icon={BookOpenIcon}
           color="primary"
           className="bg-blue-50 border-blue-200"
         />
         <StatsCard
-          title="Total Students"
+          title={t('Total Students')}
           value={dashboardData?.totalStudents?.toString() || '0'}
           icon={AcademicCapIcon}
           color="success"
           className="bg-green-50 border-green-200"
         />
         <StatsCard
-          title="Classes Taught"
+          title={t('Classes Taught')}
           value={dashboardData?.totalClasses?.toString() || '0'}
           icon={UserGroupIcon}
           color="primary"
           className="bg-purple-50 border-purple-200"
         />
         <StatsCard
-          title="Weekly Hours"
+          title={t('Weekly Hours')}
           value={`${(dashboardData?.weeklyHours ?? 0).toFixed(1)}h`}
           icon={ClockIcon}
           color="primary"
@@ -209,28 +211,28 @@ export default function TeacherDashboard() {
       {/* Performance Metrics */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Attendance Rate"
+          title={t('Attendance Rate')}
           value={`${dashboardData?.attendanceRate || 0}%`}
           icon={CheckCircleIcon}
           color={dashboardData?.attendanceRate && dashboardData.attendanceRate > 85 ? "success" : "danger"}
           className="bg-indigo-50 border-indigo-200"
         />
         <StatsCard
-          title="Marks to Enter"
+          title={t('Marks to Enter')}
           value={dashboardData?.marksToEnter?.toString() || '0'}
           icon={DocumentTextIcon}
           color={dashboardData?.marksToEnter && dashboardData.marksToEnter > 0 ? "danger" : "success"}
           className="bg-yellow-50 border-yellow-200"
         />
         <StatsCard
-          title="Upcoming Periods"
+          title={t('Upcoming Periods')}
           value={dashboardData?.upcomingPeriods?.toString() || '0'}
           icon={CalendarIcon}
           color="primary"
           className="bg-teal-50 border-teal-200"
         />
         <StatsCard
-          title="Total Hours/Week"
+          title={t('Total Hours/Week')}
           value={`${dashboardData?.totalHoursPerWeek || 0}h`}
           icon={ChartBarIcon}
           color="primary"
@@ -242,7 +244,7 @@ export default function TeacherDashboard() {
         {/* Current and Next Periods */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">Current Schedule</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('Current Schedule')}</h3>
           </CardHeader>
           <CardBody>
             {isLoadingTimetable ? (
@@ -256,10 +258,10 @@ export default function TeacherDashboard() {
                 {currentAndNext?.current ? (
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-green-900">Current Period</h4>
+                      <h4 className="font-medium text-green-900">{t('Current Period')}</h4>
                       {currentAndNext.current.isActive && (
                         <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
-                          {currentAndNext.current.minutesRemaining} min left
+                          {currentAndNext.current.minutesRemaining} {t('min left')}
                         </span>
                       )}
                     </div>
@@ -273,8 +275,8 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <h4 className="font-medium text-gray-700">No Current Period</h4>
-                    <p className="text-sm text-gray-600">You don't have a class right now</p>
+                    <h4 className="font-medium text-gray-700">{t('No Current Period')}</h4>
+                    <p className="text-sm text-gray-600">{t("You don't have a class right now")}</p>
                   </div>
                 )}
 
@@ -282,9 +284,9 @@ export default function TeacherDashboard() {
                 {currentAndNext?.next ? (
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-blue-900">Next Period</h4>
+                      <h4 className="font-medium text-blue-900">{t('Next Period')}</h4>
                       <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                        {currentAndNext.next.isToday ? `in ${currentAndNext.next.minutesToStart} min` : currentAndNext.next.period.dayOfWeek}
+                        {currentAndNext.next.isToday ? `${t('in')} ${currentAndNext.next.minutesToStart} ${t('min')}` : currentAndNext.next.period.dayOfWeek}
                       </span>
                     </div>
                     <p className="text-sm text-blue-800">{currentAndNext.next.subject.name}</p>
@@ -297,8 +299,8 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                    <h4 className="font-medium text-gray-700">No Next Period</h4>
-                    <p className="text-sm text-gray-600">No upcoming classes scheduled</p>
+                    <h4 className="font-medium text-gray-700">{t('No Next Period')}</h4>
+                    <p className="text-sm text-gray-600">{t('No upcoming classes scheduled')}</p>
                   </div>
                 )}
               </div>
@@ -309,7 +311,7 @@ export default function TeacherDashboard() {
         {/* My Subjects */}
         <Card>
           <CardHeader>
-            <h3 className="text-lg font-medium text-gray-900">My Subjects</h3>
+            <h3 className="text-lg font-medium text-gray-900">{t('My Subjects')}</h3>
           </CardHeader>
           <CardBody>
             {subjects.length > 0 ? (
@@ -322,25 +324,25 @@ export default function TeacherDashboard() {
                       <div className="mt-2 text-sm text-gray-600">
                         {(subject.subclasses || []).map((sc, index) => (
                           <span key={sc.id}>
-                            {sc.className} - {sc.name} ({sc.studentCount} students)
+                            {sc.className} - {sc.name} ({sc.studentCount} {t('students')})
                             {index < (subject.subclasses || []).length - 1 && ', '}
                           </span>
                         ))}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-blue-600">Coeff: {subject.coefficient}</span>
+                      <span className="text-sm font-medium text-blue-600">{t('Coeff')}: {subject.coefficient}</span>
                     </div>
                   </div>
                 ))}
                 {subjects.length > 5 && (
                   <p className="text-sm text-gray-500 text-center">
-                    ... and {subjects.length - 5} more subjects
+                    ... {t('and')} {subjects.length - 5} {t('more subjects')}
                   </p>
                 )}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No subjects assigned</p>
+              <p className="text-gray-500 text-center py-4">{t('No subjects assigned')}</p>
             )}
           </CardBody>
         </Card>
@@ -349,7 +351,7 @@ export default function TeacherDashboard() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('Quick Actions')}</h3>
         </CardHeader>
         <CardBody>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -358,32 +360,32 @@ export default function TeacherDashboard() {
               className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition-colors"
             >
               <BookOpenIcon className="w-8 h-8 text-blue-600 mb-2" />
-              <h4 className="font-medium text-gray-900">My Subjects</h4>
-              <p className="text-sm text-gray-600">View subjects and classes</p>
+              <h4 className="font-medium text-gray-900">{t('My Subjects')}</h4>
+              <p className="text-sm text-gray-600">{t('View subjects and classes')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/teacher/students'}
               className="p-4 bg-green-50 hover:bg-green-100 rounded-lg text-left transition-colors"
             >
               <AcademicCapIcon className="w-8 h-8 text-green-600 mb-2" />
-              <h4 className="font-medium text-gray-900">My Students</h4>
-              <p className="text-sm text-gray-600">View and manage students</p>
+              <h4 className="font-medium text-gray-900">{t('My Students')}</h4>
+              <p className="text-sm text-gray-600">{t('View and manage students')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/teacher/submit-marks'}
               className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-left transition-colors"
             >
               <DocumentTextIcon className="w-8 h-8 text-purple-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Submit Marks</h4>
-              <p className="text-sm text-gray-600">Enter student marks</p>
+              <h4 className="font-medium text-gray-900">{t('Submit Marks')}</h4>
+              <p className="text-sm text-gray-600">{t('Enter student marks')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/teacher/timetable'}
               className="p-4 bg-orange-50 hover:bg-orange-100 rounded-lg text-left transition-colors"
             >
               <CalendarIcon className="w-8 h-8 text-orange-600 mb-2" />
-              <h4 className="font-medium text-gray-900">My Timetable</h4>
-              <p className="text-sm text-gray-600">View teaching schedule</p>
+              <h4 className="font-medium text-gray-900">{t('My Timetable')}</h4>
+              <p className="text-sm text-gray-600">{t('View teaching schedule')}</p>
             </button>
           </div>
         </CardBody>

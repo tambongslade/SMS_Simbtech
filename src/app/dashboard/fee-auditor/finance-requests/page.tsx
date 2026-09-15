@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { Tabs } from '@/components/ui';
 import {
   FinanceRequestsPanel,
@@ -10,14 +11,14 @@ import {
 
 export default function FeeAuditorFinanceRequestsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Expense Requisition</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Expense Requisition')}</h1>
         <p className="text-gray-600 mt-1 text-sm">
-          Ask the Bursar for money you need, and audit every fee reduction, disbursement and bank
-          verification across the school.
+          {t('Ask the Bursar for money you need, and audit every fee reduction, disbursement and bank verification across the school.')}
         </p>
       </div>
 
@@ -26,11 +27,11 @@ export default function FeeAuditorFinanceRequestsPage() {
           ...(user?.id ? requesterTabs(user.id) : []),
           {
             id: 'all',
-            label: 'All Requests',
+            label: t('All Requests'),
             content: (
               <FinanceRequestsPanel
-                title="All Expense Requisitions"
-                description="Read-only audit view. You can also clear bank verifications you have checked."
+                title={t('All Expense Requisitions')}
+                description={t('Read-only audit view. You can also clear bank verifications you have checked.')}
                 showTypeFilter
                 showStatusFilter
               />

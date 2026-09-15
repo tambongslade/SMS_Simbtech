@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { SubClass } from '../types/class';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Local Teacher type definition for the props
 type Teacher = {
@@ -17,6 +18,7 @@ interface SubClassFormProps {
 }
 
 export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, className, teachers }: SubClassFormProps) {
+  const { t } = useLanguage();
   const [name, setName] = useState(initialData?.name || '');
   const [classMasterId, setClassMasterId] = useState<number | null>(initialData?.classMasterId || null);
 
@@ -71,7 +73,7 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      alert('Subclass name cannot be empty.'); // Use toast in real app
+      alert(t('Subclass name cannot be empty.')); // Use toast in real app
       return;
     }
     onSubmit({
@@ -83,10 +85,10 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="text-lg font-semibold text-gray-800">
-        {initialData?.id ? 'Edit Subclass' : `Add New Subclass${className ? ` to ${className}` : ''}`}
+        {initialData?.id ? t('Edit Subclass') : `${t('Add New Subclass')}${className ? ` ${t('to')} ${className}` : ''}`}
       </h3>
       <div>
-        <label htmlFor="subclassName" className="block text-sm font-medium text-gray-700">Subclass Name *</label>
+        <label htmlFor="subclassName" className="block text-sm font-medium text-gray-700">{t('Subclass Name')} *</label>
         <input
           type="text"
           id="subclassName"
@@ -95,13 +97,13 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
           onChange={(e) => setName(e.target.value)}
           required
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="e.g., A, B, Blue, Gold"
+          placeholder={t('e.g., A, B, Blue, Gold')}
         />
       </div>
 
       {/* Class Master Selection */}
       <div className="relative" ref={searchRef}>
-        <label htmlFor="classMasterSearch" className="block text-sm font-medium text-gray-700">Class Master (Optional)</label>
+        <label htmlFor="classMasterSearch" className="block text-sm font-medium text-gray-700">{t('Class Master (Optional)')}</label>
         <input
           type="text"
           id="classMasterSearch"
@@ -110,7 +112,7 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
           onChange={handleSearchChange}
           onFocus={() => setIsDropdownOpen(!!searchTerm)}
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          placeholder="Search for a teacher..."
+          placeholder={t('Search for a teacher...')}
           disabled={isLoading || teachers.length === 0}
           autoComplete="off"
         />
@@ -129,12 +131,12 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
                 ))}
               </ul>
             ) : (
-              <div className="px-4 py-2 text-gray-500">No teachers found.</div>
+              <div className="px-4 py-2 text-gray-500">{t('No teachers found.')}</div>
             )}
           </div>
         )}
         {teachers.length === 0 && !isLoading && (
-          <p className="text-xs text-red-600 mt-1">Teacher list unavailable.</p>
+          <p className="text-xs text-red-600 mt-1">{t('Teacher list unavailable.')}</p>
         )}
       </div>
 
@@ -146,14 +148,14 @@ export function SubClassForm({ initialData, onSubmit, isLoading, onCancel, class
           className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors"
           disabled={isLoading}
         >
-          Cancel
+          {t('Cancel')}
         </button>
         <button
           type="submit"
           className={`text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 ${initialData?.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'}`}
           disabled={isLoading}
         >
-          {isLoading ? 'Saving...' : (initialData?.id ? 'Update Subclass' : 'Add Subclass')}
+          {isLoading ? t('Saving...') : (initialData?.id ? t('Update Subclass') : t('Add Subclass'))}
         </button>
       </div>
     </form>

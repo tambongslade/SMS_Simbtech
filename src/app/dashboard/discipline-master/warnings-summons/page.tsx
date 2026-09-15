@@ -20,6 +20,7 @@ import {
   updateSummons,
 } from '@/lib/disciplineExtApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SubClassOption {
   id: number;
@@ -30,7 +31,7 @@ interface SubClassOption {
 // Escalation dots: level 1 fires at ≥3 unexcused absences, 2 at ≥6, 3 at ≥9
 function WarningLevelDots({ level }: { level: number }) {
   return (
-    <span className="inline-flex items-center gap-1" title={`Warning level ${level}`}>
+    <span className="inline-flex items-center gap-1" title={`Level ${level}`}>
       {[1, 2, 3].map(i => (
         <span
           key={i}
@@ -68,6 +69,7 @@ function StudentEnrollmentSearch({
   selectedLabel: string | null;
   onClear: () => void;
 }) {
+  const { t } = useLanguage();
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
@@ -93,8 +95,8 @@ function StudentEnrollmentSearch({
   if (selectedLabel) {
     return (
       <div className="flex items-center justify-between p-2 border rounded bg-gray-50">
-        <span className="text-sm text-gray-700">Selected: {selectedLabel}</span>
-        <button type="button" className="text-blue-600 text-sm" onClick={onClear}>Change</button>
+        <span className="text-sm text-gray-700">{t('Selected')}: {selectedLabel}</span>
+        <button type="button" className="text-blue-600 text-sm" onClick={onClear}>{t('Change')}</button>
       </div>
     );
   }
@@ -105,10 +107,10 @@ function StudentEnrollmentSearch({
         type="text"
         value={term}
         onChange={e => setTerm(e.target.value)}
-        placeholder="Search student (min 3 characters)…"
+        placeholder={t('Search student (min 3 characters)…')}
         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
       />
-      {searching && <p className="text-xs text-gray-400 mt-1">Searching…</p>}
+      {searching && <p className="text-xs text-gray-400 mt-1">{t('Searching…')}</p>}
       {results.length > 0 && (
         <div className="mt-1 border border-gray-200 rounded-md max-h-40 overflow-y-auto">
           {results.map((s: any) => {
@@ -122,11 +124,11 @@ function StudentEnrollmentSearch({
                 key={s.id}
                 type="button"
                 disabled={!enrollmentId}
-                onClick={() => enrollmentId && onSelect(enrollmentId, `${s.name} (${s.matricule || 'no matricule'})`)}
+                onClick={() => enrollmentId && onSelect(enrollmentId, `${s.name} (${s.matricule || t('no matricule')})`)}
                 className="w-full text-left p-2 text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0 disabled:opacity-50"
               >
                 {s.name} {s.matricule ? `(${s.matricule})` : ''} {cls && <span className="text-gray-400">— {cls}</span>}
-                {!enrollmentId && <span className="text-red-400 ml-1">not enrolled</span>}
+                {!enrollmentId && <span className="text-red-400 ml-1">{t('not enrolled')}</span>}
               </button>
             );
           })}
@@ -137,6 +139,7 @@ function StudentEnrollmentSearch({
 }
 
 export default function WarningsSummonsPage() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'warnings' | 'summons'>('warnings');
   const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
   const [subClassFilter, setSubClassFilter] = useState<number | ''>('');
@@ -176,7 +179,7 @@ export default function WarningsSummonsPage() {
       });
       setWarnings(data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load warnings.');
+      toast.error(error.message || t('Failed to load warnings.'));
     } finally {
       setIsLoadingWarnings(false);
     }
@@ -191,7 +194,7 @@ export default function WarningsSummonsPage() {
       });
       setSummons(data);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load summons.');
+      toast.error(error.message || t('Failed to load summons.'));
     } finally {
       setIsLoadingSummons(false);
     }
@@ -205,12 +208,12 @@ export default function WarningsSummonsPage() {
     setIsSaving(true);
     try {
       await resolveWarning(resolveTarget.id, resolveNotes);
-      toast.success('Warning resolved.');
+      toast.success(t('Warning resolved.'));
       setResolveTarget(null);
       setResolveNotes('');
       refreshWarnings();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to resolve warning.');
+      toast.error(error.message || t('Failed to resolve warning.'));
     } finally {
       setIsSaving(false);
     }
@@ -230,9 +233,9 @@ export default function WarningsSummonsPage() {
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Warnings & Parent Summons</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Warnings & Parent Summons')}</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Automatic and manual discipline follow-up. Excused absences reverse related warnings and summons automatically.
+            {t('Automatic and manual discipline follow-up. Excused absences reverse related warnings and summons automatically.')}
           </p>
         </div>
         <button
@@ -240,7 +243,7 @@ export default function WarningsSummonsPage() {
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium"
         >
           <PlusIcon className="w-4 h-4" />
-          {activeTab === 'warnings' ? 'New Warning' : 'New Summons'}
+          {activeTab === 'warnings' ? t('New Warning') : t('New Summons')}
         </button>
       </div>
 
@@ -254,7 +257,7 @@ export default function WarningsSummonsPage() {
               activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
-            {tab === 'warnings' ? `Warnings (${warnings.length})` : `Summons (${summons.length})`}
+            {tab === 'warnings' ? `${t('Warnings')} (${warnings.length})` : `${t('Summons')} (${summons.length})`}
           </button>
         ))}
       </div>
@@ -262,13 +265,13 @@ export default function WarningsSummonsPage() {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-4 items-end">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Sub-class</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Sub-class')}</label>
           <select
             value={subClassFilter}
             onChange={e => setSubClassFilter(Number(e.target.value) || '')}
             className="rounded-md border-gray-300 border px-3 py-2 text-sm"
           >
-            <option value="">All sub-classes</option>
+            <option value="">{t('All sub-classes')}</option>
             {subClasses.map(s => (
               <option key={s.id} value={s.id}>{s.className ? `${s.className} — ${s.name}` : s.name}</option>
             ))}
@@ -276,27 +279,27 @@ export default function WarningsSummonsPage() {
         </div>
         {activeTab === 'warnings' ? (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Status')}</label>
             <select
               value={warningsResolvedFilter}
               onChange={e => setWarningsResolvedFilter(e.target.value as any)}
               className="rounded-md border-gray-300 border px-3 py-2 text-sm"
             >
-              <option value="false">Unresolved (action needed)</option>
-              <option value="true">Resolved</option>
-              <option value="all">All</option>
+              <option value="false">{t('Unresolved (action needed)')}</option>
+              <option value="true">{t('Resolved')}</option>
+              <option value="all">{t('All')}</option>
             </select>
           </div>
         ) : (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Status')}</label>
             <select
               value={summonsStatusFilter}
               onChange={e => setSummonsStatusFilter(e.target.value as any)}
               className="rounded-md border-gray-300 border px-3 py-2 text-sm"
             >
               {SUMMONS_STATUSES.map(s => <option key={s} value={s}>{enumLabel(s)}</option>)}
-              <option value="all">All</option>
+              <option value="all">{t('All')}</option>
             </select>
           </div>
         )}
@@ -304,7 +307,7 @@ export default function WarningsSummonsPage() {
           onClick={() => (activeTab === 'warnings' ? refreshWarnings() : refreshSummons())}
           className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
         >
-          <ArrowPathIcon className="w-4 h-4" /> Refresh
+          <ArrowPathIcon className="w-4 h-4" /> {t('Refresh')}
         </button>
       </div>
 
@@ -312,21 +315,21 @@ export default function WarningsSummonsPage() {
       {activeTab === 'warnings' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isLoadingWarnings ? (
-            <p className="p-6 text-gray-500">Loading warnings…</p>
+            <p className="p-6 text-gray-500">{t('Loading warnings…')}</p>
           ) : warnings.length === 0 ? (
-            <p className="p-6 text-gray-500 text-center">No warnings found.</p>
+            <p className="p-6 text-gray-500 text-center">{t('No warnings found.')}</p>
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Level</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Issued</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Student')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Level')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Reason')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Description')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Issued')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -338,7 +341,7 @@ export default function WarningsSummonsPage() {
                       <td className="px-4 py-3 text-sm text-gray-600 max-w-xs">
                         <p className="line-clamp-2">{w.description}</p>
                         {w.resolved && w.resolvedNotes && (
-                          <p className="text-xs text-green-700 mt-1">Resolved: {w.resolvedNotes}</p>
+                          <p className="text-xs text-green-700 mt-1">{t('Resolved')}: {w.resolvedNotes}</p>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
@@ -347,13 +350,13 @@ export default function WarningsSummonsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {w.resolved ? (
-                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Resolved</span>
+                          <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">{t('Resolved')}</span>
                         ) : (
                           <button
                             onClick={() => { setResolveTarget(w); setResolveNotes(''); }}
                             className="px-3 py-1 text-sm text-green-700 border border-green-200 rounded-md hover:bg-green-50"
                           >
-                            Resolve
+                            {t('Resolve')}
                           </button>
                         )}
                       </td>
@@ -371,24 +374,24 @@ export default function WarningsSummonsPage() {
                     {w.enrollment?.subClass?.class?.name ? ` · ${w.enrollment.subClass.class.name}${w.enrollment.subClass.name ? ` ${w.enrollment.subClass.name}` : ''}` : ''}
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Level</span>
+                    <span className="text-xs text-gray-500">{t('Level')}</span>
                     <span className="text-sm text-gray-900 text-right break-words"><WarningLevelDots level={w.warningLevel} /></span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-xs text-gray-500">{t('Reason')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">{enumLabel(w.reason)}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Description</span>
+                    <span className="text-xs text-gray-500">{t('Description')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       <p className="line-clamp-2">{w.description}</p>
                       {w.resolved && w.resolvedNotes && (
-                        <p className="text-xs text-green-700 mt-1">Resolved: {w.resolvedNotes}</p>
+                        <p className="text-xs text-green-700 mt-1">{t('Resolved')}: {w.resolvedNotes}</p>
                       )}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Issued</span>
+                    <span className="text-xs text-gray-500">{t('Issued')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '—'}
                       {w.issuedBy?.name && <div className="text-xs">{w.issuedBy.name}</div>}
@@ -396,13 +399,13 @@ export default function WarningsSummonsPage() {
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1.5">
                     {w.resolved ? (
-                      <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">Resolved</span>
+                      <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-800">{t('Resolved')}</span>
                     ) : (
                       <button
                         onClick={() => { setResolveTarget(w); setResolveNotes(''); }}
                         className="px-3 py-1 text-sm text-green-700 border border-green-200 rounded-md hover:bg-green-50"
                       >
-                        Resolve
+                        {t('Resolve')}
                       </button>
                     )}
                   </div>
@@ -418,21 +421,21 @@ export default function WarningsSummonsPage() {
       {activeTab === 'summons' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isLoadingSummons ? (
-            <p className="p-6 text-gray-500">Loading summons…</p>
+            <p className="p-6 text-gray-500">{t('Loading summons…')}</p>
           ) : summons.length === 0 ? (
-            <p className="p-6 text-gray-500 text-center">No summons found.</p>
+            <p className="p-6 text-gray-500 text-center">{t('No summons found.')}</p>
           ) : (
             <>
             <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Parent</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reason</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Scheduled</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Student')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Parent')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Reason')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Status')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Scheduled')}</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -451,7 +454,7 @@ export default function WarningsSummonsPage() {
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
                         {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString() : '—'}
                         {s.attended != null && (
-                          <div className="text-xs">{s.attended ? 'Parent attended' : 'Parent did not attend'}</div>
+                          <div className="text-xs">{s.attended ? t('Parent attended') : t('Parent did not attend')}</div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -459,7 +462,7 @@ export default function WarningsSummonsPage() {
                           onClick={() => setEditSummons(s)}
                           className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50"
                         >
-                          Update
+                          {t('Update')}
                         </button>
                       </td>
                     </tr>
@@ -476,29 +479,29 @@ export default function WarningsSummonsPage() {
                     {s.enrollment?.subClass?.class?.name ? ` · ${s.enrollment.subClass.class.name}${s.enrollment.subClass.name ? ` ${s.enrollment.subClass.name}` : ''}` : ''}
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Parent</span>
+                    <span className="text-xs text-gray-500">{t('Parent')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {s.parent?.name || '—'}
                       {s.parent?.phone && <div className="text-xs text-gray-500">{s.parent.phone}</div>}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Reason</span>
+                    <span className="text-xs text-gray-500">{t('Reason')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       <p className="line-clamp-2">{s.reason}</p>
                       <p className="text-xs text-gray-400">{enumLabel(s.triggerType)}</p>
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Status</span>
+                    <span className="text-xs text-gray-500">{t('Status')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">{summonsStatusBadge(s.status)}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Scheduled</span>
+                    <span className="text-xs text-gray-500">{t('Scheduled')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString() : '—'}
                       {s.attended != null && (
-                        <div className="text-xs">{s.attended ? 'Parent attended' : 'Parent did not attend'}</div>
+                        <div className="text-xs">{s.attended ? t('Parent attended') : t('Parent did not attend')}</div>
                       )}
                     </span>
                   </div>
@@ -507,7 +510,7 @@ export default function WarningsSummonsPage() {
                       onClick={() => setEditSummons(s)}
                       className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50"
                     >
-                      Update
+                      {t('Update')}
                     </button>
                   </div>
                 </div>
@@ -545,22 +548,22 @@ export default function WarningsSummonsPage() {
             <button onClick={() => setResolveTarget(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-semibold mb-1">Resolve Warning</h3>
+            <h3 className="text-lg font-semibold mb-1">{t('Resolve Warning')}</h3>
             <p className="text-sm text-gray-500 mb-4">
-              {resolveTarget.enrollment?.student?.name} — level {resolveTarget.warningLevel}, {enumLabel(resolveTarget.reason)}
+              {resolveTarget.enrollment?.student?.name} — {t('Level').toLowerCase()} {resolveTarget.warningLevel}, {enumLabel(resolveTarget.reason)}
             </p>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Resolution notes</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Resolution notes')}</label>
             <textarea
               value={resolveNotes}
               onChange={e => setResolveNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="e.g. Behaviour improved; case closed"
+              placeholder={t('e.g. Behaviour improved; case closed')}
             />
             <div className="flex justify-end gap-2 mt-4">
-              <button onClick={() => setResolveTarget(null)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">Cancel</button>
+              <button onClick={() => setResolveTarget(null)} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">{t('Cancel')}</button>
               <button onClick={handleResolve} disabled={isSaving} className="px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:opacity-50">
-                {isSaving ? 'Saving…' : 'Resolve'}
+                {isSaving ? t('Saving…') : t('Resolve')}
               </button>
             </div>
           </div>
@@ -571,6 +574,7 @@ export default function WarningsSummonsPage() {
 }
 
 function CreateWarningModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useLanguage();
   const [enrollmentId, setEnrollmentId] = useState<number | null>(null);
   const [studentLabel, setStudentLabel] = useState<string | null>(null);
   const [level, setLevel] = useState(1);
@@ -584,10 +588,10 @@ function CreateWarningModal({ onClose, onCreated }: { onClose: () => void; onCre
     setIsSaving(true);
     try {
       await createWarning({ enrollmentId, warningLevel: level, reason, description });
-      toast.success('Warning created.');
+      toast.success(t('Warning created.'));
       onCreated();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create warning.');
+      toast.error(error.message || t('Failed to create warning.'));
     } finally {
       setIsSaving(false);
     }
@@ -599,10 +603,10 @@ function CreateWarningModal({ onClose, onCreated }: { onClose: () => void; onCre
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-5 h-5" />
         </button>
-        <h3 className="text-lg font-semibold mb-4">New Warning</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('New Warning')}</h3>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
             <StudentEnrollmentSearch
               selectedLabel={studentLabel}
               onSelect={(id, label) => { setEnrollmentId(id); setStudentLabel(label); }}
@@ -611,33 +615,33 @@ function CreateWarningModal({ onClose, onCreated }: { onClose: () => void; onCre
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Level</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Level')}</label>
               <select value={level} onChange={e => setLevel(Number(e.target.value))} className="w-full rounded-md border-gray-300 border px-3 py-2 text-sm">
-                {[1, 2, 3].map(l => <option key={l} value={l}>Level {l}</option>)}
+                {[1, 2, 3].map(l => <option key={l} value={l}>{t('Level')} {l}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Reason')}</label>
               <select value={reason} onChange={e => setReason(e.target.value as WarningReason)} className="w-full rounded-md border-gray-300 border px-3 py-2 text-sm">
                 {WARNING_REASONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Description')}</label>
             <textarea
               value={description}
               onChange={e => setDescription(e.target.value)}
               rows={3}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="e.g. Disrupted class during math"
+              placeholder={t('e.g. Disrupted class during math')}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">{t('Cancel')}</button>
             <button type="submit" disabled={isSaving || !enrollmentId || !description.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
-              {isSaving ? 'Saving…' : 'Create Warning'}
+              {isSaving ? t('Saving…') : t('Create Warning')}
             </button>
           </div>
         </form>
@@ -647,6 +651,7 @@ function CreateWarningModal({ onClose, onCreated }: { onClose: () => void; onCre
 }
 
 function CreateSummonsModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const { t } = useLanguage();
   const [enrollmentId, setEnrollmentId] = useState<number | null>(null);
   const [studentLabel, setStudentLabel] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -663,10 +668,10 @@ function CreateSummonsModal({ onClose, onCreated }: { onClose: () => void; onCre
         reason,
         scheduledDate: scheduledDate || undefined,
       });
-      toast.success('Summons created. Parent defaults to father, then mother, then any linked parent.');
+      toast.success(t('Summons created. Parent defaults to father, then mother, then any linked parent.'));
       onCreated();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create summons.');
+      toast.error(error.message || t('Failed to create summons.'));
     } finally {
       setIsSaving(false);
     }
@@ -678,10 +683,10 @@ function CreateSummonsModal({ onClose, onCreated }: { onClose: () => void; onCre
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-5 h-5" />
         </button>
-        <h3 className="text-lg font-semibold mb-4">New Parent Summons</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('New Parent Summons')}</h3>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Student</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Student')}</label>
             <StudentEnrollmentSearch
               selectedLabel={studentLabel}
               onSelect={(id, label) => { setEnrollmentId(id); setStudentLabel(label); }}
@@ -689,18 +694,18 @@ function CreateSummonsModal({ onClose, onCreated }: { onClose: () => void; onCre
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Reason')}</label>
             <textarea
               value={reason}
               onChange={e => setReason(e.target.value)}
               rows={3}
               required
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="e.g. Discuss chronic misconduct"
+              placeholder={t('e.g. Discuss chronic misconduct')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled date (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Scheduled date (optional)')}</label>
             <input
               type="date"
               value={scheduledDate}
@@ -709,9 +714,9 @@ function CreateSummonsModal({ onClose, onCreated }: { onClose: () => void; onCre
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">{t('Cancel')}</button>
             <button type="submit" disabled={isSaving || !enrollmentId || !reason.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
-              {isSaving ? 'Saving…' : 'Create Summons'}
+              {isSaving ? t('Saving…') : t('Create Summons')}
             </button>
           </div>
         </form>
@@ -729,6 +734,7 @@ function UpdateSummonsModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { t } = useLanguage();
   const [status, setStatus] = useState<SummonsStatus>(summons.status);
   const [scheduledDate, setScheduledDate] = useState(
     summons.scheduledDate ? new Date(summons.scheduledDate).toISOString().slice(0, 16) : ''
@@ -749,10 +755,10 @@ function UpdateSummonsModal({
         meetingNotes: meetingNotes || undefined,
         attended: attended === '' ? undefined : attended === 'true',
       });
-      toast.success('Summons updated.');
+      toast.success(t('Summons updated.'));
       onSaved();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update summons.');
+      toast.error(error.message || t('Failed to update summons.'));
     } finally {
       setIsSaving(false);
     }
@@ -764,29 +770,29 @@ function UpdateSummonsModal({
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-5 h-5" />
         </button>
-        <h3 className="text-lg font-semibold mb-1">Update Summons</h3>
+        <h3 className="text-lg font-semibold mb-1">{t('Update Summons')}</h3>
         <p className="text-sm text-gray-500 mb-4">
-          {summons.enrollment?.student?.name} · {summons.parent?.name || 'No parent linked'}
+          {summons.enrollment?.student?.name} · {summons.parent?.name || t('No parent linked')}
         </p>
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Status')}</label>
               <select value={status} onChange={e => setStatus(e.target.value as SummonsStatus)} className="w-full rounded-md border-gray-300 border px-3 py-2 text-sm">
                 {SUMMONS_STATUSES.map(s => <option key={s} value={s}>{enumLabel(s)}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Parent attended?</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Parent attended?')}</label>
               <select value={attended} onChange={e => setAttended(e.target.value as any)} className="w-full rounded-md border-gray-300 border px-3 py-2 text-sm">
-                <option value="">Not set</option>
-                <option value="true">Yes</option>
-                <option value="false">No</option>
+                <option value="">{t('Not set')}</option>
+                <option value="true">{t('Yes')}</option>
+                <option value="false">{t('No')}</option>
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Scheduled date & time (empty clears it)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Scheduled date & time (empty clears it)')}</label>
             <input
               type="datetime-local"
               value={scheduledDate}
@@ -795,19 +801,19 @@ function UpdateSummonsModal({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Meeting notes</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Meeting notes')}</label>
             <textarea
               value={meetingNotes}
               onChange={e => setMeetingNotes(e.target.value)}
               rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-              placeholder="e.g. Parent agreed to home-based reinforcement plan"
+              placeholder={t('e.g. Parent agreed to home-based reinforcement plan')}
             />
           </div>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">{t('Cancel')}</button>
             <button type="submit" disabled={isSaving} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
-              {isSaving ? 'Saving…' : 'Save'}
+              {isSaving ? t('Saving…') : t('Save')}
             </button>
           </div>
         </form>

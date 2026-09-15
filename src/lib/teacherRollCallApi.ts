@@ -177,3 +177,59 @@ export const getOversightRollCall = async (id: number): Promise<TeacherRollCallS
 export const ROLL_CALL_OVERSIGHT_ROLES = [
   'SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DEAN_OF_DISCIPLINE', 'SENIOR_DISCIPLINE_MASTER',
 ];
+
+// Today's schedule for the roll-call landing page.
+export interface TodayPeriod {
+  teacherPeriodId: number;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  periodName?: string;
+  subject?: { id: number; name: string };
+  subClass?: { id: number; name: string; class?: { id: number; name: string } };
+  rollCallId: number | null;
+  absent: number;
+  late: number;
+  entryCount: number;
+}
+
+export const getMyPeriodsForToday = async (): Promise<TodayPeriod[]> => {
+  const today = new Date().toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
+  const isoDate = new Date().toISOString().split('T')[0];
+
+  const [timetable, rolls] = await Promise.all([
+    apiService.get<{ data: any }>('/teachers/me/timetable'),
+    listMyRollCalls({ from: isoDate, to: isoDate, limit: 50 }).catch(() => [] as TeacherRollCallSummary[]),
+  ]);
+
+  const rollsByPeriodId = new Map<number, TeacherRollCallSummary>();
+  for (const rc of rolls) {
+    const pid = rc.teacherPeriod?.id;
+    if (pid) rollsByPeriodId.set(pid, rc);
+  }
+
+  const schedule = timetable.data?.schedule || [];
+  return schedule
+    .filter((tp: any) => (pk(tp, 'dayOfWeek', 'day_of_week') || pk(tp.period, 'dayOfWeek', 'day_of_week')) === today)
+    .map((tp: any): TodayPeriod => {
+      const teacherPeriodId = pk(tp, 'teacherPeriodId', 'teacher_period_id') ?? tp.id;
+      const period = tp.period || {};
+      const subClass = pk(tp, 'subClass', 'sub_class');
+      const rc = rollsByPeriodId.get(teacherPeriodId);
+      const entries = rc?.entries || [];
+      return {
+        teacherPeriodId,
+        dayOfWeek: pk(period, 'dayOfWeek', 'day_of_week') || today,
+        startTime: pk(period, 'startTime', 'start_time'),
+        endTime: pk(period, 'endTime', 'end_time'),
+        periodName: pk(period, 'name', 'name'),
+        subject: tp.subject,
+        subClass,
+        rollCallId: rc?.id ?? null,
+        absent: entries.filter(e => e.status === 'ABSENT').length,
+        late: entries.filter(e => e.status === 'LATE').length,
+        entryCount: rc?._count?.entries ?? entries.length,
+      };
+    })
+    .sort((a: TodayPeriod, b: TodayPeriod) => (a.startTime || '').localeCompare(b.startTime || ''));
+};

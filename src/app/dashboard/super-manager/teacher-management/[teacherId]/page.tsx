@@ -2,14 +2,16 @@
 
 import { useParams } from 'next/navigation';
 import TeacherProfileView from '@/components/teachers/TeacherProfileView';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export default function SuperManagerTeacherProfilePage() {
+    const { t } = useLanguage();
     const params = useParams();
     const teacherId = Number(params?.teacherId);
 
     if (!teacherId || Number.isNaN(teacherId)) {
         return (
-            <div className="max-w-4xl mx-auto p-6 text-center text-gray-600">Invalid teacher ID.</div>
+            <div className="max-w-4xl mx-auto p-6 text-center text-gray-600">{t('Invalid teacher ID.')}</div>
         );
     }
 
@@ -17,7 +19,7 @@ export default function SuperManagerTeacherProfilePage() {
         <TeacherProfileView
             teacherId={teacherId}
             backHref="/dashboard/super-manager/teacher-management"
-            backLabel="Back to Teacher Management"
+            backLabel={t('Back to Teacher Management')}
         />
     );
 }

@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Button, Input, TextArea, Modal } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { searchFinanceStudents, type FinanceStudent } from '@/lib/financeRequestsApi';
 import {
   listBrokenProperty,
@@ -38,6 +39,7 @@ interface BrokenPropertyPanelProps {
 
 export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelProps) {
   const { selectedAcademicYear, selectedRole } = useAuth();
+  const { t } = useLanguage();
 
   const [rows, setRows] = useState<BrokenProperty[]>([]);
   const [total, setTotal] = useState(0);
@@ -220,20 +222,20 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Broken Property</h2>
+          <h2 className="text-xl font-bold text-gray-900">{t('Broken Property')}</h2>
           <p className="text-gray-600 mt-1 text-sm">
             {readOnly
-              ? 'Damage charges and their payment status.'
-              : 'Log damaged property — the cost is billed to the student automatically.'}
+              ? t('Damage charges and their payment status.')
+              : t('Log damaged property — the cost is billed to the student automatically.')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" leftIcon={ArrowPathIcon} onClick={load} disabled={isLoading}>
-            Refresh
+            {t('Refresh')}
           </Button>
           {!readOnly && (
             <Button color="primary" size="sm" leftIcon={PlusIcon} onClick={openCreate}>
-              Log New
+              {t('Log New')}
             </Button>
           )}
         </div>
@@ -242,10 +244,10 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[140px] flex-1 sm:flex-none sm:min-w-[160px]">
-          <Input label="From" type="date" className="appearance-none min-w-0 w-full" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <Input label={t('From')} type="date" className="appearance-none min-w-0 w-full" value={from} onChange={(e) => setFrom(e.target.value)} />
         </div>
         <div className="min-w-[140px] flex-1 sm:flex-none sm:min-w-[160px]">
-          <Input label="To" type="date" className="appearance-none min-w-0 w-full" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Input label={t('To')} type="date" className="appearance-none min-w-0 w-full" value={to} onChange={(e) => setTo(e.target.value)} />
         </div>
       </div>
 
@@ -255,22 +257,22 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Item</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Cost</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Logged</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Student')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Item')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Cost')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Logged')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">Loading…</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                    No broken property records found.
+                    {t('No broken property records found.')}
                   </td>
                 </tr>
               ) : (
@@ -304,11 +306,11 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
                           <Button size="xs" variant="outline" leftIcon={EyeIcon} onClick={() => openDetail(row)}>
-                            View
+                            {t('View')}
                           </Button>
                           {!readOnly && (
                             <Button size="xs" variant="outline" leftIcon={PencilSquareIcon} onClick={() => openEdit(row)}>
-                              Edit
+                              {t('Edit')}
                             </Button>
                           )}
                           {!readOnly && canAdminDelete(selectedRole) && (
@@ -319,7 +321,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
                               leftIcon={TrashIcon}
                               onClick={() => setDeleting(row)}
                             >
-                              Delete
+                              {t('Delete')}
                             </Button>
                           )}
                         </div>
@@ -335,10 +337,10 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
         {/* Mobile card list */}
         <div className="md:hidden divide-y divide-gray-100">
           {isLoading ? (
-            <div className="px-4 py-8 text-center text-gray-500">Loading…</div>
+            <div className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</div>
           ) : rows.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">
-              No broken property records found.
+              {t('No broken property records found.')}
             </div>
           ) : (
             rows.map((row) => {
@@ -377,11 +379,11 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1.5">
                     <Button size="xs" variant="outline" leftIcon={EyeIcon} onClick={() => openDetail(row)}>
-                      View
+                      {t('View')}
                     </Button>
                     {!readOnly && (
                       <Button size="xs" variant="outline" leftIcon={PencilSquareIcon} onClick={() => openEdit(row)}>
-                        Edit
+                        {t('Edit')}
                       </Button>
                     )}
                     {!readOnly && canAdminDelete(selectedRole) && (
@@ -392,7 +394,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
                         leftIcon={TrashIcon}
                         onClick={() => setDeleting(row)}
                       >
-                        Delete
+                        {t('Delete')}
                       </Button>
                     )}
                   </div>
@@ -405,14 +407,14 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
         {/* Pagination */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
-            {total} record{total === 1 ? '' : 's'} · Page {page} of {totalPages}
+            {total} {total === 1 ? t('record') : t('records')} · {t('Page')} {page} {t('of')} {totalPages}
           </span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" leftIcon={ChevronLeftIcon} disabled={page <= 1 || isLoading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Prev
+              {t('Prev')}
             </Button>
             <Button variant="outline" size="sm" rightIcon={ChevronRightIcon} disabled={page >= totalPages || isLoading} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Next
+              {t('Next')}
             </Button>
           </div>
         </div>
@@ -422,7 +424,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
       <Modal
         isOpen={formOpen}
         onClose={() => !isSaving && setFormOpen(false)}
-        title={editing ? 'Edit Broken Property' : 'Log Broken Property'}
+        title={editing ? t('Edit Broken Property') : t('Log Broken Property')}
         size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -512,17 +514,17 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
 
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
             <Button type="button" variant="outline" onClick={() => setFormOpen(false)} disabled={isSaving}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button type="submit" color="primary" isLoading={isSaving}>
-              {editing ? 'Save Changes' : 'Log & Bill Student'}
+              {editing ? t('Save Changes') : t('Log & Bill Student')}
             </Button>
           </div>
         </form>
       </Modal>
 
       {/* Detail modal — includes fee item payment status */}
-      <Modal isOpen={!!detail} onClose={() => setDetail(null)} title="Broken Property Details" size="md">
+      <Modal isOpen={!!detail} onClose={() => setDetail(null)} title={t('Broken Property Details')} size="md">
         {detail && (
           <div className="space-y-4 text-sm">
             <div className="bg-gray-50 rounded-lg p-3 space-y-1">
@@ -581,7 +583,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
 
             <div className="flex justify-end pt-2 border-t border-gray-200">
               <Button variant="outline" onClick={() => setDetail(null)}>
-                Close
+                {t('Close')}
               </Button>
             </div>
           </div>
@@ -589,7 +591,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
       </Modal>
 
       {/* Delete confirmation */}
-      <Modal isOpen={!!deleting} onClose={() => !isDeleting && setDeleting(null)} title="Delete Broken Property" size="sm">
+      <Modal isOpen={!!deleting} onClose={() => !isDeleting && setDeleting(null)} title={t('Delete Broken Property')} size="sm">
         {deleting && (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
@@ -599,10 +601,10 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
             </p>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setDeleting(null)} disabled={isDeleting}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button color="danger" isLoading={isDeleting} onClick={confirmDelete}>
-                Delete
+                {t('Delete')}
               </Button>
             </div>
           </div>

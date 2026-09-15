@@ -7,6 +7,7 @@ import { ClipboardDocumentCheckIcon, ClockIcon } from '@heroicons/react/24/outli
 import { Button, Card, CardBody, Badge, Modal } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { PeriodRollCall } from '@/components/discipline/PeriodRollCall';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // One assigned slot in the teacher's timetable. teacherPeriodId is the key the
 // in-class roll-call endpoint expects; we fall back to the row id defensively.
@@ -28,6 +29,7 @@ const todayName = () => new Date().toLocaleDateString('en-US', { weekday: 'long'
 const nowHHMM = () => new Date().toTimeString().slice(0, 5);
 
 export default function TeacherRollCallPage() {
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<TimeSlot | null>(null);
 
   const { data, error, isLoading } = useSWR<TimetableResponse>(
@@ -36,7 +38,7 @@ export default function TeacherRollCallPage() {
   );
 
   if (error) {
-    toast.error('Failed to load your timetable.');
+    toast.error(t('Failed to load your timetable.'));
   }
 
   const today = todayName();
@@ -57,21 +59,20 @@ export default function TeacherRollCallPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <ClipboardDocumentCheckIcon className="h-7 w-7 text-blue-600" />
-            In-Class Roll Call
+            {t('In-Class Roll Call')}
           </h1>
           <p className="text-gray-600 mt-1">
-            Today is <span className="font-medium capitalize">{today.toLowerCase()}</span>. Pick a period to mark
-            students present or absent. Everyone defaults to present — only tap the ones who are missing.
+            {t('Today is')} <span className="font-medium capitalize">{today.toLowerCase()}</span>. {t('Pick a period to mark students present or absent. Everyone defaults to present — only tap the ones who are missing.')}
           </p>
         </div>
 
         {isLoading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-            Loading your periods…
+            {t('Loading your periods…')}
           </div>
         ) : todaysPeriods.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-500">
-            You have no classes scheduled for today.
+            {t('You have no classes scheduled for today.')}
           </div>
         ) : (
           <div className="space-y-3">
@@ -84,7 +85,7 @@ export default function TeacherRollCallPage() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-gray-900">{s.subject?.name}</span>
-                          {isNow && <Badge color="green">Now</Badge>}
+                          {isNow && <Badge color="green">{t('Now')}</Badge>}
                         </div>
                         <div className="text-sm text-gray-600 mt-0.5">
                           {s.subClass?.class?.name ? `${s.subClass.class.name} · ` : ''}
@@ -101,7 +102,7 @@ export default function TeacherRollCallPage() {
                         leftIcon={ClipboardDocumentCheckIcon}
                         onClick={() => setSelected(s)}
                       >
-                        Take Roll Call
+                        {t('Take Roll Call')}
                       </Button>
                     </div>
                   </CardBody>
@@ -117,8 +118,8 @@ export default function TeacherRollCallPage() {
         onClose={() => setSelected(null)}
         title={
           selected
-            ? `Roll Call — ${selected.subject?.name} · ${selected.subClass?.name}`
-            : 'Roll Call'
+            ? `${t('Roll Call')} — ${selected.subject?.name} · ${selected.subClass?.name}`
+            : t('Roll Call')
         }
         size="lg"
       >

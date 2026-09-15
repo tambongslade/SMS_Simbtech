@@ -20,6 +20,7 @@ import {
   ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { getChatSocket } from '@/lib/chatSocket';
 import {
   type ChatChannel,
@@ -94,18 +95,19 @@ function UserPicker({
   onChange: (users: ChatUserLite[]) => void;
   excludeIds?: number[];
 }) {
+  const { t } = useLanguage();
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<ChatUserLite[]>([]);
 
   useEffect(() => {
     if (term.length < 2) { setResults([]); return; }
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const users = await searchUsers(term, 15);
         setResults(users.filter(u => !excludeIds.includes(u.id) && !selected.some(s => s.id === u.id)));
       } catch { setResults([]); }
     }, 350);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term, selected]);
 
@@ -127,7 +129,7 @@ function UserPicker({
         type="text"
         value={term}
         onChange={e => setTerm(e.target.value)}
-        placeholder="Search users…"
+        placeholder={t('Search users...')}
         className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm"
       />
       {results.length > 0 && (
@@ -150,6 +152,7 @@ function UserPicker({
 
 export default function ChatPage() {
   const { user, selectedRole } = useAuth();
+  const { t } = useLanguage();
   const isParent = selectedRole === 'PARENT' || selectedRole === 'STUDENT';
   const myId = user?.id;
 
@@ -248,7 +251,7 @@ export default function ChatPage() {
         setPresenceMap(prev => ({ ...prev, ...presence }));
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load channels.');
+      toast.error(error.message || t('Failed to load channels.'));
     } finally {
       setIsLoadingChannels(false);
     }
@@ -277,7 +280,7 @@ export default function ChatPage() {
       setChannels(prev => prev.map(c => (c.id === channelId ? { ...c, unreadCount: 0 } : c)));
       scrollToBottom();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load messages.');
+      toast.error(error.message || t('Failed to load messages.'));
       setMessages([]);
     } finally {
       setIsLoadingMessages(false);
@@ -307,7 +310,7 @@ export default function ChatPage() {
       setMessages(prev => [...older, ...prev]);
       setHasMore(older.length >= PAGE_SIZE);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load history.');
+      toast.error(error.message || t('Failed to load history.'));
     }
   };
 
@@ -346,7 +349,7 @@ export default function ChatPage() {
     try {
       setThreadMessages(await listMessages(root.channelId, { threadOf: root.id, limit: 200 }));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load thread.');
+      toast.error(error.message || t('Failed to load thread.'));
     }
   };
 
@@ -583,7 +586,7 @@ export default function ChatPage() {
       setMentionPicks([]);
       setMentionQuery(null);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to send message.');
+      toast.error(error.message || t('Failed to send message.'));
     } finally {
       setIsSending(false);
     }
@@ -678,7 +681,7 @@ export default function ChatPage() {
         setPendingAttachments(prev => [...prev, { ...uploaded, ...dims }]);
       }
     } catch (error: any) {
-      toast.error(error.message || 'Upload failed.');
+      toast.error(error.message || t('Upload failed.'));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -687,7 +690,7 @@ export default function ChatPage() {
 
   const startRecording = async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
-      toast.error('Voice recording is not supported in this browser.');
+      toast.error(t('Voice recording is not supported in this browser.'));
       return;
     }
     try {
@@ -707,7 +710,7 @@ export default function ChatPage() {
           const uploaded = await uploadChatFile(blob, `voice-${Date.now()}.webm`);
           setPendingAttachments(prev => [...prev, { ...uploaded, kind: 'AUDIO', durationSecs }]);
         } catch (error: any) {
-          toast.error(error.message || 'Failed to upload voice note.');
+          toast.error(error.message || t('Failed to upload voice note.'));
         } finally {
           setIsUploading(false);
         }
@@ -717,7 +720,7 @@ export default function ChatPage() {
       rec.start();
       setIsRecording(true);
     } catch {
-      toast.error('Microphone access denied.');
+      toast.error(t('Microphone access denied.'));
     }
   };
 
@@ -735,7 +738,7 @@ export default function ChatPage() {
       setMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, ...patch } : m)));
       setThreadMessages(prev => prev.map(m => (m.id === msg.id ? { ...m, ...patch } : m)));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to delete message.');
+      toast.error(error.message || t('Failed to delete message.'));
     }
   };
 
@@ -756,7 +759,7 @@ export default function ChatPage() {
           : { ...m, reactions: [...m.reactions, { emoji, userId: myId!, user: { id: myId!, name: user?.name || '' } }] }));
       }
     } catch (error: any) {
-      toast.error(error.message || 'Failed to update reaction.');
+      toast.error(error.message || t('Failed to update reaction.'));
     }
   };
 
@@ -767,7 +770,7 @@ export default function ChatPage() {
     try {
       setInfoChannel(await getChannel(activeId));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to load channel info.');
+      toast.error(error.message || t('Failed to load channel info.'));
       setShowInfo(false);
     }
   };
@@ -780,9 +783,9 @@ export default function ChatPage() {
       setChannels(prev => prev.filter(c => c.id !== activeChannel.id));
       setActiveId(null);
       setShowInfo(false);
-      toast.success('You left the channel.');
+      toast.success(t('You left the channel.'));
     } catch (error: any) {
-      toast.error(error.message || 'Failed to leave channel.');
+      toast.error(error.message || t('Failed to leave channel.'));
     }
   };
 
@@ -792,7 +795,7 @@ export default function ChatPage() {
       try {
         setContacts(await listParentContacts());
       } catch (error: any) {
-        toast.error(error.message || 'Failed to load contacts.');
+        toast.error(error.message || t('Failed to load contacts.'));
       }
     }
   };
@@ -814,7 +817,7 @@ export default function ChatPage() {
       setShowNewDm(false);
       openChannel(ch.id);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to open conversation.');
+      toast.error(error.message || t('Failed to open conversation.'));
     }
   };
 
@@ -966,7 +969,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() => jumpToMessage(m.parentMessage!.id)}
-              title="Go to original message"
+              title={t('Go to original message')}
               className={`block w-full text-left border-l-2 pl-2 pr-1 py-0.5 mb-1 text-xs rounded cursor-pointer ${mine ? 'border-blue-300 bg-blue-700/50 text-blue-100 hover:bg-blue-700/70' : 'border-blue-400 bg-gray-50 text-gray-500 hover:bg-gray-100'}`}
             >
               <p className="font-semibold">{m.parentMessage.sender?.name || 'Unknown'}</p>
@@ -974,7 +977,7 @@ export default function ChatPage() {
             </button>
           )}
           {m.deletedAt ? (
-            <p className={`text-sm italic ${mine ? 'text-blue-200' : 'text-gray-400'}`}>Message deleted</p>
+            <p className={`text-sm italic ${mine ? 'text-blue-200' : 'text-gray-400'}`}>{t('Message deleted')}</p>
           ) : (
             <>
               {renderContentText(m, mine)}
@@ -1069,24 +1072,24 @@ export default function ChatPage() {
               {!inThread && (
                 <button
                   onClick={() => { setReplyTo(m); setEditing(null); }}
-                  title="Reply"
+                  title={t('Reply')}
                   className={mine ? 'text-blue-100' : 'text-gray-400'}
                 >
                   <ArrowUturnLeftIcon className="w-4 h-4" />
                 </button>
               )}
               {!inThread && (
-                <button onClick={() => openThread(m)} title="Reply in thread" className={mine ? 'text-blue-100' : 'text-gray-400'}>
+                <button onClick={() => openThread(m)} title={t('Reply in thread')} className={mine ? 'text-blue-100' : 'text-gray-400'}>
                   <ChatBubbleOvalLeftIcon className="w-4 h-4" />
                 </button>
               )}
               {mine && (
-                <button onClick={() => { setEditing(m); setDraft(m.content); setThreadRoot(inThread ? threadRoot : null); }} title="Edit" className={mine ? 'text-blue-100' : 'text-gray-400'}>
+                <button onClick={() => { setEditing(m); setDraft(m.content); setThreadRoot(inThread ? threadRoot : null); }} title={t('Edit')} className={mine ? 'text-blue-100' : 'text-gray-400'}>
                   <PencilSquareIcon className="w-4 h-4" />
                 </button>
               )}
               {(mine || isAdmin) && (
-                <button onClick={() => handleDelete(m)} title="Delete" className={mine ? 'text-blue-100' : 'text-gray-400'}>
+                <button onClick={() => handleDelete(m)} title={t('Delete')} className={mine ? 'text-blue-100' : 'text-gray-400'}>
                   <TrashIcon className="w-4 h-4" />
                 </button>
               )}
@@ -1111,19 +1114,19 @@ export default function ChatPage() {
       <aside className={`${activeId ? 'hidden md:flex' : 'flex'} w-full md:w-80 shrink-0 flex-col border-r border-gray-200 bg-white`}>
         <div className="px-4 py-3 md:p-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="font-bold text-gray-900 text-lg md:text-base flex items-center gap-2">
-            <ChatBubbleLeftRightIcon className="w-5 h-5" /> Chat
+            <ChatBubbleLeftRightIcon className="w-5 h-5" /> {t('Chat')}
           </h2>
           <div className="flex gap-1">
             {isParent ? (
-              <button onClick={openContactsPanel} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="Contact staff">
+              <button onClick={openContactsPanel} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title={t('Contact Staff')}>
                 <UserGroupIcon className="w-5 h-5" />
               </button>
             ) : (
               <>
-                <button onClick={() => setShowNewDm(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="New direct message">
+                <button onClick={() => setShowNewDm(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title={t('New direct message')}>
                   <ChatBubbleOvalLeftIcon className="w-5 h-5" />
                 </button>
-                <button onClick={() => setShowNewChannel(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title="New channel">
+                <button onClick={() => setShowNewChannel(true)} className="p-2 md:p-1.5 text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full md:rounded-md" title={t('New channel')}>
                   <PlusIcon className="w-5 h-5" />
                 </button>
               </>
@@ -1132,26 +1135,26 @@ export default function ChatPage() {
         </div>
         <div className="flex-1 overflow-y-auto overscroll-contain py-2 md:p-2 space-y-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {isLoadingChannels ? (
-            <p className="text-sm text-gray-500 px-4 py-3">Loading channels…</p>
+            <p className="text-sm text-gray-500 px-4 py-3">{t('Loading channels…')}</p>
           ) : channels.length === 0 ? (
-            <p className="text-sm text-gray-500 px-4 py-3">No conversations yet.</p>
+            <p className="text-sm text-gray-500 px-4 py-3">{t('No conversations yet.')}</p>
           ) : (
             <>
               {grouped.direct.length > 0 && (
                 <div>
-                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Direct Messages</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">{t('Direct Messages')}</p>
                   {grouped.direct.map(renderChannelButton)}
                 </div>
               )}
               {grouped.system.length > 0 && (
                 <div>
-                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">System Channels</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">{t('System Channels')}</p>
                   {grouped.system.map(renderChannelButton)}
                 </div>
               )}
               {grouped.custom.length > 0 && (
                 <div>
-                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">Custom Channels</p>
+                  <p className="px-4 md:px-3 text-xs font-semibold text-gray-400 uppercase mb-1">{t('Custom Channels')}</p>
                   {grouped.custom.map(renderChannelButton)}
                 </div>
               )}
@@ -1164,7 +1167,7 @@ export default function ChatPage() {
       <main className={`${activeId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0`}>
         {!activeChannel ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
-            Select a conversation to start chatting.
+            {t('Select a conversation to start chatting.')}
           </div>
         ) : (
           <>
@@ -1186,12 +1189,12 @@ export default function ChatPage() {
                   <p className="text-xs text-blue-600 truncate">{typingNames}</p>
                 ) : activeChannel.type === 'DIRECT' ? (
                   <p className={`text-xs truncate ${headerPresence === 'online' ? 'text-green-600 font-medium' : 'text-gray-500'}`}>
-                    {headerPresence || 'Direct message'}
+                    {headerPresence || t('Direct message')}
                   </p>
                 ) : (
                   <p className="text-xs text-gray-500 truncate">
-                    {activeChannel.isSystem ? 'System channel' : 'Custom channel'}
-                    {activeChannel.memberCount ? ` · ${activeChannel.memberCount} members` : ''}
+                    {activeChannel.isSystem ? t('System channel') : t('Custom channel')}
+                    {activeChannel.memberCount ? ` · ${activeChannel.memberCount} ${t('members')}` : ''}
                     {headerPresence ? ` · ${headerPresence}` : ''}
                   </p>
                 )}
@@ -1202,14 +1205,14 @@ export default function ChatPage() {
               {hasMore && (
                 <div className="text-center mb-2">
                   <button onClick={loadOlder} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 bg-white border border-gray-200 rounded-full px-3 py-1.5 shadow-sm">
-                    <ArrowUpIcon className="w-3 h-3" /> Load older messages
+                    <ArrowUpIcon className="w-3 h-3" /> {t('Load older messages')}
                   </button>
                 </div>
               )}
               {isLoadingMessages ? (
-                <p className="text-center text-sm text-gray-400 py-8">Loading messages…</p>
+                <p className="text-center text-sm text-gray-400 py-8">{t('Loading messages…')}</p>
               ) : messages.length === 0 ? (
-                <p className="text-center text-sm text-gray-400 py-8">No messages yet — say hello!</p>
+                <p className="text-center text-sm text-gray-400 py-8">{t('No messages yet — say hello!')}</p>
               ) : (
                 messages.map((m, i) => renderMessage(m, false, messages[i - 1]))
               )}
@@ -1220,14 +1223,14 @@ export default function ChatPage() {
               <form onSubmit={handleSend} className="px-2 py-2 md:p-3 bg-white border-t border-gray-200 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-3">
                 {editing && (
                   <div className="flex items-center justify-between text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mb-2">
-                    Editing message
+                    {t('Editing message')}
                     <button type="button" onClick={() => { setEditing(null); setDraft(''); }}><XMarkIcon className="w-4 h-4" /></button>
                   </div>
                 )}
                 {replyTo && !editing && (
                   <div className="flex items-center justify-between gap-2 text-xs text-gray-600 bg-gray-50 border-l-2 border-blue-400 rounded px-2 py-1 mb-2">
                     <span className="truncate">
-                      Replying to <span className="font-semibold">{replyTo.sender?.name || 'Unknown'}</span>
+                      {t('Replying to')} <span className="font-semibold">{replyTo.sender?.name || t('Unknown')}</span>
                       {': '}
                       {replyTo.content ? replyTo.content.slice(0, 60) : parentPreview({ ...replyTo, sender: replyTo.sender, attachmentKind: replyTo.attachments[0]?.kind ?? null } as any)}
                     </span>
@@ -1262,8 +1265,8 @@ export default function ChatPage() {
                     ))}
                   </div>
                 )}
-                {isUploading && <p className="text-xs text-gray-400 mb-1">Uploading…</p>}
-                {isRecording && <p className="text-xs text-red-500 mb-1 animate-pulse">● Recording voice note… tap the stop button to attach.</p>}
+                {isUploading && <p className="text-xs text-gray-400 mb-1">{t('Uploading…')}</p>}
+                {isRecording && <p className="text-xs text-red-500 mb-1 animate-pulse">{t('● Recording voice note… tap the stop button to attach.')}</p>}
                 <div className="flex gap-1.5 md:gap-2 items-center">
                   <input
                     ref={fileInputRef}
@@ -1280,7 +1283,7 @@ export default function ChatPage() {
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isUploading}
                         className="p-2.5 md:p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-50 rounded-full disabled:opacity-50"
-                        title="Attach file (max 25 MB)"
+                        title={t('Attach file (max 25 MB)')}
                       >
                         <PaperClipIcon className="w-5 h-5" />
                       </button>
@@ -1289,7 +1292,7 @@ export default function ChatPage() {
                         onClick={isRecording ? stopRecording : startRecording}
                         disabled={isUploading}
                         className={`p-2.5 md:p-2 rounded-full disabled:opacity-50 ${isRecording ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50 active:bg-blue-50'}`}
-                        title={isRecording ? 'Stop recording' : 'Record voice note'}
+                        title={isRecording ? t('Stop recording') : t('Record voice note')}
                       >
                         {isRecording ? <StopIcon className="w-5 h-5" /> : <MicrophoneIcon className="w-5 h-5" />}
                       </button>
@@ -1300,7 +1303,7 @@ export default function ChatPage() {
                     value={draft}
                     onChange={e => handleDraftChange(e.target.value)}
                     onBlur={handleComposerBlur}
-                    placeholder={threadRoot ? 'Reply in thread…' : 'Type a message…'}
+                    placeholder={threadRoot ? t('Reply in thread…') : t('Type a message...')}
                     className="flex-1 min-w-0 px-4 py-2.5 md:py-2 border border-gray-300 bg-gray-50 md:bg-white rounded-full text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <button
@@ -1314,7 +1317,7 @@ export default function ChatPage() {
               </form>
             ) : (
               <div className="p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-gray-100 border-t border-gray-200 text-center text-xs text-gray-500">
-                Parents can only post in direct messages with staff.
+                {t('Parents can only post in direct messages with staff.')}
               </div>
             )}
           </>
@@ -1328,7 +1331,7 @@ export default function ChatPage() {
             <button onClick={() => setThreadRoot(null)} className="lg:hidden p-2 -ml-1 text-gray-600 active:bg-gray-100 rounded-full">
               <ArrowLeftIcon className="w-6 h-6" />
             </button>
-            <p className="font-semibold text-gray-900 text-sm flex-1 pl-1 lg:pl-0">Thread</p>
+            <p className="font-semibold text-gray-900 text-sm flex-1 pl-1 lg:pl-0">{t('Thread')}</p>
             <button onClick={() => setThreadRoot(null)} className="hidden lg:block text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
@@ -1345,11 +1348,11 @@ export default function ChatPage() {
                 onClick={() => { setReplyTo(threadRoot); setThreadRoot(null); }}
                 className="w-full py-2.5 bg-blue-600 text-white rounded-full text-sm font-medium active:bg-blue-700"
               >
-                Reply in thread
+                {t('Reply in thread')}
               </button>
             </div>
           )}
-          <p className="hidden lg:block px-4 pb-2 text-[11px] text-gray-400">Replies post into this thread while it's open.</p>
+          <p className="hidden lg:block px-4 pb-2 text-[11px] text-gray-400">{t("Replies post into this thread while it's open.")}</p>
         </aside>
       )}
 
@@ -1372,7 +1375,7 @@ export default function ChatPage() {
             <button onClick={() => setShowNewDm(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-semibold mb-4">New Direct Message</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('New Direct Message')}</h3>
             <DmUserSearch onPick={u => startDmWith(u, false)} />
           </div>
         </div>
@@ -1385,19 +1388,19 @@ export default function ChatPage() {
             <button onClick={() => setShowContacts(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
               <XMarkIcon className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-semibold mb-4">Contact Staff</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('Contact Staff')}</h3>
             {!contacts ? (
-              <p className="text-sm text-gray-500">Loading contacts…</p>
+              <p className="text-sm text-gray-500">{t('Loading contacts…')}</p>
             ) : (
               <div className="space-y-5">
                 {contacts.childTeachers.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Your children's teachers</p>
-                    {contacts.childTeachers.map(t => (
-                      <button key={t.id} onClick={() => startDmWith(t, true)} className="w-full text-left p-2 rounded-md hover:bg-gray-100">
-                        <p className="text-sm font-medium text-gray-900">{t.name}</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t("Your children's teachers")}</p>
+                    {contacts.childTeachers.map(teacher => (
+                      <button key={teacher.id} onClick={() => startDmWith(teacher, true)} className="w-full text-left p-2 rounded-md hover:bg-gray-100">
+                        <p className="text-sm font-medium text-gray-900">{teacher.name}</p>
                         <p className="text-xs text-gray-500">
-                          {t.teaches.map(x => `${x.subject?.name} (${x.student?.name})`).join(', ')}
+                          {teacher.teaches.map(x => `${x.subject?.name} (${x.student?.name})`).join(', ')}
                         </p>
                       </button>
                     ))}
@@ -1405,7 +1408,7 @@ export default function ChatPage() {
                 )}
                 {contacts.hodsBySubject.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Heads of department</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t('Heads of department')}</p>
                     {contacts.hodsBySubject.map((e, i) => (
                       <button key={`${e.hod.id}-${i}`} onClick={() => startDmWith(e.hod, true)} className="w-full text-left p-2 rounded-md hover:bg-gray-100">
                         <p className="text-sm font-medium text-gray-900">{e.hod.name}</p>
@@ -1416,7 +1419,7 @@ export default function ChatPage() {
                 )}
                 {contacts.fixedStaff.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">School staff</p>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t('School staff')}</p>
                     {contacts.fixedStaff.map(s => (
                       <button key={s.id} onClick={() => startDmWith(s, true)} className="w-full text-left p-2 rounded-md hover:bg-gray-100">
                         <p className="text-sm font-medium text-gray-900">{s.name}</p>
@@ -1458,12 +1461,13 @@ export default function ChatPage() {
 // Universal contact search (GET /chat/contacts): presence-aware, role-filtered
 // server-side, and returns dm_channel_id so existing DMs are reused.
 function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
+  const { t } = useLanguage();
   const [term, setTerm] = useState('');
   const [results, setResults] = useState<ChatContact[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
         // Empty search returns the first 20 alphabetically — a handy default list
@@ -1474,7 +1478,7 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
         setIsSearching(false);
       }
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [term]);
 
   return (
@@ -1483,11 +1487,11 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
         type="text"
         value={term}
         onChange={e => setTerm(e.target.value)}
-        placeholder="Search by name, matricule or email…"
+        placeholder={t('Search by name, matricule or email…')}
         className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm"
         autoFocus
       />
-      {isSearching && <p className="text-xs text-gray-400 mt-2">Searching…</p>}
+      {isSearching && <p className="text-xs text-gray-400 mt-2">{t('Searching…')}</p>}
       <div className="mt-2 max-h-72 overflow-y-auto divide-y divide-gray-100">
         {results.map(c => (
           <button
@@ -1502,14 +1506,14 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
               </p>
               <p className="text-xs text-gray-500 truncate">
                 {(c.roles || []).join(', ')}
-                {c.presence.online ? ' · Online' : c.presence.lastSeenAt ? ` · ${lastSeenLabel(c.presence.lastSeenAt)}` : ''}
+                {c.presence.online ? ` · ${t('Online')}` : c.presence.lastSeenAt ? ` · ${lastSeenLabel(c.presence.lastSeenAt)}` : ''}
               </p>
             </div>
-            {c.dmChannelId && <span className="shrink-0 text-[10px] text-gray-400">existing chat</span>}
+            {c.dmChannelId && <span className="shrink-0 text-[10px] text-gray-400">{t('existing chat')}</span>}
           </button>
         ))}
         {!isSearching && results.length === 0 && (
-          <p className="text-sm text-gray-400 py-4 text-center">No contacts found.</p>
+          <p className="text-sm text-gray-400 py-4 text-center">{t('No contacts found.')}</p>
         )}
       </div>
     </div>
@@ -1517,6 +1521,7 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
 }
 
 function NewChannelModal({ onClose, onCreated }: { onClose: () => void; onCreated: (ch: ChatChannel) => void }) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
@@ -1533,10 +1538,10 @@ function NewChannelModal({ onClose, onCreated }: { onClose: () => void; onCreate
         memberIds: members.map(m => m.id),
         isPrivate,
       });
-      toast.success('Channel created.');
+      toast.success(t('Channel created.'));
       onCreated(ch);
     } catch (error: any) {
-      toast.error(error.message || 'Failed to create channel.');
+      toast.error(error.message || t('Failed to create channel.'));
     } finally {
       setIsSaving(false);
     }
@@ -1548,28 +1553,28 @@ function NewChannelModal({ onClose, onCreated }: { onClose: () => void; onCreate
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
           <XMarkIcon className="w-5 h-5" />
         </button>
-        <h3 className="text-lg font-semibold mb-4">New Channel</h3>
+        <h3 className="text-lg font-semibold mb-4">{t('New Channel')}</h3>
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder="e.g. Form 3A Homeroom" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Name')} *</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder={t('e.g. Form 3A Homeroom')} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder="e.g. Class master group" />
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Description')}</label>
+            <input type="text" value={description} onChange={e => setDescription(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-base sm:text-sm" placeholder={t('e.g. Class master group')} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Members</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Members')}</label>
             <UserPicker selected={members} onChange={setMembers} />
           </div>
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={isPrivate} onChange={e => setIsPrivate(e.target.checked)} className="h-4 w-4 text-blue-600 border-gray-300 rounded" />
-            Private channel
+            {t('Private channel')}
           </label>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700">{t('Cancel')}</button>
             <button type="submit" disabled={isSaving || !name.trim()} className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 disabled:opacity-50">
-              {isSaving ? 'Creating…' : 'Create Channel'}
+              {isSaving ? t('Creating…') : t('Create Channel')}
             </button>
           </div>
         </form>
@@ -1589,6 +1594,7 @@ function ChannelInfo({
   onMembersChanged: () => void;
   onLeave: () => void;
 }) {
+  const { t } = useLanguage();
   const [adding, setAdding] = useState<ChatUserLite[]>([]);
   const isAdmin = channel.myRole === 'ADMIN';
   const canManage = isAdmin && channel.type === 'CUSTOM' && !channel.isSystem;
@@ -1598,22 +1604,22 @@ function ChannelInfo({
       for (const u of adding) {
         await addChannelMember(channel.id, u.id);
       }
-      toast.success('Member(s) added.');
+      toast.success(t('Member(s) added.'));
       setAdding([]);
       onMembersChanged();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to add member.');
+      toast.error(error.message || t('Failed to add member.'));
     }
   };
 
   const removeMember = async (userId: number) => {
-    if (!window.confirm('Remove this member?')) return;
+    if (!window.confirm(t('Remove this member?'))) return;
     try {
       await removeChannelMember(channel.id, userId);
-      toast.success('Member removed.');
+      toast.success(t('Member removed.'));
       onMembersChanged();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to remove member.');
+      toast.error(error.message || t('Failed to remove member.'));
     }
   };
 
@@ -1621,42 +1627,42 @@ function ChannelInfo({
     <div>
       <h3 className="text-lg font-semibold mb-1">{channel.name}</h3>
       <p className="text-sm text-gray-500 mb-4">
-        {channel.isSystem ? 'System channel — membership is managed automatically.' : channel.description || `${channel.type.toLowerCase()} channel`}
+        {channel.isSystem ? t('System channel — membership is managed automatically.') : channel.description || `${channel.type.toLowerCase()} ${t('channel')}`}
       </p>
-      <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Members ({channel.members?.length || 0})</p>
+      <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t('Members')} ({channel.members?.length || 0})</p>
       <ul className="divide-y divide-gray-100 mb-4 max-h-56 overflow-y-auto">
         {(channel.members || []).map(m => (
           <li key={m.userId} className="py-2 flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-900 flex items-center gap-2">
-                {m.user?.name || `User #${m.userId}`}
-                {m.userId === myId && <span className="text-gray-400">(you)</span>}
+                {m.user?.name || `${t('User')} #${m.userId}`}
+                {m.userId === myId && <span className="text-gray-400">({t('you')})</span>}
                 <PresenceDot online={m.presence?.online} />
               </p>
               <p className="text-xs text-gray-400">
-                {m.role === 'ADMIN' ? 'Admin' : (m.user?.roles || []).join(', ') || 'Member'}
+                {m.role === 'ADMIN' ? t('Admin') : (m.user?.roles || []).join(', ') || t('Member')}
                 {m.presence && !m.presence.online && m.presence.lastSeenAt ? ` · ${lastSeenLabel(m.presence.lastSeenAt)}` : ''}
               </p>
             </div>
             {canManage && m.userId !== myId && (
-              <button onClick={() => removeMember(m.userId)} className="text-red-500 hover:text-red-700 text-xs">Remove</button>
+              <button onClick={() => removeMember(m.userId)} className="text-red-500 hover:text-red-700 text-xs">{t('Remove')}</button>
             )}
           </li>
         ))}
       </ul>
       {canManage && (
         <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Add members</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase mb-2">{t('Add members')}</p>
           <UserPicker selected={adding} onChange={setAdding} excludeIds={(channel.members || []).map(m => m.userId)} />
           {adding.length > 0 && (
             <button onClick={addMembers} className="mt-2 px-3 py-1.5 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700">
-              Add {adding.length} member{adding.length > 1 ? 's' : ''}
+              {t('Add')} {adding.length} {adding.length > 1 ? t('members') : t('member')}
             </button>
           )}
         </div>
       )}
       {!channel.isSystem && (
-        <button onClick={onLeave} className="text-sm text-red-600 hover:text-red-800">Leave channel</button>
+        <button onClick={onLeave} className="text-sm text-red-600 hover:text-red-800">{t('Leave channel')}</button>
       )}
     </div>
   );

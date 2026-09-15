@@ -1,6 +1,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
+import { fetchUnreadCount } from '@/lib/parentPortalApi';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -112,6 +113,11 @@ export function useParentDashboard() {
                 throw new Error('Could not load any of your children. Please check your connection.');
             }
 
+            const unreadCounts = await Promise.all(
+                children.map(c => (c.matricule ? fetchUnreadCount(c.matricule) : Promise.resolve(0)))
+            );
+            const unreadMessages = unreadCounts.reduce((s, n) => s + n, 0);
+
             setData({
                 totalChildren: children.length,
                 childrenEnrolled: children.filter(c => c.enrollmentStatus !== 'NOT_ENROLLED').length,
@@ -119,7 +125,7 @@ export function useParentDashboard() {
                 totalFeesOwed: children.reduce((s, c) => s + (c.pendingFees || 0), 0),
                 latestGrades: children.reduce((s, c) => s + (c.latestMarks?.length || 0), 0),
                 disciplineIssues: children.reduce((s, c) => s + (c.disciplineIssues || 0), 0),
-                unreadMessages: 0,
+                unreadMessages,
                 upcomingEvents: 0,
                 children,
             });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { Subject } from '../types/subject';
 import { toast } from 'react-hot-toast';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Assuming Class/SubClass types similar to classes/page.tsx
 // You might want to move these to a shared types folder
@@ -38,6 +39,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
     apiBaseUrl,
     getAuthToken,
 }) => {
+    const { t } = useLanguage();
     const [classes, setClasses] = useState<ClassBrief[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(subject ? subject.id : null);
     const [selectedSubclassIds, setSelectedSubclassIds] = useState<number[]>([]);
@@ -62,14 +64,14 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
         setIsFetchingClasses(true);
         const token = getAuthToken();
         if (!token) {
-            toast.error("Authentication token not found.");
+            toast.error(t("Authentication token not found."));
             setIsFetchingClasses(false);
             return;
         }
         try {
             setClasses(sortClassesByLevel(allClasses));
         } catch (error: any) {
-            toast.error(`Could not load classes: ${error.message}`);
+            toast.error(`${t('Could not load classes:')} ${error.message}`);
             setClasses([]);
         } finally {
             setIsFetchingClasses(false);
@@ -116,7 +118,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
         const subjectIdToSubmit = subject?.id || selectedSubjectId;
 
         if (subjectIdToSubmit === null || selectedSubclassIds.length === 0 || coefficient === null || Number(coefficient) <= 0) {
-            toast.error('Please select a subject, at least one subclass, and enter a valid positive coefficient.');
+            toast.error(t('Please select a subject, at least one subclass, and enter a valid positive coefficient.'));
             return;
         }
 
@@ -132,10 +134,10 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
             const failedAssignments = results.length - successfulAssignments;
 
             if (successfulAssignments > 0) {
-                toast.success(`Successfully assigned subject to ${successfulAssignments} subclass(es).`);
+                toast.success(`${t('Successfully assigned subject to')} ${successfulAssignments} ${t('subclass(es).')}`);
             }
             if (failedAssignments > 0) {
-                toast.error(`Failed to assign subject to ${failedAssignments} subclass(es). Check console or existing assignments.`);
+                toast.error(`${t('Failed to assign subject to')} ${failedAssignments} ${t('subclass(es). Check console or existing assignments.')}`);
                 console.error("Failed assignment details:", results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value === false)));
             }
 
@@ -144,7 +146,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
             }
         } catch (error) {
             console.error("Unexpected error during submission:", error);
-            toast.error("An unexpected error occurred during assignment.");
+            toast.error(t("An unexpected error occurred during assignment."));
         } finally {
             setIsSubmitting(false);
         }
@@ -165,12 +167,12 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                 <button onClick={onClose} disabled={isSubmitting} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50">&times;</button>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <h2 className="text-xl font-semibold mb-4">Assign Subject to Subclass(es)</h2>
+                    <h2 className="text-xl font-semibold mb-4">{t('Assign Subject to Subclass(es)')}</h2>
                     {subject ? (
-                        <p className="mb-4">Assigning: <span className="font-medium">{subject.name}</span></p>
+                        <p className="mb-4">{t('Assigning:')} <span className="font-medium">{subject.name}</span></p>
                     ) : (
                          <div>
-                            <label htmlFor="subjectSelect" className="block text-sm font-medium text-gray-700">Select Subject</label>
+                            <label htmlFor="subjectSelect" className="block text-sm font-medium text-gray-700">{t('Select Subject')}</label>
                             <select
                                 id="subjectSelect"
                                 value={selectedSubjectId || ''}
@@ -179,7 +181,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                                 disabled={isSubmitting || isOverallLoading}
                                 className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                             >
-                                <option value="" disabled>-- Select a Subject --</option>
+                                <option value="" disabled>{t('-- Select a Subject --')}</option>
                                 {allSubjects.map((subj) => (
                                     <option key={subj.id} value={subj.id}>{subj.name}</option>
                                 ))}
@@ -188,14 +190,14 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700">Select Class(es)</label>
+                        <label className="block text-sm font-medium text-gray-700">{t('Select Class(es)')}</label>
                         <p className="text-xs text-gray-500 mb-1">
-                            Ticking a class applies the subject to <span className="font-medium">all its subclasses</span> — untick individual subclasses below if needed. You can select several classes (e.g. Forms 1–4) at once.
+                            {t('Ticking a class applies the subject to')} <span className="font-medium">{t('all its subclasses')}</span> {t('— untick individual subclasses below if needed. You can select several classes (e.g. Forms 1–4) at once.')}
                         </p>
                         {isFetchingClasses ? (
-                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">Loading classes...</p>
+                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">{t('Loading classes...')}</p>
                         ) : classes.length === 0 ? (
-                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">No classes found.</p>
+                            <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">{t('No classes found.')}</p>
                         ) : (
                             <div className="max-h-56 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-2 bg-white">
                                 {classes.map((cls) => {
@@ -219,8 +221,8 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                                                     {cls.name}
                                                     <span className="ml-1.5 text-xs font-normal text-gray-500">
                                                         {subIds.length === 0
-                                                            ? '(no subclasses)'
-                                                            : `(${selectedCount}/${subIds.length} subclasses)`}
+                                                            ? t('(no subclasses)')
+                                                            : `(${selectedCount}/${subIds.length} ${t('subclasses')})`}
                                                     </span>
                                                 </label>
                                             </div>
@@ -252,7 +254,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                     </div>
 
                     <div>
-                        <label htmlFor="coefficient" className="block text-sm font-medium text-gray-700">Coefficient</label>
+                        <label htmlFor="coefficient" className="block text-sm font-medium text-gray-700">{t('Coefficient')}</label>
                         <input
                             type="number"
                             id="coefficient"
@@ -263,7 +265,7 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                             min="1"
                             step="1"
                             disabled={isSubmitting || isOverallLoading}
-                            placeholder="e.g., 4"
+                            placeholder={t('e.g., 4')}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                         />
                     </div>
@@ -275,14 +277,14 @@ export const AssignSubjectModal: React.FC<AssignSubjectModalProps> = ({
                             disabled={isSubmitting}
                             className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 disabled:opacity-50"
                         >
-                            Cancel
+                            {t('Cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={isSubmitting || isFetchingClasses || isFormIncomplete || isOverallLoading}
                             className="px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:bg-green-300"
                         >
-                            {isSubmitting ? 'Assigning...' : `Assign to ${selectedSubclassIds.length} Subclass(es)`}
+                            {isSubmitting ? t('Assigning...') : `${t('Assign to')} ${selectedSubclassIds.length} ${t('Subclass(es)')}`}
                         </button>
                     </div>
                 </form>

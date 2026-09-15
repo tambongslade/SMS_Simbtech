@@ -13,6 +13,7 @@ import {
   ChevronLeftIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import { listOverpaid } from '@/lib/refundsApi';
@@ -40,6 +41,7 @@ interface BursarDashboardData {
 
 export default function BursarOverviewPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [dashboardData, setDashboardData] = useState<BursarDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [overpaidCount, setOverpaidCount] = useState<number | null>(null);
@@ -62,7 +64,7 @@ export default function BursarOverviewPage() {
       setDashboardData(response.data);
     } catch (error) {
       console.error('Error fetching bursar dashboard:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setIsLoading(false);
     }
@@ -99,12 +101,12 @@ export default function BursarOverviewPage() {
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-2"
         >
           <ChevronLeftIcon className="h-4 w-4 mr-1" />
-          Back to menu
+          {t('Back to menu')}
         </Link>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Bursar Overview</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('Bursar Overview')}</h1>
           <div className="text-sm text-gray-500">
-            Academic Year: {selectedAcademicYear?.name || 'Current'}
+            {t('Academic Year')}: {selectedAcademicYear?.name || t('Current')}
           </div>
         </div>
       </div>
@@ -113,7 +115,7 @@ export default function BursarOverviewPage() {
       <div className="grid grid-cols-2 gap-3 sm:gap-6">
         <Link href="/dashboard/bursar/fee-management" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="Students Owing"
+            title={t('Students Owing')}
             value={dashboardData?.studentsOwingCount?.toString() || '0'}
             icon={ClockIcon}
             color="warning"
@@ -121,7 +123,7 @@ export default function BursarOverviewPage() {
         </Link>
         <Link href="/dashboard/bursar/fee-management" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="Total Amount Owed"
+            title={t('Total Amount Owed')}
             value={formatCurrency(dashboardData?.totalAmountOwed || 0)}
             icon={CurrencyDollarIcon}
             color="danger"
@@ -133,7 +135,7 @@ export default function BursarOverviewPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="New Students This Month"
+            title={t('New Students This Month')}
             value={dashboardData?.newStudentsThisMonth?.toString() || '0'}
             icon={UserPlusIcon}
             color="success"
@@ -141,7 +143,7 @@ export default function BursarOverviewPage() {
         </Link>
         <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="Students with Parents"
+            title={t('Students with Parents')}
             value={dashboardData?.studentsWithParents?.toString() || '0'}
             icon={UsersIcon}
             color="success"
@@ -149,7 +151,7 @@ export default function BursarOverviewPage() {
         </Link>
         <Link href="/dashboard/bursar/student-registration" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="Students without Parents"
+            title={t('Students without Parents')}
             value={dashboardData?.studentsWithoutParents?.toString() || '0'}
             icon={UsersIcon}
             color="danger"
@@ -157,7 +159,7 @@ export default function BursarOverviewPage() {
         </Link>
         <Link href="/dashboard/bursar/reports" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title="Recent Transactions"
+            title={t('Recent Transactions')}
             value={dashboardData?.recentTransactions?.toString() || '0'}
             icon={ChartBarIcon}
             color="primary"
@@ -171,8 +173,8 @@ export default function BursarOverviewPage() {
         {/* Payment Methods Breakdown */}
         <Card>
           <CardHeader className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Payment Methods</h3>
-            <Link href="/dashboard/bursar/reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">View reports →</Link>
+            <h3 className="text-lg font-medium text-gray-900">{t('Payment Methods')}</h3>
+            <Link href="/dashboard/bursar/reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">{t('View reports')} →</Link>
           </CardHeader>
           <CardBody>
             {dashboardData?.paymentMethods && dashboardData.paymentMethods.length > 0 ? (
@@ -181,7 +183,7 @@ export default function BursarOverviewPage() {
                   <div key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 truncate">{method.method}</p>
-                      <p className="text-sm text-gray-600">{method.count} transactions</p>
+                      <p className="text-sm text-gray-600">{method.count} {t('transactions')}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-gray-900">{formatCurrency(method.totalAmount)}</p>
@@ -190,7 +192,7 @@ export default function BursarOverviewPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No payment data available</p>
+              <p className="text-gray-500 text-center py-4">{t('No payment data available')}</p>
             )}
           </CardBody>
         </Card>
@@ -198,8 +200,8 @@ export default function BursarOverviewPage() {
         {/* Recent Registrations */}
         <Card>
           <CardHeader className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Recent Registrations</h3>
-            <Link href="/dashboard/bursar/student-registration" className="text-xs font-medium text-blue-600 hover:text-blue-800">Register →</Link>
+            <h3 className="text-lg font-medium text-gray-900">{t('Recent Registrations')}</h3>
+            <Link href="/dashboard/bursar/student-registration" className="text-xs font-medium text-blue-600 hover:text-blue-800">{t('Register')} →</Link>
           </CardHeader>
           <CardBody>
             {dashboardData?.recentRegistrations && dashboardData.recentRegistrations.length > 0 ? (
@@ -208,7 +210,7 @@ export default function BursarOverviewPage() {
                   <div key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900 truncate">{registration.studentName}</p>
-                      <p className="text-sm text-gray-600 truncate">Parent: {registration.parentName}</p>
+                      <p className="text-sm text-gray-600 truncate">{t('Parent')}: {registration.parentName}</p>
                       <p className="text-xs text-gray-500">{registration.className}</p>
                     </div>
                     <div className="text-right">
@@ -220,7 +222,7 @@ export default function BursarOverviewPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-gray-500 text-center py-4">No recent registrations</p>
+              <p className="text-gray-500 text-center py-4">{t('No recent registrations')}</p>
             )}
           </CardBody>
         </Card>
@@ -229,7 +231,7 @@ export default function BursarOverviewPage() {
       {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <h3 className="text-lg font-medium text-gray-900">Quick Actions</h3>
+          <h3 className="text-lg font-medium text-gray-900">{t('Quick Actions')}</h3>
         </CardHeader>
         <CardBody>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -238,35 +240,35 @@ export default function BursarOverviewPage() {
               className="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition-colors"
             >
               <CurrencyDollarIcon className="w-8 h-8 text-blue-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Manage Fees</h4>
-              <p className="text-sm text-gray-600">Record payments and manage student fees</p>
+              <h4 className="font-medium text-gray-900">{t('Manage Fees')}</h4>
+              <p className="text-sm text-gray-600">{t('Record payments and manage student fees')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/bursar/student-registration'}
               className="p-4 bg-green-50 hover:bg-green-100 rounded-lg text-left transition-colors"
             >
               <UserPlusIcon className="w-8 h-8 text-green-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Register Student</h4>
-              <p className="text-sm text-gray-600">Add new students with parent accounts</p>
+              <h4 className="font-medium text-gray-900">{t('Register Student')}</h4>
+              <p className="text-sm text-gray-600">{t('Add new students with parent accounts')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/bursar/reports'}
               className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-left transition-colors"
             >
               <ChartBarIcon className="w-8 h-8 text-purple-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Financial Reports</h4>
-              <p className="text-sm text-gray-600">View detailed financial reports</p>
+              <h4 className="font-medium text-gray-900">{t('Financial Reports')}</h4>
+              <p className="text-sm text-gray-600">{t('View detailed financial reports')}</p>
             </button>
             <button
               onClick={() => window.location.href = '/dashboard/bursar/overpayments'}
               className="p-4 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-left transition-colors"
             >
               <ReceiptRefundIcon className="w-8 h-8 text-emerald-600 mb-2" />
-              <h4 className="font-medium text-gray-900">Overpayments &amp; Refunds</h4>
+              <h4 className="font-medium text-gray-900">{t('Overpayments & Refunds')}</h4>
               <p className="text-sm text-gray-600">
                 {overpaidCount != null
-                  ? `${overpaidCount} student${overpaidCount === 1 ? '' : 's'} with overpayments`
-                  : 'Review and refund overpayments'}
+                  ? `${overpaidCount} ${overpaidCount === 1 ? t('student with overpayments') : t('students with overpayments')}`
+                  : t('Review and refund overpayments')}
               </p>
             </button>
           </div>

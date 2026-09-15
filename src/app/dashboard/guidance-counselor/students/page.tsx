@@ -13,6 +13,7 @@ import {
   FlagIcon
 } from '@heroicons/react/24/outline';
 import { Card, CardHeader, CardTitle, CardBody, Button, Input, Badge, Table, StudentPhoto } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
@@ -79,6 +80,7 @@ interface NewRemark {
 }
 
 export default function GuidanceCounselorStudentsPage() {
+  const { t } = useLanguage();
   const [students, setStudents] = useState<Student[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<Student[]>([]);
   const [subClasses, setSubClasses] = useState<SubClass[]>([]);
@@ -105,7 +107,7 @@ export default function GuidanceCounselorStudentsPage() {
     setIsLoading(true);
     const token = getAuthToken();
     if (!token) {
-      toast.error('Authentication required');
+      toast.error(t('Authentication required'));
       return;
     }
 
@@ -142,11 +144,11 @@ export default function GuidanceCounselorStudentsPage() {
 
         setStudents(studentsWithBehaviorData);
       } else {
-        toast.error('Failed to fetch students');
+        toast.error(t('Failed to fetch students'));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      toast.error(t('Failed to load data'));
     } finally {
       setIsLoading(false);
     }
@@ -237,12 +239,12 @@ export default function GuidanceCounselorStudentsPage() {
 
   const handleSaveRemark = async () => {
     if (!selectedStudent || !newRemark.content.trim()) {
-      toast.error('Please enter remark content');
+      toast.error(t('Please enter remark content'));
       return;
     }
 
     // Mock save - replace with actual API call
-    toast.success('Remark added successfully');
+    toast.success(t('Remark added successfully'));
     setShowRemarkModal(false);
     setNewRemark({ content: '', type: 'ACADEMIC', severity: 'LOW' });
 
@@ -269,7 +271,7 @@ export default function GuidanceCounselorStudentsPage() {
   };
 
   const getAge = (dateOfBirth?: string) => {
-    if (!dateOfBirth) return 'N/A';
+    if (!dateOfBirth) return t('N/A');
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
     let age = today.getFullYear() - birthDate.getFullYear();
@@ -289,8 +291,8 @@ export default function GuidanceCounselorStudentsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
-          <p className="text-gray-600">Monitor student behavior, academic progress, and provide guidance</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Student Management')}</h1>
+          <p className="text-gray-600">{t('Monitor student behavior, academic progress, and provide guidance')}</p>
         </div>
       </div>
 
@@ -300,7 +302,7 @@ export default function GuidanceCounselorStudentsPage() {
           <CardBody className="flex items-center">
             <UserGroupIcon className="h-8 w-8 text-blue-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Total Students</p>
+              <p className="text-sm text-gray-600">{t('Total Students')}</p>
               <p className="text-2xl font-bold">{filteredStudents.length}</p>
             </div>
           </CardBody>
@@ -309,7 +311,7 @@ export default function GuidanceCounselorStudentsPage() {
           <CardBody className="flex items-center">
             <ExclamationTriangleIcon className="h-8 w-8 text-red-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">High Risk</p>
+              <p className="text-sm text-gray-600">{t('High Risk')}</p>
               <p className="text-2xl font-bold">
                 {filteredStudents.filter(s => s.riskLevel === 'HIGH').length}
               </p>
@@ -320,7 +322,7 @@ export default function GuidanceCounselorStudentsPage() {
           <CardBody className="flex items-center">
             <FlagIcon className="h-8 w-8 text-yellow-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Medium Risk</p>
+              <p className="text-sm text-gray-600">{t('Medium Risk')}</p>
               <p className="text-2xl font-bold">
                 {filteredStudents.filter(s => s.riskLevel === 'MEDIUM').length}
               </p>
@@ -331,7 +333,7 @@ export default function GuidanceCounselorStudentsPage() {
           <CardBody className="flex items-center">
             <CheckCircleIcon className="h-8 w-8 text-green-600 mr-3" />
             <div>
-              <p className="text-sm text-gray-600">Low Risk</p>
+              <p className="text-sm text-gray-600">{t('Low Risk')}</p>
               <p className="text-2xl font-bold">
                 {filteredStudents.filter(s => s.riskLevel === 'LOW').length}
               </p>
@@ -346,12 +348,12 @@ export default function GuidanceCounselorStudentsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search Students
+                {t('Search Students')}
               </label>
               <div className="relative">
                 <Input
                   type="text"
-                  placeholder="Search by name or matricule..."
+                  placeholder={t('Search by name or matricule...')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -362,14 +364,14 @@ export default function GuidanceCounselorStudentsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Class
+                {t('Filter by Class')}
               </label>
               <select
                 value={selectedSubClass}
                 onChange={(e) => setSelectedSubClass(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Classes</option>
+                <option value="">{t('All Classes')}</option>
                 {subClasses.map((subClass) => (
                   <option key={subClass.id} value={subClass.id}>
                     {subClass.class.name} - {subClass.name}
@@ -380,17 +382,17 @@ export default function GuidanceCounselorStudentsPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Filter by Risk Level
+                {t('Filter by Risk Level')}
               </label>
               <select
                 value={selectedRiskLevel}
                 onChange={(e) => setSelectedRiskLevel(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                <option value="">All Risk Levels</option>
-                <option value="HIGH">High Risk</option>
-                <option value="MEDIUM">Medium Risk</option>
-                <option value="LOW">Low Risk</option>
+                <option value="">{t('All Risk Levels')}</option>
+                <option value="HIGH">{t('High Risk')}</option>
+                <option value="MEDIUM">{t('Medium Risk')}</option>
+                <option value="LOW">{t('Low Risk')}</option>
               </select>
             </div>
 
@@ -404,7 +406,7 @@ export default function GuidanceCounselorStudentsPage() {
                 }}
                 className="w-full"
               >
-                Clear Filters
+                {t('Clear Filters')}
               </Button>
             </div>
           </div>
@@ -416,9 +418,9 @@ export default function GuidanceCounselorStudentsPage() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <UserGroupIcon className="h-5 w-5 mr-2" />
-            Students Overview
+            {t('Students Overview')}
             <span className="ml-2 text-sm font-normal text-gray-500">
-              ({filteredStudents.length} students)
+              ({filteredStudents.length} {t('students')})
             </span>
           </CardTitle>
         </CardHeader>
@@ -426,12 +428,12 @@ export default function GuidanceCounselorStudentsPage() {
           {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-              <p className="mt-2 text-gray-600">Loading students...</p>
+              <p className="mt-2 text-gray-600">{t('Loading students...')}</p>
             </div>
           ) : filteredStudents.length === 0 ? (
             <div className="text-center py-8">
               <UserGroupIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600">No students found</p>
+              <p className="text-gray-600">{t('No students found')}</p>
             </div>
           ) : (
             <>
@@ -439,13 +441,13 @@ export default function GuidanceCounselorStudentsPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Risk Level</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Behavior Records</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Remarks</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Student')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Class')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Age')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Risk Level')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Behavior Records')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Remarks')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -485,7 +487,7 @@ export default function GuidanceCounselorStudentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm">
-                          <span className="text-gray-900">{student.behaviorRecords?.length || 0} records</span>
+                          <span className="text-gray-900">{student.behaviorRecords?.length || 0} {t('records')}</span>
                           {student.behaviorRecords && student.behaviorRecords.length > 0 && (
                             <div className="flex space-x-1 mt-1">
                               {student.behaviorRecords.slice(0, 2).map((record, index) => (
@@ -504,7 +506,7 @@ export default function GuidanceCounselorStudentsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {student.remarks?.length || 0} remarks
+                          {student.remarks?.length || 0} {t('remarks')}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -553,7 +555,7 @@ export default function GuidanceCounselorStudentsPage() {
                     </div>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Class</span>
+                    <span className="text-xs text-gray-500">{t('Class')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       <Badge variant="outline">
                         {student.enrollments?.[0]?.subClass?.class?.name} - {student.enrollments?.[0]?.subClass?.name}
@@ -561,11 +563,11 @@ export default function GuidanceCounselorStudentsPage() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Age</span>
+                    <span className="text-xs text-gray-500">{t('Age')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">{getAge(student.dateOfBirth)}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Risk Level</span>
+                    <span className="text-xs text-gray-500">{t('Risk Level')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       <Badge
                         variant="solid"
@@ -577,9 +579,9 @@ export default function GuidanceCounselorStudentsPage() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Behavior Records</span>
+                    <span className="text-xs text-gray-500">{t('Behavior Records')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
-                      <span className="text-gray-900">{student.behaviorRecords?.length || 0} records</span>
+                      <span className="text-gray-900">{student.behaviorRecords?.length || 0} {t('records')}</span>
                       {student.behaviorRecords && student.behaviorRecords.length > 0 && (
                         <span className="flex justify-end space-x-1 mt-1">
                           {student.behaviorRecords.slice(0, 2).map((record, index) => (
@@ -597,9 +599,9 @@ export default function GuidanceCounselorStudentsPage() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Remarks</span>
+                    <span className="text-xs text-gray-500">{t('Remarks')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
-                      {student.remarks?.length || 0} remarks
+                      {student.remarks?.length || 0} {t('remarks')}
                     </span>
                   </div>
                   <div className="flex flex-wrap gap-2 pt-1.5">
@@ -635,7 +637,7 @@ export default function GuidanceCounselorStudentsPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">{selectedStudent.name} - Profile</h2>
+              <h2 className="text-xl font-bold">{selectedStudent.name} {t('- Profile')}</h2>
               <Button
                 variant="ghost"
                 onClick={() => setShowStudentModal(false)}

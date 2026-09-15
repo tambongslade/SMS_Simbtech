@@ -7,6 +7,7 @@ import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { listChannels } from '@/lib/chatApi';
 import { getChatSocket } from '@/lib/chatSocket';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Navbar chat icon with a live unread-messages badge. Cold count comes from
 // GET /chat/channels; socket events keep it fresh between polls.
@@ -15,6 +16,7 @@ export default function ChatIndicator({ className = '' }: { className?: string }
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -51,10 +53,10 @@ export default function ChatIndicator({ className = '' }: { className?: string }
     const onReconnect = () => refresh();
     // Targeted mention event — toast even when the channel isn't open
     const onMention = (evt: any) => {
-      const sender = evt?.sender?.name || 'Someone';
-      const channel = evt?.channel_name ?? evt?.channelName ?? 'a channel';
+      const sender = evt?.sender?.name || t('Someone');
+      const channel = evt?.channel_name ?? evt?.channelName ?? t('a channel');
       const preview = (evt?.preview || '').slice(0, 80);
-      toast(`@ ${sender} mentioned you in #${channel}${preview ? `: ${preview}` : ''}`, { icon: '💬', duration: 6000 });
+      toast(`@ ${sender} ${t('mentioned you in')} #${channel}${preview ? `: ${preview}` : ''}`, { icon: '💬', duration: 6000 });
       scheduleRefresh();
     };
 
@@ -85,8 +87,8 @@ export default function ChatIndicator({ className = '' }: { className?: string }
     <button
       onClick={openChat}
       className={`relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full transition-colors ${className}`}
-      title="Chat"
-      aria-label={`Chat${unread > 0 ? `, ${unread} unread messages` : ''}`}
+      title={t('Chat')}
+      aria-label={`${t('Chat')}${unread > 0 ? `, ${unread} ${t('unread messages')}` : ''}`}
     >
       <ChatBubbleLeftRightIcon className="h-6 w-6" />
       {unread > 0 && (

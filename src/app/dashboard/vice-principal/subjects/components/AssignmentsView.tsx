@@ -3,6 +3,7 @@ import { Subject, SubjectAssignment } from '../types/subject';
 import { TrashIcon, PlusIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { AssignSubjectModal } from './AssignSubjectModal';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Add ClassInfo type here or import from a shared location
 type ClassInfo = {
@@ -36,6 +37,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
     apiBaseUrl,
     getAuthToken,
 }) => {
+    const { t } = useLanguage();
     const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
     const [selectedSubClassId, setSelectedSubClassId] = useState<number | ''>('');
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -137,11 +139,11 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
              <div className="flex justify-between items-center mb-0">
                  {filteredSubjectName ? (
                      <h2 className="text-xl font-semibold text-gray-800">
-                         Assignments for: <span className="text-indigo-600">{filteredSubjectName}</span>
+                         {t('Assignments for:')} <span className="text-indigo-600">{filteredSubjectName}</span>
                      </h2>
                  ) : (
                      <h2 className="text-xl font-semibold text-gray-800">
-                         All Subject Assignments
+                         {t('All Subject Assignments')}
                      </h2>
                  )}
                  {/* Add Assignment Button */}
@@ -151,7 +153,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                     className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 text-sm"
                   >
                     <PlusIcon className="h-4 w-4 mr-1.5" />
-                    Add Assignment
+                    {t('Add Assignment')}
                   </button>
              </div>
 
@@ -159,7 +161,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
              {filterSubjectId === null && (
                  <div className="p-4 bg-white rounded-lg shadow-sm flex flex-col sm:flex-row gap-4">
                     <div className="flex-1">
-                        <label htmlFor="classFilter" className="block text-sm font-medium text-gray-700">Filter by Class</label>
+                        <label htmlFor="classFilter" className="block text-sm font-medium text-gray-700">{t('Filter by Class')}</label>
                         <select
                             id="classFilter"
                             value={selectedClassId}
@@ -167,14 +169,14 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                             disabled={isLoading}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                         >
-                            <option value="">-- All Classes --</option>
+                            <option value="">{t('-- All Classes --')}</option>
                             {allClasses.map((cls) => (
                                 <option key={cls.id} value={cls.id}>{cls.name}</option>
                             ))}
                         </select>
                     </div>
                     <div className="flex-1">
-                        <label htmlFor="subClassFilter" className="block text-sm font-medium text-gray-700">Filter by Subclass</label>
+                        <label htmlFor="subClassFilter" className="block text-sm font-medium text-gray-700">{t('Filter by Subclass')}</label>
                         <select
                             id="subClassFilter"
                             value={selectedSubClassId}
@@ -182,7 +184,7 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                             disabled={isLoading || selectedClassId === ''}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                         >
-                            <option value="">-- All Subclasses --</option>
+                            <option value="">{t('-- All Subclasses --')}</option>
                             {availableSubclasses.map((sub) => (
                                 <option key={sub.id} value={sub.id}>{sub.name}</option>
                             ))}
@@ -193,15 +195,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
 
              {/* Conditional Rendering for Table OR Empty State Message */}
              {isLoading ? (
-                <p className="text-center text-gray-500 py-4">Loading assignments...</p>
+                <p className="text-center text-gray-500 py-4">{t('Loading assignments...')}</p>
              ) : filteredAssignments.length === 0 ? (
                   <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">
                       {filteredSubjectName
-                          ? `No assignments found for ${filteredSubjectName}. `
-                          : 'No assignments found matching the current filter. '
+                          ? `${t('No assignments found for')} ${filteredSubjectName}. `
+                          : `${t('No assignments found matching the current filter.')} `
                       }
                       {filteredSubjectName && (
-                          <span className="text-sm">You can add one using the button above.</span>
+                          <span className="text-sm">{t('You can add one using the button above.')}</span>
                       )}
                   </p>
              ) : (
@@ -211,11 +213,11 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                      <table className="min-w-full divide-y divide-gray-200">
                          <thead className="bg-gray-100">
                              <tr>
-                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Subject</th>
-                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Class</th>
-                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Subclass</th>
-                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Coefficient</th>
-                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">{t('Subject')}</th>
+                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">{t('Class')}</th>
+                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">{t('Subclass')}</th>
+                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">{t('Coefficient')}</th>
+                                 <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">{t('Actions')}</th>
                              </tr>
                          </thead>
                          <tbody className="bg-white divide-y divide-gray-200">
@@ -229,18 +231,18 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                                          <button
                                              onClick={() => openEditModal(assignment)}
                                              disabled={isLoading}
-                                             title="Edit Coefficient"
+                                             title={t('Edit Coefficient')}
                                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                                          >
-                                             <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                                             <PencilIcon className="h-4 w-4 mr-1" /> {t('Edit')}
                                          </button>
                                          <button
                                              onClick={() => onRemoveAssignment(assignment.subjectId, assignment.subClassId)}
                                              disabled={isLoading}
-                                             title="Remove Assignment"
+                                             title={t('Remove Assignment')}
                                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                          >
-                                             <TrashIcon className="h-4 w-4 mr-1" /> Remove
+                                             <TrashIcon className="h-4 w-4 mr-1" /> {t('Remove')}
                                          </button>
                                      </td>
                                  </tr>
@@ -254,15 +256,15 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                           <div key={`${assignment.subjectId}-${assignment.subClassId}`} className="p-4 space-y-1.5">
                               <div className="text-sm font-semibold text-gray-900 break-words">{assignment.subjectName}</div>
                               <div className="flex items-start justify-between gap-3">
-                                  <span className="text-xs text-gray-500">Class</span>
+                                  <span className="text-xs text-gray-500">{t('Class')}</span>
                                   <span className="text-sm text-gray-900 text-right break-words">{assignment.className}</span>
                               </div>
                               <div className="flex items-start justify-between gap-3">
-                                  <span className="text-xs text-gray-500">Subclass</span>
+                                  <span className="text-xs text-gray-500">{t('Subclass')}</span>
                                   <span className="text-sm text-gray-900 text-right break-words">{assignment.subClassName}</span>
                               </div>
                               <div className="flex items-start justify-between gap-3">
-                                  <span className="text-xs text-gray-500">Coefficient</span>
+                                  <span className="text-xs text-gray-500">{t('Coefficient')}</span>
                                   <span className="text-sm text-gray-900 text-right break-words">{assignment.coefficient}</span>
                               </div>
                               <div className="flex flex-wrap gap-2 pt-1.5">
@@ -294,13 +296,13 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
                     <div className="relative mx-auto p-6 border w-full max-w-md shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         <button onClick={closeEditModal} disabled={isSavingCoefficient} className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl font-bold disabled:opacity-50">&times;</button>
-                        <h2 className="text-lg font-semibold mb-1">Edit Coefficient</h2>
+                        <h2 className="text-lg font-semibold mb-1">{t('Edit Coefficient')}</h2>
                         <p className="text-sm text-gray-600 mb-4">
                             <span className="font-medium">{editingAssignment.subjectName}</span> — {editingAssignment.className} ({editingAssignment.subClassName})
                         </p>
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="editCoefficient" className="block text-sm font-medium text-gray-700">New Coefficient</label>
+                                <label htmlFor="editCoefficient" className="block text-sm font-medium text-gray-700">{t('New Coefficient')}</label>
                                 <input
                                     type="number"
                                     id="editCoefficient"
@@ -321,9 +323,9 @@ export const AssignmentsView: React.FC<AssignmentsViewProps> = ({
                                     className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                                 />
                                 <span>
-                                    Apply to all <span className="font-medium">{editingAssignment.className}</span> subclasses with this subject
+                                    {t('Apply to all')} <span className="font-medium">{editingAssignment.className}</span> {t('subclasses with this subject')}
                                     <span className="block text-xs text-gray-500">
-                                        {siblingAssignments.length} subclass(es): {siblingAssignments.map(a => a.subClassName).join(', ')}
+                                        {siblingAssignments.length} {t('subclass(es):')} {siblingAssignments.map(a => a.subClassName).join(', ')}
                                     </span>
                                 </span>
                             </label>

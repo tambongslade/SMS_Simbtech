@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Button } from '@/components/ui';
 import { PrinterIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export interface BatchPrintSubclassOption {
     id: string;
@@ -25,6 +26,7 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
     onPrint,
     isPreparing = false,
 }) => {
+    const { t } = useLanguage();
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [filter, setFilter] = useState('');
 
@@ -86,17 +88,17 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
     };
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Batch Print Timetables" size="lg">
+        <Modal isOpen={isOpen} onClose={onClose} title={t('Batch Print Timetables')} size="lg">
             <div className="space-y-3">
                 <p className="text-xs text-gray-500 -mt-1">
-                    Pick the classes to include — one landscape page per class, fits the whole week on a single A4 page.
+                    {t('Pick the classes to include — one landscape page per class, fits the whole week on a single A4 page.')}
                 </p>
 
                 <div className="relative">
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     <input
                         type="search"
-                        placeholder="Filter classes…"
+                        placeholder={t('Filter classes…')}
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                         className="w-full py-2.5 pl-9 pr-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
@@ -104,28 +106,28 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
                 </div>
 
                 <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-600 font-medium">{selected.size} selected</span>
+                    <span className="text-gray-600 font-medium">{selected.size} {t('selected')}</span>
                     <div className="flex gap-3">
                         <button
                             type="button"
                             onClick={selectAllVisible}
                             className="text-blue-600 font-medium hover:underline"
                         >
-                            Select all
+                            {t('Select all')}
                         </button>
                         <button
                             type="button"
                             onClick={clearSelection}
                             className="text-gray-600 font-medium hover:underline"
                         >
-                            Clear
+                            {t('Clear')}
                         </button>
                     </div>
                 </div>
 
                 <div className="max-h-[55vh] overflow-y-auto border rounded-md divide-y">
                     {grouped.length === 0 ? (
-                        <p className="p-4 text-sm text-gray-500 italic text-center">No classes match.</p>
+                        <p className="p-4 text-sm text-gray-500 italic text-center">{t('No classes match.')}</p>
                     ) : (
                         grouped.map(([groupName, items]) => {
                             const ids = items.map((s) => s.id);
@@ -145,7 +147,7 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
                                             className={`text-xs font-medium ${allOn ? 'text-blue-600' : someOn ? 'text-blue-500' : 'text-gray-400'
                                                 }`}
                                         >
-                                            {allOn ? 'All selected' : someOn ? 'Some selected' : 'Select all'}
+                                            {allOn ? t('All selected') : someOn ? t('Some selected') : t('Select all')}
                                         </span>
                                     </button>
                                     {items.map((sc) => {
@@ -178,7 +180,7 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
                         disabled={isPreparing}
                         className="w-full sm:w-auto"
                     >
-                        Cancel
+                        {t('Cancel')}
                     </Button>
                     <Button
                         color="primary"
@@ -188,10 +190,10 @@ export const BatchPrintModal: React.FC<BatchPrintModalProps> = ({
                     >
                         <PrinterIcon className="h-5 w-5 mr-1 inline" />
                         {isPreparing
-                            ? 'Preparing…'
+                            ? t('Preparing…')
                             : selected.size > 1
-                                ? `Print ${selected.size} timetables`
-                                : 'Print PDF'}
+                                ? `${t('Print')} ${selected.size} ${t('timetables')}`
+                                : t('Print PDF')}
                     </Button>
                 </div>
             </div>

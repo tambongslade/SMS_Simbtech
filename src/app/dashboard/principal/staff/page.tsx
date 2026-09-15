@@ -12,6 +12,7 @@ import { PersonnelFilters } from './components/PersonnelFilters';
 import { AddEditPersonnelModal } from './components/AddEditPersonnelModal';
 import { ManageUserRolesModal } from './components/ManageUserRolesModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 // import { LinkStudentToParentModal } from './components/LinkStudentToParentModal'; // REMOVED
 
 // Types are now primarily managed within the hook or its imported types
@@ -22,6 +23,7 @@ import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 
 // Main Page Component for Personnel Management
 export default function PersonnelManagement() {
+  const { t } = useLanguage();
   const {
     personnel,
     isLoading,
@@ -69,17 +71,17 @@ export default function PersonnelManagement() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Personnel Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{t('Personnel Management')}</h1>
               <p className="text-gray-600 mt-1">
-                Oversee all staff members and their roles
+                {t('Oversee all staff members and their roles')}
                 {selectedAcademicYear && (
                   <span className="ml-2 text-blue-600 font-medium">
-                    | Academic Year: {selectedAcademicYear.name}
+                    | {t('Academic Year')}: {selectedAcademicYear.name}
                   </span>
                 )}
               </p>
               <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                <span>Total Personnel: {totalItems}</span>
+                <span>{t('Total Personnel')}: {totalItems}</span>
               </div>
             </div>
             <button
@@ -87,7 +89,7 @@ export default function PersonnelManagement() {
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
               disabled={isLoading || isMutating}
             >
-              <UserPlusIcon className="h-5 w-5 mr-2" /> Add New Personnel
+              <UserPlusIcon className="h-5 w-5 mr-2" /> {t('Add New Personnel')}
             </button>
           </div>
         </div>
@@ -106,8 +108,8 @@ export default function PersonnelManagement() {
         {/* Error Display */}
         {fetchError && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 my-4 rounded-md shadow-md" role="alert">
-            <p className="font-bold">Error</p>
-            <p>Failed to load personnel data: {fetchError.message || 'Unknown error'}. Please try refreshing the page.</p>
+            <p className="font-bold">{t('Error')}</p>
+            <p>{t('Failed to load personnel data')}: {fetchError.message || t('Unknown error')}. {t('Please try refreshing the page.')}</p>
           </div>
         )}
 

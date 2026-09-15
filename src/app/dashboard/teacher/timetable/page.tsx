@@ -7,6 +7,7 @@ import apiService from '../../../../lib/apiService';
 import { downloadMyTimetablePdf } from '@/lib/timetablePdf';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 const DAYS_ORDER = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY'];
 const DAY_NAMES = {
@@ -68,6 +69,7 @@ interface TeacherTimetableResponse {
 type ViewMode = 'daily' | 'weekly';
 
 export default function TeacherTimetablePage() {
+    const { t } = useLanguage();
     const [isMounted, setIsMounted] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>('weekly');
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -115,7 +117,7 @@ export default function TeacherTimetablePage() {
     useEffect(() => {
         if (timetableError) {
             console.error('Timetable Fetch Error:', timetableError);
-            toast.error('Failed to load your timetable.');
+            toast.error(t('Failed to load your timetable.'));
         }
     }, [timetableError]);
 
@@ -282,7 +284,7 @@ export default function TeacherTimetablePage() {
                 <div className="p-4 sm:p-6">
                     <div className="flex flex-wrap items-center justify-between gap-2 mb-4 sm:mb-6">
                         <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
-                            Today's Schedule - {dayName}
+                            {t("Today's Schedule")} - {dayName}
                         </h2>
                         <div className="text-sm text-gray-500">
                             {new Date().toLocaleDateString('en-US', {
@@ -297,8 +299,8 @@ export default function TeacherTimetablePage() {
                     {todaySchedule.length === 0 ? (
                         <div className="text-center py-12">
                             <CalendarIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No Classes Today</h3>
-                            <p className="text-gray-500">You have no scheduled classes for today.</p>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No Classes Today')}</h3>
+                            <p className="text-gray-500">{t('You have no scheduled classes for today.')}</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -324,7 +326,7 @@ export default function TeacherTimetablePage() {
                                                     <div className="mt-2">
                                                         <h3 className="text-lg font-bold text-gray-900">{subjectName}</h3>
                                                         <p className="text-gray-600">{className}</p>
-                                                        <p className="text-sm text-gray-500">{classItem.subClass.currentStudents} students</p>
+                                                        <p className="text-sm text-gray-500">{classItem.subClass.currentStudents} {t('students')}</p>
                                                     </div>
                                                 </div>
                                                 <div className="text-right">
@@ -355,7 +357,7 @@ export default function TeacherTimetablePage() {
                                                     <span className="font-semibold text-gray-900">{timeRange}</span>
                                                     {timeSlotGroup.classes.length > 2 && (
                                                         <Badge variant="outline" className="text-xs">
-                                                            +{timeSlotGroup.classes.length - 2} more
+                                                            +{timeSlotGroup.classes.length - 2} {t('more')}
                                                         </Badge>
                                                     )}
                                                 </div>
@@ -394,14 +396,14 @@ export default function TeacherTimetablePage() {
                                                 <div className="absolute top-0 left-0 w-full h-full flex flex-col justify-center items-start p-3">
                                                     <div className="text-sm font-bold truncate max-w-[70%]">{subject1Name}</div>
                                                     <div className="text-xs text-gray-600 truncate max-w-[70%]">{class1Name}</div>
-                                                    <div className="text-xs text-gray-500">{class1.subClass.currentStudents} students</div>
+                                                    <div className="text-xs text-gray-500">{class1.subClass.currentStudents} {t('students')}</div>
                                                 </div>
 
                                                 {/* Content for second class (bottom-right) */}
                                                 <div className="absolute bottom-0 right-0 w-full h-full flex flex-col justify-center items-end p-3">
                                                     <div className="text-sm font-bold truncate max-w-[70%] text-right">{subject2Name}</div>
                                                     <div className="text-xs text-gray-600 truncate max-w-[70%] text-right">{class2Name}</div>
-                                                    <div className="text-xs text-gray-500 text-right">{class2.subClass.currentStudents} students</div>
+                                                    <div className="text-xs text-gray-500 text-right">{class2.subClass.currentStudents} {t('students')}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -425,7 +427,7 @@ export default function TeacherTimetablePage() {
                             <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r sticky left-0 bg-gray-50 z-20 min-w-[120px]">
-                                        Period / Time
+                                        {t('Period / Time')}
                                     </th>
                                     {DAYS_ORDER.map(day => (
                                         <th key={day} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r min-w-[140px]">
@@ -464,13 +466,13 @@ export default function TeacherTimetablePage() {
             <div className="p-6 space-y-6">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-3xl font-bold">My Timetable</h1>
-                        <p className="text-gray-600">View your class schedule and teaching assignments</p>
+                        <h1 className="text-3xl font-bold">{t('My Timetable')}</h1>
+                        <p className="text-gray-600">{t('View your class schedule and teaching assignments')}</p>
                     </div>
                 </div>
                 <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-4 text-gray-500">Loading timetable...</p>
+                    <p className="mt-4 text-gray-500">{t('Loading timetable...')}</p>
                 </div>
             </div>
         );
@@ -481,8 +483,8 @@ export default function TeacherTimetablePage() {
             {/* Header with View Toggle */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold">My Timetable</h1>
-                    <p className="text-sm sm:text-base text-gray-600">View your class schedule and teaching assignments</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold">{t('My Timetable')}</h1>
+                    <p className="text-sm sm:text-base text-gray-600">{t('View your class schedule and teaching assignments')}</p>
                 </div>
                 <div className="flex items-center space-x-2">
                     <Button
@@ -492,7 +494,7 @@ export default function TeacherTimetablePage() {
                         className="flex items-center space-x-2"
                     >
                         <CalendarIcon className="h-4 w-4" />
-                        <span>Daily</span>
+                        <span>{t('Daily')}</span>
                     </Button>
                     <Button
                         variant={viewMode === 'weekly' ? 'solid' : 'outline'}
@@ -501,7 +503,7 @@ export default function TeacherTimetablePage() {
                         className="flex items-center space-x-2"
                     >
                         <ViewColumnsIcon className="h-4 w-4" />
-                        <span>Weekly</span>
+                        <span>{t('Weekly')}</span>
                     </Button>
                     <Button
                         variant="outline"
@@ -509,10 +511,10 @@ export default function TeacherTimetablePage() {
                         onClick={handleDownloadPdf}
                         disabled={isDownloadingPdf || schedule.length === 0}
                         className="flex items-center space-x-2"
-                        title="Download your timetable as a print-ready PDF"
+                        title={t('Download your timetable as a print-ready PDF')}
                     >
                         <DocumentArrowDownIcon className="h-4 w-4" />
-                        <span>{isDownloadingPdf ? 'Preparing...' : 'PDF'}</span>
+                        <span>{isDownloadingPdf ? t('Preparing...') : t('PDF')}</span>
                     </Button>
                 </div>
             </div>
@@ -523,7 +525,7 @@ export default function TeacherTimetablePage() {
                     <CardBody className="flex items-center">
                         <CalendarDaysIcon className="h-8 w-8 text-blue-600 mr-3" />
                         <div>
-                            <p className="text-sm text-gray-600">Total Classes</p>
+                            <p className="text-sm text-gray-600">{t('Total Classes')}</p>
                             <p className="text-2xl font-bold">{summary?.totalClasses || 0}</p>
                         </div>
                     </CardBody>
@@ -532,7 +534,7 @@ export default function TeacherTimetablePage() {
                     <CardBody className="flex items-center">
                         <AcademicCapIcon className="h-8 w-8 text-green-600 mr-3" />
                         <div>
-                            <p className="text-sm text-gray-600">Subjects</p>
+                            <p className="text-sm text-gray-600">{t('Subjects')}</p>
                             <p className="text-2xl font-bold">{summary?.totalSubjects || 0}</p>
                         </div>
                     </CardBody>
@@ -541,7 +543,7 @@ export default function TeacherTimetablePage() {
                     <CardBody className="flex items-center">
                         <ClockIcon className="h-8 w-8 text-purple-600 mr-3" />
                         <div>
-                            <p className="text-sm text-gray-600">Weekly Hours</p>
+                            <p className="text-sm text-gray-600">{t('Weekly Hours')}</p>
                             <p className="text-2xl font-bold">{`${summary?.weeklyHours.toFixed(1) || 0}h`}</p>
                         </div>
                     </CardBody>
@@ -550,7 +552,7 @@ export default function TeacherTimetablePage() {
                     <CardBody className="flex items-center">
                         <BuildingLibraryIcon className="h-8 w-8 text-orange-600 mr-3" />
                         <div>
-                            <p className="text-sm text-gray-600">Today's Classes</p>
+                            <p className="text-sm text-gray-600">{t("Today's Classes")}</p>
                             <p className="text-2xl font-bold">{summary?.todayClasses || 0}</p>
                         </div>
                     </CardBody>
@@ -562,8 +564,8 @@ export default function TeacherTimetablePage() {
                 <Card>
                     <CardBody className="text-center py-12">
                         <CalendarDaysIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Timetable Available</h3>
-                        <p className="text-gray-500">Your timetable has not been assigned yet. Please contact the administration.</p>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No Timetable Available')}</h3>
+                        <p className="text-gray-500">{t('Your timetable has not been assigned yet. Please contact the administration.')}</p>
                     </CardBody>
                 </Card>
             ) : (

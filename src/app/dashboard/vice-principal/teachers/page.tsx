@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { BookOpenIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import { useTeacherSearch, useTeacherFilterOptions } from '@/hooks/useTeacherSearch';
 import { TeacherSearchFilters } from '@/components/teachers/TeacherSearchFilters';
@@ -17,6 +18,7 @@ const errorMessage = (error: unknown): string =>
 
 export default function TeacherManagementPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const search = useTeacherSearch({
     academicYearId: selectedAcademicYear?.id,
     initialFilters: { sortBy: 'name', sortOrder: 'asc' },
@@ -64,10 +66,10 @@ export default function TeacherManagementPage() {
 
     setIsSaving(false);
     if (errors.length === 0) {
-      toast.success('Teacher subject assignments updated successfully.');
+      toast.success(t('Teacher subject assignments updated successfully.'));
       closeAssignModal();
     } else {
-      toast.error(`Failed to update some assignments:\n${errors.join('\n')}`);
+      toast.error(`${t('Failed to update some assignments:')}\n${errors.join('\n')}`);
     }
     search.refresh();
   };
@@ -76,10 +78,10 @@ export default function TeacherManagementPage() {
     <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">Teacher Management</h1>
-          <p className="text-gray-600 mt-1">Search teachers and manage their subject allocations.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Teacher Management')}</h1>
+          <p className="text-gray-600 mt-1">{t('Search teachers and manage their subject allocations.')}</p>
           {selectedAcademicYear && (
-            <div className="mt-2 text-sm text-gray-500">Academic Year: {selectedAcademicYear.name}</div>
+            <div className="mt-2 text-sm text-gray-500">{t('Academic Year')}: {selectedAcademicYear.name}</div>
           )}
         </div>
 
@@ -93,10 +95,10 @@ export default function TeacherManagementPage() {
             <button
               onClick={() => setTeacherToAssign(teacher)}
               disabled={isSaving}
-              title="Manage Assigned Subjects"
+              title={t('Manage Assigned Subjects')}
               className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
             >
-              <BookOpenIcon className="h-4 w-4 mr-1" /> Manage Subjects
+              <BookOpenIcon className="h-4 w-4 mr-1" /> {t('Manage Subjects')}
             </button>
           )}
         />

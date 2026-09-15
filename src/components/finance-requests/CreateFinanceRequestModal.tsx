@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Button, Input, Select, TextArea, Modal } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
   createFinanceRequest,
   searchFinanceStudents,
@@ -49,6 +50,7 @@ export function CreateFinanceRequestModal({
   allowedTypes: allowedTypesProp,
 }: CreateFinanceRequestModalProps) {
   const { user, selectedAcademicYear, selectedRole } = useAuth();
+  const { t } = useLanguage();
 
   // Staff outside the finance team may only request money for themselves, and
   // can't list other users — so the recipient picker is replaced by "you".
@@ -339,7 +341,7 @@ export function CreateFinanceRequestModal({
   );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="New Finance Request" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('New Finance Request')} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         {allowedTypes.length > 1 ? (
           <Select
@@ -575,10 +577,10 @@ export function CreateFinanceRequestModal({
 
         <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
           <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>
-            Cancel
+            {t('Cancel')}
           </Button>
           <Button type="submit" color="primary" isLoading={isSaving}>
-            Create Request
+            {t('Create Request')}
           </Button>
         </div>
       </form>

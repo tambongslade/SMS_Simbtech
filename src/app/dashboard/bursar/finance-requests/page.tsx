@@ -2,43 +2,44 @@
 
 import { useCallback, useState } from 'react';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { Tabs } from '@/components/ui';
 import { FinanceRequestsPanel, FinanceRequestDeepLink } from '@/components/finance-requests';
 import type { FinanceRequest } from '@/lib/financeRequestsApi';
 
-// The backend settles these two on approval — the Bursar must not re-enter them.
-const settledFollowUp = (req: FinanceRequest) => {
-  if (req.status !== 'APPROVED') return null;
-  if (req.type === 'PAYMENT_CLAIM') {
-    return (
-      <div className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 mt-1.5 inline-block">
-        Payment recorded automatically — do not record it again.
-      </div>
-    );
-  }
-  if (req.type === 'REFUND') {
-    return (
-      <div className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 mt-1.5 inline-block">
-        Approved by a Super Manager — disburse the money to the parent.
-      </div>
-    );
-  }
-  return null;
-};
-
 export default function BursarFinanceRequestsPage() {
   const { user } = useAuth();
+  const { t } = useLanguage();
 
   const [refreshKey, setRefreshKey] = useState(0);
   const handleActed = useCallback(() => setRefreshKey((k) => k + 1), []);
 
+  // The backend settles these two on approval — the Bursar must not re-enter them.
+  const settledFollowUp = (req: FinanceRequest) => {
+    if (req.status !== 'APPROVED') return null;
+    if (req.type === 'PAYMENT_CLAIM') {
+      return (
+        <div className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 mt-1.5 inline-block">
+          {t('Payment recorded automatically — do not record it again.')}
+        </div>
+      );
+    }
+    if (req.type === 'REFUND') {
+      return (
+        <div className="text-xs text-emerald-700 bg-emerald-50 rounded px-2 py-1 mt-1.5 inline-block">
+          {t('Approved by a Super Manager — disburse the money to the parent.')}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h1 className="text-2xl font-bold text-gray-900">Expense Requisition</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{t('Expense Requisition')}</h1>
         <p className="text-gray-600 mt-1">
-          Validate parent payment claims, raise refunds for Super Manager approval, and track staff
-          money requests, fee reductions and bank verifications.
+          {t('Validate parent payment claims, raise refunds for Super Manager approval, and track staff money requests, fee reductions and bank verifications.')}
         </p>
       </div>
 
@@ -47,86 +48,86 @@ export default function BursarFinanceRequestsPage() {
           tabs={[
             {
               id: 'claims',
-              label: 'Payment Claims',
+              label: t('Payment Claims'),
               content: (
                 <FinanceRequestsPanel
                   key={`claims-${refreshKey}`}
-                  title="Payment Claims to Validate"
-                  description="Proof of payment submitted by parents. Approving records the payment against the student's fees — no separate entry is needed."
+                  title={t('Payment Claims to Validate')}
+                  description={t("Proof of payment submitted by parents. Approving records the payment against the student's fees — no separate entry is needed.")}
                   baseFilters={{ type: 'PAYMENT_CLAIM', status: 'PENDING' }}
-                  emptyMessage="No payment claims are awaiting validation."
+                  emptyMessage={t('No payment claims are awaiting validation.')}
                   followUpHint={settledFollowUp}
                 />
               ),
             },
             {
               id: 'claims-history',
-              label: 'Claim History',
+              label: t('Claim History'),
               content: (
                 <FinanceRequestsPanel
                   key={`claims-history-${refreshKey}`}
-                  title="All Payment Claims"
-                  description="Every claim submitted, whatever its outcome."
+                  title={t('All Payment Claims')}
+                  description={t('Every claim submitted, whatever its outcome.')}
                   baseFilters={{ type: 'PAYMENT_CLAIM' }}
                   showStatusFilter
-                  emptyMessage="No payment claims yet."
+                  emptyMessage={t('No payment claims yet.')}
                   followUpHint={settledFollowUp}
                 />
               ),
             },
             {
               id: 'money-requests',
-              label: 'Staff Money Requests',
+              label: t('Staff Money Requests'),
               content: (
                 <FinanceRequestsPanel
                   key={`money-requests-${refreshKey}`}
-                  title="Money Requested by Staff"
-                  description="Requests from teachers, HODs, discipline masters and other personnel — what to disburse. Only the recipient or Principal+ can settle a request, so there are no action buttons here."
+                  title={t('Money Requested by Staff')}
+                  description={t('Requests from teachers, HODs, discipline masters and other personnel — what to disburse. Only the recipient or Principal+ can settle a request, so there are no action buttons here.')}
                   baseFilters={{ type: 'PERSONNEL_DISBURSEMENT' }}
                   showStatusFilter
-                  emptyMessage="No staff money requests yet."
+                  emptyMessage={t('No staff money requests yet.')}
                 />
               ),
             },
             {
               id: 'refunds',
-              label: 'Refund Requests',
+              label: t('Refund Requests'),
               content: (
                 <FinanceRequestsPanel
                   key={`refunds-${refreshKey}`}
-                  title="Refund Requests"
-                  description="Refunds you have raised against overpayments, awaiting Super Manager approval."
+                  title={t('Refund Requests')}
+                  description={t('Refunds you have raised against overpayments, awaiting Super Manager approval.')}
                   baseFilters={{ type: 'REFUND' }}
                   showStatusFilter
-                  emptyMessage="No refund requests yet. Raise one from Overpayments & Refunds."
+                  emptyMessage={t('No refund requests yet. Raise one from Overpayments & Refunds.')}
                   followUpHint={settledFollowUp}
                 />
               ),
             },
             {
               id: 'mine',
-              label: 'My Requests',
+              label: t('My Requests'),
               content: (
                 <FinanceRequestsPanel
                   key={`mine-${refreshKey}`}
-                  title="My Requests"
-                  description="Requests you have created, newest first."
+                  title={t('My Requests')}
+                  description={t('Requests you have created, newest first.')}
                   baseFilters={{ requestedById: user.id }}
                   showCreate
                   showStatusFilter
-                  emptyMessage="You haven't created any requests yet."
+                  emptyMessage={t("You haven't created any requests yet.")}
                   followUpHint={settledFollowUp}
                 />
               ),
             },
             {
               id: 'all',
-              label: 'All Requests',
+              label: t('All Requests'),
               content: (
                 <FinanceRequestsPanel
                   key={`all-${refreshKey}`}
-                  title="All Expense Requisitions"
-                  description="Every request across the school."
+                  title={t('All Expense Requisitions')}
+                  description={t('Every request across the school.')}
                   showTypeFilter
                   showStatusFilter
                   followUpHint={settledFollowUp}
@@ -136,7 +137,7 @@ export default function BursarFinanceRequestsPage() {
           ]}
         />
       ) : (
-        <div className="text-center text-gray-500 py-12">Loading…</div>
+        <div className="text-center text-gray-500 py-12">{t('Loading…')}</div>
       )}
 
       <FinanceRequestDeepLink onActed={handleActed} />

@@ -17,6 +17,7 @@ import { SubjectForm } from './components/SubjectForm';
 import { AssignSubjectModal } from './components/AssignSubjectModal';
 import { AssignmentsView } from './components/AssignmentsView';
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // --- API Configuration ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
@@ -44,6 +45,7 @@ type ClassInfo = {
 
 // --- Main Page Component ---
 export default function SubjectManagementPage() {
+    const { t } = useLanguage();
     const [subjects, setSubjects] = useState<Subject[]>([]);
   const [allClasses, setAllClasses] = useState<ClassInfo[]>([]); // State for classes list
     const [isLoading, setIsLoading] = useState(false);
@@ -203,7 +205,7 @@ export default function SubjectManagementPage() {
              } catch (e) { /* Ignore */ }
              throw new Error(errorMessage);
         }
-        toast.success('Subject created successfully.');
+        toast.success(t('Subject created successfully.'));
         closeModal();
         fetchSubjectsAndClasses(); // Refresh list
     } catch (error: any) {
@@ -237,7 +239,7 @@ export default function SubjectManagementPage() {
              } catch (e) { /* Ignore */ }
              throw new Error(errorMessage);
         }
-        toast.success('Subject updated successfully.');
+        toast.success(t('Subject updated successfully.'));
         closeModal();
         fetchSubjectsAndClasses(); // Refresh list
     } catch (error: any) {
@@ -254,29 +256,29 @@ export default function SubjectManagementPage() {
       }
 
       // Confirmation Toast
-      const toastId = toast((t) => (
+      const toastId = toast((toastArg) => (
           <div className="flex flex-col items-start">
               <p className="font-medium mb-2">
-                  Are you sure you want to delete the subject "{subject.name}"?
+                  {t('Are you sure you want to delete the subject')} "{subject.name}"?
               </p>
               <p className="text-sm text-gray-600 mb-4">
-                  This action cannot be undone.
+                  {t('This action cannot be undone.')}
               </p>
               <div className="flex w-full justify-end space-x-3">
                   <button
-                      onClick={() => toast.dismiss(t.id)}
+                      onClick={() => toast.dismiss(toastArg.id)}
                       className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
                   >
-                      Cancel
+                      {t('Cancel')}
                   </button>
                   <button
                       onClick={() => {
-                          toast.dismiss(t.id);
+                          toast.dismiss(toastArg.id);
                           executeDeleteSubject(subject.id);
                       }}
                       className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
                   >
-                      Confirm Delete
+                      {t('Confirm Delete')}
                   </button>
               </div>
           </div>
@@ -301,7 +303,7 @@ export default function SubjectManagementPage() {
              } catch (e) { /* Ignore */ }
              throw new Error(errorMessage);
         }
-        toast.success('Subject deleted successfully.');
+        toast.success(t('Subject deleted successfully.'));
         fetchSubjectsAndClasses(); // Refresh list
     } catch (error: any) {
         toast.error(`Subject deletion failed: ${error.message}`);
@@ -385,36 +387,36 @@ export default function SubjectManagementPage() {
     const classAssignments = (subject?.assignments || []).filter(a => a.classId === assignment?.classId);
     const className = assignment?.className || 'this class';
 
-    toast((t) => (
+    toast((toastArg) => (
         <div className="flex flex-col items-start">
             <p className="font-medium mb-2">
-                Remove assignment?
+                {t('Remove assignment?')}
             </p>
             <p className="text-sm text-gray-600 mb-4">
-                Remove <span className="font-medium">{subject?.name}</span> from {assignment?.subClassName} only, or from all {classAssignments.length} {className} subclass(es)?
+                {t('Remove')} <span className="font-medium">{subject?.name}</span> {t('from')} {assignment?.subClassName} {t('only, or from all')} {classAssignments.length} {className} {t('subclass(es)?')}
             </p>
             <div className="flex w-full flex-wrap justify-end gap-2">
-                <button onClick={() => toast.dismiss(t.id)} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
-                    Cancel
+                <button onClick={() => toast.dismiss(toastArg.id)} className="px-3 py-1.5 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">
+                    {t('Cancel')}
                 </button>
                 <button
                     onClick={() => {
-                        toast.dismiss(t.id);
+                        toast.dismiss(toastArg.id);
                         executeRemoveAssignment(subjectId, [subClassId]);
                     }}
                     className="px-3 py-1.5 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
                 >
-                    This subclass only
+                    {t('This subclass only')}
                 </button>
                 {classAssignments.length > 1 && (
                     <button
                         onClick={() => {
-                            toast.dismiss(t.id);
+                            toast.dismiss(toastArg.id);
                             executeRemoveAssignment(subjectId, classAssignments.map(a => a.subClassId));
                         }}
                         className="px-3 py-1.5 text-sm bg-red-700 text-white rounded-md hover:bg-red-800"
                     >
-                        All {className} subclasses
+                        {t('All')} {className} {t('subclasses')}
                     </button>
                 )}
             </div>
@@ -467,7 +469,7 @@ export default function SubjectManagementPage() {
       <div className="max-w-6xl mx-auto">
                 {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 bg-white p-4 rounded-lg shadow-sm gap-3">
-                            <h1 className="text-2xl font-bold text-gray-900">Subject Management</h1>
+                            <h1 className="text-2xl font-bold text-gray-900">{t('Subject Management')}</h1>
           <div className="flex items-center space-x-2">
             {/* View Toggle Button */}
                         <button
@@ -478,12 +480,12 @@ export default function SubjectManagementPage() {
               {viewMode === 'subjects' ? (
                 <>
                   <ListBulletIcon className="h-4 w-4 mr-1.5" />
-                  Manage Assignments
+                  {t('Manage Assignments')}
                 </>
               ) : (
                 <>
                   <TableCellsIcon className="h-4 w-4 mr-1.5" />
-                  View Subjects
+                  {t('View Subjects')}
                 </>
               )}
             </button>
@@ -495,20 +497,20 @@ export default function SubjectManagementPage() {
                   className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                 >
                   <PlusIcon className="h-5 w-5 mr-1.5" />
-                            Add Subject
+                            {t('Add Subject')}
                         </button>
             )}
                     </div>
                 </div>
 
         {/* Loading State */}
-        {isLoading && <p className="text-center text-gray-500 py-4">Loading data...</p>}
+        {isLoading && <p className="text-center text-gray-500 py-4">{t('Loading data...')}</p>}
 
         {/* Conditional View Rendering */}
         {!isLoading && viewMode === 'subjects' && (
           <>
             {!subjects.length ? (
-                <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">No subjects found. Add one to get started.</p>
+                <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">{t('No subjects found. Add one to get started.')}</p>
             ) : (
               <>
               <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
@@ -516,10 +518,10 @@ export default function SubjectManagementPage() {
                   {/* Table Head */}
                             <thead className="bg-gray-50">
                                 <tr>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignments</th>
-                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th> {/* Wider Actions Column */}
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Name')}</th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Category')}</th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Assignments')}</th>
+                      <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th> {/* Wider Actions Column */}
                                 </tr>
                             </thead>
                   {/* Table Body */}
@@ -542,7 +544,7 @@ export default function SubjectManagementPage() {
                               )}
                             </ul>
                           ) : (
-                            <span className="text-gray-400 italic">Not assigned</span>
+                            <span className="text-gray-400 italic">{t('Not assigned')}</span>
                           )}
                         </td>
                         {/* Actions Column - Enabled View button */}
@@ -550,26 +552,26 @@ export default function SubjectManagementPage() {
                            <button
                               onClick={() => handleViewSubjectAssignments(subject.id)}
                               disabled={isLoading}
-                              title="View Subject Assignments"
+                              title={t('View Subject Assignments')}
                               className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-purple-700 bg-purple-100 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50"
                             >
-                              <EyeIcon className="h-4 w-4 mr-1" /> View
+                              <EyeIcon className="h-4 w-4 mr-1" /> {t('View')}
                             </button>
                                             <button
                              onClick={() => openEditModal(subject)}
                                                 disabled={isLoading}
-                                                title="Edit Subject"
+                                                title={t('Edit Subject')}
                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-blue-700 bg-blue-100 hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                                             >
-                             <PencilIcon className="h-4 w-4 mr-1" /> Edit
+                             <PencilIcon className="h-4 w-4 mr-1" /> {t('Edit')}
                                             </button>
                                             <button
                              onClick={() => handleDeleteSubject(subject)}
                                                 disabled={isLoading}
-                                                title="Delete Subject"
+                                                title={t('Delete Subject')}
                              className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
                                             >
-                             <TrashIcon className="h-4 w-4 mr-1" /> Delete
+                             <TrashIcon className="h-4 w-4 mr-1" /> {t('Delete')}
                                             </button>
                                         </td>
                                     </tr>
@@ -583,11 +585,11 @@ export default function SubjectManagementPage() {
                   <div key={subject.id} className="p-4 space-y-1.5">
                     <p className="text-sm font-semibold text-gray-900 break-words">{subject.name}</p>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Category</span>
+                      <span className="text-xs text-gray-500">{t('Category')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">{formatCategory(subject.category)}</span>
                     </div>
                     <div className="flex items-start justify-between gap-3">
-                      <span className="text-xs text-gray-500">Assignments</span>
+                      <span className="text-xs text-gray-500">{t('Assignments')}</span>
                       <span className="text-sm text-gray-900 text-right break-words">
                         {subject.assignments && subject.assignments.length > 0 ? (
                           <ul className="space-y-1">

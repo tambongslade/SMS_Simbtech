@@ -14,6 +14,8 @@ import {
     SignalSlashIcon,
     ServerStackIcon,
     ClockIcon,
+    InboxArrowDownIcon,
+    ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
 
 type SyncStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'PARTIAL' | 'FAILED';
@@ -31,7 +33,26 @@ interface SyncLogEntry {
     createdAt: string;
 }
 
+interface ReceiverPeer {
+    serverId: string;
+    lastSeenAt: string;
+}
+
+interface ReceiverTableStat {
+    table: string;
+    lastReceivedAt: string | null;
+    incomingRecords: number;
+}
+
+interface ReceiverActivity {
+    lastReceivedAt: string | null;
+    totalIncomingRecords: number;
+    peers: ReceiverPeer[];
+    perTable: ReceiverTableStat[];
+}
+
 interface SyncStatusResponse {
+    role: 'INITIATOR' | 'RECEIVER' | 'UNCONFIGURED';
     lastSync: SyncLogEntry | null;
     isOnline: boolean;
     remotePeerConfigured: boolean;
@@ -39,6 +60,7 @@ interface SyncStatusResponse {
     autoSyncIntervalMinutes: number | null;
     serverId: string;
     syncInFlight: boolean;
+    incoming: ReceiverActivity;
 }
 
 const statusStyles: Record<SyncStatus, { badge: string; label: string; Icon: React.ElementType }> = {
@@ -67,6 +89,22 @@ function formatDateTime(iso: string | null | undefined): string {
     } catch {
         return iso;
     }
+}
+
+function formatRelative(iso: string | null | undefined): string {
+    if (!iso) return 'never';
+    const then = new Date(iso).getTime();
+    if (!Number.isFinite(then)) return '—';
+    const diff = Date.now() - then;
+    if (diff < 0) return 'just now';
+    const s = Math.floor(diff / 1000);
+    if (s < 60) return `${s}s ago`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m} min ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h} h ago`;
+    const d = Math.floor(h / 24);
+    return `${d} day${d === 1 ? '' : 's'} ago`;
 }
 
 function formatDuration(start: string, end: string | null): string {
@@ -180,25 +218,51 @@ export default function DataSyncPage() {
                 ? 'A sync run is already in progress.'
                 : '';
 
+    const role = status?.role ?? 'UNCONFIGURED';
+    const isReceiver = role === 'RECEIVER';
+    const isInitiator = role === 'INITIATOR';
+
+    const roleLabel =
+        role === 'RECEIVER'
+            ? 'This server receives sync data from the school server'
+            : role === 'INITIATOR'
+                ? 'This server pushes sync data to the remote peer'
+                : 'No sync peer configured yet';
+
+    const roleBadge =
+        role === 'RECEIVER'
+            ? 'bg-blue-100 text-blue-700'
+            : role === 'INITIATOR'
+                ? 'bg-purple-100 text-purple-700'
+                : 'bg-gray-100 text-gray-600';
+
     return (
         <div className="p-4 md:p-6 space-y-6">
             <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-900">Data Synchronisation</h1>
                     <p className="mt-1 text-sm text-gray-600">
-                        Review the last sync with the online server and trigger a new run when needed.
+                        {isReceiver
+                            ? 'Live view of data flowing in from the school server.'
+                            : 'Review the last sync with the online server and trigger a new run when needed.'}
                     </p>
+                    <span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${roleBadge}`}>
+                        <ComputerDesktopIcon className="h-3.5 w-3.5" />
+                        {roleLabel}
+                    </span>
                 </div>
-                <Button
-                    color="primary"
-                    leftIcon={ArrowPathIcon}
-                    isLoading={isTriggering || status?.syncInFlight}
-                    disabled={!canTrigger}
-                    onClick={handleTrigger}
-                    title={disabledReason || 'Run a synchronisation now'}
-                >
-                    {isTriggering || status?.syncInFlight ? 'Synchronising…' : 'Synchronise now'}
-                </Button>
+                {!isReceiver && (
+                    <Button
+                        color="primary"
+                        leftIcon={ArrowPathIcon}
+                        isLoading={isTriggering || status?.syncInFlight}
+                        disabled={!canTrigger}
+                        onClick={handleTrigger}
+                        title={disabledReason || 'Run a synchronisation now'}
+                    >
+                        {isTriggering || status?.syncInFlight ? 'Synchronising…' : 'Synchronise now'}
+                    </Button>
+                )}
             </div>
 
             {/* Status cards */}
@@ -207,20 +271,34 @@ export default function DataSyncPage() {
                     <CardBody>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Last synchronisation</p>
+                                <p className="text-sm font-medium text-gray-600">
+                                    {isReceiver ? 'Last data received' : 'Last synchronisation'}
+                                </p>
                                 <p className="mt-1 text-lg font-semibold text-gray-900">
                                     {isLoadingStatus
                                         ? 'Loading…'
-                                        : formatDateTime(status?.lastSync?.startTime)}
+                                        : isReceiver
+                                            ? formatRelative(status?.incoming?.lastReceivedAt)
+                                            : formatDateTime(status?.lastSync?.startTime)}
                                 </p>
-                                {status?.lastSync && (
-                                    <div className="mt-2">
-                                        <StatusBadge status={status.lastSync.status} />
-                                    </div>
+                                {isReceiver ? (
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        {formatDateTime(status?.incoming?.lastReceivedAt)}
+                                    </p>
+                                ) : (
+                                    status?.lastSync && (
+                                        <div className="mt-2">
+                                            <StatusBadge status={status.lastSync.status} />
+                                        </div>
+                                    )
                                 )}
                             </div>
                             <div className="p-3 bg-gray-50 rounded-lg">
-                                <ClockIcon className="h-6 w-6 text-gray-500" />
+                                {isReceiver ? (
+                                    <InboxArrowDownIcon className="h-6 w-6 text-blue-500" />
+                                ) : (
+                                    <ClockIcon className="h-6 w-6 text-gray-500" />
+                                )}
                             </div>
                         </div>
                     </CardBody>
@@ -230,12 +308,20 @@ export default function DataSyncPage() {
                     <CardBody>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Records processed</p>
+                                <p className="text-sm font-medium text-gray-600">
+                                    {isReceiver ? 'Incoming records tracked' : 'Records processed'}
+                                </p>
                                 <p className="mt-1 text-3xl font-semibold text-gray-900">
-                                    {isLoadingStatus ? '—' : (status?.lastSync?.recordsProcessed ?? 0).toLocaleString()}
+                                    {isLoadingStatus
+                                        ? '—'
+                                        : isReceiver
+                                            ? (status?.incoming?.totalIncomingRecords ?? 0).toLocaleString()
+                                            : (status?.lastSync?.recordsProcessed ?? 0).toLocaleString()}
                                 </p>
                                 <p className="mt-2 text-xs text-gray-500">
-                                    Errors: {status?.lastSync?.errors?.length ?? 0}
+                                    {isReceiver
+                                        ? `Across ${status?.incoming?.perTable?.length ?? 0} tables`
+                                        : `Errors: ${status?.lastSync?.errors?.length ?? 0}`}
                                 </p>
                             </div>
                             <div className="p-3 bg-gray-50 rounded-lg">
@@ -249,18 +335,34 @@ export default function DataSyncPage() {
                     <CardBody>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Peer reachable</p>
+                                <p className="text-sm font-medium text-gray-600">
+                                    {isReceiver ? 'Peers seen' : 'Peer reachable'}
+                                </p>
                                 <p className="mt-1 text-lg font-semibold text-gray-900">
-                                    {isLoadingStatus ? '—' : status?.isOnline ? 'Online' : 'Offline'}
+                                    {isLoadingStatus
+                                        ? '—'
+                                        : isReceiver
+                                            ? `${status?.incoming?.peers?.length ?? 0} server${(status?.incoming?.peers?.length ?? 0) === 1 ? '' : 's'}`
+                                            : status?.isOnline ? 'Online' : 'Offline'}
                                 </p>
                                 <p className="mt-2 text-xs text-gray-500">
-                                    {status?.remotePeerConfigured
-                                        ? 'Remote peer configured'
-                                        : 'REMOTE_SYNC_URL not set'}
+                                    {isReceiver
+                                        ? (status?.incoming?.peers?.[0]?.serverId
+                                            ? `Most recent: ${status.incoming.peers[0].serverId}`
+                                            : 'No incoming data yet')
+                                        : (status?.remotePeerConfigured
+                                            ? 'Remote peer configured'
+                                            : 'Receiver mode (no outbound peer)')}
                                 </p>
                             </div>
                             <div className="p-3 bg-gray-50 rounded-lg">
-                                {status?.isOnline ? (
+                                {isReceiver ? (
+                                    (status?.incoming?.peers?.length ?? 0) > 0 ? (
+                                        <SignalIcon className="h-6 w-6 text-green-600" />
+                                    ) : (
+                                        <SignalSlashIcon className="h-6 w-6 text-gray-400" />
+                                    )
+                                ) : status?.isOnline ? (
                                     <SignalIcon className="h-6 w-6 text-green-600" />
                                 ) : (
                                     <SignalSlashIcon className="h-6 w-6 text-red-500" />
@@ -274,16 +376,24 @@ export default function DataSyncPage() {
                     <CardBody>
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-sm font-medium text-gray-600">Auto-sync</p>
+                                <p className="text-sm font-medium text-gray-600">
+                                    {isReceiver ? 'Receiver identity' : 'Auto-sync'}
+                                </p>
                                 <p className="mt-1 text-lg font-semibold text-gray-900">
-                                    {status?.autoSyncEnabled ? 'Enabled' : 'Disabled'}
+                                    {isReceiver
+                                        ? (status?.serverId ?? '—')
+                                        : (status?.autoSyncEnabled ? 'Enabled' : 'Disabled')}
                                 </p>
                                 <p className="mt-2 text-xs text-gray-500">
-                                    {status?.autoSyncEnabled && status.autoSyncIntervalMinutes
-                                        ? `Every ${status.autoSyncIntervalMinutes} min`
-                                        : 'No schedule'}
+                                    {isReceiver
+                                        ? 'Peers push into this server'
+                                        : (status?.autoSyncEnabled && status.autoSyncIntervalMinutes
+                                            ? `Every ${status.autoSyncIntervalMinutes} min`
+                                            : 'No schedule')}
                                 </p>
-                                <p className="mt-1 text-xs text-gray-400">Server: {status?.serverId ?? '—'}</p>
+                                {!isReceiver && (
+                                    <p className="mt-1 text-xs text-gray-400">Server: {status?.serverId ?? '—'}</p>
+                                )}
                             </div>
                             <div className="p-3 bg-gray-50 rounded-lg">
                                 <ArrowPathIcon className="h-6 w-6 text-gray-500" />
@@ -292,6 +402,92 @@ export default function DataSyncPage() {
                     </CardBody>
                 </Card>
             </div>
+
+            {/* Receiver-only: peer list + per-table incoming */}
+            {isReceiver && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Servers pushing to us</CardTitle>
+                        </CardHeader>
+                        <CardBody className="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-medium text-gray-500">Server ID</th>
+                                            <th className="px-4 py-2 text-left font-medium text-gray-500">Last seen</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 bg-white">
+                                        {(status?.incoming?.peers ?? []).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={2} className="px-4 py-6 text-center text-gray-500">
+                                                    No incoming records yet.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            (status?.incoming?.peers ?? []).map((p) => (
+                                                <tr key={p.serverId}>
+                                                    <td className="px-4 py-2 font-mono text-gray-900">{p.serverId}</td>
+                                                    <td className="px-4 py-2 text-gray-700">
+                                                        {formatRelative(p.lastSeenAt)}
+                                                        <span className="ml-2 text-xs text-gray-400">
+                                                            ({formatDateTime(p.lastSeenAt)})
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardBody>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Incoming activity by table</CardTitle>
+                        </CardHeader>
+                        <CardBody className="p-0">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left font-medium text-gray-500">Table</th>
+                                            <th className="px-4 py-2 text-right font-medium text-gray-500">Records</th>
+                                            <th className="px-4 py-2 text-right font-medium text-gray-500">Last received</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 bg-white">
+                                        {(status?.incoming?.perTable ?? []).length === 0 ? (
+                                            <tr>
+                                                <td colSpan={3} className="px-4 py-6 text-center text-gray-500">
+                                                    No incoming data yet.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            [...(status?.incoming?.perTable ?? [])]
+                                                .sort((a, b) => b.incomingRecords - a.incomingRecords)
+                                                .map((t) => (
+                                                    <tr key={t.table}>
+                                                        <td className="px-4 py-2 font-mono text-gray-900">{t.table}</td>
+                                                        <td className="px-4 py-2 text-right text-gray-900">
+                                                            {t.incomingRecords.toLocaleString()}
+                                                        </td>
+                                                        <td className="px-4 py-2 text-right text-gray-700">
+                                                            {t.lastReceivedAt ? formatRelative(t.lastReceivedAt) : '—'}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardBody>
+                    </Card>
+                </div>
+            )}
 
             {/* Last-run errors */}
             {status?.lastSync?.errors && status.lastSync.errors.length > 0 && (
@@ -314,7 +510,8 @@ export default function DataSyncPage() {
                 </Card>
             )}
 
-            {/* Recent runs table */}
+            {/* Recent runs table — only meaningful on the initiator side */}
+            {(isInitiator || logs.length > 0) && (
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
@@ -379,6 +576,22 @@ export default function DataSyncPage() {
                     </div>
                 </CardBody>
             </Card>
+            )}
+
+            {/* Refresh button for the receiver view (initiator has one in the runs table header) */}
+            {isReceiver && (
+                <div className="flex justify-end">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={ArrowPathIcon}
+                        onClick={() => { fetchStatus(); fetchLogs(); }}
+                        isLoading={isLoadingStatus}
+                    >
+                        Refresh
+                    </Button>
+                </div>
+            )}
         </div>
     );
 }
