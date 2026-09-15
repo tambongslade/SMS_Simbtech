@@ -18,20 +18,20 @@ type Range = 'today' | 'week' | 'month' | 'all';
 
 interface AbsenceRow {
   id: number;
-  absence_type: 'CLASS_ABSENCE' | 'MORNING_LATENESS' | string;
-  is_excused: boolean;
-  excuse_reason: string | null;
-  excused_at: string | null;
-  makeup_status: string;
-  created_at: string;
+  absenceType: 'CLASS_ABSENCE' | 'MORNING_LATENESS' | string;
+  isExcused: boolean;
+  excuseReason: string | null;
+  excusedAt: string | null;
+  makeupStatus: string;
+  createdAt: string;
   student: { id: number; name: string; matricule: string | null } | null;
-  sub_class: { id: number; name: string; class: { id: number; name: string } } | null;
-  assigned_by: { id: number; name: string } | null;
-  excused_by: { id: number; name: string } | null;
-  teacher_period: {
+  subClass: { id: number; name: string; class: { id: number; name: string } } | null;
+  assignedBy: { id: number; name: string } | null;
+  excusedBy: { id: number; name: string } | null;
+  teacherPeriod: {
     id: number;
     subject: { id: number; name: string } | null;
-    period: { id: number; name: string; start_time: string | null; end_time: string | null } | null;
+    period: { id: number; name: string; startTime: string | null; endTime: string | null } | null;
   } | null;
 }
 
@@ -282,19 +282,19 @@ function ClassAbsencesPageInner() {
               ) : (
                 rows.map((r) => (
                   <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
-                    <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.created_at)}</td>
+                    <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
                     <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
                     <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
                     <td className="py-2 px-3">
-                      {r.sub_class ? `${r.sub_class.class.name} · ${r.sub_class.name}` : '—'}
+                      {r.subClass ? `${r.subClass.class.name} · ${r.subClass.name}` : '—'}
                     </td>
-                    <td className="py-2 px-3">{r.teacher_period?.subject?.name ?? '—'}</td>
-                    <td className="py-2 px-3 text-gray-600">{r.assigned_by?.name ?? '—'}</td>
+                    <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
+                    <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
                     <td className="py-2 px-3">
-                      {r.is_excused ? (
+                      {r.isExcused ? (
                         <span
                           className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
-                          title={r.excuse_reason ?? undefined}
+                          title={r.excuseReason ?? undefined}
                         >
                           {t('Yes')}
                         </span>
@@ -304,7 +304,7 @@ function ClassAbsencesPageInner() {
                         </span>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-gray-600">{r.makeup_status}</td>
+                    <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
                   </tr>
                 ))
               )}

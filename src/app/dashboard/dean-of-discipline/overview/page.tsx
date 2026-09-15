@@ -27,10 +27,10 @@ interface OverviewData {
   dailyAbsencesCount: number;
   disciplinaryActionsTodayCount: number;
   personsOfInterest: Array<{
-    enrollment_id: number;
-    absence_count: number;
+    enrollmentId: number;
+    absenceCount: number;
     student: { id: number; name: string; matricule: string | null } | null;
-    sub_class: { id: number; name: string; class: { id: number; name: string } } | null;
+    subClass: { id: number; name: string; class: { id: number; name: string } } | null;
   }>;
 }
 
@@ -188,13 +188,13 @@ export default function DisciplineOverviewPage() {
               </thead>
               <tbody>
                 {data!.personsOfInterest.map((p) => (
-                  <tr key={p.enrollment_id} className="border-b last:border-none">
+                  <tr key={p.enrollmentId} className="border-b last:border-none">
                     <td className="py-2 pr-4">{p.student?.name ?? '—'}</td>
                     <td className="py-2 pr-4 text-gray-500">{p.student?.matricule ?? '—'}</td>
                     <td className="py-2 pr-4">
-                      {p.sub_class ? `${p.sub_class.class.name} · ${p.sub_class.name}` : '—'}
+                      {p.subClass ? `${p.subClass.class.name} · ${p.subClass.name}` : '—'}
                     </td>
-                    <td className="py-2 text-right font-semibold">{p.absence_count}</td>
+                    <td className="py-2 text-right font-semibold">{p.absenceCount}</td>
                   </tr>
                 ))}
               </tbody>
