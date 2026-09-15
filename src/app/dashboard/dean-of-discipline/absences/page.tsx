@@ -165,31 +165,42 @@ function ClassAbsencesPageInner() {
     }
   };
 
-  // Group the current page of rows by Class -> SubClass, in class/subclass
-  // order (natural sort, so "FORM 2" sorts before "FORM 10"), rather than
-  // one flat list sorted only by date. Rows with no subclass (orphaned
-  // enrollment) fall into a trailing "Unassigned" group.
-  const groups = useMemo(() => {
-    const byKey = new Map<string, { className: string; subClassName: string; rows: AbsenceRow[] }>();
+  // Group the current page of rows by Class, then by SubClass within each
+  // class, in class/subclass order (natural sort, so "FORM 2" sorts before
+  // "FORM 10") -- one section per class, one table per sub-class inside it.
+  // Rows with no subclass (orphaned enrollment) fall into a trailing
+  // "Unassigned" section.
+  const classGroups = useMemo(() => {
+    type SubGroup = { key: string; subClassName: string; rows: AbsenceRow[] };
+    const byClass = new Map<string, { className: string; subClasses: Map<string, SubGroup> }>();
+
     for (const r of rows) {
-      const className = r.subClass?.class?.name ?? '';
+      const classKey = r.subClass ? String(r.subClass.class.id) : 'unassigned';
+      const className = r.subClass?.class?.name ?? t('Unassigned');
+      const subKey = r.subClass ? String(r.subClass.id) : 'unassigned';
       const subClassName = r.subClass?.name ?? '';
-      const key = r.subClass ? `${r.subClass.class.id}-${r.subClass.id}` : 'unassigned';
-      if (!byKey.has(key)) byKey.set(key, { className, subClassName, rows: [] });
-      byKey.get(key)!.rows.push(r);
+
+      if (!byClass.has(classKey)) byClass.set(classKey, { className, subClasses: new Map() });
+      const cls = byClass.get(classKey)!;
+      if (!cls.subClasses.has(subKey)) cls.subClasses.set(subKey, { key: subKey, subClassName, rows: [] });
+      cls.subClasses.get(subKey)!.rows.push(r);
     }
+
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-    return Array.from(byKey.entries())
+    return Array.from(byClass.entries())
       .sort(([keyA, a], [keyB, b]) => {
         if (keyA === 'unassigned') return 1;
         if (keyB === 'unassigned') return -1;
-        return (
-          collator.compare(a.className, b.className) ||
-          collator.compare(a.subClassName, b.subClassName)
-        );
+        return collator.compare(a.className, b.className);
       })
-      .map(([key, g]) => ({ key, ...g }));
-  }, [rows]);
+      .map(([classKey, cls]) => ({
+        classKey,
+        className: cls.className,
+        subClasses: Array.from(cls.subClasses.values()).sort((a, b) =>
+          collator.compare(a.subClassName, b.subClassName)
+        ),
+      }));
+  }, [rows, t]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5 p-4">
@@ -284,60 +295,70 @@ function ClassAbsencesPageInner() {
           {t('No absences found for the selected range.')}
         </Card>
       ) : (
-        groups.map((g) => (
-          <Card key={g.key} className="p-0 overflow-hidden">
-            <div className="px-4 py-2.5 bg-gray-100 border-b flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-800">
-                {g.key === 'unassigned'
-                  ? t('Unassigned')
-                  : `${g.className} · ${g.subClassName}`}
-              </h3>
+        classGroups.map((cls) => (
+          <div key={cls.classKey} className="space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-base font-bold text-gray-900">{cls.className}</h2>
               <span className="text-xs text-gray-500">
-                {g.rows.length} {t('records')}
+                {cls.subClasses.reduce((n, sc) => n + sc.rows.length, 0)} {t('records')}
               </span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
-                  <tr>
-                    <th className="text-left py-2 px-3">{t('Date')}</th>
-                    <th className="text-left py-2 px-3">{t('Student')}</th>
-                    <th className="text-left py-2 px-3">{t('Matricule')}</th>
-                    <th className="text-left py-2 px-3">{t('Subject')}</th>
-                    <th className="text-left py-2 px-3">{t('Recorded By')}</th>
-                    <th className="text-left py-2 px-3">{t('Excused')}</th>
-                    <th className="text-left py-2 px-3">{t('Makeup')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {g.rows.map((r) => (
-                    <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
-                      <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                      <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
-                      <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
-                      <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
-                      <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
-                      <td className="py-2 px-3">
-                        {r.isExcused ? (
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
-                            title={r.excuseReason ?? undefined}
-                          >
-                            {t('Yes')}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">
-                            {t('No')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-3">
+              {cls.subClasses.map((sc) => (
+                <Card key={sc.key} className="p-0 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-gray-100 border-b flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-gray-800">
+                      {sc.key === 'unassigned' ? t('Unassigned') : sc.subClassName}
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {sc.rows.length} {t('records')}
+                    </span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
+                        <tr>
+                          <th className="text-left py-2 px-3">{t('Date')}</th>
+                          <th className="text-left py-2 px-3">{t('Student')}</th>
+                          <th className="text-left py-2 px-3">{t('Matricule')}</th>
+                          <th className="text-left py-2 px-3">{t('Subject')}</th>
+                          <th className="text-left py-2 px-3">{t('Recorded By')}</th>
+                          <th className="text-left py-2 px-3">{t('Excused')}</th>
+                          <th className="text-left py-2 px-3">{t('Makeup')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sc.rows.map((r) => (
+                          <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
+                            <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
+                            <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
+                            <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
+                            <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
+                            <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
+                            <td className="py-2 px-3">
+                              {r.isExcused ? (
+                                <span
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
+                                  title={r.excuseReason ?? undefined}
+                                >
+                                  {t('Yes')}
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">
+                                  {t('No')}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              ))}
             </div>
-          </Card>
+          </div>
         ))
       )}
 
