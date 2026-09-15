@@ -165,6 +165,32 @@ function ClassAbsencesPageInner() {
     }
   };
 
+  // Group the current page of rows by Class -> SubClass, in class/subclass
+  // order (natural sort, so "FORM 2" sorts before "FORM 10"), rather than
+  // one flat list sorted only by date. Rows with no subclass (orphaned
+  // enrollment) fall into a trailing "Unassigned" group.
+  const groups = useMemo(() => {
+    const byKey = new Map<string, { className: string; subClassName: string; rows: AbsenceRow[] }>();
+    for (const r of rows) {
+      const className = r.subClass?.class?.name ?? '';
+      const subClassName = r.subClass?.name ?? '';
+      const key = r.subClass ? `${r.subClass.class.id}-${r.subClass.id}` : 'unassigned';
+      if (!byKey.has(key)) byKey.set(key, { className, subClassName, rows: [] });
+      byKey.get(key)!.rows.push(r);
+    }
+    const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+    return Array.from(byKey.entries())
+      .sort(([keyA, a], [keyB, b]) => {
+        if (keyA === 'unassigned') return 1;
+        if (keyB === 'unassigned') return -1;
+        return (
+          collator.compare(a.className, b.className) ||
+          collator.compare(a.subClassName, b.subClassName)
+        );
+      })
+      .map(([key, g]) => ({ key, ...g }));
+  }, [rows]);
+
   return (
     <div className="max-w-7xl mx-auto space-y-5 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -251,69 +277,73 @@ function ClassAbsencesPageInner() {
         <Card className="p-4 bg-red-50 border-red-200 text-red-800 text-sm">{error}</Card>
       )}
 
-      <Card className="p-0">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
-              <tr>
-                <th className="text-left py-2 px-3">{t('Date')}</th>
-                <th className="text-left py-2 px-3">{t('Student')}</th>
-                <th className="text-left py-2 px-3">{t('Matricule')}</th>
-                <th className="text-left py-2 px-3">{t('Class')}</th>
-                <th className="text-left py-2 px-3">{t('Subject')}</th>
-                <th className="text-left py-2 px-3">{t('Recorded By')}</th>
-                <th className="text-left py-2 px-3">{t('Excused')}</th>
-                <th className="text-left py-2 px-3">{t('Makeup')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td className="py-6 px-3 text-center text-gray-500" colSpan={8}>
-                    {t('Loading…')}
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td className="py-6 px-3 text-center text-gray-500" colSpan={8}>
-                    {t('No absences found for the selected range.')}
-                  </td>
-                </tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
-                    <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                    <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
-                    <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
-                    <td className="py-2 px-3">
-                      {r.subClass ? `${r.subClass.class.name} · ${r.subClass.name}` : '—'}
-                    </td>
-                    <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
-                    <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
-                    <td className="py-2 px-3">
-                      {r.isExcused ? (
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
-                          title={r.excuseReason ?? undefined}
-                        >
-                          {t('Yes')}
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">
-                          {t('No')}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
+      {loading ? (
+        <Card className="p-6 text-center text-sm text-gray-500">{t('Loading…')}</Card>
+      ) : rows.length === 0 ? (
+        <Card className="p-6 text-center text-sm text-gray-500">
+          {t('No absences found for the selected range.')}
+        </Card>
+      ) : (
+        groups.map((g) => (
+          <Card key={g.key} className="p-0 overflow-hidden">
+            <div className="px-4 py-2.5 bg-gray-100 border-b flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-800">
+                {g.key === 'unassigned'
+                  ? t('Unassigned')
+                  : `${g.className} · ${g.subClassName}`}
+              </h3>
+              <span className="text-xs text-gray-500">
+                {g.rows.length} {t('records')}
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-2 px-3">{t('Date')}</th>
+                    <th className="text-left py-2 px-3">{t('Student')}</th>
+                    <th className="text-left py-2 px-3">{t('Matricule')}</th>
+                    <th className="text-left py-2 px-3">{t('Subject')}</th>
+                    <th className="text-left py-2 px-3">{t('Recorded By')}</th>
+                    <th className="text-left py-2 px-3">{t('Excused')}</th>
+                    <th className="text-left py-2 px-3">{t('Makeup')}</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {g.rows.map((r) => (
+                    <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
+                      <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
+                      <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
+                      <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
+                      <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
+                      <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
+                      <td className="py-2 px-3">
+                        {r.isExcused ? (
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
+                            title={r.excuseReason ?? undefined}
+                          >
+                            {t('Yes')}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">
+                            {t('No')}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ))
+      )}
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between p-3 border-t bg-gray-50">
+      {totalPages > 1 && (
+        <Card className="p-0">
+          <div className="flex items-center justify-between p-3 bg-gray-50">
             <div className="text-xs text-gray-600">
               {t('Page')} {page} / {totalPages}
             </div>
@@ -336,8 +366,8 @@ function ClassAbsencesPageInner() {
               </Button>
             </div>
           </div>
-        )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 }
