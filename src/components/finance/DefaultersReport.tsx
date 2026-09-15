@@ -15,16 +15,27 @@ import apiService from '@/lib/apiService';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { saveBlob } from '@/lib/downloadFile';
 
-// GET /bursar/defaulters-report — students owing fees, with class and
-// amount-range breakdowns. Available to BURSAR / SUPER_MANAGER / PRINCIPAL / MANAGER.
+// GET /bursar/defaulters-report — students owing fees, with a per-class
+// breakdown and a per-installment breakdown per student. Available to
+// BURSAR / SUPER_MANAGER / PRINCIPAL / MANAGER.
+
+type InstallmentKey = 'first' | 'second' | 'third';
+
+interface InstallmentAmount {
+    expected: number;
+    paid: number;
+    outstanding: number;
+}
 
 interface DefaulterStudent {
     studentId: number;
     studentName: string;
     matricule: string;
+    classId: number | null;
     className: string;
     subClassName: string;
     outstandingAmount: number;
+    installments: Record<InstallmentKey, InstallmentAmount>;
     dueDate: string | null;
     daysOverdue: number;
     contactParentPhone?: string;
@@ -34,7 +45,6 @@ interface DefaultersReportData {
     totalDefaulters: number;
     totalOutstanding: number;
     byClass: { classId: number | null; className: string; defaultersCount: number; outstandingAmount: number }[];
-    byAmountRange: { range: string; count: number; totalAmount: number }[];
     students: DefaulterStudent[];
 }
 
@@ -46,6 +56,19 @@ const overdueColor = (days: number): 'red' | 'yellow' | 'gray' => {
     if (days > 60) return 'red';
     if (days > 14) return 'yellow';
     return 'gray';
+};
+
+const INSTALLMENT_OPTIONS: { value: 'all' | InstallmentKey; label: string }[] = [
+    { value: 'all', label: 'All Installments' },
+    { value: 'first', label: '1st Installment' },
+    { value: 'second', label: '2nd Installment' },
+    { value: 'third', label: '3rd Installment' },
+];
+
+const INSTALLMENT_SHORT_LABEL: Record<InstallmentKey, string> = {
+    first: '1st',
+    second: '2nd',
+    third: '3rd',
 };
 
 function BarListRow({ label, value, max, display }: { label: string; value: number; max: number; display: string }) {
@@ -61,10 +84,33 @@ function BarListRow({ label, value, max, display }: { label: string; value: numb
     );
 }
 
+// Per-installment owing as a compact set of badges, e.g. "1st 25,000  2nd 30,000".
+// An installment with nothing outstanding is left out entirely rather than
+// shown as a zero -- with all three filtered to "all", most rows only owe on
+// one or two of them, and printing every zero would bury the signal.
+function InstallmentBadges({ installments }: { installments: Record<InstallmentKey, InstallmentAmount> }) {
+    const owed = (['first', 'second', 'third'] as InstallmentKey[]).filter(k => installments[k].outstanding > 0);
+    if (owed.length === 0) return <span className="text-gray-400">—</span>;
+    return (
+        <div className="flex flex-wrap gap-1">
+            {owed.map(k => (
+                <span
+                    key={k}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700"
+                    title={`${INSTALLMENT_SHORT_LABEL[k]} installment`}
+                >
+                    {INSTALLMENT_SHORT_LABEL[k]} {formatMoney(installments[k].outstanding)}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 export default function DefaultersReport() {
     const { selectedAcademicYear } = useAuth();
 
     const [classFilter, setClassFilter] = useState('all');
+    const [installmentFilter, setInstallmentFilter] = useState<'all' | InstallmentKey>('all');
     const [minAmount, setMinAmount] = useState('');
     const [search, setSearch] = useState('');
     const [showContacts, setShowContacts] = useState(true);
@@ -78,6 +124,7 @@ export default function DefaultersReport() {
     const params = new URLSearchParams();
     if (selectedAcademicYear?.id) params.set('academicYearId', String(selectedAcademicYear.id));
     if (classFilter !== 'all') params.set('classId', classFilter);
+    if (installmentFilter !== 'all') params.set('installment', installmentFilter);
     if (minAmount && Number(minAmount) > 0) params.set('minimumAmount', minAmount);
     if (showContacts) params.set('includeDetails', 'true');
 
@@ -88,7 +135,7 @@ export default function DefaultersReport() {
     );
     const report = reportRes?.data;
 
-    const students = useMemo(() => {
+    const filteredStudents = useMemo(() => {
         const list = report?.students ?? [];
         if (!search.trim()) return list;
         const q = search.trim().toLowerCase();
@@ -96,11 +143,29 @@ export default function DefaultersReport() {
             `${s.studentName} ${s.matricule} ${s.className} ${s.subClassName}`.toLowerCase().includes(q));
     }, [report, search]);
 
+    // Grouped by class, in the order the backend already sorted them (class
+    // name, then highest outstanding within it) -- matches the request to
+    // have the list sorted per class rather than one flat ranking.
+    const groupedByClass = useMemo(() => {
+        const groups: { classId: number | null; className: string; students: DefaulterStudent[] }[] = [];
+        const byKey = new Map<string, { classId: number | null; className: string; students: DefaulterStudent[] }>();
+        for (const s of filteredStudents) {
+            const key = String(s.classId ?? `name:${s.className}`);
+            let g = byKey.get(key);
+            if (!g) {
+                g = { classId: s.classId, className: s.className, students: [] };
+                byKey.set(key, g);
+                groups.push(g);
+            }
+            g.students.push(s);
+        }
+        return groups;
+    }, [filteredStudents]);
+
     const maxClassAmount = Math.max(0, ...(report?.byClass ?? []).map(c => c.outstandingAmount));
-    const maxRangeAmount = Math.max(0, ...(report?.byAmountRange ?? []).map(r => r.totalAmount));
 
     const exportCsv = () => {
-        if (students.length === 0) {
+        if (filteredStudents.length === 0) {
             toast.error('Nothing to export.');
             return;
         }
@@ -109,14 +174,21 @@ export default function DefaultersReport() {
             const s = v == null ? '' : String(v);
             return `"${s.replace(/"/g, '""')}"`;
         };
-        const header = ['Student', 'Matricule', 'Class', 'Subclass', 'Outstanding (FCFA)', 'Days Overdue', 'Due Date'];
+        const header = [
+            'Student', 'Matricule', 'Class', 'Subclass',
+            '1st Installment Owing', '2nd Installment Owing', '3rd Installment Owing',
+            'Total Outstanding (FCFA)', 'Days Overdue', 'Due Date',
+        ];
         if (showContacts) header.push('Parent Phone');
-        const lines = students.map(s => {
+        const lines = filteredStudents.map(s => {
             const row: (string | number)[] = [
                 s.studentName,
                 s.matricule,
                 s.className,
                 s.subClassName ?? '',
+                s.installments.first.outstanding,
+                s.installments.second.outstanding,
+                s.installments.third.outstanding,
                 s.outstandingAmount ?? 0,
                 s.daysOverdue,
                 s.dueDate ? new Date(s.dueDate).toISOString().slice(0, 10) : '',
@@ -147,7 +219,7 @@ export default function DefaultersReport() {
                     variant="outline"
                     leftIcon={ArrowDownTrayIcon}
                     onClick={exportCsv}
-                    disabled={isLoading || students.length === 0}
+                    disabled={isLoading || filteredStudents.length === 0}
                 >
                     Export CSV
                 </Button>
@@ -175,45 +247,25 @@ export default function DefaultersReport() {
                 />
             </div>
 
-            {/* Breakdowns */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
-                <Card>
-                    <CardHeader><CardTitle>Outstanding by Class</CardTitle></CardHeader>
-                    <CardBody className="space-y-3">
-                        {(report?.byClass?.length ?? 0) === 0 ? (
-                            <p className="text-sm text-gray-500">{isLoading ? 'Loading…' : 'No defaulters. 🎉'}</p>
-                        ) : (
-                            report!.byClass.map((c) => (
-                                <BarListRow
-                                    key={c.classId ?? c.className}
-                                    label={`${c.className} (${c.defaultersCount})`}
-                                    value={c.outstandingAmount}
-                                    max={maxClassAmount}
-                                    display={formatMoney(c.outstandingAmount)}
-                                />
-                            ))
-                        )}
-                    </CardBody>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Outstanding by Amount</CardTitle></CardHeader>
-                    <CardBody className="space-y-3">
-                        {(report?.byAmountRange?.length ?? 0) === 0 ? (
-                            <p className="text-sm text-gray-500">{isLoading ? 'Loading…' : 'No data.'}</p>
-                        ) : (
-                            report!.byAmountRange.map((r) => (
-                                <BarListRow
-                                    key={r.range}
-                                    label={`FCFA ${r.range} (${r.count})`}
-                                    value={r.totalAmount}
-                                    max={maxRangeAmount}
-                                    display={formatMoney(r.totalAmount)}
-                                />
-                            ))
-                        )}
-                    </CardBody>
-                </Card>
-            </div>
+            {/* Breakdown */}
+            <Card>
+                <CardHeader><CardTitle>Outstanding by Class</CardTitle></CardHeader>
+                <CardBody className="space-y-3">
+                    {(report?.byClass?.length ?? 0) === 0 ? (
+                        <p className="text-sm text-gray-500">{isLoading ? 'Loading…' : 'No defaulters. 🎉'}</p>
+                    ) : (
+                        report!.byClass.map((c) => (
+                            <BarListRow
+                                key={c.classId ?? c.className}
+                                label={`${c.className} (${c.defaultersCount})`}
+                                value={c.outstandingAmount}
+                                max={maxClassAmount}
+                                display={formatMoney(c.outstandingAmount)}
+                            />
+                        ))
+                    )}
+                </CardBody>
+            </Card>
 
             {/* Filters */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end">
@@ -227,6 +279,13 @@ export default function DefaultersReport() {
                 </div>
                 <div className="sm:w-48">
                     <Select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} options={classOptions} />
+                </div>
+                <div className="sm:w-48">
+                    <Select
+                        value={installmentFilter}
+                        onChange={(e) => setInstallmentFilter(e.target.value as 'all' | InstallmentKey)}
+                        options={INSTALLMENT_OPTIONS}
+                    />
                 </div>
                 <div className="sm:w-44">
                     <Input
@@ -248,83 +307,103 @@ export default function DefaultersReport() {
                 </label>
             </div>
 
-            {/* Students */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-                {/* Desktop table */}
-                <div className="hidden md:block overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue</th>
-                                {showContacts && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>}
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-100">
-                            {isLoading ? (
-                                <tr><td colSpan={5} className="px-4 py-6 text-sm text-gray-400 text-center">Loading…</td></tr>
-                            ) : students.length === 0 ? (
-                                <tr><td colSpan={5} className="px-4 py-6 text-sm text-gray-400 text-center">No defaulters found.</td></tr>
-                            ) : students.map((s) => (
-                                <tr key={s.studentId} className="hover:bg-gray-50">
-                                    <td className="px-4 py-2.5">
-                                        <p className="text-sm font-medium text-gray-900">{s.studentName}</p>
-                                        <p className="text-xs text-gray-500">{s.matricule}</p>
-                                    </td>
-                                    <td className="px-4 py-2.5 text-sm text-gray-700 whitespace-nowrap">{s.className}{s.subClassName ? ` ${s.subClassName}` : ''}</td>
-                                    <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(s.outstandingAmount)}</td>
-                                    <td className="px-4 py-2.5 text-right">
-                                        <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
-                                    </td>
-                                    {showContacts && (
-                                        <td className="px-4 py-2.5 text-sm whitespace-nowrap">
-                                            {s.contactParentPhone ? (
-                                                <a href={`tel:${s.contactParentPhone}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800">
-                                                    <PhoneIcon className="w-3.5 h-3.5" />{s.contactParentPhone}
-                                                </a>
-                                            ) : <span className="text-gray-400">—</span>}
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {/* Students, grouped by class */}
+            {isLoading ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 text-sm text-gray-400 text-center">
+                    Loading…
                 </div>
-
-                {/* Mobile cards */}
-                <div className="md:hidden divide-y divide-gray-100">
-                    {isLoading ? (
-                        <p className="p-4 text-sm text-gray-400 text-center">Loading…</p>
-                    ) : students.length === 0 ? (
-                        <p className="p-4 text-sm text-gray-400 text-center">No defaulters found.</p>
-                    ) : students.map((s) => (
-                        <div key={s.studentId} className="p-4 space-y-1.5">
-                            <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{s.studentName}</p>
-                                    <p className="text-xs text-gray-500">{s.matricule} · {s.className}{s.subClassName ? ` ${s.subClassName}` : ''}</p>
+            ) : groupedByClass.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 text-sm text-gray-400 text-center">
+                    No defaulters found.
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {groupedByClass.map((group) => (
+                        <div key={group.classId ?? group.className} className="space-y-2">
+                            <div className="flex items-center justify-between px-1">
+                                <h2 className="text-base font-bold text-gray-900">{group.className}</h2>
+                                <span className="text-xs text-gray-500">
+                                    {group.students.length} student{group.students.length === 1 ? '' : 's'}
+                                </span>
+                            </div>
+                            <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                                {/* Desktop table */}
+                                <div className="hidden md:block overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owing by Installment</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Outstanding</th>
+                                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue</th>
+                                                {showContacts && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>}
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-100">
+                                            {group.students.map((s) => (
+                                                <tr key={s.studentId} className="hover:bg-gray-50">
+                                                    <td className="px-4 py-2.5">
+                                                        <p className="text-sm font-medium text-gray-900">{s.studentName}</p>
+                                                        <p className="text-xs text-gray-500">{s.matricule}{s.subClassName ? ` · ${s.subClassName}` : ''}</p>
+                                                    </td>
+                                                    <td className="px-4 py-2.5">
+                                                        <InstallmentBadges installments={s.installments} />
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(s.outstandingAmount)}</td>
+                                                    <td className="px-4 py-2.5 text-right">
+                                                        <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
+                                                    </td>
+                                                    {showContacts && (
+                                                        <td className="px-4 py-2.5 text-sm whitespace-nowrap">
+                                                            {s.contactParentPhone ? (
+                                                                <a href={`tel:${s.contactParentPhone}`} className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800">
+                                                                    <PhoneIcon className="w-3.5 h-3.5" />{s.contactParentPhone}
+                                                                </a>
+                                                            ) : <span className="text-gray-400">—</span>}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
+
+                                {/* Mobile cards */}
+                                <div className="md:hidden divide-y divide-gray-100">
+                                    {group.students.map((s) => (
+                                        <div key={s.studentId} className="p-4 space-y-1.5">
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold text-gray-900 break-words">{s.studentName}</p>
+                                                    <p className="text-xs text-gray-500">{s.matricule}{s.subClassName ? ` · ${s.subClassName}` : ''}</p>
+                                                </div>
+                                                <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
+                                            </div>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <span className="text-xs text-gray-500 pt-0.5">Owing by installment</span>
+                                                <InstallmentBadges installments={s.installments} />
+                                            </div>
+                                            <div className="flex items-center justify-between gap-3">
+                                                <span className="text-xs text-gray-500">Total Outstanding</span>
+                                                <span className="text-sm font-semibold text-red-700">{formatMoney(s.outstandingAmount)}</span>
+                                            </div>
+                                            {showContacts && s.contactParentPhone && (
+                                                <a href={`tel:${s.contactParentPhone}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600">
+                                                    <PhoneIcon className="w-4 h-4" />{s.contactParentPhone}
+                                                </a>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs text-gray-500">Outstanding</span>
-                                <span className="text-sm font-semibold text-red-700">{formatMoney(s.outstandingAmount)}</span>
-                            </div>
-                            {showContacts && s.contactParentPhone && (
-                                <a href={`tel:${s.contactParentPhone}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600">
-                                    <PhoneIcon className="w-4 h-4" />{s.contactParentPhone}
-                                </a>
-                            )}
                         </div>
                     ))}
                 </div>
-            </div>
+            )}
 
-            {!isLoading && students.length > 0 && (
+            {!isLoading && filteredStudents.length > 0 && (
                 <p className="text-xs text-gray-500">
-                    {students.length.toLocaleString()} student{students.length === 1 ? '' : 's'} shown, sorted by highest outstanding first.
+                    {filteredStudents.length.toLocaleString()} student{filteredStudents.length === 1 ? '' : 's'} shown, grouped by class.
                 </p>
             )}
         </div>
