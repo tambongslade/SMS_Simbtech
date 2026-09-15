@@ -87,6 +87,14 @@ const INSTALLMENT_SHORT_LABEL: Record<InstallmentKey, string> = {
 const owesUnderFilter = (s: DefaulterStudent, installment: 'all' | InstallmentKey): boolean =>
     installment === 'all' || s.installments[installment].outstanding > 0;
 
+// The amount to show/sum/export under the current filter. Filtered to one
+// installment, "outstanding" has to mean what's left of THAT installment --
+// e.g. a 30,000 first installment with 40,000 paid isn't owing anything on
+// it (the extra rolls onto the 2nd), even though the student's total across
+// all three installments might still be nonzero.
+const displayOutstanding = (s: DefaulterStudent, installment: 'all' | InstallmentKey): number =>
+    installment === 'all' ? s.outstandingAmount : s.installments[installment].outstanding;
+
 function InstallmentBadges({ installments }: { installments: Record<InstallmentKey, InstallmentAmount> }) {
     const owed = (['first', 'second', 'third'] as InstallmentKey[]).filter(k => installments[k].outstanding > 0);
     if (owed.length === 0) return <span className="text-gray-400">—</span>;
@@ -146,9 +154,10 @@ function exportStudentsPdf(opts: {
     className: string;
     subClassName: string;
     installmentLabel: string;
+    installmentFilter: 'all' | InstallmentKey;
     academicYearName?: string;
 }) {
-    const { students, className, subClassName, installmentLabel, academicYearName } = opts;
+    const { students, className, subClassName, installmentLabel, installmentFilter, academicYearName } = opts;
     if (students.length === 0) {
         toast.error('Nothing to export.');
         return;
@@ -175,7 +184,7 @@ function exportStudentsPdf(opts: {
         pdf.text(`${students.length} student${students.length === 1 ? '' : 's'} owing`, marginX, y);
         y += 6;
 
-        // Columns: # | Student | Matricule | 1st | 2nd | 3rd | Total | Overdue
+        // Columns: # | Student | Matricule | 1st | 2nd | 3rd | Total/Filtered | Overdue
         const cols = [
             { label: '#', width: 8 },
             { label: 'Student', width: 52 },
@@ -183,7 +192,7 @@ function exportStudentsPdf(opts: {
             { label: '1st', width: 24 },
             { label: '2nd', width: 24 },
             { label: '3rd', width: 24 },
-            { label: 'Total', width: 26 },
+            { label: installmentFilter === 'all' ? 'Total' : `${INSTALLMENT_SHORT_LABEL[installmentFilter]} Owing`, width: 26 },
             { label: 'Overdue', width: usableWidth - (8 + 52 + 24 + 24 + 24 + 26) },
         ];
         const colX: number[] = [];
@@ -220,7 +229,7 @@ function exportStudentsPdf(opts: {
                 s.installments.first.outstanding > 0 ? formatMoney(s.installments.first.outstanding) : '—',
                 s.installments.second.outstanding > 0 ? formatMoney(s.installments.second.outstanding) : '—',
                 s.installments.third.outstanding > 0 ? formatMoney(s.installments.third.outstanding) : '—',
-                formatMoney(s.outstandingAmount),
+                formatMoney(displayOutstanding(s, installmentFilter)),
                 `${s.daysOverdue}d`,
             ];
             cells.forEach((cell, ci) => pdf.text(cell, colX[ci], y));
@@ -308,7 +317,7 @@ export default function DefaultersReport() {
             const q = search.trim().toLowerCase();
             list = list.filter(s => `${s.studentName} ${s.matricule}`.toLowerCase().includes(q));
         }
-        return list.sort((a, b) => b.outstandingAmount - a.outstandingAmount);
+        return list.sort((a, b) => displayOutstanding(b, installmentFilter) - displayOutstanding(a, installmentFilter));
     }, [allStudents, installmentFilter, selectedClassKey, selectedSubClassKey, search]);
 
     const goToClasses = () => {
@@ -335,6 +344,17 @@ export default function DefaultersReport() {
 
     const totalDefaultersUnderFilter = useMemo(
         () => allStudents.filter(s => owesUnderFilter(s, installmentFilter)).length,
+        [allStudents, installmentFilter],
+    );
+
+    // Computed client-side (not the server's report.totalOutstanding, which
+    // is always the grand total across every installment) so filtering to
+    // e.g. "2nd Installment" shows what's actually outstanding on the 2nd
+    // installment across the students who owe on it, not their full balance.
+    const totalOutstandingUnderFilter = useMemo(
+        () => allStudents
+            .filter(s => owesUnderFilter(s, installmentFilter))
+            .reduce((sum, s) => sum + displayOutstanding(s, installmentFilter), 0),
         [allStudents, installmentFilter],
     );
 
@@ -365,8 +385,8 @@ export default function DefaultersReport() {
                         color="warning"
                     />
                     <StatsCard
-                        title="Total Outstanding"
-                        value={isLoading ? '...' : formatMoney(reportRes?.data?.totalOutstanding)}
+                        title={installmentFilter === 'all' ? 'Total Outstanding' : `${installmentLabel} Outstanding`}
+                        value={isLoading ? '...' : formatMoney(totalOutstandingUnderFilter)}
                         icon={ExclamationTriangleIcon}
                         color="danger"
                     />
@@ -467,6 +487,7 @@ export default function DefaultersReport() {
                                 className: selectedClassLabel,
                                 subClassName: selectedSubClassLabel,
                                 installmentLabel,
+                                installmentFilter,
                                 academicYearName: selectedAcademicYear?.name,
                             })}
                             disabled={studentRows.length === 0}
@@ -483,7 +504,9 @@ export default function DefaultersReport() {
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owing by Installment</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Outstanding</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {installmentFilter === 'all' ? 'Total Outstanding' : `${installmentLabel} Outstanding`}
+                                        </th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue</th>
                                         {showContacts && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>}
                                     </tr>
@@ -498,7 +521,7 @@ export default function DefaultersReport() {
                                                 <p className="text-xs text-gray-500">{s.matricule}</p>
                                             </td>
                                             <td className="px-4 py-2.5"><InstallmentBadges installments={s.installments} /></td>
-                                            <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(s.outstandingAmount)}</td>
+                                            <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(displayOutstanding(s, installmentFilter))}</td>
                                             <td className="px-4 py-2.5 text-right">
                                                 <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
                                             </td>
@@ -535,8 +558,10 @@ export default function DefaultersReport() {
                                         <InstallmentBadges installments={s.installments} />
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Total Outstanding</span>
-                                        <span className="text-sm font-semibold text-red-700">{formatMoney(s.outstandingAmount)}</span>
+                                        <span className="text-xs text-gray-500">
+                                            {installmentFilter === 'all' ? 'Total Outstanding' : `${installmentLabel} Outstanding`}
+                                        </span>
+                                        <span className="text-sm font-semibold text-red-700">{formatMoney(displayOutstanding(s, installmentFilter))}</span>
                                     </div>
                                     {showContacts && s.contactParentPhone && (
                                         <a href={`tel:${s.contactParentPhone}`} className="inline-flex items-center gap-1.5 text-sm text-blue-600">
