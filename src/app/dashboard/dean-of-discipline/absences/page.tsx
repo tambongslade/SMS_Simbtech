@@ -86,6 +86,9 @@ function ClassAbsencesPageInner() {
     if (roleSegment === 'senior-discipline-master' || roleSegment === 'discipline-coordinator') {
       return '/dashboard/dean-of-discipline/overview';
     }
+    if (roleSegment === 'super-manager') {
+      return '/dashboard/super-manager/discipline-overview';
+    }
     return `/dashboard/${roleSegment}/overview`;
   }, [roleSegment]);
 

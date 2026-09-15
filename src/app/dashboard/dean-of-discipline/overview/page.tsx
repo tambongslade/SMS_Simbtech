@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
@@ -66,6 +67,20 @@ function rangeToDates(range: Range): { from?: string; to?: string } {
 
 export default function DisciplineOverviewPage() {
   const { selectedAcademicYear } = useAuth();
+  const pathname = usePathname();
+
+  // This page is rendered under several role directories via a one-line
+  // re-export shim (see dean-of-discipline/students/[id]/page.tsx for the
+  // full explanation of why the URL's role segment has to match
+  // selectedRole). The "Class Absences" link below has to stay on whichever
+  // segment the page is actually being viewed under, not hardcode
+  // dean-of-discipline, or a super-manager/vice-principal/etc. viewer would
+  // get bounced by the role-path redirect in dashboard/layout.tsx.
+  const absencesHref = useMemo(() => {
+    const parts = (pathname ?? '').split('/');
+    const roleSegment = parts.length > 2 ? parts[2] : 'dean-of-discipline';
+    return `/dashboard/${roleSegment}/absences`;
+  }, [pathname]);
   const { t } = useLanguage();
   const [range, setRange] = useState<Range>('today');
   const [slotFilter, setSlotFilter] = useState<string>('all');
@@ -162,7 +177,7 @@ export default function DisciplineOverviewPage() {
         />
         <Link
           href={{
-            pathname: '/dashboard/dean-of-discipline/absences',
+            pathname: absencesHref,
             query: {
               ...(dates.from ? { from: dates.from } : {}),
               ...(dates.to ? { to: dates.to } : {}),

@@ -44,6 +44,33 @@ const defaultRow = (): RowState => ({
   notes: '',
 });
 
+const ELIGIBILITY_WINDOW_MINUTES = 20;
+
+// "HH:MM" -> minutes since midnight. Anything unparsable sorts as
+// ineligible rather than throwing, since a malformed period time shouldn't
+// crash the page.
+const toMinutes = (hhmm?: string): number | null => {
+  if (!hhmm) return null;
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm);
+  if (!m) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+};
+
+// A DM can only mark attendance live, walking the corridor -- not for a
+// period from hours ago or hours from now on the same day. Eligible means
+// "now" falls within [period.startTime - 20min, period.endTime + 20min].
+// Only applies to today; a past date is being reviewed/backfilled, not
+// recorded live, so every period on it stays eligible.
+const isEligibleNow = (period: { startTime?: string; endTime?: string } | undefined, isToday: boolean): boolean => {
+  if (!isToday) return true;
+  const start = toMinutes(period?.startTime);
+  const end = toMinutes(period?.endTime);
+  if (start == null || end == null) return true; // no period time to check against -- don't hide it
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return nowMinutes >= start - ELIGIBILITY_WINDOW_MINUTES && nowMinutes <= end + ELIGIBILITY_WINDOW_MINUTES;
+};
+
 export default function TeacherAttendancePage() {
   const { selectedAcademicYear } = useAuth();
   const { t } = useLanguage();
@@ -67,6 +94,9 @@ export default function TeacherAttendancePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [teacherSearch, setTeacherSearch] = useState('');
+  const [showAllPeriods, setShowAllPeriods] = useState(false);
+
+  const isToday = date === new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     (async () => {
@@ -123,16 +153,25 @@ export default function TeacherAttendancePage() {
     [day],
   );
 
-  // Rows filtered by teacher-name search. Everything else in the page (counts,
+  const eligibleCount = useMemo(
+    () => (day?.periods || []).filter(p => isEligibleNow(p.period, isToday)).length,
+    [day, isToday],
+  );
+
+  // Rows filtered by teacher-name search and, unless overridden, to periods
+  // within the live eligibility window. Everything else in the page (counts,
   // save) still uses the full day.periods list so filtering doesn't skew totals.
   const visiblePeriods = useMemo(() => {
     const q = teacherSearch.trim().toLowerCase();
-    if (!q) return day?.periods || [];
-    return (day?.periods || []).filter(p =>
-      (p.teacher?.name || '').toLowerCase().includes(q) ||
-      (p.teacher?.matricule || '').toLowerCase().includes(q),
-    );
-  }, [day, teacherSearch]);
+    return (day?.periods || []).filter(p => {
+      if (!showAllPeriods && !isEligibleNow(p.period, isToday)) return false;
+      if (!q) return true;
+      return (
+        (p.teacher?.name || '').toLowerCase().includes(q) ||
+        (p.teacher?.matricule || '').toLowerCase().includes(q)
+      );
+    });
+  }, [day, teacherSearch, showAllPeriods, isToday]);
 
   const handleSave = async () => {
     if (!day || day.periods.length === 0) return;
@@ -206,6 +245,27 @@ export default function TeacherAttendancePage() {
         </button>
       </div>
 
+      {/* Only periods within 20 min of now are marked live, on today's date --
+          a DM walks the corridor and checks in on whoever is teaching right
+          now, not a period from hours ago or hours away. Off by default on a
+          past date (nothing there is "live"), and always overridable. */}
+      {isToday && day && day.periods.length > 0 && (
+        <label className="flex items-center gap-2 text-xs text-gray-600 bg-white rounded-lg shadow px-3 py-2 w-fit">
+          <input
+            type="checkbox"
+            checked={showAllPeriods}
+            onChange={e => setShowAllPeriods(e.target.checked)}
+            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+          />
+          {t('Show all periods')}
+          {!showAllPeriods && (
+            <span className="text-gray-400">
+              ({t('showing periods within 20 min of now')} — {eligibleCount}/{day.periods.length})
+            </span>
+          )}
+        </label>
+      )}
+
       {/* Summary — clarifies periods vs teachers so 282 periods across 39 teachers isn't read as "282 teachers" */}
       {day && day.periods.length > 0 && (
         <div className="bg-white rounded-lg shadow p-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
@@ -216,7 +276,7 @@ export default function TeacherAttendancePage() {
           <span className="text-yellow-700">{counts.LATE} {t('late')}</span>
           <span className="text-red-700">{counts.ABSENT} {t('absent')}</span>
           <span className="text-gray-400">{recordedCount}/{day.periods.length} {t('saved')}</span>
-          {teacherSearch && (
+          {(teacherSearch || (isToday && !showAllPeriods)) && (
             <span className="ml-auto text-blue-600">
               {t('Showing')} {visiblePeriods.length} {t('of')} {day.periods.length} {t('periods')}
             </span>
@@ -236,6 +296,18 @@ export default function TeacherAttendancePage() {
             {visiblePeriods.length === 0 && teacherSearch && (
               <div className="bg-white rounded-lg shadow p-6 text-center text-sm text-gray-500">
                 {t('No teacher matches')} &quot;{teacherSearch}&quot;.
+              </div>
+            )}
+            {visiblePeriods.length === 0 && !teacherSearch && isToday && !showAllPeriods && (
+              <div className="bg-white rounded-lg shadow p-6 text-center text-sm text-gray-500">
+                {t('No period is within 20 min of now.')}{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowAllPeriods(true)}
+                  className="text-blue-600 hover:underline"
+                >
+                  {t('Show all periods')}
+                </button>
               </div>
             )}
             {visiblePeriods.map(p => {
