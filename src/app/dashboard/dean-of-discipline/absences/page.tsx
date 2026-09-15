@@ -12,9 +12,10 @@ import {
   ArrowLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
-type Range = 'today' | 'week' | 'month' | 'all';
+type Slot = 'SLOT_2' | 'SLOT_5' | 'SLOT_8';
 
 interface AbsenceRow {
   id: number;
@@ -28,6 +29,8 @@ interface AbsenceRow {
   subClass: { id: number; name: string; class: { id: number; name: string } } | null;
   assignedBy: { id: number; name: string } | null;
   excusedBy: { id: number; name: string } | null;
+  slot: Slot | null;
+  totalInRange: number;
   teacherPeriod: {
     id: number;
     subject: { id: number; name: string } | null;
@@ -41,22 +44,21 @@ interface ListResponse {
   meta: { total: number; page: number; limit: number; totalPages: number };
 }
 
-function rangeToDates(range: Range): { from?: string; to?: string } {
+// DM roll call has 3 fixed daily check-in slots -- this IS "period" for
+// absences (see disciplineService.ts). TeacherPeriod/Subject is basically
+// never populated (bulk roll-call recording doesn't require picking one),
+// so a row's slot is what actually renders when Subject would otherwise be
+// blank.
+const SLOT_LABEL: Record<Slot, string> = {
+  SLOT_2: 'Period 1',
+  SLOT_5: 'Period 2',
+  SLOT_8: 'Period 3',
+};
+
+function defaultDates(): { from: string; to: string } {
   const now = new Date();
   const toISO = (d: Date) => d.toISOString().slice(0, 10);
-  if (range === 'today') return { from: toISO(now), to: toISO(now) };
-  if (range === 'week') {
-    const start = new Date(now);
-    start.setDate(now.getDate() - 6);
-    return { from: toISO(start), to: toISO(now) };
-  }
-  if (range === 'month') {
-    const start = new Date(now);
-    start.setDate(now.getDate() - 29);
-    return { from: toISO(start), to: toISO(now) };
-  }
-  const yearStart = new Date(now.getFullYear() - 1, 8, 1);
-  return { from: toISO(yearStart), to: toISO(now) };
+  return { from: toISO(now), to: toISO(now) };
 }
 
 const PAGE_SIZE = 50;
@@ -68,30 +70,36 @@ function ClassAbsencesPageInner() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
-  // Derive "Back to Overview" URL from the current role prefix (e.g.
-  // "/dashboard/discipline-master/absences" -> "/dashboard/discipline-master/overview").
-  // Falls back to the dean-of-discipline overview for role prefixes that don't ship one.
-  const overviewHref = useMemo(() => {
-    const withOverview = (pathname ?? '').replace(/\/absences\/?$/, '/overview');
-    if (!withOverview || withOverview === pathname) return '/dashboard/dean-of-discipline/overview';
-    if (
-      withOverview.startsWith('/dashboard/senior-discipline-master') ||
-      withOverview.startsWith('/dashboard/discipline-coordinator')
-    ) {
-      return '/dashboard/dean-of-discipline/overview';
-    }
-    return withOverview;
+  // Derive "Back to Overview" URL, and the student-profile link prefix, from
+  // the current role segment (e.g. "/dashboard/discipline-master/absences"
+  // -> "/dashboard/discipline-master/overview" and ".../students/:id").
+  // super-manager keeps its own pre-existing profile route; every other
+  // discipline role shares dean-of-discipline's (see that page's students/
+  // [id] route comment) and falls back to it for role prefixes without an
+  // overview of their own.
+  const roleSegment = useMemo(() => {
+    const parts = (pathname ?? '').split('/');
+    return parts.length > 2 ? parts[2] : 'dean-of-discipline';
   }, [pathname]);
 
-  const initialRange = (searchParams.get('range') as Range) || 'today';
-  const initialFrom = searchParams.get('from') || rangeToDates(initialRange).from || '';
-  const initialTo = searchParams.get('to') || rangeToDates(initialRange).to || '';
-  const initialExcused = searchParams.get('is_excused') || 'all';
+  const overviewHref = useMemo(() => {
+    if (roleSegment === 'senior-discipline-master' || roleSegment === 'discipline-coordinator') {
+      return '/dashboard/dean-of-discipline/overview';
+    }
+    return `/dashboard/${roleSegment}/overview`;
+  }, [roleSegment]);
 
-  const [range, setRange] = useState<Range>(initialRange);
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
-  const [excusedFilter, setExcusedFilter] = useState<string>(initialExcused);
+  const studentHref = (studentId: number) =>
+    roleSegment === 'super-manager'
+      ? `/dashboard/super-manager/student-management/${studentId}`
+      : `/dashboard/${roleSegment}/students/${studentId}`;
+
+  const defaults = defaultDates();
+  const [showRangePicker, setShowRangePicker] = useState(false);
+  const [from, setFrom] = useState(searchParams.get('from') || defaults.from);
+  const [to, setTo] = useState(searchParams.get('to') || defaults.to);
+  const [excusedFilter, setExcusedFilter] = useState<string>(searchParams.get('is_excused') || 'all');
+  const [slotFilter, setSlotFilter] = useState<string>(searchParams.get('slot') || 'all');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<AbsenceRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -110,6 +118,7 @@ function ClassAbsencesPageInner() {
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (excusedFilter !== 'all') params.set('is_excused', excusedFilter);
+    if (slotFilter !== 'all') params.set('slot', slotFilter);
     params.set('page', String(page));
     params.set('limit', String(PAGE_SIZE));
 
@@ -133,36 +142,12 @@ function ClassAbsencesPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAcademicYear?.id, from, to, excusedFilter, page]);
-
-  const setRangePreset = (r: Range) => {
-    const dates = rangeToDates(r);
-    setRange(r);
-    setFrom(dates.from ?? '');
-    setTo(dates.to ?? '');
-    setPage(1);
-  };
+  }, [selectedAcademicYear?.id, from, to, excusedFilter, slotFilter, page]);
 
   const onDateChange = (field: 'from' | 'to', value: string) => {
     if (field === 'from') setFrom(value);
     else setTo(value);
     setPage(1);
-  };
-
-  const rangeLabel: Record<Range, string> = {
-    today: t('Today'),
-    week: t('Last 7 days'),
-    month: t('Last 30 days'),
-    all: t('Academic year'),
-  };
-
-  const fmtDateTime = (iso: string) => {
-    try {
-      const d = new Date(iso);
-      return d.toLocaleString();
-    } catch {
-      return iso;
-    }
   };
 
   // Group the current page of rows by Class, then by SubClass within each
@@ -221,47 +206,60 @@ function ClassAbsencesPageInner() {
             {t('Class Absences')}
           </h1>
           <p className="text-sm text-gray-600 mt-0.5">
-            {t('All CLASS_ABSENCE records in the selected date range.')}
-            {from && to ? ` · ${from} → ${to}` : ''}
+            {from && to ? `${from} → ${to}` : ''}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {(['today', 'week', 'month', 'all'] as Range[]).map((r) => (
-            <button
-              key={r}
-              type="button"
-              onClick={() => setRangePreset(r)}
-              className={`px-3 py-1.5 text-sm rounded-md border ${
-                range === r
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {rangeLabel[r]}
-            </button>
-          ))}
-        </div>
+        <Button
+          variant="outline"
+          leftIcon={CalendarDaysIcon}
+          onClick={() => setShowRangePicker((v) => !v)}
+        >
+          {t('Range')}
+        </Button>
       </div>
+
+      {showRangePicker && (
+        <Card className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('From')}</label>
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => onDateChange('from', e.target.value)}
+                className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('To')}</label>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => onDateChange('to', e.target.value)}
+                className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+              />
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('From')}</label>
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => onDateChange('from', e.target.value)}
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('Period')}</label>
+            <select
+              value={slotFilter}
+              onChange={(e) => {
+                setSlotFilter(e.target.value);
+                setPage(1);
+              }}
               className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">{t('To')}</label>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => onDateChange('to', e.target.value)}
-              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
-            />
+            >
+              <option value="all">{t('All periods')}</option>
+              <option value="SLOT_2">{t('Period 1')}</option>
+              <option value="SLOT_5">{t('Period 2')}</option>
+              <option value="SLOT_8">{t('Period 3')}</option>
+            </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">{t('Status')}</label>
@@ -318,38 +316,35 @@ function ClassAbsencesPageInner() {
                     <table className="min-w-full text-sm">
                       <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
                         <tr>
-                          <th className="text-left py-2 px-3">{t('Date')}</th>
                           <th className="text-left py-2 px-3">{t('Student')}</th>
-                          <th className="text-left py-2 px-3">{t('Matricule')}</th>
                           <th className="text-left py-2 px-3">{t('Subject')}</th>
                           <th className="text-left py-2 px-3">{t('Recorded By')}</th>
-                          <th className="text-left py-2 px-3">{t('Excused')}</th>
-                          <th className="text-left py-2 px-3">{t('Makeup')}</th>
+                          <th className="text-right py-2 px-3">{t('Total Absences')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {sc.rows.map((r) => (
                           <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
-                            <td className="py-2 px-3 whitespace-nowrap">{fmtDateTime(r.createdAt)}</td>
-                            <td className="py-2 px-3">{r.student?.name ?? '—'}</td>
-                            <td className="py-2 px-3 text-gray-500">{r.student?.matricule ?? '—'}</td>
-                            <td className="py-2 px-3">{r.teacherPeriod?.subject?.name ?? '—'}</td>
-                            <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
                             <td className="py-2 px-3">
-                              {r.isExcused ? (
-                                <span
-                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
-                                  title={r.excuseReason ?? undefined}
+                              {r.student ? (
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(studentHref(r.student!.id))}
+                                  className="text-blue-700 hover:text-blue-900 hover:underline text-left"
                                 >
-                                  {t('Yes')}
-                                </span>
+                                  {r.student.name}
+                                </button>
                               ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-red-100 text-red-700">
-                                  {t('No')}
-                                </span>
+                                '—'
                               )}
                             </td>
-                            <td className="py-2 px-3 text-gray-600">{r.makeupStatus}</td>
+                            <td className="py-2 px-3 text-gray-600">
+                              {r.teacherPeriod?.subject?.name ?? (r.slot ? SLOT_LABEL[r.slot] : '—')}
+                            </td>
+                            <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
+                            <td className="py-2 px-3 text-right font-semibold text-gray-900">
+                              {r.totalInRange}
+                            </td>
                           </tr>
                         ))}
                       </tbody>

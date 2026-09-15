@@ -19,6 +19,8 @@ import {
 
 type Range = 'today' | 'week' | 'month' | 'all';
 
+type Slot = 'SLOT_2' | 'SLOT_5' | 'SLOT_8';
+
 interface OverviewData {
   from: string | null;
   to: string | null;
@@ -32,7 +34,15 @@ interface OverviewData {
     student: { id: number; name: string; matricule: string | null } | null;
     subClass: { id: number; name: string; class: { id: number; name: string } } | null;
   }>;
+  dailyBreakdown: Array<{ date: string; count: number }>;
 }
+
+// DM roll call's 3 fixed daily check-in slots -- see disciplineService.ts.
+const SLOT_LABEL: Record<Slot, string> = {
+  SLOT_2: 'Period 1',
+  SLOT_5: 'Period 2',
+  SLOT_8: 'Period 3',
+};
 
 function rangeToDates(range: Range): { from?: string; to?: string } {
   const now = new Date();
@@ -58,6 +68,7 @@ export default function DisciplineOverviewPage() {
   const { selectedAcademicYear } = useAuth();
   const { t } = useLanguage();
   const [range, setRange] = useState<Range>('today');
+  const [slotFilter, setSlotFilter] = useState<string>('all');
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,6 +83,7 @@ export default function DisciplineOverviewPage() {
     if (selectedAcademicYear?.id) params.set('academic_year_id', String(selectedAcademicYear.id));
     if (dates.from) params.set('from', dates.from);
     if (dates.to) params.set('to', dates.to);
+    if (slotFilter !== 'all') params.set('slot', slotFilter);
     apiService
       .get(`/discipline/daily-overview?${params.toString()}`)
       .then((res: any) => {
@@ -88,7 +100,7 @@ export default function DisciplineOverviewPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAcademicYear?.id, dates.from, dates.to]);
+  }, [selectedAcademicYear?.id, dates.from, dates.to, slotFilter]);
 
   const rangeLabel: Record<Range, string> = {
     today: t('Today'),
@@ -110,7 +122,7 @@ export default function DisciplineOverviewPage() {
             {data?.from && data?.to ? ` · ${data.from} → ${data.to}` : ''}
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           {(['today', 'week', 'month', 'all'] as Range[]).map((r) => (
             <button
               key={r}
@@ -124,6 +136,16 @@ export default function DisciplineOverviewPage() {
               {rangeLabel[r]}
             </button>
           ))}
+          <select
+            value={slotFilter}
+            onChange={(e) => setSlotFilter(e.target.value)}
+            className="px-3 py-1.5 text-sm rounded-md border border-gray-300 bg-white text-gray-700"
+          >
+            <option value="all">{t('All periods')}</option>
+            <option value="SLOT_2">{t(SLOT_LABEL.SLOT_2)}</option>
+            <option value="SLOT_5">{t(SLOT_LABEL.SLOT_5)}</option>
+            <option value="SLOT_8">{t(SLOT_LABEL.SLOT_8)}</option>
+          </select>
         </div>
       </div>
 
@@ -144,6 +166,7 @@ export default function DisciplineOverviewPage() {
             query: {
               ...(dates.from ? { from: dates.from } : {}),
               ...(dates.to ? { to: dates.to } : {}),
+              ...(slotFilter !== 'all' ? { slot: slotFilter } : {}),
               range,
             },
           }}
@@ -164,6 +187,37 @@ export default function DisciplineOverviewPage() {
           color="purple"
         />
       </div>
+
+      <Card className="p-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">
+          {t('Absences per day')}
+        </h2>
+        {loading ? (
+          <p className="text-sm text-gray-500">{t('Loading...')}</p>
+        ) : (data?.dailyBreakdown ?? []).length === 0 ? (
+          <p className="text-sm text-gray-500">{t('No data for this range.')}</p>
+        ) : (
+          <div className="space-y-1.5">
+            {(() => {
+              const max = Math.max(1, ...data!.dailyBreakdown.map((d) => d.count));
+              return data!.dailyBreakdown.map((d) => (
+                <div key={d.date} className="flex items-center gap-3 text-sm">
+                  <span className="w-24 flex-shrink-0 text-gray-600 tabular-nums">{d.date}</span>
+                  <div className="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                    <div
+                      className="h-full bg-red-400"
+                      style={{ width: `${(d.count / max) * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-8 flex-shrink-0 text-right font-semibold text-gray-900 tabular-nums">
+                    {d.count}
+                  </span>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
+      </Card>
 
       <Card className="p-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">

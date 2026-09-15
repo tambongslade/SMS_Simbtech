@@ -14,6 +14,12 @@ import {
   CalendarDaysIcon,
   ExclamationTriangleIcon,
   ReceiptRefundIcon,
+  ClockIcon,
+  ShieldExclamationIcon,
+  BellAlertIcon,
+  PhoneIcon,
+  WrenchScrewdriverIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Select, Modal, StudentPhoto } from '@/components/ui';
@@ -116,6 +122,12 @@ export default function StudentProfile({
   const [changeSubClassId, setChangeSubClassId] = useState('');
   const [isChanging, setIsChanging] = useState(false);
 
+  // Which Discipline Overview card is expanded (null = none). Each card's
+  // "recent" list came down with the profile already, so opening one is
+  // instant -- no second fetch for the common case of skimming the last
+  // ~10 of a category.
+  const [openDisciplineCategory, setOpenDisciplineCategory] = useState<string | null>(null);
+
   const loadProfile = useCallback(async () => {
     if (!studentId) return;
     setIsLoading(true);
@@ -175,6 +187,7 @@ export default function StudentProfile({
   const parents: any[] = Array.isArray(profile?.parents) ? profile.parents : [];
   const fees: any[] = Array.isArray(profile?.fees) ? profile.fees : [];
   const discipline: any[] = Array.isArray(profile?.discipline) ? profile.discipline : [];
+  const disciplineOverview: any = profile?.disciplineOverview ?? profile?.discipline_overview ?? null;
   const attendance = profile?.attendance_summary ?? profile?.attendanceSummary;
   const marksCount = profile?.marks_count ?? profile?.marksCount;
 
@@ -471,6 +484,80 @@ export default function StudentProfile({
           </div>
         </Section>
       )}
+
+      {/* Discipline overview -- one card per category, click for the recent-items detail */}
+      {disciplineOverview && (
+        <Section title="Discipline Overview" icon={ShieldExclamationIcon}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <DisciplineCard
+              icon={ExclamationTriangleIcon}
+              label="Absences"
+              value={disciplineOverview.absences?.total ?? 0}
+              subtitle={
+                disciplineOverview.absences
+                  ? `${disciplineOverview.absences.unexcused} unexcused`
+                  : undefined
+              }
+              tone={disciplineOverview.absences?.unexcused > 0 ? 'danger' : 'default'}
+              onClick={() => setOpenDisciplineCategory('absences')}
+            />
+            <DisciplineCard
+              icon={ClockIcon}
+              label="Lateness"
+              value={disciplineOverview.lateness?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('lateness')}
+            />
+            <DisciplineCard
+              icon={ClipboardDocumentListIcon}
+              label="Issues"
+              value={disciplineOverview.issues?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('issues')}
+            />
+            <DisciplineCard
+              icon={ShieldExclamationIcon}
+              label="Disciplinary Actions"
+              value={disciplineOverview.disciplinaryActions?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('disciplinaryActions')}
+            />
+            <DisciplineCard
+              icon={BellAlertIcon}
+              label="Warnings"
+              value={disciplineOverview.warnings?.total ?? 0}
+              subtitle={
+                disciplineOverview.warnings?.unresolved > 0
+                  ? `${disciplineOverview.warnings.unresolved} unresolved`
+                  : undefined
+              }
+              tone={disciplineOverview.warnings?.unresolved > 0 ? 'danger' : 'default'}
+              onClick={() => setOpenDisciplineCategory('warnings')}
+            />
+            <DisciplineCard
+              icon={PhoneIcon}
+              label="Parent Summons"
+              value={disciplineOverview.summons?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('summons')}
+            />
+            <DisciplineCard
+              icon={CalendarIcon}
+              label="Saturday Punishments"
+              value={disciplineOverview.saturdayPunishments?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('saturdayPunishments')}
+            />
+            <DisciplineCard
+              icon={WrenchScrewdriverIcon}
+              label="Broken Property"
+              value={disciplineOverview.brokenProperty?.total ?? 0}
+              onClick={() => setOpenDisciplineCategory('brokenProperty')}
+            />
+          </div>
+        </Section>
+      )}
+
+      <DisciplineDetailModal
+        category={openDisciplineCategory}
+        overview={disciplineOverview}
+        onClose={() => setOpenDisciplineCategory(null)}
+      />
 
       {/* Discipline */}
       <Section title="Discipline Records" icon={ExclamationTriangleIcon}>
@@ -799,6 +886,139 @@ function Section({
       </div>
       {children}
     </div>
+  );
+}
+
+function DisciplineCard({
+  icon: Icon,
+  label,
+  value,
+  subtitle,
+  tone = 'default',
+  onClick,
+}: {
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  label: string;
+  value: number;
+  subtitle?: string;
+  tone?: 'default' | 'danger';
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-left bg-white rounded-lg border border-gray-200 p-3 hover:border-blue-300 hover:shadow-sm transition"
+    >
+      <Icon className={`h-5 w-5 ${tone === 'danger' ? 'text-red-500' : 'text-gray-400'}`} />
+      <div className={`text-xl font-semibold mt-1.5 ${tone === 'danger' ? 'text-red-600' : 'text-gray-900'}`}>
+        {value}
+      </div>
+      <div className="text-xs text-gray-500">{label}</div>
+      {subtitle && <div className="text-xs text-red-500 mt-0.5">{subtitle}</div>}
+    </button>
+  );
+}
+
+const DISCIPLINE_CATEGORY_LABELS: Record<string, string> = {
+  absences: 'Absences',
+  lateness: 'Lateness',
+  issues: 'Issues',
+  disciplinaryActions: 'Disciplinary Actions',
+  warnings: 'Warnings',
+  summons: 'Parent Summons',
+  saturdayPunishments: 'Saturday Punishments',
+  brokenProperty: 'Broken Property',
+};
+
+// Each category's "recent" items carry different fields (an absence isn't
+// shaped like a warning), so each gets its own one-line summary + byline.
+function disciplineItemSummary(category: string, item: any): { summary: string; by: string | null; date: string | null } {
+  const date = (item?.createdAt ?? item?.created_at ?? null);
+  switch (category) {
+    case 'absences':
+      return {
+        summary: item.isExcused ?? item.is_excused ? 'Excused' : 'Unexcused',
+        by: item.assignedBy?.name ?? item.assigned_by?.name ?? null,
+        date,
+      };
+    case 'lateness':
+      return { summary: 'Morning lateness', by: item.assignedBy?.name ?? item.assigned_by?.name ?? null, date };
+    case 'issues':
+      return {
+        summary: `${item.issueType ?? item.issue_type ?? 'Issue'}${item.description ? ` — ${item.description}` : ''}`,
+        by: item.assignedBy?.name ?? item.assigned_by?.name ?? null,
+        date,
+      };
+    case 'disciplinaryActions':
+      return {
+        summary: `${humanize(item.actionType ?? item.action_type ?? '')}${item.reason ? ` — ${item.reason}` : ''}`,
+        by: item.decidedBy?.name ?? item.decided_by?.name ?? null,
+        date,
+      };
+    case 'warnings':
+      return {
+        summary: `Level ${item.warningLevel ?? item.warning_level ?? '?'} — ${humanize(item.reason ?? '')}${item.resolved ? ' (resolved)' : ''}`,
+        by: item.issuedBy?.name ?? item.issued_by?.name ?? null,
+        date,
+      };
+    case 'summons':
+      return {
+        summary: `${humanize(item.status ?? '')} — ${item.reason ?? ''}`,
+        by: item.createdBy?.name ?? item.created_by?.name ?? null,
+        date,
+      };
+    case 'saturdayPunishments':
+      return {
+        summary: `${humanize(item.status ?? '')} — ${item.reason ?? ''}`,
+        by: item.assignedBy?.name ?? item.assigned_by?.name ?? null,
+        date,
+      };
+    case 'brokenProperty':
+      return {
+        summary: `${item.itemName ?? item.item_name ?? 'Item'}${item.estimatedCost ?? item.estimated_cost ? ` — ${fmtMoney(item.estimatedCost ?? item.estimated_cost)}` : ''}`,
+        by: item.reportedBy?.name ?? item.reported_by?.name ?? null,
+        date,
+      };
+    default:
+      return { summary: '—', by: null, date };
+  }
+}
+
+function DisciplineDetailModal({
+  category,
+  overview,
+  onClose,
+}: {
+  category: string | null;
+  overview: any;
+  onClose: () => void;
+}) {
+  if (!category) return null;
+  const items: any[] = overview?.[category]?.recent ?? [];
+  return (
+    <Modal isOpen={!!category} onClose={onClose} title={DISCIPLINE_CATEGORY_LABELS[category] ?? category} size="lg">
+      {items.length === 0 ? (
+        <p className="text-sm text-gray-500">No records.</p>
+      ) : (
+        <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+          {items.map((item, i) => {
+            const { summary, by, date } = disciplineItemSummary(category, item);
+            return (
+              <div key={item.id ?? i} className="py-2.5 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-900 break-words">{summary}</div>
+                  {by && <div className="text-xs text-gray-500 mt-0.5">Recorded by {by}</div>}
+                </div>
+                <div className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
+                  {date ? new Date(date).toLocaleDateString() : '—'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Modal>
   );
 }
 
