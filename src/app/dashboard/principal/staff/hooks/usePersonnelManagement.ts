@@ -274,6 +274,18 @@ export const usePersonnelManagement = () => {
 
   const handleUpdatePersonnel = async () => {
     if (!editingPersonnel) return;
+
+    // Validate before touching the server at all. This used to run after the
+    // profile PUT had already gone through, so a too-short password saved
+    // the name/email/phone changes silently while showing only a password
+    // error -- an admin re-reading that as "nothing saved, try again" is
+    // exactly how a retry can land on the same no-password outcome twice.
+    const newPassword = formData.password?.trim();
+    if (newPassword && newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long.");
+      return;
+    }
+
     setIsMutating(true);
 
     const userId = editingPersonnel.id;
@@ -293,12 +305,7 @@ export const usePersonnelManagement = () => {
       // The PUT /users/:id endpoint does not accept a password field from the personnel modal.
       // If the admin typed a new password, persist it through the dedicated reset endpoint,
       // which enforces min length and writes an audited PASSWORD_RESET row.
-      const newPassword = formData.password?.trim();
       if (newPassword) {
-        if (newPassword.length < 8) {
-          toast.error("Password must be at least 8 characters long.");
-          return;
-        }
         await apiService.post(`/users/${userId}/reset-password`, { newPassword });
         toast.success("Personnel updated and password reset.");
       } else {
@@ -308,6 +315,7 @@ export const usePersonnelManagement = () => {
       mutate();
     } catch (error: any) {
       console.error("Update failed:", error);
+      toast.error(error?.message || "Update failed. Please try again.");
     } finally {
       setIsMutating(false);
     }
