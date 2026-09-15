@@ -33,6 +33,14 @@ export const formatLabel = (raw: string) =>
 
 export const formatMoney = (amount?: number | null) => `FCFA ${(amount ?? 0).toLocaleString()}`;
 
+// formatMoney as a node rather than a string, for the tight spots (donut
+// legends, per-row totals) that pass a value into someone else's layout --
+// `displayNode`/inline amounts that can't add their own wrapper. `nowrap`
+// keeps "FCFA 1,200,000" from breaking mid-number in a narrow flex row.
+export function MoneyResponsive({ amount }: { amount?: number | null }) {
+    return <span className="whitespace-nowrap">{formatMoney(amount)}</span>;
+}
+
 export const formatNumber = (n?: number | null) => (n ?? 0).toLocaleString();
 
 export const formatPercent = (n?: number | null) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
