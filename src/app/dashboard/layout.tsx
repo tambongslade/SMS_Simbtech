@@ -42,6 +42,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
 import ChatIndicator from '@/components/chat/ChatIndicator';
+import SyncStatusMarquee from '@/components/dashboard/SyncStatusMarquee';
 import { menuItems, type MenuItem } from '@/lib/roleMenus';
 
 
@@ -590,6 +591,9 @@ export default function DashboardLayout({
           </div>
         </div>
       </nav>
+
+      {/* Mobile-only, SUPER_MANAGER-only: scrolling "Last data sync" strip. */}
+      <SyncStatusMarquee />
 
       {/* Sidebar and Main Content */}
       <div className="flex" style={{ paddingTop: 'var(--app-header-height)' }}>

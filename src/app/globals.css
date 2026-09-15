@@ -11,8 +11,21 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* The fixed dashboard top bar: a 4rem row pushed clear of the status bar.
-     Anything anchored below the bar (content, sidebars) offsets by this. */
+     Anything anchored below the bar (content, sidebars) offsets by this.
+     SyncStatusMarquee grows this by its own height while mounted. */
   --app-header-height: calc(4rem + var(--safe-top));
+}
+
+/* SyncStatusMarquee: two copies of the text sit side by side in one flex
+   row; translating the row by exactly -50% of its own width (not a fixed
+   px/% of the viewport) is what makes the loop seamless regardless of how
+   long the sync status text turns out to be. */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 18s linear infinite;
 }
 
 @layer base {
