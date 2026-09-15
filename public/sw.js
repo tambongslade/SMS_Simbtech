@@ -6,7 +6,12 @@
  *   - API calls and other cross-origin requests: network only (never cached).
  * Bump CACHE_VERSION to invalidate old caches on the next deploy.
  */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
+// Network-first navigations had no timeout: a slow/hung connection (seen on
+// some iOS Safari sessions) meant the fetch promise just never settled, so
+// respondWith() never resolved and the page spun forever instead of falling
+// back to cache/offline. NAV_TIMEOUT_MS bounds that wait.
+const NAV_TIMEOUT_MS = 8000;
 const STATIC_CACHE = `sms-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `sms-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
@@ -58,20 +63,25 @@ self.addEventListener('fetch', (event) => {
   // Never intercept cross-origin requests (the API lives on another origin).
   if (url.origin !== self.location.origin) return;
 
-  // App navigations: network-first with offline fallback.
+  // App navigations: network-first with offline fallback, bounded by a
+  // timeout so a hung connection falls back instead of spinning forever.
   if (request.mode === 'navigate') {
+    const networkFetch = fetch(request).then((response) => {
+      const copy = response.clone();
+      caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+      return response;
+    });
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('nav timeout')), NAV_TIMEOUT_MS)
+    );
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() =>
-          caches
-            .match(request)
-            .then((cached) => cached || caches.match(OFFLINE_URL))
-        )
+      Promise.race([networkFetch, timeout]).catch(() => {
+        // Race lost to the timeout or the fetch itself failed. Either way,
+        // silence the loser so it doesn't surface as an unhandled rejection
+        // once it eventually settles, then fall back to cache/offline.
+        networkFetch.catch(() => {});
+        return caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL));
+      })
     );
     return;
   }
