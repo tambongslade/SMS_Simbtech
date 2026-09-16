@@ -25,6 +25,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
   ShieldExclamationIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -99,6 +100,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: ChartBarIcon, label: 'Fee Statistics', href: '/dashboard/bursar/fee-statistics' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/bursar/defaulters' },
+    { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/bursar/forms' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
