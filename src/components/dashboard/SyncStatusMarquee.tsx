@@ -22,7 +22,7 @@ interface SyncStatusResponse {
   role?: 'INITIATOR' | 'RECEIVER' | 'UNCONFIGURED';
   lastSync: { endTime: string | null; startTime: string; status: string } | null;
   isOnline: boolean;
-  incoming?: { lastReceivedAt: string | null };
+  incoming?: { lastReceivedAt: string | null; peers?: { serverId: string; lastSeenAt: string }[] };
 }
 
 const BAR_HEIGHT = '1.75rem';
@@ -99,7 +99,17 @@ export default function SyncStatusMarquee() {
     : receivedAt
       ? `${t('Last data sync')}: ${relativeTime(receivedAt)}`
       : `${t('Last data sync')}: ${t('never')}`;
-  const text = `${label}  •  ${status?.isOnline === false ? t('offline') : t('online')}`;
+  // isOnline is a live ping to the remote peer, which only an INITIATOR ever
+  // does (see the full Data Sync page) -- a receiver has no outbound peer to
+  // ping, so the backend hardcodes isOnline: false for it unconditionally,
+  // regardless of whether data is actually flowing in. Reading that raw flag
+  // here made a healthy receiver say "offline" forever. Use peer presence
+  // instead for a receiver, same signal the full page uses.
+  const isReceiver = status?.role === 'RECEIVER';
+  const connected = isReceiver
+    ? (status?.incoming?.peers?.length ?? 0) > 0
+    : status?.isOnline !== false;
+  const text = `${label}  •  ${connected ? t('online') : t('offline')}`;
 
   return (
     <div
