@@ -19,8 +19,10 @@ import apiService from '@/lib/apiService';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 interface SyncStatusResponse {
+  role?: 'INITIATOR' | 'RECEIVER' | 'UNCONFIGURED';
   lastSync: { endTime: string | null; startTime: string; status: string } | null;
   isOnline: boolean;
+  incoming?: { lastReceivedAt: string | null };
 }
 
 const BAR_HEIGHT = '1.75rem';
@@ -85,10 +87,18 @@ export default function SyncStatusMarquee() {
 
   if (!visible) return null;
 
+  // A receiver node (no REMOTE_SYNC_URL, e.g. the VPS) never runs a sync
+  // cycle itself, so its own SyncLog is always empty and `lastSync` is
+  // always null there -- that used to render as a permanent "never" even
+  // while data was actively flowing in. Fall back to the receiver-activity
+  // timestamp (real data arriving from the peer) in that case.
   const lastSync = status?.lastSync;
+  const receivedAt = status?.incoming?.lastReceivedAt;
   const label = lastSync
     ? `${t('Last data sync')}: ${relativeTime(lastSync.endTime ?? lastSync.startTime)}`
-    : `${t('Last data sync')}: ${t('never')}`;
+    : receivedAt
+      ? `${t('Last data sync')}: ${relativeTime(receivedAt)}`
+      : `${t('Last data sync')}: ${t('never')}`;
   const text = `${label}  •  ${status?.isOnline === false ? t('offline') : t('online')}`;
 
   return (
