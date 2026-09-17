@@ -6,7 +6,13 @@
  *   - API calls and other cross-origin requests: network only (never cached).
  * Bump CACHE_VERSION to invalidate old caches on the next deploy.
  */
-const CACHE_VERSION = 'v3';
+// Bumped: v3 could cache a non-OK response (e.g. a 404 hit during the brief
+// window a deploy swaps .next -- see deploy-onprem.ps1) under a static asset's
+// URL with no expiry, so a transient build-time 404 was replayed forever thereafter,
+// even once the server had the file again. Bumping this deletes that cache
+// (see 'activate' below) so anyone carrying a poisoned entry gets a clean one
+// on their next visit.
+const CACHE_VERSION = 'v4';
 // Network-first navigations had no timeout: a slow/hung connection (seen on
 // some iOS Safari sessions) meant the fetch promise just never settled, so
 // respondWith() never resolved and the page spun forever instead of falling
@@ -67,8 +73,10 @@ self.addEventListener('fetch', (event) => {
   // timeout so a hung connection falls back instead of spinning forever.
   if (request.mode === 'navigate') {
     const networkFetch = fetch(request).then((response) => {
-      const copy = response.clone();
-      caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+      }
       return response;
     });
     const timeout = new Promise((_, reject) =>
@@ -86,17 +94,22 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Immutable Next.js build assets: cache-first.
+  // Immutable Next.js build assets: cache-first. Only a genuinely successful
+  // response is cached -- a build-time 404 (see CACHE_VERSION comment above)
+  // must never get stuck here, since cache-first means it would otherwise be
+  // replayed forever with no further network check.
   if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            const copy = response.clone();
-            caches
-              .open(STATIC_CACHE)
-              .then((cache) => cache.put(request, copy));
+            if (response.ok) {
+              const copy = response.clone();
+              caches
+                .open(STATIC_CACHE)
+                .then((cache) => cache.put(request, copy));
+            }
             return response;
           })
       )
@@ -110,10 +123,12 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((cached) => {
         const network = fetch(request)
           .then((response) => {
-            const copy = response.clone();
-            caches
-              .open(RUNTIME_CACHE)
-              .then((cache) => cache.put(request, copy));
+            if (response.ok) {
+              const copy = response.clone();
+              caches
+                .open(RUNTIME_CACHE)
+                .then((cache) => cache.put(request, copy));
+            }
             return response;
           })
           .catch(() => cached);
