@@ -103,6 +103,7 @@ interface StatisticsReportData {
   range: { from: string; to: string };
   academicYear: { id: number; name: string } | null;
   reportScope: 'full' | 'discipline';
+  canSeeTeachingPay: boolean;
   discipline: {
     lateness: OffenceRow[];
     absences: StudentAbsenceCountRow[];
@@ -433,27 +434,33 @@ export default function StatisticsPage() {
             </SubSection>
           </Section>
 
-          {data.reportScope === 'full' && (
-          <>
           <Section title={t('Teaching Statistics')}>
             <h3 className="text-sm font-semibold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">
               {t('Hours Taught')}
             </h3>
             <DataTable
-              headers={[t('Name'), t('Expected Periods'), t('Periods Taught'), t('Periods Not Taught'), t('Hour Rate'), t('Socials'), t('Total')]}
-              rows={data.teaching.map((row) => [
-                row.name,
-                String(row.expectedPeriods),
-                String(row.periodsTaught),
-                String(row.periodsNotTaught),
-                fmtMoney(row.hourRate),
-                fmtMoney(row.socials),
-                <span key="total" className="font-semibold text-gray-900">{fmtMoney(row.total)}</span>,
-              ])}
+              headers={
+                data.canSeeTeachingPay
+                  ? [t('Name'), t('Expected Periods'), t('Periods Taught'), t('Periods Not Taught'), t('Hour Rate'), t('Socials'), t('Total')]
+                  : [t('Name'), t('Expected Periods'), t('Periods Taught'), t('Periods Not Taught')]
+              }
+              rows={data.teaching.map((row) => {
+                const base = [row.name, String(row.expectedPeriods), String(row.periodsTaught), String(row.periodsNotTaught)];
+                return data.canSeeTeachingPay
+                  ? [
+                      ...base,
+                      fmtMoney(row.hourRate),
+                      fmtMoney(row.socials),
+                      <span key="total" className="font-semibold text-gray-900">{fmtMoney(row.total)}</span>,
+                    ]
+                  : base;
+              })}
               empty={t('No teaching data for this range.')}
             />
           </Section>
 
+          {data.reportScope === 'full' && (
+          <>
           <Section title={t('Work Coverage')}>
             <DataTable
               headers={[t('Class'), t('Sub Class'), t('% Coverage')]}

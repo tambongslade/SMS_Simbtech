@@ -86,6 +86,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/principal/teacher-logbook' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/principal/fee-comparison' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/principal/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/principal/statistics' },
   ],
   bursar: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
@@ -233,6 +234,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/vice-principal/report-requests' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/vice-principal/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/vice-principal/statistics' },
   ],
   manager: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
@@ -248,6 +250,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/manager/defaulters' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/manager/statistics' },
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
