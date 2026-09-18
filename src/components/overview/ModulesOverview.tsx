@@ -66,6 +66,18 @@ const LOW_REAM_THRESHOLD = 20;
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+// The discipline summary counts (unexcusedLateness, unexcusedClassAbsences)
+// are academic-year-wide, not date-scoped -- so their drill-down links into
+// /absences (which defaults from/to to just today when unset) need an
+// explicit wide range. Mirrors the 'all' range on the Discipline Overview
+// page (dean-of-discipline/overview/page.tsx).
+function wideRange(): { from: string; to: string } {
+    const now = new Date();
+    const toISO = (dt: Date) => dt.toISOString().slice(0, 10);
+    const yearStart = new Date(now.getFullYear() - 1, 8, 1); // Sept 1 last year
+    return { from: toISO(yearStart), to: toISO(now) };
+}
+
 interface ModuleDef {
     key: OverviewModuleKey;
     title: string;
@@ -336,26 +348,38 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
     switch (module) {
         case 'discipline': {
             const d = data as DisciplineOverview;
+            const SM = '/dashboard/super-manager';
+            const wide = wideRange();
+            const absencesHref = (type: 'MORNING_LATENESS' | 'CLASS_ABSENCE') =>
+                `${SM}/absences?type=${type}&is_excused=false&from=${wide.from}&to=${wide.to}`;
             return (
                 <div className="space-y-5">
                     <StatGrid>
-                        <StatTile label="Total Issues" value={formatNumber(d.summary?.totalIssues)} />
-                        <StatTile label="Issues · 30 days" value={formatNumber(d.summary?.issuesLast30Days)} />
-                        <StatTile label="Unexcused Lateness" value={formatNumber(d.summary?.unexcusedLateness)} />
-                        <StatTile label="Class Absences" value={formatNumber(d.summary?.unexcusedClassAbsences)} />
-                        <StatTile label="Active Warnings" value={formatNumber(d.summary?.activeWarnings)} />
-                        <StatTile label="Pending Parent Summons" value={formatNumber(d.summary?.pendingParentSummons)} tone={(d.summary?.pendingParentSummons ?? 0) > 0 ? 'alert' : 'default'} />
-                        <StatTile label="Pending Saturday Punishments" value={formatNumber(d.summary?.pendingSaturdayPunishments)} tone={(d.summary?.pendingSaturdayPunishments ?? 0) > 0 ? 'alert' : 'default'} />
-                        <StatTile label="Seized Items in Custody" value={formatNumber(d.summary?.seizedItemsInCustody)} />
-                        <StatTile label="Roll Calls This Week" value={formatNumber(d.summary?.rollCallsThisWeek)} />
+                        <StatTile label="Total Issues" value={formatNumber(d.summary?.totalIssues)} href={`${SM}/discipline-issues`} />
+                        <StatTile label="Issues · 30 days" value={formatNumber(d.summary?.issuesLast30Days)} href={`${SM}/discipline-issues?range=30d`} />
+                        <StatTile label="Unexcused Lateness" value={formatNumber(d.summary?.unexcusedLateness)} href={absencesHref('MORNING_LATENESS')} />
+                        <StatTile label="Class Absences" value={formatNumber(d.summary?.unexcusedClassAbsences)} href={absencesHref('CLASS_ABSENCE')} />
+                        <StatTile label="Active Warnings" value={formatNumber(d.summary?.activeWarnings)} href={`${SM}/warnings-summons`} />
+                        <StatTile label="Pending Parent Summons" value={formatNumber(d.summary?.pendingParentSummons)} tone={(d.summary?.pendingParentSummons ?? 0) > 0 ? 'alert' : 'default'} href={`${SM}/warnings-summons`} />
+                        <StatTile label="Pending Saturday Punishments" value={formatNumber(d.summary?.pendingSaturdayPunishments)} tone={(d.summary?.pendingSaturdayPunishments ?? 0) > 0 ? 'alert' : 'default'} href={`${SM}/punishments`} />
+                        <StatTile label="Seized Items in Custody" value={formatNumber(d.summary?.seizedItemsInCustody)} href={`${SM}/seized-items`} />
+                        <StatTile label="Roll Calls This Week" value={formatNumber(d.summary?.rollCallsThisWeek)} href={`${SM}/dm-roll-call`} />
                     </StatGrid>
                     <TwoCol>
-                        <BarChart title="Issues by Type" rows={(d.issuesByType ?? []).map(x => ({ label: formatLabel(x.type), value: x.count }))} />
-                        <BarChart title="Disciplinary Actions by Type" rows={(d.disciplinaryActions?.byType ?? []).map(x => ({ label: formatLabel(x.type), value: x.count }))} />
+                        <BarChart
+                            title="Issues by Type"
+                            rows={(d.issuesByType ?? []).map(x => ({ label: formatLabel(x.type), value: x.count, raw: x.type }))}
+                            getHref={row => row.raw ? `${SM}/discipline-issues?type=${row.raw}` : undefined}
+                        />
+                        <BarChart
+                            title="Disciplinary Actions by Type"
+                            rows={(d.disciplinaryActions?.byType ?? []).map(x => ({ label: formatLabel(x.type), value: x.count }))}
+                            getHref={() => `${SM}/disciplinary-actions`}
+                        />
                     </TwoCol>
                     <TwoCol>
-                        <DonutChart title="Actions by Status" centerSub="actions" segments={toStatusSegments(d.disciplinaryActions?.byStatus ?? [])} />
-                        <DonutChart title="Seized Items by Status" centerSub="items" segments={toStatusSegments(d.seizedItemsByStatus ?? [])} />
+                        <DonutChart title="Actions by Status" centerSub="actions" segments={toStatusSegments(d.disciplinaryActions?.byStatus ?? [])} getHref={() => `${SM}/disciplinary-actions`} />
+                        <DonutChart title="Seized Items by Status" centerSub="items" segments={toStatusSegments(d.seizedItemsByStatus ?? [])} getHref={() => `${SM}/seized-items`} />
                     </TwoCol>
                 </div>
             );
