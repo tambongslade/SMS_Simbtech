@@ -372,7 +372,7 @@ export default function StatisticsPage() {
                 empty={t('No sanctions recorded in this range.')}
               />
             </SubSection>
-            <SubSection title={t('Persons of Interest')} count={data.discipline.personsOfInterest.length}>
+            <SubSection title={t('Students of Interest')} count={data.discipline.personsOfInterest.length}>
               <DataTable
                 headers={[t('Student'), t('Matricule'), t('Class'), t('Absences'), t('Lateness'), t('Sanctions'), t('Total')]}
                 rows={data.discipline.personsOfInterest.map((r) => [
@@ -430,7 +430,7 @@ export default function StatisticsPage() {
             />
             <div className="mt-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">
-                {t('Persons of Interest')} — {t('Top')} {data.financial.personsOfInterest.length} {t('Owing')}
+                {t('Students of Interest')} — {t('Top')} {data.financial.personsOfInterest.length} {t('Owing')}
               </h3>
               <DataTable
                 headers={['#', t('Student'), t('Matricule'), t('Class'), t('Outstanding')]}
