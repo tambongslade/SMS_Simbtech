@@ -54,7 +54,7 @@ interface TimeSlot {
 interface TimetableStats {
     totalClasses: number;
     totalSubjects: number;
-    weeklyHours: number;
+    weeklyPeriods: number;
     todayClasses: number;
 }
 
@@ -543,8 +543,8 @@ export default function TeacherTimetablePage() {
                     <CardBody className="flex items-center">
                         <ClockIcon className="h-8 w-8 text-purple-600 mr-3" />
                         <div>
-                            <p className="text-sm text-gray-600">{t('Weekly Hours')}</p>
-                            <p className="text-2xl font-bold">{`${summary?.weeklyHours.toFixed(1) || 0}h`}</p>
+                            <p className="text-sm text-gray-600">{t('Weekly Periods')}</p>
+                            <p className="text-2xl font-bold">{summary?.weeklyPeriods ?? 0}</p>
                         </div>
                     </CardBody>
                 </Card>

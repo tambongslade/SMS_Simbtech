@@ -25,7 +25,6 @@ interface TeacherDashboardData {
   totalClasses: number;
   upcomingPeriods: number;
   weeklyPeriods: number;
-  weeklyHours?: number;
   attendanceRate?: number;
   totalHoursPerWeek?: number;
 }
@@ -200,8 +199,8 @@ export default function TeacherDashboard() {
           className="bg-purple-50 border-purple-200"
         />
         <StatsCard
-          title={t('Weekly Hours')}
-          value={`${(dashboardData?.weeklyHours ?? 0).toFixed(1)}h`}
+          title={t('Weekly Periods')}
+          value={(dashboardData?.weeklyPeriods ?? 0).toString()}
           icon={ClockIcon}
           color="primary"
           className="bg-orange-50 border-orange-200"
