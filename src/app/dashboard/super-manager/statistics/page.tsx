@@ -35,6 +35,14 @@ interface SanctionRow extends OffenceRow {
   reason: string | null;
   status: string;
 }
+interface StudentAbsenceCountRow {
+  studentId: number;
+  studentName: string;
+  matricule: string | null;
+  className: string;
+  subClassName: string;
+  count: number;
+}
 interface DisciplinePoiRow {
   studentId: number;
   studentName: string;
@@ -50,9 +58,9 @@ interface TeachingRow {
   teacherId: number;
   name: string;
   matricule: string | null;
-  expectedHours: number;
-  hoursTaught: number;
-  hoursNotTaught: number;
+  expectedPeriods: number;
+  periodsTaught: number;
+  periodsNotTaught: number;
   hourRate: number;
   socials: number;
   total: number;
@@ -88,7 +96,7 @@ interface StatisticsReportData {
   academicYear: { id: number; name: string } | null;
   discipline: {
     lateness: OffenceRow[];
-    absences: OffenceRow[];
+    absences: StudentAbsenceCountRow[];
     sanctions: SanctionRow[];
     personsOfInterest: DisciplinePoiRow[];
   };
@@ -355,9 +363,10 @@ export default function StatisticsPage() {
             </SubSection>
             <SubSection title={t('Class Absences')} count={data.discipline.absences.length}>
               <DataTable
-                headers={[t('Student'), t('Matricule'), t('Class'), t('Date')]}
+                headers={[t('Student'), t('Matricule'), t('Class'), t('Total Absences')]}
                 rows={data.discipline.absences.map((r) => [
-                  r.studentName, r.matricule ?? '—', `${r.className} · ${r.subClassName}`, r.date,
+                  r.studentName, r.matricule ?? '—', `${r.className} · ${r.subClassName}`,
+                  <span key="count" className="font-semibold text-gray-900">{r.count}</span>,
                 ])}
                 empty={t('No class absences recorded in this range.')}
               />
@@ -390,12 +399,12 @@ export default function StatisticsPage() {
               {t('Hours Taught')}
             </h3>
             <DataTable
-              headers={[t('Name'), t('Expected Hrs'), t('Hrs Taught'), t('Hrs Not Taught'), t('Hour Rate'), t('Socials'), t('Total')]}
+              headers={[t('Name'), t('Expected Periods'), t('Periods Taught'), t('Periods Not Taught'), t('Hour Rate'), t('Socials'), t('Total')]}
               rows={data.teaching.map((row) => [
                 row.name,
-                row.expectedHours.toFixed(1),
-                row.hoursTaught.toFixed(1),
-                row.hoursNotTaught.toFixed(1),
+                String(row.expectedPeriods),
+                String(row.periodsTaught),
+                String(row.periodsNotTaught),
                 fmtMoney(row.hourRate),
                 fmtMoney(row.socials),
                 <span key="total" className="font-semibold text-gray-900">{fmtMoney(row.total)}</span>,
