@@ -375,8 +375,8 @@ export default function StatisticsPage() {
                           (a, r) => ({ enrollment: a.enrollment + r.enrollment, present: a.present + r.present, absence: a.absence + r.absence }),
                           { enrollment: 0, present: 0, absence: 0 }
                         );
-                        const pct = totals.present + totals.absence > 0
-                          ? Math.round((totals.present / (totals.present + totals.absence)) * 10000) / 100
+                        const pct = totals.enrollment > 0
+                          ? Math.round((totals.present / totals.enrollment) * 10000) / 100
                           : 0;
                         return [
                           <span key="t0" className="font-semibold text-gray-900">{t('Total')}</span>,
