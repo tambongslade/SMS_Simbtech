@@ -183,6 +183,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/super-manager/statistics' },
   ],
   guidancecounselor: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/guidance-counselor' },
