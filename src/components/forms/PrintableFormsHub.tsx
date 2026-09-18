@@ -1,17 +1,28 @@
 'use client';
 
-// Printable-forms hub, shared by bursar and secretary. Only "Attendance Form"
-// exists for now (see FORM_TYPES below) -- the form-type picker is a plain
-// radio list rather than a hardcoded page specifically so a second form type
-// is a one-line addition later, not a redesign.
+// Printable-forms hub, shared by bursar and secretary. The form-type picker
+// is a plain radio list rather than a hardcoded page specifically so a new
+// form type is a small addition later, not a redesign.
 //
-// Attendance form: pick one or more classes -> one register PDF per class
-// (each class gets its own download, not one combined PDF, so a class
-// teacher only ever has to print their own sheet), Monday-Saturday across
-// the top, an empty box per student per day for a manual present/absent
-// mark, and a blank "Week: ____" line at the top filled in by hand -- this
-// is a paper form, not a digital attendance record, so nothing here is
-// saved back to the server.
+// Four form types:
+// - Attendance Form: pick one or more classes -> one register PDF per class
+//   (each class gets its own download, not one combined PDF, so a class
+//   teacher only ever has to print their own sheet), Monday-Saturday across
+//   the top, an empty box per student per day for a manual present/absent
+//   mark, and a blank "Week: ____" line at the top filled in by hand.
+// - Student Form: same class/subclass picker as Attendance, but one plain
+//   blank column instead of a Mon-Sat grid -- for whatever the class teacher
+//   needs to note by hand against each student.
+// - Teacher Form: same idea as Student Form but for the whole teaching
+//   staff -- no class picker (teachers aren't grouped by class), one PDF,
+//   one blank column.
+// - Teacher Weekly Periods: not a blank form -- a printed report of every
+//   teacher's actual period count this week (GET /users/teachers/roster),
+//   the same period-count logic used on the Teacher Timetable/Overview
+//   pages (a count, not summed hours -- see that fix's commit message).
+//
+// All of these are paper forms/reports, not digital records -- nothing here
+// is saved back to the server.
 
 import { useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
@@ -44,6 +55,13 @@ interface EnrolledStudent {
     };
 }
 
+interface TeacherRosterEntry {
+    id: number;
+    name: string;
+    matricule: string | null;
+    weeklyPeriods: number;
+}
+
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const FORM_TYPES = [
@@ -52,9 +70,33 @@ const FORM_TYPES = [
         label: 'Attendance Form',
         description: 'Monday–Saturday register, one empty box per student per day for a manual present/absent mark.',
     },
+    {
+        key: 'student-blank',
+        label: 'Student Form',
+        description: 'List of students with one blank column for whatever needs to be noted by hand.',
+    },
+    {
+        key: 'teacher-blank',
+        label: 'Teacher Form',
+        description: 'List of the whole teaching staff with one blank column for whatever needs to be noted by hand.',
+    },
+    {
+        key: 'teacher-periods',
+        label: 'Teacher Weekly Periods',
+        description: 'Every teacher with the number of periods they actually have this week.',
+    },
     // Future form types go here.
 ] as const;
 type FormTypeKey = typeof FORM_TYPES[number]['key'];
+
+// Attendance and Student Form both need a class/subclass picked; the two
+// teacher-based forms cover the whole staff at once, so there's nothing to pick.
+const NEEDS_CLASS_SELECTION: Record<FormTypeKey, boolean> = {
+    'attendance': true,
+    'student-blank': true,
+    'teacher-blank': false,
+    'teacher-periods': false,
+};
 
 const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -165,6 +207,172 @@ function generateAttendancePdf(opts: {
     pdf.save(`attendance-form-${slug(className)}-${slug(subClassName)}.pdf`);
 }
 
+// Shared by the Student Form and Teacher Form: # | Matricule | Name | one
+// wide blank box per row for whatever needs to be noted by hand.
+function generateBlankColumnPdf(opts: {
+    title: string;
+    subtitle: string;
+    blankColumnLabel: string;
+    people: { name: string; matricule: string | null }[];
+    emptyMessage: string;
+    filename: string;
+}) {
+    const { title, subtitle, blankColumnLabel, people, emptyMessage, filename } = opts;
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginX = 12;
+    const usableWidth = pageWidth - marginX * 2;
+    const bottomMargin = 16;
+    let y = 16;
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(title, marginX, y);
+    y += 7;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(subtitle, marginX, y);
+    y += 9;
+
+    // Columns: # | Matricule | Name | blank box column
+    const numW = 8;
+    const matW = 28;
+    const nameW = 72;
+    const blankW = usableWidth - numW - matW - nameW;
+    const cols = [
+        { label: '#', width: numW },
+        { label: 'Matricule', width: matW },
+        { label: 'Name', width: nameW },
+        { label: blankColumnLabel, width: blankW },
+    ];
+    const colX: number[] = [];
+    let cursorX = marginX;
+    for (const c of cols) { colX.push(cursorX); cursorX += c.width; }
+
+    const rowHeight = 10;
+
+    const drawHeader = () => {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        cols.forEach((c, i) => pdf.text(c.label, colX[i], y));
+        y += 2;
+        pdf.setDrawColor(160);
+        pdf.line(marginX, y, marginX + usableWidth, y);
+        y += 6;
+        pdf.setFont('helvetica', 'normal');
+    };
+
+    drawHeader();
+
+    if (people.length === 0) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(120);
+        pdf.text(emptyMessage, marginX, y);
+        pdf.setTextColor(0);
+    }
+
+    people.forEach((p, i) => {
+        if (y > pageHeight - bottomMargin) {
+            pdf.addPage();
+            y = 16;
+            drawHeader();
+        }
+        pdf.setFontSize(9);
+        const name = p.name.length > 44 ? `${p.name.slice(0, 42)}…` : p.name;
+        pdf.text(String(i + 1), colX[0], y);
+        pdf.text(p.matricule || '—', colX[1], y);
+        pdf.text(name, colX[2], y);
+
+        pdf.setDrawColor(150);
+        pdf.rect(colX[3], y - rowHeight + 3.5, blankW - 4, rowHeight - 4);
+
+        y += rowHeight;
+    });
+
+    pdf.save(filename);
+}
+
+// Weekly Periods report: same layout as generateBlankColumnPdf, but the last
+// column is real data (each teacher's actual period count), not a blank box.
+function generateTeacherPeriodsPdf(opts: {
+    subtitle: string;
+    teachers: TeacherRosterEntry[];
+}) {
+    const { subtitle, teachers } = opts;
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const marginX = 12;
+    const usableWidth = pageWidth - marginX * 2;
+    const bottomMargin = 16;
+    let y = 16;
+
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('TEACHER WEEKLY PERIODS', marginX, y);
+    y += 7;
+    pdf.setFontSize(10);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(subtitle, marginX, y);
+    y += 9;
+
+    const numW = 8;
+    const matW = 28;
+    const nameW = 92;
+    const periodsW = usableWidth - numW - matW - nameW;
+    const cols = [
+        { label: '#', width: numW },
+        { label: 'Matricule', width: matW },
+        { label: 'Teacher Name', width: nameW },
+        { label: 'Weekly Periods', width: periodsW },
+    ];
+    const colX: number[] = [];
+    let cursorX = marginX;
+    for (const c of cols) { colX.push(cursorX); cursorX += c.width; }
+
+    const rowHeight = 8;
+
+    const drawHeader = () => {
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9);
+        cols.forEach((c, i) => pdf.text(c.label, colX[i], y));
+        y += 2;
+        pdf.setDrawColor(160);
+        pdf.line(marginX, y, marginX + usableWidth, y);
+        y += 6;
+        pdf.setFont('helvetica', 'normal');
+    };
+
+    drawHeader();
+
+    if (teachers.length === 0) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(120);
+        pdf.text('No teachers found.', marginX, y);
+        pdf.setTextColor(0);
+    }
+
+    teachers.forEach((t, i) => {
+        if (y > pageHeight - bottomMargin) {
+            pdf.addPage();
+            y = 16;
+            drawHeader();
+        }
+        pdf.setFontSize(9);
+        const name = t.name.length > 56 ? `${t.name.slice(0, 54)}…` : t.name;
+        pdf.text(String(i + 1), colX[0], y);
+        pdf.text(t.matricule || '—', colX[1], y);
+        pdf.text(name, colX[2], y);
+        pdf.text(String(t.weeklyPeriods), colX[3], y);
+        y += rowHeight;
+    });
+
+    pdf.save('teacher-weekly-periods.pdf');
+}
+
 export default function PrintableFormsHub() {
     const { selectedAcademicYear } = useAuth();
 
@@ -217,7 +425,9 @@ export default function PrintableFormsHub() {
         });
     };
 
-    const handleGenerate = async () => {
+    const needsClassSelection = NEEDS_CLASS_SELECTION[formType];
+
+    const handleGenerateClassBased = async () => {
         if (selectedSubclassIds.length === 0) {
             toast.error('Select at least one class first.');
             return;
@@ -251,12 +461,23 @@ export default function PrintableFormsHub() {
                 const students = (res?.data ?? []).slice().sort((a, b) =>
                     (a.student?.name || '').localeCompare(b.student?.name || '', undefined, { sensitivity: 'base' })
                 );
-                generateAttendancePdf({
-                    className: target.className,
-                    subClassName: target.subClassName,
-                    academicYearName: selectedAcademicYear?.name,
-                    students,
-                });
+                if (formType === 'attendance') {
+                    generateAttendancePdf({
+                        className: target.className,
+                        subClassName: target.subClassName,
+                        academicYearName: selectedAcademicYear?.name,
+                        students,
+                    });
+                } else {
+                    generateBlankColumnPdf({
+                        title: 'STUDENT FORM',
+                        subtitle: `${target.className} · ${target.subClassName}${selectedAcademicYear?.name ? ` · ${selectedAcademicYear.name}` : ''}`,
+                        blankColumnLabel: '',
+                        people: students.map(s => ({ name: s.student.name, matricule: s.student.matricule })),
+                        emptyMessage: 'No enrolled students found for this class.',
+                        filename: `student-form-${slug(target.className)}-${slug(target.subClassName)}.pdf`,
+                    });
+                }
                 succeeded++;
             } catch {
                 failed.push(`${target.className} ${target.subClassName}`);
@@ -272,6 +493,44 @@ export default function PrintableFormsHub() {
             toast.error('Failed to generate PDFs.', { id: toastId });
         }
     };
+
+    // Teacher Form / Teacher Weekly Periods: one PDF covering the whole
+    // staff, sourced from the same roster endpoint (it already carries the
+    // period count, used or ignored depending on which form was picked).
+    const handleGenerateTeacherBased = async () => {
+        setIsGenerating(true);
+        const toastId = toast.loading('Preparing PDF...');
+        try {
+            const params = selectedAcademicYear?.id ? `?academic_year_id=${selectedAcademicYear.id}` : '';
+            const res = await apiService.get<{ success: boolean; data: TeacherRosterEntry[] }>(
+                `/users/teachers/roster${params}`
+            );
+            const teachers = (res?.data ?? []).slice();
+
+            if (formType === 'teacher-periods') {
+                generateTeacherPeriodsPdf({
+                    subtitle: selectedAcademicYear?.name || '',
+                    teachers,
+                });
+            } else {
+                generateBlankColumnPdf({
+                    title: 'TEACHER FORM',
+                    subtitle: selectedAcademicYear?.name || '',
+                    blankColumnLabel: '',
+                    people: teachers.map(t => ({ name: t.name, matricule: t.matricule })),
+                    emptyMessage: 'No teachers found.',
+                    filename: 'teacher-form.pdf',
+                });
+            }
+            toast.success('PDF downloaded.', { id: toastId });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Failed to generate PDF.', { id: toastId });
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleGenerate = () => (needsClassSelection ? handleGenerateClassBased() : handleGenerateTeacherBased());
 
     return (
         <div className="p-4 md:p-6 space-y-6">
@@ -314,6 +573,7 @@ export default function PrintableFormsHub() {
                 </CardBody>
             </Card>
 
+            {needsClassSelection ? (
             <Card>
                 <CardHeader>
                     <CardTitle>Select Class(es)</CardTitle>
@@ -378,18 +638,29 @@ export default function PrintableFormsHub() {
                     )}
                 </CardBody>
             </Card>
+            ) : (
+                <Card>
+                    <CardBody>
+                        <p className="text-sm text-gray-600">
+                            Covers the whole teaching staff — no class selection needed for this form.
+                        </p>
+                    </CardBody>
+                </Card>
+            )}
 
             <div className="flex justify-end">
                 <Button
                     color="primary"
                     leftIcon={PrinterIcon}
                     isLoading={isGenerating}
-                    disabled={isGenerating || selectedSubclassIds.length === 0}
+                    disabled={isGenerating || (needsClassSelection && selectedSubclassIds.length === 0)}
                     onClick={handleGenerate}
                 >
                     {isGenerating
                         ? 'Generating…'
-                        : `Generate PDF${selectedSubclassIds.length === 1 ? '' : 's'} (${selectedSubclassIds.length})`}
+                        : needsClassSelection
+                            ? `Generate PDF${selectedSubclassIds.length === 1 ? '' : 's'} (${selectedSubclassIds.length})`
+                            : 'Generate PDF'}
                 </Button>
             </div>
         </div>
