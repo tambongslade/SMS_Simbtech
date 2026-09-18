@@ -259,6 +259,7 @@ export const menuItems: MenuItemsStructure = {
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
     { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/dean-of-discipline/absences' },
@@ -280,6 +281,7 @@ export const menuItems: MenuItemsStructure = {
   'discipline-coordinator': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-coordinator' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: UserGroupIcon, label: 'Personnel Management', href: '/dashboard/principal/personnel-management' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },

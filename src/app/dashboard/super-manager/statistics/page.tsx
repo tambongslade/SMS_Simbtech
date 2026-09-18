@@ -91,14 +91,24 @@ interface FinancialPoiRow {
   subClassName: string;
   outstandingAmount: number;
 }
+interface ClassAttendanceRow {
+  classId: number;
+  className: string;
+  enrollment: number;
+  present: number;
+  absence: number;
+  percentagePresent: number;
+}
 interface StatisticsReportData {
   range: { from: string; to: string };
   academicYear: { id: number; name: string } | null;
+  reportScope: 'full' | 'discipline';
   discipline: {
     lateness: OffenceRow[];
     absences: StudentAbsenceCountRow[];
     sanctions: SanctionRow[];
     personsOfInterest: DisciplinePoiRow[];
+    classAttendance: ClassAttendanceRow[];
   };
   teaching: TeachingRow[];
   workCoverage: CoverageRow[];
@@ -352,6 +362,35 @@ export default function StatisticsPage() {
       ) : !data ? null : (
         <>
           <Section title={t('Discipline Overview')}>
+            <SubSection title={t('Class Attendance')} count={data.discipline.classAttendance.length}>
+              <DataTable
+                headers={[t('Class'), t('Enrollment'), t('Present'), t('%'), t('Absence')]}
+                rows={[
+                  ...data.discipline.classAttendance.map((r) => [
+                    r.className, String(r.enrollment), String(r.present), `${r.percentagePresent}%`, String(r.absence),
+                  ]),
+                  ...(data.discipline.classAttendance.length > 0
+                    ? [(() => {
+                        const totals = data.discipline.classAttendance.reduce(
+                          (a, r) => ({ enrollment: a.enrollment + r.enrollment, present: a.present + r.present, absence: a.absence + r.absence }),
+                          { enrollment: 0, present: 0, absence: 0 }
+                        );
+                        const pct = totals.present + totals.absence > 0
+                          ? Math.round((totals.present / (totals.present + totals.absence)) * 10000) / 100
+                          : 0;
+                        return [
+                          <span key="t0" className="font-semibold text-gray-900">{t('Total')}</span>,
+                          <span key="t1" className="font-semibold text-gray-900">{totals.enrollment}</span>,
+                          <span key="t2" className="font-semibold text-gray-900">{totals.present}</span>,
+                          <span key="t3" className="font-semibold text-gray-900">{pct}%</span>,
+                          <span key="t4" className="font-semibold text-gray-900">{totals.absence}</span>,
+                        ];
+                      })()]
+                    : []),
+                ]}
+                empty={t('No roll-call data recorded in this range.')}
+              />
+            </SubSection>
             <SubSection title={t('Lateness')} count={data.discipline.lateness.length}>
               <DataTable
                 headers={[t('Student'), t('Matricule'), t('Class'), t('Date')]}
@@ -394,6 +433,8 @@ export default function StatisticsPage() {
             </SubSection>
           </Section>
 
+          {data.reportScope === 'full' && (
+          <>
           <Section title={t('Teaching Statistics')}>
             <h3 className="text-sm font-semibold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">
               {t('Hours Taught')}
@@ -451,6 +492,8 @@ export default function StatisticsPage() {
               />
             </div>
           </Section>
+          </>
+          )}
         </>
       )}
     </div>
