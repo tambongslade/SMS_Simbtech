@@ -63,6 +63,27 @@ const currentPay = (p?: SalaryProfile | null) =>
 const unwrapList = (raw: any): any[] =>
     Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
 
+// /users?limit=200 mixed personnel in with students/parents and silently cut the
+// list off at 200 rows, so on a school with more than ~200 accounts many (or all)
+// teachers never made it into the salary list. /users/personnel/search already
+// excludes PARENT/STUDENT server-side; page through every page (backend caps
+// limit at 100) so this stays a complete personnel list no matter how big staff gets.
+const PERSONNEL_PAGE_SIZE = 100;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const fetchAllPersonnel = async (): Promise<any[]> => {
+    const first = await apiService.get(`/users/personnel/search?page=1&limit=${PERSONNEL_PAGE_SIZE}`);
+    const totalPages = first?.meta?.totalPages ?? 1;
+    const rows = [...unwrapList(first?.data)];
+    if (totalPages > 1) {
+        const rest = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, i) =>
+                apiService.get(`/users/personnel/search?page=${i + 2}&limit=${PERSONNEL_PAGE_SIZE}`))
+        );
+        rest.forEach((page) => rows.push(...unwrapList(page?.data)));
+    }
+    return rows;
+};
+
 export default function StaffSalariesTab({
     onCreated,
     requiresApproval = false,
@@ -88,10 +109,10 @@ export default function StaffSalariesTab({
         return () => clearTimeout(handle);
     }, [search]);
 
-    // All personnel (parents/students excluded client-side) + existing profiles
-    const { data: usersRes, error: usersError, isLoading: usersLoading, mutate: mutateUsers } = useSWR(
-        '/users?page=1&limit=200',
-        fetcher,
+    // All personnel (parents/students already excluded server-side) + existing profiles
+    const { data: personnelList, error: usersError, isLoading: usersLoading, mutate: mutateUsers } = useSWR(
+        '/users/personnel/search?all=true',
+        fetchAllPersonnel,
         { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load personnel.'); } }
     );
     const { data: profilesRes, mutate: mutateProfiles } = useSWR('/salary/profiles', fetcher, {
@@ -99,7 +120,7 @@ export default function StaffSalariesTab({
     });
 
     const staff = useMemo((): StaffRow[] => {
-        const users = unwrapList(usersRes?.data);
+        const users = personnelList ?? [];
         const profiles = unwrapList(profilesRes?.data) as SalaryProfile[];
         const profileByUser = new Map<number, SalaryProfile>();
         profiles.forEach(p => {
@@ -128,7 +149,7 @@ export default function StaffSalariesTab({
                 if (!debouncedSearch) return true;
                 return `${s.name} ${s.matricule ?? ''}`.toLowerCase().includes(debouncedSearch);
             });
-    }, [usersRes, profilesRes, typeFilter, debouncedSearch]);
+    }, [personnelList, profilesRes, typeFilter, debouncedSearch]);
 
     const openModal = (row: StaffRow, nextAction: SalaryAction) => {
         setSelectedStaff(row);
