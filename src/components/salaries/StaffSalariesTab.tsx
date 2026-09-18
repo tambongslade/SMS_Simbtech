@@ -63,6 +63,11 @@ const currentPay = (p?: SalaryProfile | null) =>
 const unwrapList = (raw: any): any[] =>
     Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const extractRoles = (user: any): string[] =>
+    (user.userRoles?.map((r: any) => r.role) ?? user.roles ?? [])
+        .filter((r: string) => !NON_STAFF_ROLES.has(r));
+
 // /users?limit=200 mixed personnel in with students/parents and silently cut the
 // list off at 200 rows, so on a school with more than ~200 accounts many (or all)
 // teachers never made it into the salary list. /users/personnel/search already
@@ -96,6 +101,7 @@ export default function StaffSalariesTab({
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [typeFilter, setTypeFilter] = useState('all');
+    const [roleFilter, setRoleFilter] = useState('all');
 
     const [action, setAction] = useState<SalaryAction | null>(null);
     const [selectedStaff, setSelectedStaff] = useState<StaffRow | null>(null);
@@ -119,6 +125,18 @@ export default function StaffSalariesTab({
         onError: () => { /* profiles are optional — staff simply show "no salary set" */ },
     });
 
+    // Every distinct staff role present in the loaded personnel, for the Role filter.
+    // Computed from the full list (not the already-filtered `staff` below) so the
+    // options don't shrink as soon as another filter narrows the visible rows.
+    const roleOptions = useMemo(() => {
+        const roles = new Set<string>();
+        (personnelList ?? []).forEach((user) => extractRoles(user).forEach((r) => roles.add(r)));
+        return [
+            { value: 'all', label: 'All Roles' },
+            ...Array.from(roles).sort().map((r) => ({ value: r, label: formatLabel(r) })),
+        ];
+    }, [personnelList]);
+
     const staff = useMemo((): StaffRow[] => {
         const users = personnelList ?? [];
         const profiles = unwrapList(profilesRes?.data) as SalaryProfile[];
@@ -134,12 +152,11 @@ export default function StaffSalariesTab({
                 userId: user.id,
                 name: user.name,
                 matricule: user.matricule,
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                roles: (user.userRoles?.map((r: any) => r.role) ?? user.roles ?? [])
-                    .filter((r: string) => !NON_STAFF_ROLES.has(r)),
+                roles: extractRoles(user),
                 profile: profileByUser.get(user.id) ?? null,
             }))
             .filter(s => s.roles.length > 0)
+            .filter(s => roleFilter === 'all' || s.roles.includes(roleFilter))
             .filter(s => {
                 if (typeFilter === 'none') return !s.profile;
                 if (typeFilter !== 'all') return profileType(s.profile) === typeFilter;
@@ -149,7 +166,7 @@ export default function StaffSalariesTab({
                 if (!debouncedSearch) return true;
                 return `${s.name} ${s.matricule ?? ''}`.toLowerCase().includes(debouncedSearch);
             });
-    }, [personnelList, profilesRes, typeFilter, debouncedSearch]);
+    }, [personnelList, profilesRes, typeFilter, roleFilter, debouncedSearch]);
 
     const openModal = (row: StaffRow, nextAction: SalaryAction) => {
         setSelectedStaff(row);
@@ -248,6 +265,13 @@ export default function StaffSalariesTab({
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         leftIcon={<MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />}
+                    />
+                </div>
+                <div className="sm:w-48">
+                    <Select
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                        options={roleOptions}
                     />
                 </div>
                 <div className="sm:w-56">
