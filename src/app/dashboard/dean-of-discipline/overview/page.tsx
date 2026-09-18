@@ -169,16 +169,32 @@ export default function DisciplineOverviewPage() {
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <StatsCard
-          title={t('Lateness')}
-          value={loading ? '—' : String(data?.lateTodayCount ?? 0)}
-          icon={ClockIcon}
-          color="amber"
-        />
         <Link
           href={{
             pathname: absencesHref,
             query: {
+              type: 'MORNING_LATENESS',
+              ...(dates.from ? { from: dates.from } : {}),
+              ...(dates.to ? { to: dates.to } : {}),
+              ...(slotFilter !== 'all' ? { slot: slotFilter } : {}),
+              range,
+            },
+          }}
+          className="block rounded-lg transition hover:shadow-md hover:ring-2 hover:ring-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400"
+          aria-label={t('View all late students')}
+        >
+          <StatsCard
+            title={t('Lateness')}
+            value={loading ? '—' : String(data?.lateTodayCount ?? 0)}
+            icon={ClockIcon}
+            color="amber"
+          />
+        </Link>
+        <Link
+          href={{
+            pathname: absencesHref,
+            query: {
+              type: 'CLASS_ABSENCE',
               ...(dates.from ? { from: dates.from } : {}),
               ...(dates.to ? { to: dates.to } : {}),
               ...(slotFilter !== 'all' ? { slot: slotFilter } : {}),

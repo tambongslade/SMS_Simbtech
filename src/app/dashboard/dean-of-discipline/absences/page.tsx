@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, Suspense } from 'react';
+import { Fragment, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -9,17 +9,23 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
   ExclamationTriangleIcon,
+  ClockIcon,
   ArrowLeftIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 type Slot = 'SLOT_2' | 'SLOT_5' | 'SLOT_8';
+type AbsenceType = 'CLASS_ABSENCE' | 'MORNING_LATENESS';
+type Source = 'all' | 'DM' | 'TEACHER';
+type RangeMode = 'daily' | 'weekly' | 'monthly';
 
 interface AbsenceRow {
   id: number;
-  absenceType: 'CLASS_ABSENCE' | 'MORNING_LATENESS' | string;
+  absenceType: AbsenceType | string;
   isExcused: boolean;
   excuseReason: string | null;
   excusedAt: string | null;
@@ -30,6 +36,7 @@ interface AbsenceRow {
   assignedBy: { id: number; name: string } | null;
   excusedBy: { id: number; name: string } | null;
   slot: Slot | null;
+  recordedVia: 'DM' | 'TEACHER' | null;
   totalInRange: number;
   teacherPeriod: {
     id: number;
@@ -55,10 +62,29 @@ const SLOT_LABEL: Record<Slot, string> = {
   SLOT_8: 'Period 3',
 };
 
-function defaultDates(): { from: string; to: string } {
-  const now = new Date();
-  const toISO = (d: Date) => d.toISOString().slice(0, 10);
-  return { from: toISO(now), to: toISO(now) };
+const SOURCE_LABEL: Record<'DM' | 'TEACHER', string> = {
+  DM: 'Discipline Master',
+  TEACHER: 'Teacher',
+};
+
+const toISO = (d: Date) => d.toISOString().slice(0, 10);
+
+function todayISO(): string {
+  return toISO(new Date());
+}
+
+// First/last day of the given "YYYY-MM" month string, as ISO dates.
+function monthBounds(monthStr: string): { from: string; to: string } {
+  const [y, m] = monthStr.split('-').map(Number);
+  if (!y || !m) return { from: todayISO(), to: todayISO() };
+  const from = new Date(y, m - 1, 1);
+  const to = new Date(y, m, 0); // day 0 of next month = last day of this month
+  return { from: toISO(from), to: toISO(to) };
+}
+
+function currentMonthStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 const PAGE_SIZE = 50;
@@ -97,17 +123,43 @@ function ClassAbsencesPageInner() {
       ? `/dashboard/super-manager/student-management/${studentId}`
       : `/dashboard/${roleSegment}/students/${studentId}`;
 
-  const defaults = defaultDates();
-  const [showRangePicker, setShowRangePicker] = useState(false);
-  const [from, setFrom] = useState(searchParams.get('from') || defaults.from);
-  const [to, setTo] = useState(searchParams.get('to') || defaults.to);
+  // "Lateness" and "Class Absences" on the overview page both link here,
+  // distinguished by ?type=.
+  const [absenceType, setAbsenceType] = useState<AbsenceType>(
+    searchParams.get('type') === 'MORNING_LATENESS' ? 'MORNING_LATENESS' : 'CLASS_ABSENCE'
+  );
+
+  // Daily/Weekly/Monthly range picker. Seeded from whatever from/to the
+  // overview page's stat-card link carried over (if any), otherwise today.
+  const initialFrom = searchParams.get('from') || todayISO();
+  const initialTo = searchParams.get('to') || todayISO();
+  const [rangeMode, setRangeMode] = useState<RangeMode>(
+    initialFrom === initialTo ? 'daily' : 'weekly'
+  );
+  const [selectedDate, setSelectedDate] = useState(initialFrom);
+  const [weekFrom, setWeekFrom] = useState(initialFrom);
+  const [weekTo, setWeekTo] = useState(initialTo);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthStr());
+
+  const { from, to } = useMemo(() => {
+    if (rangeMode === 'daily') return { from: selectedDate, to: selectedDate };
+    if (rangeMode === 'monthly') return monthBounds(selectedMonth);
+    return { from: weekFrom, to: weekTo };
+  }, [rangeMode, selectedDate, weekFrom, weekTo, selectedMonth]);
+
   const [excusedFilter, setExcusedFilter] = useState<string>(searchParams.get('is_excused') || 'all');
   const [slotFilter, setSlotFilter] = useState<string>(searchParams.get('slot') || 'all');
+  const [sourceFilter, setSourceFilter] = useState<Source>('all');
   const [page, setPage] = useState(1);
   const [rows, setRows] = useState<AbsenceRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Which student-groups are currently expanded to show every individual
+  // record, keyed by "<subClassId>-<studentId>" (a student can in principle
+  // straddle groupings if their subclass changed mid-range, so scope the key
+  // to the subclass too rather than just the student id).
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total]);
 
@@ -116,26 +168,27 @@ function ClassAbsencesPageInner() {
     setLoading(true);
     setError(null);
     const params = new URLSearchParams();
-    params.set('absence_type', 'CLASS_ABSENCE');
+    params.set('absence_type', absenceType);
     if (selectedAcademicYear?.id) params.set('academic_year_id', String(selectedAcademicYear.id));
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (excusedFilter !== 'all') params.set('is_excused', excusedFilter);
     if (slotFilter !== 'all') params.set('slot', slotFilter);
+    if (sourceFilter !== 'all') params.set('source', sourceFilter);
     params.set('page', String(page));
     params.set('limit', String(PAGE_SIZE));
 
     apiService
-      .get(`/discipline/absences?${params.toString()}`)
-      .then((res: any) => {
+      .get<ListResponse>(`/discipline/absences?${params.toString()}`)
+      .then((res) => {
         if (cancelled) return;
-        const resp = (res as ListResponse) ?? { data: [], meta: { total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 } };
+        const resp = res ?? { success: true, data: [], meta: { total: 0, page: 1, limit: PAGE_SIZE, totalPages: 1 } };
         setRows(resp.data ?? []);
         setTotal(resp.meta?.total ?? 0);
       })
-      .catch((err: any) => {
+      .catch((err: unknown) => {
         if (cancelled) return;
-        setError(err?.message ?? 'Failed to load absences');
+        setError(err instanceof Error ? err.message : 'Failed to load absences');
         setRows([]);
         setTotal(0);
       })
@@ -145,22 +198,27 @@ function ClassAbsencesPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAcademicYear?.id, from, to, excusedFilter, slotFilter, page]);
+  }, [selectedAcademicYear?.id, absenceType, from, to, excusedFilter, slotFilter, sourceFilter, page]);
 
-  const onDateChange = (field: 'from' | 'to', value: string) => {
-    if (field === 'from') setFrom(value);
-    else setTo(value);
-    setPage(1);
+  const toggleExpanded = (key: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
   };
 
-  // Group the current page of rows by Class, then by SubClass within each
-  // class, in class/subclass order (natural sort, so "FORM 2" sorts before
-  // "FORM 10") -- one section per class, one table per sub-class inside it.
-  // Rows with no subclass (orphaned enrollment) fall into a trailing
-  // "Unassigned" section.
+  // Group the current page of rows by Class, then SubClass, then Student --
+  // one summary row per student (badge = totalInRange, the true count across
+  // the whole filtered range, not just this page), expandable to the
+  // individual records. Natural sort throughout so "FORM 2" sorts before
+  // "FORM 10". Rows with no subclass (orphaned enrollment) fall into a
+  // trailing "Unassigned" section.
   const classGroups = useMemo(() => {
-    type SubGroup = { key: string; subClassName: string; rows: AbsenceRow[] };
-    const byClass = new Map<string, { className: string; subClasses: Map<string, SubGroup> }>();
+    type StudentGroup = { studentId: number; studentName: string; matricule: string | null; count: number; rows: AbsenceRow[] };
+    type SubGroup = { key: string; subClassName: string; students: StudentGroup[]; recordCount: number };
+    const byClass = new Map<string, { className: string; subClasses: Map<string, { subClassName: string; byStudent: Map<string, StudentGroup> }> }>();
 
     for (const r of rows) {
       const classKey = r.subClass ? String(r.subClass.class.id) : 'unassigned';
@@ -170,8 +228,20 @@ function ClassAbsencesPageInner() {
 
       if (!byClass.has(classKey)) byClass.set(classKey, { className, subClasses: new Map() });
       const cls = byClass.get(classKey)!;
-      if (!cls.subClasses.has(subKey)) cls.subClasses.set(subKey, { key: subKey, subClassName, rows: [] });
-      cls.subClasses.get(subKey)!.rows.push(r);
+      if (!cls.subClasses.has(subKey)) cls.subClasses.set(subKey, { subClassName, byStudent: new Map() });
+      const sub = cls.subClasses.get(subKey)!;
+
+      const studentKey = r.student ? String(r.student.id) : `row-${r.id}`;
+      if (!sub.byStudent.has(studentKey)) {
+        sub.byStudent.set(studentKey, {
+          studentId: r.student?.id ?? 0,
+          studentName: r.student?.name ?? t('Unknown'),
+          matricule: r.student?.matricule ?? null,
+          count: r.totalInRange,
+          rows: [],
+        });
+      }
+      sub.byStudent.get(studentKey)!.rows.push(r);
     }
 
     const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
@@ -184,11 +254,27 @@ function ClassAbsencesPageInner() {
       .map(([classKey, cls]) => ({
         classKey,
         className: cls.className,
-        subClasses: Array.from(cls.subClasses.values()).sort((a, b) =>
-          collator.compare(a.subClassName, b.subClassName)
-        ),
+        subClasses: Array.from(cls.subClasses.entries())
+          .map(([key, sub]): SubGroup => {
+            const students = Array.from(sub.byStudent.values()).sort((a, b) =>
+              collator.compare(a.studentName, b.studentName)
+            );
+            return {
+              key,
+              subClassName: sub.subClassName,
+              students,
+              recordCount: students.reduce((n, s) => n + s.rows.length, 0),
+            };
+          })
+          .sort((a, b) => collator.compare(a.subClassName, b.subClassName)),
       }));
   }, [rows, t]);
+
+  const isLateness = absenceType === 'MORNING_LATENESS';
+  const pageTitle = isLateness ? t('Lateness') : t('Class Absences');
+  const emptyMessage = isLateness
+    ? t('No late arrivals found for the selected range.')
+    : t('No absences found for the selected range.');
 
   return (
     <div className="max-w-7xl mx-auto space-y-5 p-4">
@@ -205,31 +291,73 @@ function ClassAbsencesPageInner() {
             </button>
           </div>
           <h1 className="mt-1 text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
-            {t('Class Absences')}
+            {isLateness ? (
+              <ClockIcon className="w-6 h-6 text-amber-600" />
+            ) : (
+              <ExclamationTriangleIcon className="w-6 h-6 text-red-600" />
+            )}
+            {pageTitle}
           </h1>
           <p className="text-sm text-gray-600 mt-0.5">
-            {from && to ? `${from} → ${to}` : ''}
+            {from && to ? (from === to ? from : `${from} → ${to}`) : ''}
           </p>
         </div>
-        <Button
-          variant="outline"
-          leftIcon={CalendarDaysIcon}
-          onClick={() => setShowRangePicker((v) => !v)}
-        >
-          {t('Range')}
-        </Button>
+        <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm">
+          {(['CLASS_ABSENCE', 'MORNING_LATENESS'] as AbsenceType[]).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => { setAbsenceType(type); setPage(1); }}
+              className={`px-3 py-1.5 ${absenceType === type
+                ? 'bg-indigo-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+                }`}
+            >
+              {type === 'CLASS_ABSENCE' ? t('Absences') : t('Lateness')}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {showRangePicker && (
-        <Card className="p-4">
+      <Card className="p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <CalendarDaysIcon className="w-4 h-4 text-gray-500" />
+          <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm">
+            {(['daily', 'weekly', 'monthly'] as RangeMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setRangeMode(mode)}
+                className={`px-3 py-1.5 capitalize ${rangeMode === mode
+                  ? 'bg-gray-800 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+                  }`}
+              >
+                {t(mode === 'daily' ? 'Daily' : mode === 'weekly' ? 'Weekly' : 'Monthly')}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {rangeMode === 'daily' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('Day')}</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => { setSelectedDate(e.target.value); setPage(1); }}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+            />
+          </div>
+        )}
+        {rangeMode === 'weekly' && (
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">{t('From')}</label>
               <input
                 type="date"
-                value={from}
-                onChange={(e) => onDateChange('from', e.target.value)}
+                value={weekFrom}
+                onChange={(e) => { setWeekFrom(e.target.value); setPage(1); }}
                 className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
               />
             </div>
@@ -237,14 +365,25 @@ function ClassAbsencesPageInner() {
               <label className="block text-xs font-medium text-gray-600 mb-1">{t('To')}</label>
               <input
                 type="date"
-                value={to}
-                onChange={(e) => onDateChange('to', e.target.value)}
+                value={weekTo}
+                onChange={(e) => { setWeekTo(e.target.value); setPage(1); }}
                 className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
               />
             </div>
           </div>
-        </Card>
-      )}
+        )}
+        {rangeMode === 'monthly' && (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('Month')}</label>
+            <input
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => { setSelectedMonth(e.target.value); setPage(1); }}
+              className="border border-gray-300 rounded-md px-2 py-1.5 text-sm"
+            />
+          </div>
+        )}
+      </Card>
 
       <Card className="p-4">
         <div className="flex flex-wrap items-end gap-3">
@@ -279,6 +418,24 @@ function ClassAbsencesPageInner() {
               <option value="true">{t('Excused')}</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{t('Recorded by')}</label>
+            <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm">
+              {(['all', 'DM', 'TEACHER'] as Source[]).map((src) => (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => { setSourceFilter(src); setPage(1); }}
+                  className={`px-3 py-1.5 ${sourceFilter === src
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                >
+                  {src === 'all' ? t('All') : t(SOURCE_LABEL[src])}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="ml-auto text-sm text-gray-600 self-end">
             {loading ? t('Loading…') : `${total} ${t('records')}`}
           </div>
@@ -292,16 +449,14 @@ function ClassAbsencesPageInner() {
       {loading ? (
         <Card className="p-6 text-center text-sm text-gray-500">{t('Loading…')}</Card>
       ) : rows.length === 0 ? (
-        <Card className="p-6 text-center text-sm text-gray-500">
-          {t('No absences found for the selected range.')}
-        </Card>
+        <Card className="p-6 text-center text-sm text-gray-500">{emptyMessage}</Card>
       ) : (
         classGroups.map((cls) => (
           <div key={cls.classKey} className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <h2 className="text-base font-bold text-gray-900">{cls.className}</h2>
               <span className="text-xs text-gray-500">
-                {cls.subClasses.reduce((n, sc) => n + sc.rows.length, 0)} {t('records')}
+                {cls.subClasses.reduce((n, sc) => n + sc.recordCount, 0)} {t('records')}
               </span>
             </div>
             <div className="space-y-3">
@@ -312,7 +467,7 @@ function ClassAbsencesPageInner() {
                       {sc.key === 'unassigned' ? t('Unassigned') : sc.subClassName}
                     </h3>
                     <span className="text-xs text-gray-500">
-                      {sc.rows.length} {t('records')}
+                      {sc.students.length} {t('students')} · {sc.recordCount} {t('records')}
                     </span>
                   </div>
                   <div className="overflow-x-auto">
@@ -320,36 +475,99 @@ function ClassAbsencesPageInner() {
                       <thead className="text-xs uppercase text-gray-500 bg-gray-50 border-b">
                         <tr>
                           <th className="text-left py-2 px-3">{t('Student')}</th>
-                          <th className="text-left py-2 px-3">{t('Subject')}</th>
-                          <th className="text-left py-2 px-3">{t('Recorded By')}</th>
-                          <th className="text-right py-2 px-3">{t('Total Absences')}</th>
+                          <th className="text-left py-2 px-3">{t('Recorded by')}</th>
+                          <th className="text-right py-2 px-3">{t('Count')}</th>
+                          <th className="w-10"></th>
                         </tr>
                       </thead>
                       <tbody>
-                        {sc.rows.map((r) => (
-                          <tr key={r.id} className="border-b last:border-none hover:bg-gray-50">
-                            <td className="py-2 px-3">
-                              {r.student ? (
-                                <button
-                                  type="button"
-                                  onClick={() => router.push(studentHref(r.student!.id))}
-                                  className="text-blue-700 hover:text-blue-900 hover:underline text-left"
-                                >
-                                  {r.student.name}
-                                </button>
-                              ) : (
-                                '—'
+                        {sc.students.map((s) => {
+                          const groupKey = `${sc.key}-${s.studentId}`;
+                          const isOpen = expanded.has(groupKey);
+                          // "Recorded by" on the summary row: whichever source
+                          // shows up on this page's rows for the student — a
+                          // dash if the record set is mixed or unknown.
+                          const sources = new Set(s.rows.map((r) => r.recordedVia).filter(Boolean));
+                          const sourceLabel = sources.size === 1
+                            ? t(SOURCE_LABEL[[...sources][0] as 'DM' | 'TEACHER'])
+                            : '—';
+                          return (
+                            <Fragment key={groupKey}>
+                              <tr
+                                className="border-b last:border-none hover:bg-gray-50 cursor-pointer"
+                                onClick={() => toggleExpanded(groupKey)}
+                              >
+                                <td className="py-2 px-3">
+                                  {s.studentId ? (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); router.push(studentHref(s.studentId)); }}
+                                      className="text-blue-700 hover:text-blue-900 hover:underline text-left"
+                                    >
+                                      {s.studentName}
+                                    </button>
+                                  ) : (
+                                    s.studentName
+                                  )}
+                                </td>
+                                <td className="py-2 px-3 text-gray-600">{sourceLabel}</td>
+                                <td className="py-2 px-3 text-right font-semibold text-gray-900">
+                                  {s.count}
+                                </td>
+                                <td className="py-2 px-3 text-gray-400">
+                                  {isOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                                </td>
+                              </tr>
+                              {isOpen && (
+                                <tr key={`${groupKey}-detail`} className="bg-gray-50/60 border-b last:border-none">
+                                  <td colSpan={4} className="px-3 pb-3 pt-1">
+                                    <table className="min-w-full text-xs">
+                                      <thead className="text-gray-500">
+                                        <tr>
+                                          <th className="text-left py-1 pr-3">{t('Date')}</th>
+                                          <th className="text-left py-1 pr-3">{t('Subject / Period')}</th>
+                                          <th className="text-left py-1 pr-3">{t('Recorded by')}</th>
+                                          <th className="text-left py-1 pr-3">{t('Status')}</th>
+                                          <th className="text-left py-1 pr-3">{t('By')}</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {s.rows.map((r) => (
+                                          <tr key={r.id} className="border-t border-gray-200">
+                                            <td className="py-1 pr-3 text-gray-700">
+                                              {new Date(r.createdAt).toLocaleDateString()}
+                                            </td>
+                                            <td className="py-1 pr-3 text-gray-600">
+                                              {r.teacherPeriod?.subject?.name ?? (r.slot ? SLOT_LABEL[r.slot] : '—')}
+                                            </td>
+                                            <td className="py-1 pr-3 text-gray-600">
+                                              {r.recordedVia ? t(SOURCE_LABEL[r.recordedVia]) : '—'}
+                                            </td>
+                                            <td className="py-1 pr-3">
+                                              {r.isExcused ? (
+                                                <span className="text-green-700">{t('Excused')}</span>
+                                              ) : (
+                                                <span className="text-red-700">{t('Unexcused')}</span>
+                                              )}
+                                            </td>
+                                            <td className="py-1 pr-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
+                                          </tr>
+                                        ))}
+                                        {s.count > s.rows.length && (
+                                          <tr>
+                                            <td colSpan={5} className="py-1 pr-3 text-gray-400 italic">
+                                              {t('More records exist outside this page — refine the range or filters to see them.')}
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </tbody>
+                                    </table>
+                                  </td>
+                                </tr>
                               )}
-                            </td>
-                            <td className="py-2 px-3 text-gray-600">
-                              {r.teacherPeriod?.subject?.name ?? (r.slot ? SLOT_LABEL[r.slot] : '—')}
-                            </td>
-                            <td className="py-2 px-3 text-gray-600">{r.assignedBy?.name ?? '—'}</td>
-                            <td className="py-2 px-3 text-right font-semibold text-gray-900">
-                              {r.totalInRange}
-                            </td>
-                          </tr>
-                        ))}
+                            </Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
