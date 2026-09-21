@@ -16,6 +16,9 @@ import {
   ArrowsRightLeftIcon,
   UserMinusIcon,
   TrashIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+  EllipsisVerticalIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { Button, Input, Select, Modal, StudentPhoto, BulkPhotoUploadModal } from '@/components/ui';
@@ -36,6 +39,7 @@ import {
   fetchStudentProfile,
   searchAvailableParents,
   linkExistingParent,
+  createParentForStudent,
   type AvailableParent,
   type Relationship,
   type SecretaryStudent,
@@ -122,6 +126,8 @@ function SecretaryStudentsPageInner() {
   const [subClassFilter, setSubClassFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [mobileView, setMobileView] = useState<'cards' | 'list'>('list');
+  const [expandedListRow, setExpandedListRow] = useState<number | null>(null);
 
   // Create student
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -158,6 +164,25 @@ function SecretaryStudentsPageInner() {
   // Unenroll (dismiss)
   const [unenrollTarget, setUnenrollTarget] = useState<SecretaryStudent | null>(null);
   const [isUnenrolling, setIsUnenrolling] = useState(false);
+
+  // Create-a-new-parent-for-existing-student form (inside the edit modal).
+  const [newParentForm, setNewParentForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    phoneIsWhatsapp: true,
+    whatsapp: '',
+    relationship: '' as Relationship | '',
+  });
+  const [isCreatingParent, setIsCreatingParent] = useState(false);
+  const emptyNewParent = {
+    name: '',
+    phone: '',
+    address: '',
+    phoneIsWhatsapp: true,
+    whatsapp: '',
+    relationship: '' as Relationship | '',
+  };
 
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<SecretaryStudent | null>(null);
@@ -360,6 +385,7 @@ function SecretaryStudentsPageInner() {
     setParentSearch('');
     setParentResults([]);
     setLinkRelationship('');
+    setNewParentForm(emptyNewParent);
     // The list rows don't carry new-student status or parent contacts; pull
     // them from the full profile.
     loadEditExtras(student.id);
@@ -439,6 +465,40 @@ function SecretaryStudentsPageInner() {
       }
     } finally {
       setLinkingParentId(null);
+    }
+  };
+
+  const handleCreateParentForStudent = async () => {
+    if (!editingStudent) return;
+    if (editParents.length >= 2) {
+      toast.error('A student can have at most 2 linked contacts.');
+      return;
+    }
+    if (!newParentForm.name.trim() || !newParentForm.phone.trim()) {
+      toast.error('Parent name and phone are required.');
+      return;
+    }
+    setIsCreatingParent(true);
+    try {
+      await createParentForStudent({
+        studentId: editingStudent.id,
+        name: newParentForm.name.trim(),
+        phone: newParentForm.phone.trim(),
+        address: newParentForm.address.trim() || undefined,
+        phoneIsWhatsapp: newParentForm.phoneIsWhatsapp,
+        whatsapp: newParentForm.phoneIsWhatsapp ? undefined : (newParentForm.whatsapp.trim() || undefined),
+        relationship: newParentForm.relationship || undefined,
+        academicYearId: selectedAcademicYear?.id,
+      });
+      toast.success(`${newParentForm.name.trim()} created and linked to ${editingStudent.name}.`);
+      setNewParentForm(emptyNewParent);
+      loadEditExtras(editingStudent.id);
+    } catch (error: any) {
+      if (error?.message !== 'Unauthorized') {
+        toast.error(error?.message || 'Failed to create parent.');
+      }
+    } finally {
+      setIsCreatingParent(false);
     }
   };
 
@@ -646,8 +706,162 @@ function SecretaryStudentsPageInner() {
         </div>
       </div>
 
+      {/* Mobile view toggle */}
+      <div className="md:hidden flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-3 py-2">
+        <span className="text-xs text-gray-600">
+          {isLoading ? 'Loading…' : `${students.length} shown · ${total} total`}
+        </span>
+        <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setMobileView('list')}
+            className={`px-2.5 py-1.5 text-xs inline-flex items-center gap-1 ${
+              mobileView === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            }`}
+            aria-pressed={mobileView === 'list'}
+          >
+            <ListBulletIcon className="h-4 w-4" /> List
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileView('cards')}
+            className={`px-2.5 py-1.5 text-xs inline-flex items-center gap-1 border-l border-gray-200 ${
+              mobileView === 'cards' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'
+            }`}
+            aria-pressed={mobileView === 'cards'}
+          >
+            <Squares2X2Icon className="h-4 w-4" /> Cards
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile list view */}
+      {mobileView === 'list' && (
+        <div className="md:hidden bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+          {isLoading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading students…</div>
+          ) : students.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">No students found.</div>
+          ) : (
+            students.map((student) => (
+              <div key={student.id}>
+                <div
+                  className="flex items-center gap-3 px-3 py-2.5 active:bg-gray-50"
+                  onClick={() => router.push(`/dashboard/secretary/students/${student.id}`)}
+                >
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <StudentPhoto
+                      studentId={student.id}
+                      photo={student.photo}
+                      size="sm"
+                      fetchPhoto
+                      studentName={student.name}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{student.name}</p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {student.matricule || 'No matricule'}
+                      {student.subClassName ? ` · ${student.subClassName}` : (classNameFor(student) ? ` · ${classNameFor(student)}` : '')}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedListRow((cur) => (cur === student.id ? null : student.id));
+                    }}
+                    className="p-2 -mr-1 rounded-md text-gray-500 hover:bg-gray-100"
+                    aria-label="Actions"
+                    aria-expanded={expandedListRow === student.id}
+                  >
+                    <EllipsisVerticalIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                {expandedListRow === student.id && (
+                  <div className="grid grid-cols-3 gap-2 px-3 pb-3" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      leftIcon={EyeIcon}
+                      className="justify-center"
+                      onClick={() => router.push(`/dashboard/secretary/students/${student.id}`)}
+                    >
+                      View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      color="primary"
+                      leftIcon={PencilSquareIcon}
+                      className="justify-center"
+                      onClick={() => openEdit(student)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      className="justify-center"
+                      onClick={() => setExtrasStudent(student)}
+                    >
+                      Extras
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="xs"
+                      color="secondary"
+                      leftIcon={ArrowsRightLeftIcon}
+                      className="justify-center"
+                      onClick={() => openChangeClass(student)}
+                    >
+                      Change
+                    </Button>
+                    {student.subClassName && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        color="warning"
+                        leftIcon={UserMinusIcon}
+                        className="justify-center"
+                        onClick={() => setUnenrollTarget(student)}
+                      >
+                        Unenroll
+                      </Button>
+                    )}
+                    {canDelete(student) && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        color="danger"
+                        leftIcon={TrashIcon}
+                        className="justify-center"
+                        onClick={() => setDeleteTarget(student)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                    <label
+                      className="col-span-3 flex items-center gap-2 text-xs text-gray-600 px-1 pt-1"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!student.reamOfPaperCollected}
+                        onChange={(e) => handleReamToggle(student, e.target.checked)}
+                        className="h-3.5 w-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      Ream of paper collected
+                    </label>
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Mobile card list */}
-      <div className="md:hidden space-y-3">
+      <div className={`md:hidden space-y-3 ${mobileView === 'cards' ? '' : 'hidden'}`}>
         {isLoading ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-8 text-center text-gray-500">
             Loading students…
@@ -697,51 +911,51 @@ function SecretaryStudentsPageInner() {
                   Ream of paper collected
                 </label>
               </div>
-              <div className="flex gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+              <div className="grid grid-cols-3 gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   leftIcon={EyeIcon}
-                  className="flex-1 justify-center"
+                  className="justify-center"
                   onClick={() => router.push(`/dashboard/secretary/students/${student.id}`)}
                 >
                   View
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   color="primary"
                   leftIcon={PencilSquareIcon}
-                  className="flex-1 justify-center"
+                  className="justify-center"
                   onClick={() => openEdit(student)}
                 >
                   Edit
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="flex-1 justify-center"
+                  size="xs"
+                  className="justify-center"
                   onClick={() => setExtrasStudent(student)}
                 >
                   Extras
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="xs"
                   color="secondary"
                   leftIcon={ArrowsRightLeftIcon}
-                  className="flex-1 justify-center"
+                  className="justify-center"
                   onClick={() => openChangeClass(student)}
                 >
-                  Change Class
+                  Change
                 </Button>
                 {student.subClassName && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="xs"
                     color="warning"
                     leftIcon={UserMinusIcon}
-                    className="flex-1 justify-center"
+                    className="justify-center"
                     onClick={() => setUnenrollTarget(student)}
                   >
                     Unenroll
@@ -750,10 +964,10 @@ function SecretaryStudentsPageInner() {
                 {canDelete(student) && (
                   <Button
                     variant="outline"
-                    size="sm"
+                    size="xs"
                     color="danger"
                     leftIcon={TrashIcon}
-                    className="flex-1 justify-center"
+                    className="justify-center"
                     onClick={() => setDeleteTarget(student)}
                   >
                     Delete
@@ -763,32 +977,32 @@ function SecretaryStudentsPageInner() {
             </div>
           ))
         )}
+      </div>
 
-        {/* Mobile pagination */}
-        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
-          <span className="text-xs text-gray-600">
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={ChevronLeftIcon}
-              disabled={page <= 1 || isLoading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Prev
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              rightIcon={ChevronRightIcon}
-              disabled={page >= totalPages || isLoading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
-          </div>
+      {/* Mobile pagination (shared by list & cards views) */}
+      <div className="md:hidden flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
+        <span className="text-xs text-gray-600">
+          Page {page} of {totalPages}
+        </span>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            leftIcon={ChevronLeftIcon}
+            disabled={page <= 1 || isLoading}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            Prev
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            rightIcon={ChevronRightIcon}
+            disabled={page >= totalPages || isLoading}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next
+          </Button>
         </div>
       </div>
 
@@ -1230,11 +1444,85 @@ function SecretaryStudentsPageInner() {
                 </div>
               )}
 
+              {/* Create a brand-new parent for this student */}
+              {editParents.length < 2 && (
+                <div className="mt-4 rounded-lg border border-dashed border-blue-300 bg-blue-50/40 p-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <UserPlusIcon className="h-4 w-4 text-blue-600" />
+                    <span className="text-xs font-medium text-blue-700 uppercase">Create a new contact</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <Input
+                      label="Name *"
+                      value={newParentForm.name}
+                      onChange={(e) => setNewParentForm((p) => ({ ...p, name: e.target.value }))}
+                      placeholder="Full name"
+                    />
+                    <Input
+                      label="Phone *"
+                      value={newParentForm.phone}
+                      onChange={(e) => setNewParentForm((p) => ({ ...p, phone: e.target.value }))}
+                      placeholder="e.g. +237 6XX XXX XXX"
+                    />
+                    <Input
+                      label="Address"
+                      value={newParentForm.address}
+                      onChange={(e) => setNewParentForm((p) => ({ ...p, address: e.target.value }))}
+                      placeholder="Optional"
+                    />
+                    <Select
+                      label="Relationship"
+                      value={newParentForm.relationship}
+                      onChange={(e) => setNewParentForm((p) => ({ ...p, relationship: e.target.value as Relationship | '' }))}
+                      options={[
+                        { value: '', label: 'Select relationship (optional)' },
+                        { value: 'FATHER', label: 'Father' },
+                        { value: 'MOTHER', label: 'Mother' },
+                        { value: 'GUARDIAN', label: 'Guardian' },
+                        { value: 'SIBLING', label: 'Sibling' },
+                      ]}
+                    />
+                  </div>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={newParentForm.phoneIsWhatsapp}
+                        onChange={(e) => setNewParentForm((p) => ({ ...p, phoneIsWhatsapp: e.target.checked }))}
+                        className="h-3.5 w-3.5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      Phone number is also WhatsApp
+                    </label>
+                    {!newParentForm.phoneIsWhatsapp && (
+                      <Input
+                        label="WhatsApp"
+                        value={newParentForm.whatsapp}
+                        onChange={(e) => setNewParentForm((p) => ({ ...p, whatsapp: e.target.value }))}
+                        placeholder="WhatsApp number"
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      color="primary"
+                      leftIcon={UserPlusIcon}
+                      isLoading={isCreatingParent}
+                      onClick={handleCreateParentForStudent}
+                      className="w-full sm:w-auto justify-center"
+                    >
+                      Create &amp; Link
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    A new parent account is created with a default password (<code>defaultPassword123</code>) that they can change on first login.
+                  </p>
+                </div>
+              )}
+
               {/* Link an additional parent contact */}
               <div className="mt-4 rounded-lg border border-dashed border-gray-300 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <UserPlusIcon className="h-4 w-4 text-gray-500" />
-                  <span className="text-xs font-medium text-gray-500 uppercase">Add another contact</span>
+                  <span className="text-xs font-medium text-gray-500 uppercase">Or link an existing contact</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input

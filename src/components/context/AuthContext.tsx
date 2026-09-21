@@ -277,7 +277,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setAuthToken(token);
             setUser(user);
 
-            const uniqueRoles: string[] = [...new Set(user.userRoles.map(ur => ur.role))];
+            const uniqueRoles: string[] = [...new Set((user.userRoles || []).map(ur => ur.role))];
+
+            // A role-less account authenticates fine but has nowhere to land —
+            // fail here rather than dropping the user back on the login form
+            // behind a success toast, with no way forward.
+            if (uniqueRoles.length === 0) {
+                clearAuthData();
+                setUser(null);
+                setAvailableRoles([]);
+                throw new Error('No roles found for your account. Please contact administrator.');
+            }
+
             setAvailableRoles(uniqueRoles);
 
             // Store user data

@@ -19,8 +19,9 @@ import {
   ChevronRightIcon,
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
-import { sortClassesByLevel } from '@/lib/classOrdering';
+import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { saveFile } from '@/lib/download';
+import StudentAuditDetail from './StudentAuditDetail';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -88,11 +89,15 @@ export default function FeeAuditRoster() {
   const [statusFilter, setStatusFilter] = useState<AuditStatus | ''>('');
   const [studentStatusFilter, setStudentStatusFilter] = useState<StudentStatus | ''>('');
   const [classId, setClassId] = useState('');
+  const [subClassId, setSubClassId] = useState('');
   const [page, setPage] = useState(1);
   const LIMIT = 25;
 
   // Export
   const [exportLoading, setExportLoading] = useState(false);
+
+  // Selected student for detail drawer — shows each payment recorded by bursar vs controller
+  const [selectedRow, setSelectedRow] = useState<AuditRosterRow | null>(null);
 
   // ── Load academic years ──────────────────────────────────────────────────
   useEffect(() => {
@@ -133,7 +138,10 @@ export default function FeeAuditRoster() {
   }, [search]);
 
   // ── Reset page on filter change ──────────────────────────────────────────
-  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, studentStatusFilter, classId, selectedAcademicYear]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter, studentStatusFilter, classId, subClassId, selectedAcademicYear]);
+
+  // ── Clear subclass when parent class changes ────────────────────────────
+  useEffect(() => { setSubClassId(''); }, [classId]);
 
   // ── SWR: roster ─────────────────────────────────────────────────────────
   const rosterKey = selectedAcademicYear
@@ -143,6 +151,7 @@ export default function FeeAuditRoster() {
         page,
         limit: LIMIT,
         ...(classId ? { classId } : {}),
+        ...(subClassId ? { subClassId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(studentStatusFilter ? { studentStatus: studentStatusFilter } : {}),
@@ -175,7 +184,14 @@ export default function FeeAuditRoster() {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     }).then(r => r.json()),
   );
-  const classes: { id: number; name: string }[] = sortClassesByLevel(classesData?.data || []);
+  const classes: { id: number; name: string; subClasses?: { id: number; name: string }[] }[] =
+    sortClassesByLevel(classesData?.data || []);
+
+  const subClassesForFilter = classId
+    ? sortSubClassesByLevel(
+        classes.find(c => String(c.id) === String(classId))?.subClasses ?? []
+      )
+    : [];
 
   // ── Export ───────────────────────────────────────────────────────────────
   const handleExport = async () => {
@@ -186,6 +202,7 @@ export default function FeeAuditRoster() {
         academicYearId: selectedAcademicYear.id,
         ...(statusFilter ? { status: statusFilter } : {}),
         ...(classId ? { classId } : {}),
+        ...(subClassId ? { subClassId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
       await saveFile(blob, `fee-audit-${selectedAcademicYear.name}.xlsx`);
@@ -197,8 +214,8 @@ export default function FeeAuditRoster() {
     }
   };
 
-  const hasFilters = !!(search || statusFilter || studentStatusFilter || classId);
-  const clearFilters = () => { setSearch(''); setStatusFilter(''); setStudentStatusFilter(''); setClassId(''); };
+  const hasFilters = !!(search || statusFilter || studentStatusFilter || classId || subClassId);
+  const clearFilters = () => { setSearch(''); setStatusFilter(''); setStudentStatusFilter(''); setClassId(''); setSubClassId(''); };
 
   // ── Access guard ─────────────────────────────────────────────────────────
   if (!canAccess) {
@@ -352,6 +369,18 @@ export default function FeeAuditRoster() {
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
+              <select
+                value={subClassId}
+                onChange={e => setSubClassId(e.target.value)}
+                disabled={!classId || subClassesForFilter.length === 0}
+                className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px] disabled:bg-gray-100 disabled:text-gray-400"
+                title={!classId ? 'Pick a class first' : subClassesForFilter.length === 0 ? 'No sub-classes' : ''}
+              >
+                <option value="">All Sub-classes</option>
+                {subClassesForFilter.map(sc => (
+                  <option key={sc.id} value={sc.id}>{sc.name}</option>
+                ))}
+              </select>
               {hasFilters && (
                 <button
                   onClick={clearFilters}
@@ -397,7 +426,12 @@ export default function FeeAuditRoster() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {rows.map(row => (
-                        <tr key={row.enrollmentId} className="hover:bg-gray-50 transition-colors">
+                        <tr
+                          key={row.enrollmentId}
+                          onClick={() => setSelectedRow(row)}
+                          className="hover:bg-blue-50 transition-colors cursor-pointer"
+                          title="Click to see individual payments (bursar vs controller)"
+                        >
                           <td className="px-4 py-3">
                             <p className="text-sm font-medium text-gray-900">{row.studentName}</p>
                             <p className="text-xs text-gray-500">{row.studentMatricule}</p>
@@ -437,7 +471,11 @@ export default function FeeAuditRoster() {
                 {/* Mobile cards */}
                 <div className="md:hidden divide-y divide-gray-200">
                   {rows.map(row => (
-                    <div key={row.enrollmentId} className="p-4 space-y-2">
+                    <div
+                      key={row.enrollmentId}
+                      onClick={() => setSelectedRow(row)}
+                      className="p-4 space-y-2 active:bg-blue-50 cursor-pointer"
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-sm font-semibold text-gray-900">{row.studentName}</p>
@@ -499,6 +537,12 @@ export default function FeeAuditRoster() {
           )}
         </>
       )}
+
+      <StudentAuditDetail
+        row={selectedRow}
+        academicYearId={selectedAcademicYear?.id}
+        onClose={() => setSelectedRow(null)}
+      />
     </div>
   );
 }

@@ -88,6 +88,7 @@ export default function TeacherManagementPage() {
         <TeacherTable
           teachers={search.teachers}
           isLoading={search.isLoading}
+          getTeacherHref={(teacher) => `/dashboard/vice-principal/teachers/${teacher.id}`}
           renderActions={(teacher) => (
             <button
               onClick={() => setTeacherToAssign(teacher)}

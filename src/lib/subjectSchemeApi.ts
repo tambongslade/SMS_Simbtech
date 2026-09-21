@@ -45,7 +45,7 @@ export interface SchemeLesson {
   weekNumber?: number | null;
   periodsCount?: number;
   // Present on the coverage endpoint.
-  _count?: { logbookEntries: number };
+  logbookEntryCount?: number;
   logbookEntries?: LogbookEntry[];
 }
 
@@ -76,8 +76,9 @@ export interface SubjectScheme {
   subject?: { id: number; name: string };
   class?: { id: number; name: string };
   modules: SchemeModule[];
-  // Convenience counts some list responses include.
-  _count?: { modules?: number };
+  // Module count returned by the list endpoint (full-tree endpoints return
+  // `modules` populated instead).
+  moduleCount?: number;
 }
 
 // ---- Lesson / module / chapter input shapes ----

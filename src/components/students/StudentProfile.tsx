@@ -20,6 +20,7 @@ import { Button, Select, Modal, StudentPhoto } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { getStudentFeeStatus, type StudentFeeStatus } from '@/lib/feeStatusApi';
 import { listRefunds, type Refund } from '@/lib/refundsApi';
+import { formatDOB } from '@/lib/formatDate';
 
 type ClassInfo = { id: number; name: string };
 type SubClassInfo = { id: number; name: string; classId?: number };
@@ -243,7 +244,7 @@ export default function StudentProfile({
     );
   }
 
-  const dob = (profile.dateOfBirth ?? profile.date_of_birth)?.split?.('T')?.[0];
+  const dob = formatDOB(profile.dateOfBirth ?? profile.date_of_birth);
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">

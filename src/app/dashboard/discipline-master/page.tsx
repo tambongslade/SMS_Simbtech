@@ -1,128 +1,27 @@
 'use client';
 
-import {
-  ClipboardDocumentListIcon,
-  CalendarDaysIcon,
-  BanknotesIcon,
-  DocumentChartBarIcon,
-  BellIcon,
-  ClockIcon,
-  UserGroupIcon,
-  ChatBubbleLeftRightIcon,
-  ChartBarIcon,
-} from '@heroicons/react/24/outline';
+import { useMemo } from 'react';
 import { useAuth } from '@/components/context/AuthContext';
-import { QuickActionGrid, type QuickAction } from '@/components/dashboard/QuickActionGrid';
-
-const quickActions: QuickAction[] = [
-  {
-    label: 'Roll Call',
-    description: 'Record the three daily control slots',
-    href: '/dashboard/discipline-master/dm-roll-call',
-    icon: ClockIcon,
-    color: 'indigo',
-  },
-  {
-    label: 'Student Profiles',
-    description: 'Browse student discipline profiles',
-    href: '/dashboard/discipline-master/students',
-    icon: UserGroupIcon,
-    color: 'blue',
-  },
-  {
-    label: 'Teacher Attendance',
-    description: 'Per-period teacher conduct check',
-    href: '/dashboard/discipline-master/teacher-attendance',
-    icon: ClipboardDocumentListIcon,
-    color: 'cyan',
-  },
-  {
-    label: 'Warnings & Summons',
-    description: 'Follow up warnings & parent summons',
-    href: '/dashboard/discipline-master/warnings-summons',
-    icon: BellIcon,
-    color: 'amber',
-  },
-  {
-    label: 'Attendance & Lateness',
-    description: 'Absences, lateness & excuses',
-    href: '/dashboard/discipline-master/attendance',
-    icon: ClipboardDocumentListIcon,
-    color: 'cyan',
-  },
-  {
-    label: 'Disciplinary Actions',
-    description: 'Record & review incidents',
-    href: '/dashboard/discipline-master/disciplinary-actions',
-    icon: ClipboardDocumentListIcon,
-    color: 'rose',
-  },
-  {
-    label: 'Saturday Punishments',
-    description: 'Schedule & track punishments',
-    href: '/dashboard/discipline-master/punishments',
-    icon: CalendarDaysIcon,
-    color: 'purple',
-  },
-  {
-    label: 'Broken Property',
-    description: 'Track damaged property charges',
-    href: '/dashboard/discipline-master/broken-property',
-    icon: BanknotesIcon,
-    color: 'teal',
-  },
-  {
-    label: 'Report Requests',
-    description: 'Request & review student reports',
-    href: '/dashboard/discipline-master/report-requests',
-    icon: DocumentChartBarIcon,
-    color: 'green',
-  },
-  {
-    label: 'Reports',
-    description: 'Discipline reports & exports',
-    href: '/dashboard/discipline-master/reports',
-    icon: DocumentChartBarIcon,
-    color: 'purple',
-  },
-  {
-    label: 'Seized Items',
-    description: 'Confiscated items & custody',
-    href: '/dashboard/discipline-master/seized-items',
-    icon: ClipboardDocumentListIcon,
-    color: 'amber',
-  },
-  {
-    label: 'Chat',
-    description: 'Message staff in real time',
-    href: '/dashboard/discipline-master/chat',
-    icon: ChatBubbleLeftRightIcon,
-    color: 'green',
-  },
-  {
-    label: 'Overview',
-    description: 'Dashboard stats & analytics',
-    href: '/dashboard/discipline-master/overview',
-    icon: ChartBarIcon,
-    color: 'indigo',
-  },
-];
+import { useLanguage } from '@/components/context/LanguageContext';
+import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
+import { getQuickActionsForRole } from '@/lib/roleMenus';
 
 export default function DisciplineMasterMenu() {
   const { selectedAcademicYear, user } = useAuth();
+  const { t } = useLanguage();
+  const quickActions = useMemo(() => getQuickActionsForRole('discipline-master', t), [t]);
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-          Welcome{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
+          {t('Welcome')}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
         </h1>
         <p className="text-sm text-gray-600 mt-0.5">
-          What would you like to do?
+          {t('What would you like to do?')}
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
         </p>
       </div>
-
       <QuickActionGrid actions={quickActions} />
     </div>
   );

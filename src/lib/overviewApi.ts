@@ -62,6 +62,41 @@ export interface AcademicOverview {
     lastUpdated: string;
 }
 
+export interface FeeSubClassBreakdown {
+    subClassId: number;
+    subClassName: string;
+    expected: number;
+    collected: number;
+    outstanding: number;
+    collectionRate: number;
+    studentCount: number;
+    studentsPaid: number;
+    studentsPartial: number;
+    studentsUnpaid: number;
+    paymentsByMethod: { method: string; totalAmount: number; transactionCount: number }[];
+}
+
+export interface FeeClassBreakdown {
+    classId: number;
+    className: string;
+    expected: number;
+    collected: number;
+    outstanding: number;
+    collectionRate: number;
+    studentCount: number;
+    studentsPaid: number;
+    studentsPartial: number;
+    studentsUnpaid: number;
+    subClasses: FeeSubClassBreakdown[];
+}
+
+export interface InstallmentBreakdown {
+    expected: number;
+    collected: number;
+    outstanding: number;
+    collectionRate: number;
+}
+
 export interface FinancialOverview {
     summary: {
         totalExpected: number;
@@ -75,10 +110,16 @@ export interface FinancialOverview {
         pendingFinanceRequests: number;
         activeFeeItems: number;
         controlPaymentsRecorded: number;
+        byInstallment?: {
+            first: InstallmentBreakdown;
+            second: InstallmentBreakdown;
+            total: InstallmentBreakdown;
+        };
     };
     paymentsByMethod: { method: string; transactionCount: number; totalAmount: number; percentage: number }[];
     expendituresByCategoryYTD: { category: string; count: number; totalAmount: number }[];
     financeRequestsByStatus: { status: string; count: number }[];
+    feesByClass: FeeClassBreakdown[];
     lastUpdated: string;
 }
 
@@ -195,6 +236,23 @@ export interface AuditOverview {
     lastUpdated: string;
 }
 
+export interface SubClassUtilization {
+    subClassId: number;
+    subClassName: string;
+    maxStudents: number;
+    currentStudents: number;
+    utilizationRate: number;
+}
+
+export interface ClassUtilization {
+    classId: number;
+    className: string;
+    maxStudents: number;
+    currentStudents: number;
+    utilizationRate: number;
+    subClasses: SubClassUtilization[];
+}
+
 export interface EnrollmentOverview {
     summary: {
         totalEnrollments: number;
@@ -203,7 +261,7 @@ export interface EnrollmentOverview {
         averageClassUtilization: number;
         assignmentRate: number;
     };
-    classUtilization: { classId: number; className: string; maxStudents: number; currentStudents: number; utilizationRate: number }[];
+    classUtilization: ClassUtilization[];
     genderSplit: { gender: string; count: number }[];
     studentsByStatus: { status: string; count: number }[];
     lastUpdated: string;
