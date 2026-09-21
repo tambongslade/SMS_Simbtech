@@ -160,20 +160,25 @@ public class NativeDownloader {
 
     private void write(PendingSave pending) {
         try {
+            Uri saved;
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                writeThroughMediaStore(pending);
+                saved = writeThroughMediaStore(pending);
             } else {
-                writeToPublicDownloads(pending);
+                saved = FileProvider.getUriForFile(
+                        activity,
+                        activity.getPackageName() + ".fileprovider",
+                        writeToPublicDownloads(pending));
             }
             toast("Saved to Downloads: " + pending.filename);
             report(pending.requestId, true, "Saved to Downloads");
+            open(saved, pending.mimeType);
         } catch (Exception err) {
             report(pending.requestId, false, describe(err));
         }
     }
 
     /** Android 10+: the Downloads collection, no permission required. */
-    private void writeThroughMediaStore(PendingSave pending) throws Exception {
+    private Uri writeThroughMediaStore(PendingSave pending) throws Exception {
         ContentValues values = new ContentValues();
         values.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, pending.filename);
         values.put(android.provider.MediaStore.Downloads.MIME_TYPE, pending.mimeType);
@@ -202,10 +207,11 @@ public class NativeDownloader {
             activity.getContentResolver().delete(item, null, null);
             throw err;
         }
+        return item;
     }
 
     /** Android 9 and below: the real Downloads directory on external storage. */
-    private void writeToPublicDownloads(PendingSave pending) throws Exception {
+    private File writeToPublicDownloads(PendingSave pending) throws Exception {
         File directory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
         if (!directory.exists() && !directory.mkdirs()) {
             throw new IllegalStateException("Downloads folder is unavailable.");
@@ -218,6 +224,29 @@ public class NativeDownloader {
         // media scan.
         Intent scan = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE, Uri.fromFile(target));
         activity.sendBroadcast(scan);
+        return target;
+    }
+
+    /**
+     * Opens the saved file in whatever the device uses to view that type, so a
+     * PDF shows up in a preview straight away instead of leaving the user to
+     * dig it out of Downloads. No viewer installed is fine: the file is saved
+     * and the toast already said where.
+     */
+    private void open(final Uri uri, final String mimeType) {
+        activity.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setDataAndType(uri, mimeType);
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    activity.startActivity(intent);
+                } catch (android.content.ActivityNotFoundException ignored) {
+                    // Nothing on the device opens this type.
+                }
+            }
+        });
     }
 
     /** The fallback when the user turns the storage permission down. */
