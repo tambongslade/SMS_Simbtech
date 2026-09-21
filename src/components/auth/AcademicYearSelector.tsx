@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Button, Card, CardBody, CardHeader } from '@/components/ui';
 import { CalendarIcon, UsersIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface AcademicYear {
     id: number;
@@ -35,6 +36,7 @@ interface AcademicYearSelectorProps {
 const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAcademicYears, onSelectAcademicYear, onClose, className }) => {
     const [selectedYear, setSelectedYear] = useState<AcademicYear | null>(null);
     const { isLoading, isSelectingAcademicYear } = useAuth(); // Get both loading states from AuthContext
+    const { t } = useLanguage();
 
     const handleYearSelect = (year: AcademicYear) => {
         setSelectedYear(year);
@@ -77,9 +79,9 @@ const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAc
                 <Card className="w-full max-w-md">
                     <CardBody className="text-center py-8">
                         <CalendarIcon className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Academic Years Available</h3>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">{t('No Academic Years Available')}</h3>
                         <p className="text-sm text-gray-600">
-                            No academic years are available for your selected role. Please contact the administrator.
+                            {t('No academic years are available for your selected role. Please contact the administrator.')}
                         </p>
                     </CardBody>
                 </Card>
@@ -93,10 +95,10 @@ const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAc
                 <CardHeader className="text-center">
                     <div className="flex items-center justify-center mb-4">
                         <CalendarIcon className="h-8 w-8 text-blue-600 mr-2" />
-                        <h2 className="text-xl font-semibold text-gray-900">Select Academic Year</h2>
+                        <h2 className="text-xl font-semibold text-gray-900">{t('Select Academic Year')}</h2>
                     </div>
                     <p className="text-sm text-gray-600">
-                        Choose the academic year for your {selectedYear?.name} role
+                        {t('Choose the academic year for your {role} role').replace('{role}', selectedYear?.name || '')}
                     </p>
                 </CardHeader>
                 <CardBody>
@@ -127,33 +129,33 @@ const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAc
                                             </span>
                                             {year.isCurrent && (
                                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                                    Current
+                                                    {t('Current')}
                                                 </span>
                                             )}
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                                             <div>
-                                                <p className="font-medium">Duration:</p>
+                                                <p className="font-medium">{t('Duration:')}</p>
                                                 <p>{formatDate(year.startDate)} - {formatDate(year.endDate)}</p>
                                             </div>
                                             <div className="flex items-center gap-4">
                                                 {year.studentCount && (
                                                     <div className="flex items-center gap-1">
                                                         <UsersIcon className="h-4 w-4" />
-                                                        <span>{year.studentCount} students</span>
+                                                        <span>{year.studentCount} {t('students')}</span>
                                                     </div>
                                                 )}
                                                 {year.classCount && (
                                                     <div className="flex items-center gap-1">
                                                         <AcademicCapIcon className="h-4 w-4" />
-                                                        <span>{year.classCount} classes</span>
+                                                        <span>{year.classCount} {t('classes')}</span>
                                                     </div>
                                                 )}
                                             </div>
                                         </div>
                                         {year.terms && year.terms.length > 0 && (
                                             <div className="mt-3 pt-3 border-t border-gray-200">
-                                                <p className="text-sm font-medium text-gray-700 mb-2">Terms:</p>
+                                                <p className="text-sm font-medium text-gray-700 mb-2">{t('Terms:')}</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     {year.terms.map((term) => (
                                                         <span
@@ -190,14 +192,14 @@ const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAc
                             onClick={onClose}
                             disabled={isLoading || isSelectingAcademicYear}
                         >
-                            Cancel
+                            {t('Cancel')}
                         </Button>
                         <Button
                             onClick={handleConfirm}
                             disabled={!selectedYear || isLoading || isSelectingAcademicYear}
                             className="min-w-[120px]"
                         >
-                            {isSelectingAcademicYear ? 'Setting up...' : isLoading ? 'Loading...' : 'Continue'}
+                            {isSelectingAcademicYear ? t('Setting up...') : isLoading ? t('Loading...') : t('Continue')}
                         </Button>
                     </div>
                 </CardBody>

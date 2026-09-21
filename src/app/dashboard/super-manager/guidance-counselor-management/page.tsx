@@ -4,6 +4,7 @@ import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditGuidanceCounselorModal, GuidanceCounselorEditableFields } from './components/EditGuidanceCounselorModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // --- Types --- 
 type GuidanceCounselor = {
@@ -33,6 +34,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.1
 const getAuthToken = () => localStorage.getItem('token');
 
 export default function GuidanceCounselorManagement() {
+    const { t } = useLanguage();
     const [counselors, setCounselors] = useState<GuidanceCounselor[]>([]);
     const [classes, setClasses] = useState<ClassInfo[]>([]);
     const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
@@ -283,7 +285,7 @@ export default function GuidanceCounselorManagement() {
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Updated Title */}
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">Guidance Counselor Management</h1>
+                <h1 className="text-2xl font-bold text-gray-900 mb-6">{t('Guidance Counselor Management')}</h1>
 
                 {/* Counselor List/Table */}
                 <div className="bg-white rounded-lg shadow-sm">
@@ -291,18 +293,18 @@ export default function GuidanceCounselorManagement() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matricule</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subclasses Assigned</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Name')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Matricule')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Subclasses Assigned')}</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {isLoading && (
-                                <tr><td colSpan={4} className="text-center py-4 text-gray-500 italic">Loading...</td></tr>
+                                <tr><td colSpan={4} className="text-center py-4 text-gray-500 italic">{t('Loading...')}</td></tr>
                             )}
                             {!isLoading && counselors.length === 0 && (
-                                <tr><td colSpan={4} className="text-center py-4 text-gray-500">No Guidance Counselors found.</td></tr>
+                                <tr><td colSpan={4} className="text-center py-4 text-gray-500">{t('No Guidance Counselors found.')}</td></tr>
                             )}
                             {counselors.map((counselor) => (
                                 <tr key={counselor.id}>
@@ -314,12 +316,12 @@ export default function GuidanceCounselorManagement() {
                                         {counselor.matricule ? (
                                             <span className="text-gray-700">{counselor.matricule}</span>
                                         ) : (
-                                            <span className="text-gray-500 italic">empty</span>
+                                            <span className="text-gray-500 italic">{t('empty')}</span>
                                         )}
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="text-sm text-gray-700">
-                                            {counselor.assignedSubClassIds?.length || 0} subclasses
+                                                {counselor.assignedSubClassIds?.length || 0} {t('subclasses')}
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -328,15 +330,15 @@ export default function GuidanceCounselorManagement() {
                                             className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 mr-2"
                                             disabled={isLoading}
                                         >
-                                            Manage Assignments
+                                            {t('Manage Assignments')}
                                         </button>
                                         <button
                                             onClick={() => openEditCounselorModal(counselor)}
                                             className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                                             disabled={isLoading}
-                                            title="Edit Guidance Counselor"
+                                            title={t('Edit Guidance Counselor')}
                                         >
-                                            <PencilSquareIcon className="h-4 w-4 inline mr-1" /> Edit
+                                            <PencilSquareIcon className="h-4 w-4 inline mr-1" /> {t('Edit')}
                                         </button>
                                     </td>
                                 </tr>
@@ -347,32 +349,32 @@ export default function GuidanceCounselorManagement() {
                     {/* Mobile Card List */}
                     <div className="md:hidden divide-y divide-gray-100">
                         {isLoading && (
-                            <div className="p-4 text-center text-gray-500 italic">Loading...</div>
+                            <div className="p-4 text-center text-gray-500 italic">{t('Loading...')}</div>
                         )}
                         {!isLoading && counselors.length === 0 && (
-                            <div className="p-4 text-center text-gray-500">No Guidance Counselors found.</div>
+                            <div className="p-4 text-center text-gray-500">{t('No Guidance Counselors found.')}</div>
                         )}
                         {counselors.map((counselor) => (
                             <div key={counselor.id} className="p-4 space-y-1.5">
                                 <div className="text-sm font-semibold text-gray-900 break-words">{counselor.name}</div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Email</span>
+                                    <span className="text-xs text-gray-500">{t('Email')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">{counselor.email || '-'}</span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-xs text-gray-500">{t('Matricule')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
                                         {counselor.matricule ? (
                                             <span className="text-gray-700">{counselor.matricule}</span>
                                         ) : (
-                                            <span className="text-gray-500 italic">empty</span>
+                                            <span className="text-gray-500 italic">{t('empty')}</span>
                                         )}
                                     </span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Subclasses Assigned</span>
+                                    <span className="text-xs text-gray-500">{t('Subclasses Assigned')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
-                                        {counselor.assignedSubClassIds?.length || 0} subclasses
+                                        {counselor.assignedSubClassIds?.length || 0} {t('subclasses')}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap gap-2 pt-1.5">
@@ -381,15 +383,15 @@ export default function GuidanceCounselorManagement() {
                                         className="px-3 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
                                         disabled={isLoading}
                                     >
-                                        Manage Assignments
+                                        {t('Manage Assignments')}
                                     </button>
                                     <button
                                         onClick={() => openEditCounselorModal(counselor)}
                                         className="px-3 py-1 text-xs font-medium text-white bg-blue-600 rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                                         disabled={isLoading}
-                                        title="Edit Guidance Counselor"
+                                        title={t('Edit Guidance Counselor')}
                                     >
-                                        <PencilSquareIcon className="h-4 w-4 inline mr-1" /> Edit
+                                        <PencilSquareIcon className="h-4 w-4 inline mr-1" /> {t('Edit')}
                                     </button>
                                 </div>
                             </div>
@@ -403,7 +405,7 @@ export default function GuidanceCounselorManagement() {
                 <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
                     <div className="relative mx-auto p-8 border w-full max-w-2xl shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
                         {/* Updated Title */}
-                        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Assign Subclasses to: {selectedCounselor.name}</h3>
+                        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">{t('Assign Subclasses to')}: {selectedCounselor.name}</h3>
 
                         {/* Subclass Selection UI (Same as VP/DM) */}
                         <div className="max-h-96 overflow-y-auto space-y-4 p-4 border rounded-md mb-4">
@@ -444,10 +446,10 @@ export default function GuidanceCounselorManagement() {
                         <div className="flex justify-end space-x-3 pt-4 border-t">
                             {/* ... Cancel/Save buttons (call handleUpdateAssignments) ... */}
                             <button type="button" onClick={closeAssignmentModal} className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-300" disabled={isLoading}>
-                                Cancel
+                                {t('Cancel')}
                             </button>
                             <button type="button" onClick={handleUpdateAssignments} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50" disabled={isLoading}>
-                                {isLoading ? 'Saving...' : 'Save Assignments'}
+                                {isLoading ? t('Saving...') : t('Save Assignments')}
                             </button>
                         </div>
                     </div>

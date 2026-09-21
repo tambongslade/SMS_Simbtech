@@ -15,10 +15,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { useOffline } from './OfflineProvider';
 import PendingSyncPanel from './PendingSyncPanel';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export default function OfflineBanner() {
     const { online, syncing, pending, failed } = useOffline();
     const [panelOpen, setPanelOpen] = useState(false);
+    const { t } = useLanguage();
 
     const showBanner = !online || pending > 0 || failed > 0;
     if (!showBanner) return null;
@@ -37,16 +39,23 @@ export default function OfflineBanner() {
 
     const message = (() => {
         if (failed > 0) {
-            return `${failed} ${failed === 1 ? 'entry needs' : 'entries need'} your attention`;
+            return `${failed} ${failed === 1 ? t('entry needs') : t('entries need')} ${t('your attention')}`;
         }
         if (!online) {
-            return pending > 0
-                ? `Offline — ${pending} ${pending === 1 ? 'entry' : 'entries'} saved on this device`
-                : 'Offline — your work is being saved on this device';
+            if (pending > 0) {
+                const template = pending === 1
+                    ? t('Offline — {n} entry saved on this device')
+                    : t('Offline — {n} entries saved on this device');
+                return template.replace('{n}', String(pending));
+            }
+            return t('Offline — your work is being saved on this device');
         }
-        return syncing
-            ? `Uploading ${pending} ${pending === 1 ? 'entry' : 'entries'}…`
-            : `${pending} ${pending === 1 ? 'entry' : 'entries'} waiting to upload`;
+        if (syncing) {
+            const template = pending === 1 ? t('Uploading {n} entry…') : t('Uploading {n} entries…');
+            return template.replace('{n}', String(pending));
+        }
+        const template = pending === 1 ? t('{n} entry waiting to upload') : t('{n} entries waiting to upload');
+        return template.replace('{n}', String(pending));
     })();
 
     return (
@@ -65,7 +74,7 @@ export default function OfflineBanner() {
                             onClick={() => setPanelOpen(true)}
                             className="shrink-0 rounded px-2 py-0.5 text-xs font-medium underline underline-offset-2 hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
                         >
-                            Details
+                            {t('Details')}
                         </button>
                     )}
                 </div>
@@ -78,9 +87,10 @@ export default function OfflineBanner() {
 /** Compact variant for a header or nav bar, where the full banner is too much. */
 export function OfflineIndicator() {
     const { online, syncing, pending, failed } = useOffline();
+    const { t } = useLanguage();
     if (online && pending === 0 && failed === 0) return null;
 
-    const label = failed > 0 ? `${failed} failed` : !online ? 'Offline' : `${pending} pending`;
+    const label = failed > 0 ? `${failed} ${t('failed')}` : !online ? t('Offline') : `${pending} ${t('pending')}`;
     const tone = failed > 0 ? 'bg-amber-100 text-amber-800' : !online ? 'bg-slate-200 text-slate-700' : 'bg-blue-100 text-blue-800';
 
     return (

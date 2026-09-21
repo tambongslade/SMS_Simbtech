@@ -13,6 +13,7 @@ import {
   EnvelopeIcon,
   PhoneIcon,
 } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // --- Types ---
 interface ExamSequence {
@@ -127,15 +128,17 @@ function StatusIcon({ status }: { status: string }) {
 }
 
 function StatusLabel({ status }: { status: string }) {
+  const { t } = useLanguage();
   switch (status) {
-    case 'complete': return 'Complete';
-    case 'partial': return 'Partial';
-    case 'missing': return 'Not Submitted';
+    case 'complete': return t('Complete');
+    case 'partial': return t('Partial');
+    case 'missing': return t('Not Submitted');
     default: return 'N/A';
   }
 }
 
 export default function MarksSubmissionPage() {
+  const { t } = useLanguage();
   const [selectedYearId, setSelectedYearId] = useState<number | ''>('');
   const [selectedSequenceId, setSelectedSequenceId] = useState<number | ''>('');
   const [expandedClass, setExpandedClass] = useState<number | null>(null);
@@ -156,7 +159,7 @@ export default function MarksSubmissionPage() {
       terms: year.terms || [],
       examSequences: (year.examSequences || []).map((seq: any) => ({
         id: seq.id,
-        name: seq.name || `Sequence ${seq.sequenceNumber}`,
+        name: seq.name || `${t('Sequence')} ${seq.sequenceNumber}`,
         sequenceNumber: seq.sequenceNumber,
         termId: seq.termId,
       })),
@@ -218,36 +221,36 @@ export default function MarksSubmissionPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Mark Submission Tracking</h1>
-        <p className="text-sm text-gray-500 mt-1">Monitor mark submission progress per class and subject</p>
+        <h1 className="text-2xl font-bold text-gray-900">{t('Mark Submission Tracking')}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t('Monitor mark submission progress per class and subject')}</p>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Academic Year')}</label>
             <select
               value={selectedYearId}
               onChange={(e) => setSelectedYearId(Number(e.target.value) || '')}
               disabled={isLoadingYears}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100"
             >
-              <option value="">Select Academic Year</option>
+              <option value="">{t('Select Academic Year')}</option>
               {academicYears.map(year => (
                 <option key={year.id} value={year.id}>{year.name}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Exam Sequence</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Exam Sequence')}</label>
             <select
               value={selectedSequenceId}
               onChange={(e) => setSelectedSequenceId(Number(e.target.value) || '')}
               disabled={isLoadingYears || !selectedYearId}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100"
             >
-              <option value="">Select Exam Sequence</option>
+              <option value="">{t('Select Exam Sequence')}</option>
               {examSequences.map(seq => (
                 <option key={seq.id} value={seq.id}>{seq.name}</option>
               ))}
@@ -259,7 +262,7 @@ export default function MarksSubmissionPage() {
       {/* Prompt when no selection */}
       {(!selectedYearId || !selectedSequenceId) && (
         <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
-          Select an Academic Year and Exam Sequence to view mark submission progress.
+          {t('Select an Academic Year and Exam Sequence to view mark submission progress.')}
         </div>
       )}
 
@@ -267,14 +270,14 @@ export default function MarksSubmissionPage() {
       {(isLoadingTracking || isLoadingPending) && selectedSequenceId && (
         <div className="bg-white rounded-lg shadow p-12 text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading submission data...</p>
+          <p className="text-gray-500">{t('Loading submission data...')}</p>
         </div>
       )}
 
       {/* Error */}
       {(trackingError || pendingError) && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
-          {trackingError?.message || pendingError?.message || 'Failed to load data'}
+          {trackingError?.message || pendingError?.message || t('Failed to load data')}
         </div>
       )}
 
@@ -284,23 +287,23 @@ export default function MarksSubmissionPage() {
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-blue-500">
-              <p className="text-xs text-gray-500 uppercase">Classes</p>
+              <p className="text-xs text-gray-500 uppercase">{t('Classes')}</p>
               <p className="text-2xl font-bold text-gray-900">{tracking.summary.totalClasses}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-gray-400">
-              <p className="text-xs text-gray-500 uppercase">Subject Pairs</p>
+              <p className="text-xs text-gray-500 uppercase">{t('Subject Pairs')}</p>
               <p className="text-2xl font-bold text-gray-900">{tracking.summary.totalSubjectPairs}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-green-500">
-              <p className="text-xs text-gray-500 uppercase">Complete</p>
+              <p className="text-xs text-gray-500 uppercase">{t('Complete')}</p>
               <p className="text-2xl font-bold text-green-600">{tracking.summary.completePairs}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-yellow-500">
-              <p className="text-xs text-gray-500 uppercase">Partial</p>
+              <p className="text-xs text-gray-500 uppercase">{t('Partial')}</p>
               <p className="text-2xl font-bold text-yellow-600">{tracking.summary.partialPairs}</p>
             </div>
             <div className="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-              <p className="text-xs text-gray-500 uppercase">Missing</p>
+              <p className="text-xs text-gray-500 uppercase">{t('Missing')}</p>
               <p className="text-2xl font-bold text-red-600">{tracking.summary.missingPairs}</p>
             </div>
           </div>
@@ -308,7 +311,7 @@ export default function MarksSubmissionPage() {
           {/* Overall progress bar */}
           <div className="bg-white rounded-lg shadow p-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700">Overall School Completion</span>
+              <span className="text-sm font-medium text-gray-700">{t('Overall School Completion')}</span>
               <span className="text-sm font-bold text-gray-900">{Math.round(tracking.summary.overallCompletion)}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
@@ -333,7 +336,7 @@ export default function MarksSubmissionPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Class Overview
+                {t('Class Overview')}
               </button>
               <button
                 onClick={() => setActiveTab('pending')}
@@ -343,7 +346,7 @@ export default function MarksSubmissionPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                Pending Teachers
+                {t('Pending Teachers')}
                 {pendingTeachers.length > 0 && (
                   <span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
                     {pendingTeachers.length}
@@ -373,7 +376,7 @@ export default function MarksSubmissionPage() {
                         <div className="text-left">
                           <h3 className="font-semibold text-gray-900">{cls.subClassName}</h3>
                           <p className="text-xs text-gray-500">
-                            {cls.subjects.length} subjects &middot; {cls.totalStudents} students
+                            {cls.subjects.length} {t('subjects')} &middot; {cls.totalStudents} {t('students')}
                           </p>
                         </div>
                       </div>
@@ -397,17 +400,17 @@ export default function MarksSubmissionPage() {
                         <div className="hidden md:flex items-center gap-2 text-xs">
                           {completeCount > 0 && (
                             <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                              {completeCount} done
+                              {completeCount} {t('done')}
                             </span>
                           )}
                           {partialCount > 0 && (
                             <span className="px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">
-                              {partialCount} partial
+                              {partialCount} {t('partial')}
                             </span>
                           )}
                           {missingCount > 0 && (
                             <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                              {missingCount} missing
+                              {missingCount} {t('missing')}
                             </span>
                           )}
                         </div>
@@ -425,11 +428,11 @@ export default function MarksSubmissionPage() {
                         <table className="min-w-full divide-y divide-gray-200 text-sm">
                           <thead className="bg-gray-50">
                             <tr>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Subject</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Teacher</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Progress</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('Subject')}</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('Teacher')}</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('Status')}</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('Submitted')}</th>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{t('Progress')}</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-200">
@@ -440,7 +443,7 @@ export default function MarksSubmissionPage() {
                                   <td className="px-4 py-2.5 font-medium text-gray-900">{subject.subjectName}</td>
                                   <td className="px-4 py-2.5 text-gray-600 text-xs">
                                     {subject.assignedTeacher || subject.submittedBy || (
-                                      <span className="italic text-gray-400">Unassigned</span>
+                                      <span className="italic text-gray-400">{t('Unassigned')}</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-2.5">
@@ -452,7 +455,7 @@ export default function MarksSubmissionPage() {
                                   <td className="px-4 py-2.5 text-gray-600">
                                     {subject.submittedCount} / {subject.totalStudents}
                                     {subject.missingCount > 0 && (
-                                      <span className="text-red-500 text-xs ml-1">({subject.missingCount} missing)</span>
+                                      <span className="text-red-500 text-xs ml-1">({subject.missingCount} {t('missing')})</span>
                                     )}
                                   </td>
                                   <td className="px-4 py-2.5">
@@ -486,7 +489,7 @@ export default function MarksSubmissionPage() {
                             <div key={subject.subjectId} className="p-4 space-y-1.5">
                               <p className="text-sm font-semibold text-gray-900 break-words">{subject.subjectName}</p>
                               <div className="flex items-start justify-between gap-3">
-                                <span className="text-xs text-gray-500">Teacher</span>
+                                <span className="text-xs text-gray-500">{t('Teacher')}</span>
                                 <span className="text-sm text-gray-900 text-right break-words">
                                   {subject.assignedTeacher || subject.submittedBy || (
                                     <span className="italic text-gray-400">Unassigned</span>
@@ -494,7 +497,7 @@ export default function MarksSubmissionPage() {
                                 </span>
                               </div>
                               <div className="flex items-start justify-between gap-3">
-                                <span className="text-xs text-gray-500">Status</span>
+                                <span className="text-xs text-gray-500">{t('Status')}</span>
                                 <span className="text-sm text-gray-900 text-right break-words">
                                   <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(subject.status)}`}>
                                     <StatusIcon status={subject.status} />
@@ -503,7 +506,7 @@ export default function MarksSubmissionPage() {
                                 </span>
                               </div>
                               <div className="flex items-start justify-between gap-3">
-                                <span className="text-xs text-gray-500">Submitted</span>
+                                <span className="text-xs text-gray-500">{t('Submitted')}</span>
                                 <span className="text-sm text-gray-900 text-right break-words">
                                   {subject.submittedCount} / {subject.totalStudents}
                                   {subject.missingCount > 0 && (
@@ -512,7 +515,7 @@ export default function MarksSubmissionPage() {
                                 </span>
                               </div>
                               <div className="flex items-start justify-between gap-3">
-                                <span className="text-xs text-gray-500">Progress</span>
+                                <span className="text-xs text-gray-500">{t('Progress')}</span>
                                 <span className="text-sm text-gray-900 text-right break-words">
                                   <span className="flex items-center gap-2">
                                     <span className="flex-1 bg-gray-200 rounded-full h-2 min-w-[80px] block">
@@ -539,7 +542,7 @@ export default function MarksSubmissionPage() {
 
               {sortedClasses.length === 0 && (
                 <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-                  No submission data available for this exam sequence.
+                  {t('No submission data available for this exam sequence.')}
                 </div>
               )}
             </div>
@@ -551,13 +554,13 @@ export default function MarksSubmissionPage() {
               {isLoadingPending ? (
                 <div className="bg-white rounded-lg shadow p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
-                  <p className="text-gray-500">Loading pending teachers...</p>
+                  <p className="text-gray-500">{t('Loading pending teachers...')}</p>
                 </div>
               ) : pendingTeachers.length === 0 ? (
                 <div className="bg-white rounded-lg shadow p-8 text-center">
                   <CheckCircleIcon className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                  <p className="text-gray-700 font-medium">All teachers have submitted their marks!</p>
-                  <p className="text-sm text-gray-500 mt-1">No pending submissions found.</p>
+                  <p className="text-gray-700 font-medium">{t('All teachers have submitted their marks!')}</p>
+                  <p className="text-sm text-gray-500 mt-1">{t('No pending submissions found.')}</p>
                 </div>
               ) : (
                 pendingTeachers.map(teacher => (
@@ -588,10 +591,10 @@ export default function MarksSubmissionPage() {
                         </div>
                         <div className="text-right">
                           <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-                            {teacher.totalMissing} marks missing
+                            {teacher.totalMissing} {t('marks missing')}
                           </span>
                           {teacher.totalSubmitted > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">{teacher.totalSubmitted} submitted</p>
+                            <p className="text-xs text-gray-500 mt-1">{teacher.totalSubmitted} {t('submitted')}</p>
                           )}
                         </div>
                       </div>
@@ -601,10 +604,10 @@ export default function MarksSubmissionPage() {
                         <table className="min-w-full text-sm">
                           <thead>
                             <tr className="text-xs text-gray-500 uppercase">
-                              <th className="text-left py-1 font-medium">Subject</th>
-                              <th className="text-left py-1 font-medium">Class</th>
-                              <th className="text-left py-1 font-medium">Submitted</th>
-                              <th className="text-left py-1 font-medium">Missing</th>
+                              <th className="text-left py-1 font-medium">{t('Subject')}</th>
+                              <th className="text-left py-1 font-medium">{t('Class')}</th>
+                              <th className="text-left py-1 font-medium">{t('Submitted')}</th>
+                              <th className="text-left py-1 font-medium">{t('Missing')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -628,15 +631,15 @@ export default function MarksSubmissionPage() {
                           <div key={i} className="p-4 space-y-1.5">
                             <p className="text-sm font-semibold text-gray-900 break-words">{subj.subjectName}</p>
                             <div className="flex items-start justify-between gap-3">
-                              <span className="text-xs text-gray-500">Class</span>
+                              <span className="text-xs text-gray-500">{t('Class')}</span>
                               <span className="text-sm text-gray-900 text-right break-words">{subj.subClassName}</span>
                             </div>
                             <div className="flex items-start justify-between gap-3">
-                              <span className="text-xs text-gray-500">Submitted</span>
+                              <span className="text-xs text-gray-500">{t('Submitted')}</span>
                               <span className="text-sm text-gray-900 text-right break-words">{subj.submittedCount} / {subj.totalStudents}</span>
                             </div>
                             <div className="flex items-start justify-between gap-3">
-                              <span className="text-xs text-gray-500">Missing</span>
+                              <span className="text-xs text-gray-500">{t('Missing')}</span>
                               <span className="text-sm text-gray-900 text-right break-words">
                                 <span className="text-red-600 font-medium">{subj.missingCount}</span>
                               </span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 /**
  * Shown while a question is being answered.
@@ -32,6 +33,7 @@ const STAGES: Stage[] = [
 ];
 
 export default function ThinkingIndicator() {
+    const { t } = useLanguage();
     const [elapsed, setElapsed] = useState(0);
 
     useEffect(() => {
@@ -54,7 +56,7 @@ export default function ThinkingIndicator() {
                     key={stage.label}
                     className="stage-label text-sm text-gray-700"
                 >
-                    {stage.label}
+                    {t(stage.label)}
                     <span className="inline-block w-6 text-left">
                         <Ellipsis />
                     </span>
@@ -112,6 +114,7 @@ function Ellipsis() {
  * be competing with React state updates for the same twenty seconds.
  */
 function ThinkingGlyph() {
+    const { t } = useLanguage();
     // Positions chosen so the three outer nodes sit around the centre one at
     // roughly equal distance; the eye reads it as a hub rather than a triangle.
     const nodes = [
@@ -129,7 +132,7 @@ function ThinkingGlyph() {
             viewBox="0 0 40 40"
             fill="none"
             role="img"
-            aria-label="Working on your question"
+            aria-label={t('Working on your question')}
             className="flex-shrink-0"
         >
             {/* Edges from the hub, drawn with a travelling dash so they read as

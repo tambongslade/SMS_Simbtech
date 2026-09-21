@@ -1,6 +1,10 @@
+'use client';
+
 import Link from 'next/link';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export default function NotFound() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 text-center">
@@ -20,22 +24,22 @@ export default function NotFound() {
             <path d="M9 9h.01" />
             <path d="M15 9h.01" />
           </svg>
-          
+
           <h1 className="mt-4 text-9xl font-bold text-gray-900">404</h1>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">Page not found</h2>
+          <h2 className="mt-6 text-3xl font-bold text-gray-900">{t('Page not found')}</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Sorry, we couldn't find the page you're looking for.
+            {t("Sorry, we couldn't find the page you're looking for.")}
           </p>
         </div>
         <div className="mt-8">
-          <Link 
+          <Link
             href="/"
             className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Go back home
+            {t('Go back home')}
           </Link>
         </div>
       </div>
     </div>
   );
-} 
+}

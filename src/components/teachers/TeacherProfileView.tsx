@@ -13,11 +13,19 @@ import {
     UserIcon,
     MapPinIcon,
     ClockIcon,
+    KeyIcon,
 } from '@heroicons/react/24/outline';
 import apiService, { ApiError } from '@/lib/apiService';
 import { useAuth } from '@/components/context/AuthContext';
 import { downloadTeacherTimetablePdf } from '@/lib/timetablePdf';
 import { mapTeacher, searchTeachers, type TeacherSearchItem } from '@/lib/teacherSearchApi';
+import { Modal, Input, Button } from '@/components/ui';
+
+// Mirrors the backend's authorize() list on POST /users/:id/reset-password
+// (userRoutes.ts) -- secretary and other viewers of this same profile
+// component aren't in it, so the button has to be gated the same way or
+// they'd see an action that 403s.
+const PASSWORD_RESET_ROLES = ['SUPER_MANAGER', 'PRINCIPAL', 'VICE_PRINCIPAL', 'DISCIPLINE_COORDINATOR'];
 
 interface TeacherProfileViewProps {
     teacherId: number;
@@ -86,9 +94,13 @@ const fetchTeacher = async (teacherId: number): Promise<TeacherSearchItem> => {
 };
 
 export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacherId, backHref, backLabel = 'Back to teachers' }) => {
-    const { selectedAcademicYear } = useAuth();
+    const { selectedAcademicYear, selectedRole } = useAuth();
     const [loader, setLoader] = useState<Loader>({ state: 'loading' });
     const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+    const [isResetOpen, setIsResetOpen] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
+    const canResetPassword = !!selectedRole && PASSWORD_RESET_ROLES.includes(selectedRole);
 
     useEffect(() => {
         let cancelled = false;
@@ -119,6 +131,25 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacherI
             await downloadTeacherTimetablePdf(teacher.id, teacher.name, selectedAcademicYear?.id);
         } finally {
             setIsDownloadingPdf(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        const trimmed = newPassword.trim();
+        if (trimmed.length < 8) {
+            toast.error('Password must be at least 8 characters long.');
+            return;
+        }
+        setIsResetting(true);
+        try {
+            await apiService.post(`/users/${teacherId}/reset-password`, { newPassword: trimmed });
+            toast.success('Password reset.');
+            setIsResetOpen(false);
+            setNewPassword('');
+        } catch (error: unknown) {
+            toast.error(error instanceof Error ? error.message : 'Failed to reset password.');
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -190,15 +221,27 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacherI
                             )}
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => handleDownloadPdf(teacher)}
-                        disabled={isDownloadingPdf}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60"
-                    >
-                        <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
-                        {isDownloadingPdf ? 'Preparing...' : 'Download Timetable PDF'}
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        {canResetPassword && (
+                            <button
+                                type="button"
+                                onClick={() => setIsResetOpen(true)}
+                                className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                <KeyIcon className="h-5 w-5 mr-2" />
+                                Reset Password
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() => handleDownloadPdf(teacher)}
+                            disabled={isDownloadingPdf}
+                            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-60"
+                        >
+                            <DocumentArrowDownIcon className="h-5 w-5 mr-2" />
+                            {isDownloadingPdf ? 'Preparing...' : 'Download Timetable PDF'}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -261,6 +304,38 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacherI
                     {isDownloadingPdf ? 'Preparing PDF...' : 'Download Timetable PDF'}
                 </button>
             </div>
+
+            {canResetPassword && (
+                <Modal
+                    isOpen={isResetOpen}
+                    onClose={() => { setIsResetOpen(false); setNewPassword(''); }}
+                    title={`Reset password — ${teacher.name}`}
+                    size="sm"
+                >
+                    <div className="space-y-4">
+                        <Input
+                            type="password"
+                            label="New password"
+                            placeholder="At least 8 characters"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => { setIsResetOpen(false); setNewPassword(''); }}
+                                disabled={isResetting}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={handleResetPassword} disabled={isResetting}>
+                                {isResetting ? 'Resetting...' : 'Reset Password'}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };

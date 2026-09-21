@@ -11,6 +11,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface ExamPaper {
     id: number;
@@ -49,6 +50,7 @@ interface Subject {
 }
 
 export default function QuestionManagement() {
+    const { t } = useLanguage();
     const router = useRouter();
     const [selectedSubject, setSelectedSubject] = useState<string>('');
     const [selectedExamPaper, setSelectedExamPaper] = useState<string>('');
@@ -101,22 +103,22 @@ export default function QuestionManagement() {
         if (subjectsError) {
             console.error("Subjects Fetch Error:", subjectsError);
             if (subjectsError.status === 403) {
-                toast.error('Access denied: Unable to load your assigned subjects');
+                toast.error(t('Access denied: Unable to load your assigned subjects'));
             } else {
-                toast.error('Failed to load subjects');
+                toast.error(t('Failed to load subjects'));
             }
         }
         if (examPapersError) {
             console.error("Exam Papers Fetch Error:", examPapersError);
             if (examPapersError.status === 403) {
-                toast.error('Access denied: Unable to load exam papers');
+                toast.error(t('Access denied: Unable to load exam papers'));
             } else {
-                toast.error('Failed to load exam papers');
+                toast.error(t('Failed to load exam papers'));
             }
         }
         if (questionsError) {
             console.error("Questions Fetch Error:", questionsError);
-            toast.error('Failed to load questions');
+            toast.error(t('Failed to load questions'));
         }
     }, [subjectsError, examPapersError, questionsError]);
 
@@ -127,11 +129,11 @@ export default function QuestionManagement() {
     });
 
     const questionTypes = [
-        { value: 'multiple_choice', label: 'Multiple Choice' },
-        { value: 'essay', label: 'Essay' },
-        { value: 'short_answer', label: 'Short Answer' },
-        { value: 'true_false', label: 'True/False' },
-        { value: 'fill_in_blank', label: 'Fill in the Blank' }
+        { value: 'multiple_choice', label: t('Multiple Choice') },
+        { value: 'essay', label: t('Essay') },
+        { value: 'short_answer', label: t('Short Answer') },
+        { value: 'true_false', label: t('True/False') },
+        { value: 'fill_in_blank', label: t('Fill in the Blank') }
     ];
 
     const handleViewQuestion = (question: Question) => {
@@ -157,14 +159,14 @@ export default function QuestionManagement() {
             <div className="p-6 space-y-6">
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-2xl font-bold">Question Management</h1>
-                        <p className="text-gray-600">Loading...</p>
+                        <h1 className="text-2xl font-bold">{t('Question Management')}</h1>
+                        <p className="text-gray-600">{t('Loading...')}</p>
                     </div>
                 </div>
 
                 <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-600">Loading questions...</p>
+                    <p className="mt-2 text-gray-600">{t('Loading questions...')}</p>
                 </div>
             </div>
         );
@@ -175,9 +177,9 @@ export default function QuestionManagement() {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-2xl font-bold">Question Management</h1>
+                    <h1 className="text-2xl font-bold">{t('Question Management')}</h1>
                     <p className="text-gray-600">
-                        View and manage questions through your exam papers
+                        {t('View and manage questions through your exam papers')}
                     </p>
                 </div>
                 <button
@@ -185,7 +187,7 @@ export default function QuestionManagement() {
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
                 >
                     <PlusIcon className="h-5 w-5 mr-2" />
-                    Manage Exam Papers
+                    {t('Manage Exam Papers')}
                 </button>
             </div>
 
@@ -194,16 +196,15 @@ export default function QuestionManagement() {
                 <div className="flex items-start">
                     <ClipboardDocumentListIcon className="h-6 w-6 text-blue-600 mr-3 mt-1" />
                     <div>
-                        <h3 className="text-lg font-medium text-blue-900">Questions are managed through Exam Papers</h3>
+                        <h3 className="text-lg font-medium text-blue-900">{t('Questions are managed through Exam Papers')}</h3>
                         <p className="text-blue-700 mt-1">
-                            To create and manage questions, you need to first create an exam paper. 
-                            Questions are directly associated with specific exam papers and cannot exist independently.
+                            {t('To create and manage questions, you need to first create an exam paper. Questions are directly associated with specific exam papers and cannot exist independently.')}
                         </p>
                         <button
                             onClick={navigateToExamManagement}
                             className="mt-3 inline-flex items-center text-blue-600 hover:text-blue-800 font-medium"
                         >
-                            Go to Exam Papers Management →
+                            {t('Go to Exam Papers Management')} →
                         </button>
                     </div>
                 </div>
@@ -214,7 +215,7 @@ export default function QuestionManagement() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Subject
+                            {t('Subject')}
                         </label>
                         <select
                             value={selectedSubject}
@@ -225,10 +226,10 @@ export default function QuestionManagement() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             disabled={subjectsLoading}
                         >
-                            <option value="">Select a subject...</option>
+                            <option value="">{t('Select a subject...')}</option>
                             {subjects.map(subject => (
                                 <option key={subject.id} value={subject.id.toString()}>
-                                    {subject.name} ({subject.subClasses.length} classes)
+                                    {subject.name} ({subject.subClasses.length} {t('classes')})
                                 </option>
                             ))}
                         </select>
@@ -236,7 +237,7 @@ export default function QuestionManagement() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Exam Paper
+                            {t('Exam Paper')}
                         </label>
                         <select
                             value={selectedExamPaper}
@@ -244,7 +245,7 @@ export default function QuestionManagement() {
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             disabled={!selectedSubject || examPapersLoading}
                         >
-                            <option value="">Select an exam paper...</option>
+                            <option value="">{t('Select an exam paper...')}</option>
                             {examPapers.map(paper => (
                                 <option key={paper.id} value={paper.id.toString()}>
                                     {paper.name}
@@ -255,12 +256,12 @@ export default function QuestionManagement() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Search Questions
+                            {t('Search Questions')}
                         </label>
                         <div className="relative">
                             <input
                                 type="text"
-                                placeholder="Search by question text..."
+                                placeholder={t('Search by question text...')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -280,7 +281,7 @@ export default function QuestionManagement() {
                         }}
                         className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                     >
-                        Clear Filters
+                        {t('Clear Filters')}
                     </button>
                 </div>
             </div>
@@ -292,7 +293,7 @@ export default function QuestionManagement() {
                         <div className="flex items-center">
                             <ClipboardDocumentListIcon className="h-8 w-8 text-blue-600 mr-3" />
                             <div>
-                                <p className="text-sm text-gray-600">Total Questions</p>
+                                <p className="text-sm text-gray-600">{t('Total Questions')}</p>
                                 <p className="text-2xl font-bold">{questionsLoading ? '...' : questions.length}</p>
                             </div>
                         </div>
@@ -301,7 +302,7 @@ export default function QuestionManagement() {
                         <div className="flex items-center">
                             <ClipboardDocumentListIcon className="h-8 w-8 text-green-600 mr-3" />
                             <div>
-                                <p className="text-sm text-gray-600">Multiple Choice</p>
+                                <p className="text-sm text-gray-600">{t('Multiple Choice')}</p>
                                 <p className="text-2xl font-bold">
                                     {questionsLoading ? '...' : questions.filter(q => q.questionType === 'multiple_choice').length}
                                 </p>
@@ -312,7 +313,7 @@ export default function QuestionManagement() {
                         <div className="flex items-center">
                             <ClipboardDocumentListIcon className="h-8 w-8 text-purple-600 mr-3" />
                             <div>
-                                <p className="text-sm text-gray-600">Essay Questions</p>
+                                <p className="text-sm text-gray-600">{t('Essay Questions')}</p>
                                 <p className="text-2xl font-bold">
                                     {questionsLoading ? '...' : questions.filter(q => q.questionType === 'essay').length}
                                 </p>
@@ -345,7 +346,7 @@ export default function QuestionManagement() {
                 {questionsLoading ? (
                     <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                        <p className="mt-2 text-gray-600">Loading questions...</p>
+                        <p className="mt-2 text-gray-600">{t('Loading questions...')}</p>
                     </div>
                 ) : !selectedSubject ? (
                     <div className="text-center py-8">

@@ -17,8 +17,10 @@ import { RecordPaymentSearch } from "./components/ui/RecordPaymentSearch";
 import { PaymentRecordsView } from "./components/ui/PaymentRecordsView";
 import { ClassFeesEditor } from "./components/ui/ClassFeesEditor";
 import { Student } from './types';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 export default function FeeManagementPage() {
+    const { t } = useLanguage();
     const [viewTab, setViewTab] = useState<'class-fees' | 'records' | 'students'>('class-fees');
     const {
         paymentRecords,
@@ -101,9 +103,9 @@ export default function FeeManagementPage() {
             <div className="border-b border-gray-200">
                 <nav className="-mb-px flex gap-6 overflow-x-auto">
                     {([
-                        { key: 'class-fees', label: 'Class Fees' },
-                        { key: 'records', label: 'Payment Records' },
-                        { key: 'students', label: 'Students' },
+                        { key: 'class-fees', label: t('Class Fees') },
+                        { key: 'records', label: t('Payment Records') },
+                        { key: 'students', label: t('Students') },
                     ] as const).map((tab) => (
                         <button
                             key={tab.key}
@@ -120,7 +122,7 @@ export default function FeeManagementPage() {
                 </nav>
             </div>
 
-            {fetchError && <div className="text-red-600 text-center p-2">Error: {fetchError}</div>}
+            {fetchError && <div className="text-red-600 text-center p-2">{t('Error')}: {fetchError}</div>}
 
             {viewTab === 'class-fees' && <ClassFeesEditor />}
 
@@ -155,7 +157,7 @@ export default function FeeManagementPage() {
 
                     {isLoading ? (
                         <div className="flex justify-center items-center h-64">
-                            <p className="text-gray-600">Loading Students...</p>
+                            <p className="text-gray-600">{t('Loading Students...')}</p>
                         </div>
                     ) : (
                         <>

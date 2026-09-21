@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
   getPeriodRollCall,
   submitPeriodRollCall,
@@ -18,6 +19,7 @@ interface PeriodRollCallProps {
 
 // In-class roll call for a single teacher period: PRESENT | ABSENT only.
 export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps) {
+  const { t } = useLanguage();
   const [data, setData] = useState<PeriodRollCallData | null>(null);
   const [statuses, setStatuses] = useState<Record<number, PeriodRollCallStatus>>({}); // by enrollmentId
   const [isLoading, setIsLoading] = useState(true);
@@ -85,13 +87,13 @@ export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps
   };
 
   if (isLoading) {
-    return <div className="py-10 text-center text-sm text-gray-500">Loading roster…</div>;
+    return <div className="py-10 text-center text-sm text-gray-500">{t('Loading roster…')}</div>;
   }
 
   if (!data) {
     return (
       <div className="py-10 text-center text-sm text-gray-500">
-        Could not load this period’s roster.
+        {t('Could not load this period’s roster.')}
       </div>
     );
   }
@@ -106,17 +108,17 @@ export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps
           </span>{' '}
           — {data.subject.name} · {data.period.startTime}–{data.period.endTime}
           <div className="text-xs text-gray-500 mt-0.5">
-            {data.students.length} students · {counts.present} present · {counts.absent} absent
+            {data.students.length} {t('students')} · {counts.present} {t('present')} · {counts.absent} {t('absent')}
           </div>
         </div>
         <Button color="primary" size="sm" isLoading={isSubmitting} onClick={handleSubmit}>
-          Save Roll Call
+          {t('Save Roll Call')}
         </Button>
       </div>
 
       <div className="border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
         {data.students.length === 0 ? (
-          <div className="px-4 py-8 text-center text-gray-500">No students enrolled in this period.</div>
+          <div className="px-4 py-8 text-center text-gray-500">{t('No students enrolled in this period.')}</div>
         ) : (
           data.students.map((s) => {
             const status = statuses[s.enrollmentId] ?? 'PRESENT';
@@ -140,7 +142,7 @@ export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps
                           : 'bg-white text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {st === 'PRESENT' ? 'Present' : 'Absent'}
+                      {st === 'PRESENT' ? t('Present') : t('Absent')}
                     </button>
                   ))}
                 </div>

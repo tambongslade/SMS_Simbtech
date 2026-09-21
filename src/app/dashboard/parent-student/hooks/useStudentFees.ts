@@ -1,193 +1,113 @@
-
-import { useState, useEffect, useCallback } from 'react';
-import { getAuthToken } from '@/lib/auth';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { fetchChildDetails } from '@/lib/parentPortalApi';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
+// Public parent portal fee data — sourced from
+// GET /parents/:matricule/details (fees section) so no JWT is required.
 
 export interface PaymentHistory {
     id: number;
     amount: number;
     paymentDate: string;
-    paymentMethod: string; // Allow any payment method string
+    paymentMethod: string;
     receiptNumber?: string;
     recordedBy: string;
-    notes?: string;
 }
 
-export interface OutstandingFee {
+export interface OutstandingFeeItem {
     id: number;
     feeType: string;
     amountDue: number;
-    dueDate: string;
-    daysOverdue?: number;
+    dueDate?: string;
     description?: string;
 }
 
 export interface StudentFeeData {
-    studentId: number;
+    matricule: string;
     studentName: string;
-    studentMatricule: string;
-    academicYear: string;
     totalExpected: number;
     totalPaid: number;
     outstandingBalance: number;
+    urgency?: 'PAID' | 'OK' | 'DUE_SOON' | 'OVERDUE';
+    daysOverdue?: number;
+    dueDate?: string | null;
     lastPaymentDate?: string;
-    nextDueDate?: string;
-    feeSummary: {
-        schoolFees: number;
-        miscellaneousFees: number;
-        newStudentFees?: number;
-        termFees: {
-            firstTerm: number;
-            secondTerm: number;
-            thirdTerm: number;
-        };
-    };
     paymentHistory: PaymentHistory[];
-    outstandingFees: OutstandingFee[];
-    paymentMethodBreakdown: {
-        method: string;
-        totalAmount: number;
-        transactionCount: number;
-        percentage: number;
-    }[];
+    outstandingFees: OutstandingFeeItem[];
+    items?: Array<{
+        id: number;
+        name: string;
+        description?: string | null;
+        amountExpected: number;
+        amountPaid: number;
+        outstanding: number;
+        status: 'PAID' | 'PARTIAL' | 'UNPAID';
+    }>;
 }
 
-export function useStudentFees(studentId: number) {
+export function useStudentFees(matricule: string | null) {
     const [data, setData] = useState<StudentFeeData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     const fetchData = useCallback(async () => {
-        if (!studentId) return;
-
+        if (!matricule) { setIsLoading(false); return; }
         setIsLoading(true);
         setError(null);
-
         try {
-            const token = getAuthToken();
-            if (!token) {
-                throw new Error('Authentication token not found.');
-            }
-
-            const response = await fetch(`${API_BASE_URL}/fees/student/${studentId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to fetch fee data.');
-            }
-
-            const result = await response.json();
-
-            // Process the raw API data into the expected format
-            const feeRecords = result.data;
-            if (!feeRecords || feeRecords.length === 0) {
+            const details: any = await fetchChildDetails(matricule);
+            const fees = details?.fees;
+            if (!fees) {
                 setData(null);
                 return;
             }
-
-            // Calculate totals across all academic years
-            const totalExpected = feeRecords.reduce((sum: number, record: any) => sum + record.amountExpected, 0);
-            const totalPaid = feeRecords.reduce((sum: number, record: any) => sum + record.amountPaid, 0);
-            const outstandingBalance = totalExpected - totalPaid;
-
-            // Get student info from first record
-            const studentInfo = feeRecords[0].enrollment.student;
-            const currentAcademicYear = feeRecords.find((r: any) => r.academicYear.isCurrent)?.academicYear.name ||
-                feeRecords[0].academicYear.name;
-
-            // Collect all payment transactions
-            const allPayments: PaymentHistory[] = [];
-            feeRecords.forEach((record: any) => {
-                record.paymentTransactions.forEach((payment: any) => {
-                    allPayments.push({
-                        id: payment.id,
-                        amount: payment.amount,
-                        paymentDate: payment.paymentDate,
-                        paymentMethod: payment.paymentMethod,
-                        receiptNumber: payment.receiptNumber,
-                        recordedBy: `User ${payment.recordedById}`,
-                        notes: payment.notes
-                    });
-                });
-            });
-
-            // Sort payments by date (most recent first)
-            allPayments.sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime());
-
-            // Get outstanding fees (records with outstanding balance)
-            const outstandingFees: OutstandingFee[] = feeRecords
-                .filter((record: any) => record.amountExpected > record.amountPaid)
-                .map((record: any) => ({
-                    id: record.id,
-                    feeType: `${record.academicYear.name} Academic Fees`,
-                    amountDue: record.amountExpected - record.amountPaid,
-                    dueDate: record.dueDate,
-                    description: `Outstanding fees for ${record.academicYear.name}`
-                }));
-
-            // Calculate payment method breakdown
-            const methodBreakdown: { [key: string]: { totalAmount: number; transactionCount: number } } = {};
-            allPayments.forEach(payment => {
-                if (!methodBreakdown[payment.paymentMethod]) {
-                    methodBreakdown[payment.paymentMethod] = { totalAmount: 0, transactionCount: 0 };
-                }
-                methodBreakdown[payment.paymentMethod].totalAmount += payment.amount;
-                methodBreakdown[payment.paymentMethod].transactionCount++;
-            });
-
-            const paymentMethodBreakdown = Object.entries(methodBreakdown).map(([method, data]) => ({
-                method,
-                totalAmount: data.totalAmount,
-                transactionCount: data.transactionCount,
-                percentage: totalPaid > 0 ? (data.totalAmount / totalPaid) * 100 : 0
-            }));
-
-            // Get fee structure from class info (if available)
-            const classInfo = feeRecords[0].enrollment.subClass.class;
-
-            const processedData: StudentFeeData = {
-                studentId: studentInfo.id,
-                studentName: studentInfo.name,
-                studentMatricule: studentInfo.matricule,
-                academicYear: currentAcademicYear,
-                totalExpected,
-                totalPaid,
-                outstandingBalance,
-                lastPaymentDate: allPayments.length > 0 ? allPayments[0].paymentDate : undefined,
-                nextDueDate: outstandingFees.length > 0 ? outstandingFees[0].dueDate : undefined,
-                feeSummary: {
-                    schoolFees: classInfo.baseFee || 0,
-                    miscellaneousFees: classInfo.miscellaneousFee || 0,
-                    newStudentFees: classInfo.newStudentFee || 0,
-                    termFees: {
-                        firstTerm: classInfo.firstTermFee || 0,
-                        secondTerm: classInfo.secondTermFee || 0,
-                        thirdTerm: classInfo.thirdTermFee || 0
-                    }
-                },
-                paymentHistory: allPayments,
-                outstandingFees,
-                paymentMethodBreakdown
+            const processed: StudentFeeData = {
+                matricule: details.matricule || matricule,
+                studentName: details.name,
+                totalExpected: Number(fees.totalExpected ?? 0),
+                totalPaid: Number(fees.totalPaid ?? 0),
+                outstandingBalance: Number(fees.outstandingBalance ?? 0),
+                urgency: fees.urgency,
+                daysOverdue: fees.daysOverdue,
+                dueDate: fees.dueDate ?? null,
+                lastPaymentDate: fees.lastPaymentDate,
+                paymentHistory: (fees.paymentHistory || []).map((p: any) => ({
+                    id: p.id,
+                    amount: p.amount,
+                    paymentDate: p.paymentDate,
+                    paymentMethod: p.paymentMethod,
+                    receiptNumber: p.receiptNumber,
+                    recordedBy: p.recordedBy || 'Unknown',
+                })),
+                outstandingFees: (fees.items || [])
+                    .filter((it: any) => (it.outstanding ?? 0) > 0)
+                    .map((it: any) => ({
+                        id: it.id,
+                        feeType: it.name,
+                        amountDue: it.outstanding,
+                        description: it.description,
+                    })),
+                items: (fees.items || []).map((it: any) => ({
+                    id: it.id,
+                    name: it.name,
+                    description: it.description,
+                    amountExpected: it.amountExpected,
+                    amountPaid: it.amountPaid,
+                    outstanding: it.outstanding,
+                    status: it.status,
+                })),
             };
-
-            setData(processedData);
+            setData(processed);
         } catch (err: any) {
-            setError(err.message);
-            toast.error(err.message);
+            const message = err?.message || 'Failed to load fees.';
+            setError(message);
+            toast.error(message);
         } finally {
             setIsLoading(false);
         }
-    }, [studentId]);
+    }, [matricule]);
 
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    useEffect(() => { fetchData(); }, [fetchData]);
 
     return { data, isLoading, error, refetch: fetchData };
-} 
+}

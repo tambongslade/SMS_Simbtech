@@ -23,6 +23,9 @@ import {
   ReceiptRefundIcon,
   ChartBarIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
+  ShieldExclamationIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -40,6 +43,7 @@ export type RoleKey =
   | 'discipline-master'
   | 'senior-discipline-master'
   | 'dean-of-discipline'
+  | 'discipline-coordinator'
   | 'dean-of-studies'
   | 'fee-auditor'
   | 'secretary'
@@ -65,20 +69,16 @@ export const menuItems: MenuItemsStructure = {
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/principal/expenditures' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/principal/defaulters' },
-    {
-      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/principal/discipline', subItems: [
-        { label: 'Morning Roll-Call', href: '/dashboard/principal/roll-call', icon: ChevronRightIcon },
-        { label: 'Roll Call', href: '/dashboard/principal/dm-roll-call', icon: ChevronRightIcon },
-        { label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls', icon: ChevronRightIcon },
-        { label: 'Teacher Attendance', href: '/dashboard/principal/teacher-attendance', icon: ChevronRightIcon },
-        { label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons', icon: ChevronRightIcon },
-        { label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions', icon: ChevronRightIcon },
-        { label: 'Saturday Punishments', href: '/dashboard/principal/punishments', icon: ChevronRightIcon },
-        { label: 'Broken Property', href: '/dashboard/principal/broken-property', icon: ChevronRightIcon },
-        { label: 'Report Requests', href: '/dashboard/principal/report-requests', icon: ChevronRightIcon },
-        { label: 'Seized Items', href: '/dashboard/principal/seized-items', icon: ChevronRightIcon },
-      ]
-    },
+    { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/principal/dm-roll-call' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/principal/teacher-roll-calls' },
+    { icon: ClockIcon, label: 'Teacher Attendance', href: '/dashboard/principal/teacher-attendance' },
+    { icon: ExclamationTriangleIcon, label: 'Warnings & Summons', href: '/dashboard/principal/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/principal/absences' },
+    { icon: ShieldExclamationIcon, label: 'Disciplinary Actions', href: '/dashboard/principal/disciplinary-actions' },
+    { icon: CalendarIcon, label: 'Saturday Punishments', href: '/dashboard/principal/punishments' },
+    { icon: ArchiveBoxIcon, label: 'Broken Property', href: '/dashboard/principal/broken-property' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/principal/report-requests' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/principal/seized-items' },
     { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/principal/examination-structure' },
     { icon: CalendarIcon, label: 'Timetable Management', href: '/dashboard/principal/timetable' },
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/principal/report-card-management' },
@@ -86,6 +86,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Logbook Review', href: '/dashboard/principal/teacher-logbook' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/principal/fee-comparison' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/principal/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/principal/statistics' },
   ],
   bursar: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
@@ -100,6 +101,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: ChartBarIcon, label: 'Fee Statistics', href: '/dashboard/bursar/fee-statistics' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/bursar/defaulters' },
+    { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/bursar/forms' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
   ],
@@ -108,6 +110,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/discipline-master/dm-roll-call' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/discipline-master/teacher-attendance' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/discipline-master/absences' },
     { icon: ClipboardDocumentListIcon, label: 'Attendance & Lateness', href: '/dashboard/discipline-master/attendance' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/discipline-master/broken-property' },
@@ -163,7 +166,14 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Expense Requisition', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
     { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
-    { label: 'Discipline Overview', href: '/dashboard/super-manager/overview?module=discipline', icon: ClipboardDocumentListIcon },
+    { label: 'Discipline Overview', href: '/dashboard/super-manager/discipline-overview', icon: ClipboardDocumentListIcon },
+    { label: 'Discipline Issues', href: '/dashboard/super-manager/discipline-issues', icon: ClipboardDocumentListIcon },
+    { label: 'Class Absences', href: '/dashboard/super-manager/absences', icon: ExclamationTriangleIcon },
+    { label: 'Roll Call', href: '/dashboard/super-manager/dm-roll-call', icon: ClockIcon },
+    { label: 'Warnings & Summons', href: '/dashboard/super-manager/warnings-summons', icon: BellIcon },
+    { label: 'Disciplinary Actions', href: '/dashboard/super-manager/disciplinary-actions', icon: ShieldExclamationIcon },
+    { label: 'Saturday Punishments', href: '/dashboard/super-manager/punishments', icon: CalendarDaysIcon },
+    { label: 'Seized Items', href: '/dashboard/super-manager/seized-items', icon: ArchiveBoxIcon },
     { label: 'Report Requests', href: '/dashboard/super-manager/report-requests', icon: DocumentChartBarIcon },
     { label: 'Examination Structure', href: '/dashboard/super-manager/examination-structure', icon: CalendarDaysIcon },
     { label: 'Marks Management', href: '/dashboard/super-manager/marks-management', icon: ClipboardDocumentCheckIcon },
@@ -174,6 +184,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/super-manager/statistics' },
   ],
   guidancecounselor: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/guidance-counselor' },
@@ -212,21 +223,18 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/vice-principal/report-card-management' },
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/vice-principal/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/vice-principal/expenditures' },
-    {
-      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/vice-principal/discipline', subItems: [
-        { label: 'Morning Roll-Call', href: '/dashboard/vice-principal/roll-call', icon: ChevronRightIcon },
-        { label: 'Roll Call', href: '/dashboard/vice-principal/dm-roll-call', icon: ChevronRightIcon },
-        { label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls', icon: ChevronRightIcon },
-        { label: 'Teacher Attendance', href: '/dashboard/vice-principal/teacher-attendance', icon: ChevronRightIcon },
-        { label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons', icon: ChevronRightIcon },
-        { label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions', icon: ChevronRightIcon },
-        { label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments', icon: ChevronRightIcon },
-        { label: 'Broken Property', href: '/dashboard/vice-principal/broken-property', icon: ChevronRightIcon },
-        { label: 'Report Requests', href: '/dashboard/vice-principal/report-requests', icon: ChevronRightIcon },
-        { label: 'Seized Items', href: '/dashboard/vice-principal/seized-items', icon: ChevronRightIcon },
-      ]
-    },
+    { icon: ClipboardDocumentCheckIcon, label: 'Roll Call', href: '/dashboard/vice-principal/dm-roll-call' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/vice-principal/teacher-roll-calls' },
+    { icon: ClockIcon, label: 'Teacher Attendance', href: '/dashboard/vice-principal/teacher-attendance' },
+    { icon: ExclamationTriangleIcon, label: 'Warnings & Summons', href: '/dashboard/vice-principal/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/vice-principal/absences' },
+    { icon: ShieldExclamationIcon, label: 'Disciplinary Actions', href: '/dashboard/vice-principal/disciplinary-actions' },
+    { icon: CalendarIcon, label: 'Saturday Punishments', href: '/dashboard/vice-principal/punishments' },
+    { icon: ArchiveBoxIcon, label: 'Broken Property', href: '/dashboard/vice-principal/broken-property' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/vice-principal/report-requests' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/vice-principal/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/vice-principal/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/vice-principal/statistics' },
   ],
   manager: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
@@ -234,19 +242,15 @@ export const menuItems: MenuItemsStructure = {
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/manager/finance-requests' },
     { icon: BanknotesIcon, label: 'Salary Management', href: '/dashboard/manager/salaries' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/manager/expenditures' },
-    {
-      icon: ClipboardDocumentListIcon, label: 'Discipline', href: '/dashboard/manager/discipline', subItems: [
-        { label: 'Morning Roll-Call', href: '/dashboard/manager/roll-call', icon: ChevronRightIcon },
-        { label: 'Disciplinary Actions', href: '/dashboard/manager/disciplinary-actions', icon: ChevronRightIcon },
-        { label: 'Saturday Punishments', href: '/dashboard/manager/punishments', icon: ChevronRightIcon },
-        { label: 'Broken Property', href: '/dashboard/manager/broken-property', icon: ChevronRightIcon },
-        { label: 'Report Requests', href: '/dashboard/manager/report-requests', icon: ChevronRightIcon },
-      ]
-    },
+    { icon: ShieldExclamationIcon, label: 'Disciplinary Actions', href: '/dashboard/manager/disciplinary-actions' },
+    { icon: CalendarIcon, label: 'Saturday Punishments', href: '/dashboard/manager/punishments' },
+    { icon: ArchiveBoxIcon, label: 'Broken Property', href: '/dashboard/manager/broken-property' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/manager/report-requests' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/manager/defaulters' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/manager/statistics' },
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
@@ -257,9 +261,11 @@ export const menuItems: MenuItemsStructure = {
   ],
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
-    { icon: ClipboardDocumentCheckIcon, label: 'Morning Roll-Call', href: '/dashboard/dean-of-discipline/roll-call' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/dean-of-discipline/absences' },
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },
@@ -269,6 +275,27 @@ export const menuItems: MenuItemsStructure = {
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
     { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/dean-of-discipline/finance-requests' },
+  ],
+  // DISCIPLINE_COORDINATOR is a scaffold: only the landing page lives under its own URL prefix.
+  // Every sub-tab points at the equivalent Dean-of-Discipline page — the backend authorize lists
+  // already accept DISCIPLINE_COORDINATOR everywhere DoD is allowed, so those pages work as-is.
+  // Personnel Management points at Principal's — the coordinator's personnel-scope guard on the
+  // /users/* endpoints keeps the actor from touching anyone outside the DM/SDM/DoD chain.
+  'discipline-coordinator': [
+    { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-coordinator' },
+    { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
+    { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
+    { icon: UserGroupIcon, label: 'Personnel Management', href: '/dashboard/principal/personnel-management' },
+    { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
+    { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
+    { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },
+    { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
+    { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
+    { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
+    { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
+    { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
   ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
@@ -296,6 +323,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/secretary/enrollment' },
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
+    { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/secretary/forms' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/secretary/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
     { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },

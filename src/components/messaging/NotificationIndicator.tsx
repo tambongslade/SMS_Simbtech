@@ -12,6 +12,7 @@ import {
 } from '@/lib/notifications-api';
 import { BellIcon, TrashIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { notificationLink } from '@/lib/notificationLinks';
 import { BellIcon as BellSolidIcon } from '@heroicons/react/24/solid';
 import { toast } from 'react-hot-toast';
@@ -55,6 +56,7 @@ export default function NotificationIndicator({
 }: NotificationIndicatorProps) {
     const router = useRouter();
     const { selectedRole } = useAuth();
+    const { t } = useLanguage();
     const containerRef = useRef<HTMLDivElement>(null);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
@@ -139,9 +141,9 @@ export default function NotificationIndicator({
         if (result.success) {
             setNotifications(prev => prev.map(n => ({ ...n, status: 'READ' as const })));
             setUnreadCount(0);
-            toast.success('All notifications marked as read.');
+            toast.success(t('All notifications marked as read.'));
         } else {
-            toast.error(result.error || 'Failed to mark all as read.');
+            toast.error(result.error || t('Failed to mark all as read.'));
         }
     };
 
@@ -152,7 +154,7 @@ export default function NotificationIndicator({
             setNotifications(prev => prev.filter(n => n.id !== notification.id));
             if (isUnread(notification)) setUnreadCount(prev => Math.max(0, prev - 1));
         } else {
-            toast.error(result.error || 'Failed to delete notification.');
+            toast.error(result.error || t('Failed to delete notification.'));
         }
     };
 
@@ -161,8 +163,8 @@ export default function NotificationIndicator({
             <button
                 onClick={handleBellClick}
                 className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg"
-                title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
-                aria-label="Notifications"
+                title={unreadCount > 0 ? `${unreadCount} ${t('unread notifications')}` : t('Notifications')}
+                aria-label={t('Notifications')}
             >
                 {unreadCount > 0 ? (
                     <BellSolidIcon className="h-6 w-6 text-blue-600" />
@@ -179,22 +181,22 @@ export default function NotificationIndicator({
             {isOpen && (
                 <div className="absolute right-0 z-50 mt-2 w-80 sm:w-96 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                        <h3 className="text-sm font-semibold text-gray-900">{t('Notifications')}</h3>
                         {unreadCount > 0 && (
                             <button
                                 onClick={handleMarkAllRead}
                                 className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
                             >
-                                <CheckIcon className="h-4 w-4" /> Mark all read
+                                <CheckIcon className="h-4 w-4" /> {t('Mark all read')}
                             </button>
                         )}
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">
                         {isLoadingList ? (
-                            <p className="p-4 text-sm text-gray-500">Loading…</p>
+                            <p className="p-4 text-sm text-gray-500">{t('Loading…')}</p>
                         ) : notifications.length === 0 ? (
-                            <p className="p-6 text-sm text-gray-500 text-center">No notifications yet.</p>
+                            <p className="p-6 text-sm text-gray-500 text-center">{t('No notifications yet.')}</p>
                         ) : (
                             <ul className="divide-y divide-gray-100">
                                 {notifications.map((notification) => (
@@ -226,7 +228,7 @@ export default function NotificationIndicator({
                                                     tabIndex={0}
                                                     onClick={(e) => handleDelete(notification, e)}
                                                     onKeyDown={(e) => { if (e.key === 'Enter') handleDelete(notification, e as unknown as React.MouseEvent); }}
-                                                    title="Delete notification"
+                                                    title={t('Delete notification')}
                                                     className="p-1 text-gray-300 hover:text-red-500 shrink-0 cursor-pointer"
                                                 >
                                                     <TrashIcon className="h-4 w-4" />

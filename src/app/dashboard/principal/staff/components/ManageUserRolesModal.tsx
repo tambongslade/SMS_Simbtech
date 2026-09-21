@@ -1,5 +1,6 @@
 'use client';
 import React, { Dispatch, SetStateAction } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Define Role type (can be imported if shared)
 type Role = {
@@ -28,6 +29,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
     onAssignRoles,
     isLoading,
 }) => {
+    const { t } = useLanguage();
     if (!isOpen) return null;
 
     const handleRoleToggle = (roleValue: string) => {
@@ -41,7 +43,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
             <div className="relative mx-auto p-8 border w-full max-w-lg shadow-lg rounded-md bg-white max-h-[90vh] overflow-y-auto">
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-1">Manage Roles for:</h3>
+                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-1">{t('Manage Roles for')}:</h3>
                 <p className="text-xl font-semibold text-indigo-600 mb-6">{userName}</p>
 
                 <div className="space-y-3 mb-6 max-h-72 overflow-y-auto pr-2">
@@ -63,7 +65,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
 
                 <div className="flex justify-end space-x-3 pt-5 border-t">
                     <button type="button" onClick={onClose} className="px-4 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300" disabled={isLoading}>
-                        Cancel
+                        {t('Cancel')}
                     </button>
                     <button
                         type="button"
@@ -71,7 +73,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                         className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
                         disabled={isLoading || currentRoles.length === 0} // Example: Disable if no roles selected
                     >
-                        {isLoading ? 'Assigning...' : 'Assign Roles'}
+                        {isLoading ? t('Assigning...') : t('Assign Roles')}
                     </button>
                 </div>
             </div>

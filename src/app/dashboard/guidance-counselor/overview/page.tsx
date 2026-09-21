@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
@@ -99,6 +100,7 @@ interface ScheduledAppointment {
 
 export default function GuidanceCounselorDashboard() {
   const { user, selectedAcademicYear } = useAuth(); // Corrected academicYear property
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [students, setStudents] = useState<StudentProfile[]>([]);
@@ -168,7 +170,7 @@ export default function GuidanceCounselorDashboard() {
 
     } catch (error) {
       console.error('Error fetching guidance counselor dashboard data:', error);
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
@@ -236,19 +238,19 @@ export default function GuidanceCounselorDashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Guidance Counselor Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">{t('Guidance Counselor Dashboard')}</h1>
           <p className="text-gray-600 mt-1">
-            Student support and intervention tracking for {selectedAcademicYear?.name} {/* Corrected property */}
+            {t('Student support and intervention tracking for')} {selectedAcademicYear?.name} {/* Corrected property */}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Button variant="outline" className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4" />
-            Schedule Session
+            {t('Schedule Session')}
           </Button>
           <Button className="flex items-center gap-2">
             <PlusIcon className="h-4 w-4" />
-            New Intervention
+            {t('New Intervention')}
           </Button>
         </div>
       </div>
@@ -256,25 +258,25 @@ export default function GuidanceCounselorDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Students Supported"
+          title={t('Students Supported')}
           value={dashboardStats?.totalStudentsSupported?.toString() || '0'} // Convert to string
           icon={UserGroupIcon}
           color="primary" // Corrected color
         />
         <StatsCard
-          title="Active Cases"
+          title={t('Active Cases')}
           value={dashboardStats?.activeCases?.toString() || '0'} // Convert to string
           icon={ClipboardDocumentListIcon}
           color="success" // Corrected color
         />
         <StatsCard
-          title="Scheduled Sessions"
+          title={t('Scheduled Sessions')}
           value={dashboardStats?.scheduledSessions?.toString() || '0'} // Convert to string
           icon={CalendarIcon}
           color="secondary" // Corrected color
         />
         <StatsCard
-          title="Success Rate"
+          title={t('Success Rate')}
           value={`${dashboardStats?.interventionSuccess?.toFixed(1) || 0}%`}
           icon={HeartIcon}
           color="warning" // Corrected color
@@ -288,15 +290,14 @@ export default function GuidanceCounselorDashboard() {
             <div className="flex items-center gap-3 mb-4">
               <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
               <h3 className="text-lg font-semibold text-red-900">
-                Crisis Interventions Required
+                {t('Crisis Interventions Required')}
               </h3>
               <span className="px-2 py-1 text-sm bg-red-100 text-red-800 rounded-full">
-                {dashboardStats?.crisisInterventions} active
+                {dashboardStats?.crisisInterventions} {t('active')}
               </span>
             </div>
             <p className="text-gray-700">
-              {dashboardStats?.crisisInterventions} students require immediate crisis intervention support.
-              Please review the high-priority cases in the Students tab.
+              {dashboardStats?.crisisInterventions} {t('students require immediate crisis intervention support. Please review the high-priority cases in the Students tab.')}
             </p>
           </div>
         </Card>
@@ -306,10 +307,10 @@ export default function GuidanceCounselorDashboard() {
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto">
           {[
-            { id: 'overview', label: 'Overview' },
-            { id: 'students', label: 'Students' },
-            { id: 'sessions', label: 'Sessions' },
-            { id: 'appointments', label: 'Appointments' }
+            { id: 'overview', label: t('Overview') },
+            { id: 'students', label: t('Students') },
+            { id: 'sessions', label: t('Sessions') },
+            { id: 'appointments', label: t('Appointments') }
           ].map((tab) => (
             <button
               key={tab.id}
@@ -332,7 +333,7 @@ export default function GuidanceCounselorDashboard() {
             <Card>
               <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Risk Level Distribution
+                  {t('Risk Level Distribution')}
                 </h3>
                 <div className="space-y-3">
                   {Object.entries(dashboardStats?.riskLevelDistribution || {}).map(([level, count]) => (
@@ -341,7 +342,7 @@ export default function GuidanceCounselorDashboard() {
                         <span className={`px-2 py-1 text-xs rounded-full ${getRiskColor(level.toUpperCase())}`}>
                           {level.toUpperCase()}
                         </span>
-                        <span className="text-gray-700">{level.charAt(0).toUpperCase() + level.slice(1)} Risk</span>
+                        <span className="text-gray-700">{level.charAt(0).toUpperCase() + level.slice(1)} {t('Risk')}</span>
                       </div>
                       <span className="font-semibold text-gray-900">{count}</span>
                     </div>
@@ -353,7 +354,7 @@ export default function GuidanceCounselorDashboard() {
             <Card>
               <div className="p-4 sm:p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Common Issues
+                  {t('Common Issues')}
                 </h3>
                 <div className="space-y-3">
                   {dashboardStats?.commonIssues?.map((issue, index) => (
@@ -376,7 +377,7 @@ export default function GuidanceCounselorDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Intervention Effectiveness
+                {t('Intervention Effectiveness')}
               </h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 {dashboardStats?.interventionEffectiveness?.map((intervention, index) => (
@@ -384,11 +385,11 @@ export default function GuidanceCounselorDashboard() {
                     <h4 className="font-medium text-gray-900 mb-2">{intervention.type}</h4>
                     <div className="space-y-2">
                       <div>
-                        <p className="text-sm text-gray-600">Success Rate</p>
+                        <p className="text-sm text-gray-600">{t('Success Rate')}</p>
                         <p className="text-xl font-bold text-green-600">{intervention.successRate}%</p>
                       </div>
                       <div>
-                        <p className="text-sm text-gray-600">Avg. Sessions</p>
+                        <p className="text-sm text-gray-600">{t('Avg. Sessions')}</p>
                         <p className="text-lg font-semibold text-blue-600">{intervention.averageSessions}</p>
                       </div>
                     </div>
@@ -405,7 +406,7 @@ export default function GuidanceCounselorDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Students Under Support ({students.length})
+                {t('Students Under Support')} ({students.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {students.map((student) => (
@@ -425,10 +426,10 @@ export default function GuidanceCounselorDashboard() {
                     </div>
 
                     <div className="mb-3">
-                      <p className="text-sm text-gray-600">Sessions: {student.totalSessions}</p>
+                      <p className="text-sm text-gray-600">{t('Sessions:')} {student.totalSessions}</p>
                       {student.lastSessionDate && (
                         <p className="text-xs text-gray-500">
-                          Last: {new Date(student.lastSessionDate).toLocaleDateString()}
+                          {t('Last:')} {new Date(student.lastSessionDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>
@@ -441,11 +442,11 @@ export default function GuidanceCounselorDashboard() {
                         className="flex items-center gap-1"
                       >
                         <EyeIcon className="h-3 w-3" />
-                        View
+                        {t('View')}
                       </Button>
                       {student.nextAppointment && (
                         <span className="text-xs text-blue-600">
-                          Next: {new Date(student.nextAppointment).toLocaleDateString()}
+                          {t('Next:')} {new Date(student.nextAppointment).toLocaleDateString()}
                         </span>
                       )}
                     </div>
@@ -462,12 +463,12 @@ export default function GuidanceCounselorDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Recent Sessions
+                {t('Recent Sessions')}
               </h3>
               <div className="text-center py-8 text-gray-500">
                 <ChatBubbleLeftRightIcon className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p>Session history will be available soon</p>
-                <p className="text-sm">Track and review completed counseling sessions</p>
+                <p>{t('Session history will be available soon')}</p>
+                <p className="text-sm">{t('Track and review completed counseling sessions')}</p>
               </div>
             </div>
           </Card>
@@ -479,7 +480,7 @@ export default function GuidanceCounselorDashboard() {
           <Card>
             <div className="p-4 sm:p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Upcoming Appointments
+                {t('Upcoming Appointments')}
               </h3>
               <div className="space-y-3">
                 {upcomingAppointments.map((appointment) => (
@@ -491,13 +492,13 @@ export default function GuidanceCounselorDashboard() {
                           {appointment.priority}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600">{appointment.className} • {appointment.sessionType}</p> {/* Corrected typo: Removed 'L' */}
-                      <p className="text-sm text-gray-600">Duration: {appointment.duration} minutes</p>
+                      <p className="text-sm text-gray-600">{appointment.className} • {appointment.sessionType}</p>
+                      <p className="text-sm text-gray-600">{t('Duration:')} {appointment.duration} {t('minutes')}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        Issues: {appointment.issues.join(', ')}
+                        {t('Issues:')} {appointment.issues.join(', ')}
                       </p>
                       {appointment.notes && (
-                        <p className="text-xs text-gray-500 mt-1">Notes: {appointment.notes}</p>
+                        <p className="text-xs text-gray-500 mt-1">{t('Notes:')} {appointment.notes}</p>
                       )}
                     </div>
                     <div className="text-right">
@@ -509,10 +510,10 @@ export default function GuidanceCounselorDashboard() {
                       </p>
                       <div className="flex gap-2 mt-2">
                         <Button size="sm" variant="outline">
-                          Reschedule
+                          {t('Reschedule')}
                         </Button>
                         <Button size="sm">
-                          Start Session
+                          {t('Start Session')}
                         </Button>
                       </div>
                     </div>
@@ -528,7 +529,7 @@ export default function GuidanceCounselorDashboard() {
       <Modal
         isOpen={isStudentModalOpen}
         onClose={() => setIsStudentModalOpen(false)}
-        title="Student Profile"
+        title={t('Student Profile')}
       >
         {selectedStudent && (
           <div className="space-y-6">
@@ -539,28 +540,28 @@ export default function GuidanceCounselorDashboard() {
                 <p className="text-sm text-gray-500">{selectedStudent.matricule}</p>
               </div>
               <span className={`px-3 py-1 text-sm rounded-full ${getRiskColor(selectedStudent.riskLevel)}`}>
-                {selectedStudent.riskLevel} Risk
+                {selectedStudent.riskLevel} {t('Risk')}
               </span>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-sm text-gray-600">Total Sessions</p>
+                <p className="text-sm text-gray-600">{t('Total Sessions')}</p>
                 <p className="text-xl font-bold text-blue-600">{selectedStudent.totalSessions}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-600">Last Session</p>
+                <p className="text-sm text-gray-600">{t('Last Session')}</p>
                 <p className="text-sm text-gray-900">
                   {selectedStudent.lastSessionDate
                     ? new Date(selectedStudent.lastSessionDate).toLocaleDateString()
-                    : 'Never'
+                    : t('Never')
                   }
                 </p>
               </div>
             </div>
 
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Current Issues</h4>
+              <h4 className="font-medium text-gray-900 mb-2">{t('Current Issues')}</h4>
               <div className="flex flex-wrap gap-2">
                 {selectedStudent.issues.map((issue, index) => (
                   <span key={index} className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded-full">
@@ -571,7 +572,7 @@ export default function GuidanceCounselorDashboard() {
             </div>
 
             <div>
-              <h4 className="font-medium text-gray-900 mb-2">Improvements</h4>
+              <h4 className="font-medium text-gray-900 mb-2">{t('Improvements')}</h4>
               <div className="flex flex-wrap gap-2">
                 {selectedStudent.improvements.map((improvement, index) => (
                   <span key={index} className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">
@@ -583,9 +584,9 @@ export default function GuidanceCounselorDashboard() {
 
             {selectedStudent.nextAppointment && (
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">Next Appointment</h4>
+                <h4 className="font-medium text-gray-900 mb-2">{t('Next Appointment')}</h4>
                 <p className="text-sm text-gray-700">
-                  {new Date(selectedStudent.nextAppointment).toLocaleDateString()} at{' '}
+                  {new Date(selectedStudent.nextAppointment).toLocaleDateString()} {t('at')}{' '}
                   {new Date(selectedStudent.nextAppointment).toLocaleTimeString()}
                 </p>
               </div>
@@ -593,10 +594,10 @@ export default function GuidanceCounselorDashboard() {
 
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline">
-                Schedule Session
+                {t('Schedule Session')}
               </Button>
               <Button>
-                Start Intervention
+                {t('Start Intervention')}
               </Button>
             </div>
           </div>

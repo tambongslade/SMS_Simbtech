@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
 import {
@@ -70,6 +71,7 @@ interface Teacher {
 
 export default function HODStaffManagement() {
     const { user, academicYear } = useAuth();
+    const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [teachers, setTeachers] = useState<TeacherInDepartment[]>([]);
     const [filteredTeachers, setFilteredTeachers] = useState<TeacherInDepartment[]>([]);
@@ -125,7 +127,7 @@ export default function HODStaffManagement() {
             setAllTeachers(allTeachersResponse.data);
         } catch (error) {
             console.error('Error fetching data:', error);
-            toast.error('Failed to load staff data');
+            toast.error(t('Failed to load staff data'));
         } finally {
             setLoading(false);
         }
@@ -138,7 +140,7 @@ export default function HODStaffManagement() {
 
     const handleAssignTeacher = async () => {
         if (!assignmentData.subjectId || !assignmentData.teacherId) {
-            toast.error('Please select both subject and teacher');
+            toast.error(t('Please select both subject and teacher'));
             return;
         }
 
@@ -148,13 +150,13 @@ export default function HODStaffManagement() {
                 teacherId: assignmentData.teacherId
             });
 
-            toast.success('Teacher assigned to subject successfully');
+            toast.success(t('Teacher assigned to subject successfully'));
             setIsAssignModalOpen(false);
             setAssignmentData({ subjectId: 0, teacherId: 0 });
             fetchData();
         } catch (error) {
             console.error('Error assigning teacher:', error);
-            toast.error('Failed to assign teacher to subject');
+            toast.error(t('Failed to assign teacher to subject'));
         }
     };
 
@@ -208,9 +210,9 @@ export default function HODStaffManagement() {
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Department Staff</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">{t('Department Staff')}</h1>
                     <p className="text-gray-600 mt-1">
-                        Manage and monitor department teachers for {academicYear?.name}
+                        {t('Manage and monitor department teachers for')} {academicYear?.name}
                     </p>
                 </div>
                 <Button
@@ -218,32 +220,32 @@ export default function HODStaffManagement() {
                     className="flex items-center gap-2"
                 >
                     <PlusIcon className="h-4 w-4" />
-                    Assign Teacher to Subject
+                    {t('Assign Teacher to Subject')}
                 </Button>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatsCard
-                    title="Total Teachers"
+                    title={t('Total Teachers')}
                     value={stats.totalTeachers}
                     icon={UserGroupIcon}
                     color="blue"
                 />
                 <StatsCard
-                    title="Avg. Performance"
+                    title={t('Avg. Performance')}
                     value={`${stats.averagePerformance.toFixed(1)}`}
                     icon={ChartBarIcon}
                     color="green"
                 />
                 <StatsCard
-                    title="Students Taught"
+                    title={t('Students Taught')}
                     value={stats.totalStudents}
                     icon={UsersIcon}
                     color="purple"
                 />
                 <StatsCard
-                    title="Weekly Hours"
+                    title={t('Weekly Hours')}
                     value={stats.totalHours}
                     icon={BookOpenIcon}
                     color="orange"
@@ -258,7 +260,7 @@ export default function HODStaffManagement() {
                             <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                             <Input
                                 type="text"
-                                placeholder="Search teachers by name, email, or matricule..."
+                                placeholder={t('Search teachers by name, email, or matricule...')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="pl-10"
@@ -272,29 +274,29 @@ export default function HODStaffManagement() {
             <Card>
                 <div className="p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Department Teachers ({filteredTeachers.length})
+                        {t('Department Teachers')} ({filteredTeachers.length})
                     </h3>
                     <div className="hidden md:block overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Teacher
+                                        {t('Teacher')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Subjects
+                                        {t('Subjects')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Students
+                                        {t('Students')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Performance
+                                        {t('Performance')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Weekly Hours
+                                        {t('Weekly Hours')}
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                        Actions
+                                        {t('Actions')}
                                     </th>
                                 </tr>
                             </thead>
@@ -312,7 +314,7 @@ export default function HODStaffManagement() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {teacher.subjectsTeaching.length} subjects
+                                                {teacher.subjectsTeaching.length} {t('subjects')}
                                             </div>
                                             <div className="text-xs text-gray-500">
                                                 {teacher.subjectsTeaching.slice(0, 2).map(s => s.name).join(', ')}
@@ -324,14 +326,14 @@ export default function HODStaffManagement() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {teacher.performanceMetrics.averageMarks.toFixed(1)} avg
+                                                {teacher.performanceMetrics.averageMarks.toFixed(1)} {t('avg')}
                                             </div>
                                             <div className="text-xs text-gray-500">
-                                                {teacher.performanceMetrics.passRate.toFixed(1)}% pass rate
+                                                {teacher.performanceMetrics.passRate.toFixed(1)}% {t('pass rate')}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                            {teacher.totalHoursPerWeek}h/week
+                                            {teacher.totalHoursPerWeek}{t('h/week')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                             <Button
@@ -341,7 +343,7 @@ export default function HODStaffManagement() {
                                                 className="flex items-center gap-1"
                                             >
                                                 <EyeIcon className="h-4 w-4" />
-                                                View Details
+                                                {t('View Details')}
                                             </Button>
                                         </td>
                                     </tr>
@@ -356,17 +358,17 @@ export default function HODStaffManagement() {
                                     {teacher.name}
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Matricule</span>
+                                    <span className="text-xs text-gray-500">{t('Matricule')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">{teacher.matricule}</span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Email</span>
+                                    <span className="text-xs text-gray-500">{t('Email')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">{teacher.email}</span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Subjects</span>
+                                    <span className="text-xs text-gray-500">{t('Subjects')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
-                                        {teacher.subjectsTeaching.length} subjects
+                                        {teacher.subjectsTeaching.length} {t('subjects')}
                                         {teacher.subjectsTeaching.length > 0 && (
                                             <span className="block text-xs text-gray-500">
                                                 {teacher.subjectsTeaching.slice(0, 2).map(s => s.name).join(', ')}
@@ -376,24 +378,24 @@ export default function HODStaffManagement() {
                                     </span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Students</span>
+                                    <span className="text-xs text-gray-500">{t('Students')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
                                         {teacher.performanceMetrics.totalStudents}
                                     </span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Performance</span>
+                                    <span className="text-xs text-gray-500">{t('Performance')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
-                                        {teacher.performanceMetrics.averageMarks.toFixed(1)} avg
+                                        {teacher.performanceMetrics.averageMarks.toFixed(1)} {t('avg')}
                                         <span className="block text-xs text-gray-500">
-                                            {teacher.performanceMetrics.passRate.toFixed(1)}% pass rate
+                                            {teacher.performanceMetrics.passRate.toFixed(1)}% {t('pass rate')}
                                         </span>
                                     </span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
-                                    <span className="text-xs text-gray-500">Weekly Hours</span>
+                                    <span className="text-xs text-gray-500">{t('Weekly Hours')}</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
-                                        {teacher.totalHoursPerWeek}h/week
+                                        {teacher.totalHoursPerWeek}{t('h/week')}
                                     </span>
                                 </div>
                                 <div className="flex flex-wrap gap-2 pt-1.5">
@@ -404,7 +406,7 @@ export default function HODStaffManagement() {
                                         className="flex items-center gap-1"
                                     >
                                         <EyeIcon className="h-4 w-4" />
-                                        View Details
+                                        {t('View Details')}
                                     </Button>
                                 </div>
                             </div>
@@ -417,30 +419,30 @@ export default function HODStaffManagement() {
             <Modal
                 isOpen={isViewModalOpen}
                 onClose={() => setIsViewModalOpen(false)}
-                title="Teacher Details"
+                title={t('Teacher Details')}
             >
                 {selectedTeacher && (
                     <div className="space-y-6">
                         {/* Basic Info */}
                         <div>
                             <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                                Basic Information
+                                {t('Basic Information')}
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm text-gray-600">Name</p>
+                                    <p className="text-sm text-gray-600">{t('Name')}</p>
                                     <p className="font-medium">{selectedTeacher.name}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Matricule</p>
+                                    <p className="text-sm text-gray-600">{t('Matricule')}</p>
                                     <p className="font-medium">{selectedTeacher.matricule}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Email</p>
+                                    <p className="text-sm text-gray-600">{t('Email')}</p>
                                     <p className="font-medium">{selectedTeacher.email}</p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Phone</p>
+                                    <p className="text-sm text-gray-600">{t('Phone')}</p>
                                     <p className="font-medium">{selectedTeacher.phone}</p>
                                 </div>
                             </div>
@@ -449,29 +451,29 @@ export default function HODStaffManagement() {
                         {/* Performance Metrics */}
                         <div>
                             <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                                Performance Metrics
+                                {t('Performance Metrics')}
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <p className="text-sm text-gray-600">Total Students</p>
+                                    <p className="text-sm text-gray-600">{t('Total Students')}</p>
                                     <p className="text-xl font-bold text-blue-600">
                                         {selectedTeacher.performanceMetrics.totalStudents}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Average Marks</p>
+                                    <p className="text-sm text-gray-600">{t('Average Marks')}</p>
                                     <p className="text-xl font-bold text-green-600">
                                         {selectedTeacher.performanceMetrics.averageMarks.toFixed(1)}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Pass Rate</p>
+                                    <p className="text-sm text-gray-600">{t('Pass Rate')}</p>
                                     <p className="text-xl font-bold text-purple-600">
                                         {selectedTeacher.performanceMetrics.passRate.toFixed(1)}%
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-sm text-gray-600">Excellence Rate</p>
+                                    <p className="text-sm text-gray-600">{t('Excellence Rate')}</p>
                                     <p className="text-xl font-bold text-orange-600">
                                         {selectedTeacher.performanceMetrics.excellentRate.toFixed(1)}%
                                     </p>
@@ -482,7 +484,7 @@ export default function HODStaffManagement() {
                         {/* Subjects Teaching */}
                         <div>
                             <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                                Subjects Teaching
+                                {t('Subjects Teaching')}
                             </h4>
                             <div className="space-y-3">
                                 {selectedTeacher.subjectsTeaching.map((subject) => (
@@ -494,12 +496,12 @@ export default function HODStaffManagement() {
                                             <div>
                                                 <h5 className="font-medium text-gray-900">{subject.name}</h5>
                                                 <p className="text-sm text-gray-600">
-                                                    {subject.classCount} classes • {subject.studentCount} students
+                                                    {subject.classCount} {t('classes')} • {subject.studentCount} {t('students')}
                                                 </p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="text-sm font-medium text-blue-600">
-                                                    Avg: {subject.averageMarks.toFixed(1)}
+                                                    {t('Avg')}: {subject.averageMarks.toFixed(1)}
                                                 </p>
                                             </div>
                                         </div>
@@ -511,7 +513,7 @@ export default function HODStaffManagement() {
                         {/* Classes Teaching */}
                         <div>
                             <h4 className="text-lg font-semibold text-gray-900 mb-3">
-                                Classes Teaching
+                                {t('Classes Teaching')}
                             </h4>
                             <div className="space-y-2">
                                 {selectedTeacher.classesTeaching.map((classItem) => (
@@ -522,11 +524,11 @@ export default function HODStaffManagement() {
                                         <div>
                                             <span className="font-medium">{classItem.className} - {classItem.name}</span>
                                             <span className="text-sm text-gray-600 ml-2">
-                                                ({classItem.studentCount} students)
+                                                ({classItem.studentCount} {t('students')})
                                             </span>
                                         </div>
                                         <span className="text-sm font-medium text-blue-600">
-                                            Avg: {classItem.averageMarks.toFixed(1)}
+                                            {t('Avg')}: {classItem.averageMarks.toFixed(1)}
                                         </span>
                                     </div>
                                 ))}
@@ -540,12 +542,12 @@ export default function HODStaffManagement() {
             <Modal
                 isOpen={isAssignModalOpen}
                 onClose={() => setIsAssignModalOpen(false)}
-                title="Assign Teacher to Subject"
+                title={t('Assign Teacher to Subject')}
             >
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Subject
+                            {t('Subject')}
                         </label>
                         <select
                             value={assignmentData.subjectId}
@@ -555,7 +557,7 @@ export default function HODStaffManagement() {
                             }))}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value={0}>Select a subject</option>
+                            <option value={0}>{t('Select a subject')}</option>
                             {subjects.map((subject) => (
                                 <option key={subject.id} value={subject.id}>
                                     {subject.name} ({subject.category})
@@ -566,7 +568,7 @@ export default function HODStaffManagement() {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Teacher
+                            {t('Teacher')}
                         </label>
                         <select
                             value={assignmentData.teacherId}
@@ -576,7 +578,7 @@ export default function HODStaffManagement() {
                             }))}
                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         >
-                            <option value={0}>Select a teacher</option>
+                            <option value={0}>{t('Select a teacher')}</option>
                             {allTeachers.map((teacher) => (
                                 <option key={teacher.id} value={teacher.id}>
                                     {teacher.name} ({teacher.matricule})
@@ -590,10 +592,10 @@ export default function HODStaffManagement() {
                             onClick={() => setIsAssignModalOpen(false)}
                             variant="outline"
                         >
-                            Cancel
+                            {t('Cancel')}
                         </Button>
                         <Button onClick={handleAssignTeacher}>
-                            Assign Teacher
+                            {t('Assign Teacher')}
                         </Button>
                     </div>
                 </div>

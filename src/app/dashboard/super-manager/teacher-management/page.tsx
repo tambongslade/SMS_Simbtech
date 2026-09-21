@@ -12,11 +12,13 @@ import { TeacherTable } from '@/components/teachers/TeacherTable';
 import { TeacherPagination } from '@/components/teachers/TeacherPagination';
 import { AssignSubjectsModal } from '@/components/teachers/AssignSubjectsModal';
 import type { TeacherSearchItem, TeacherSubjectBrief } from '@/lib/teacherSearchApi';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 const errorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Unexpected error';
 
 export default function TeacherManagementPage() {
+  const { t } = useLanguage();
   const { selectedAcademicYear } = useAuth();
   const search = useTeacherSearch({
     academicYearId: selectedAcademicYear?.id,
@@ -87,10 +89,10 @@ export default function TeacherManagementPage() {
     <div className="p-4 sm:p-6 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <div className="mb-6 bg-white p-4 rounded-lg shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">Teacher Management</h1>
-          <p className="text-gray-600 mt-1">Search teachers and manage their subject allocations.</p>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Teacher Management')}</h1>
+          <p className="text-gray-600 mt-1">{t('Search teachers and manage their subject allocations.')}</p>
           {selectedAcademicYear && (
-            <div className="mt-2 text-sm text-gray-500">Academic Year: {selectedAcademicYear.name}</div>
+            <div className="mt-2 text-sm text-gray-500">{t('Academic Year')}: {selectedAcademicYear.name}</div>
           )}
         </div>
 
@@ -105,19 +107,19 @@ export default function TeacherManagementPage() {
               <button
                 onClick={() => setTeacherToAssign(teacher)}
                 disabled={isSaving}
-                title="Manage Assigned Subjects"
+                title={t('Manage Assigned Subjects')}
                 className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
               >
-                <BookOpenIcon className="h-4 w-4 mr-1" /> Manage Subjects
+                <BookOpenIcon className="h-4 w-4 mr-1" /> {t('Manage Subjects')}
               </button>
               <button
                 onClick={() => handleDownloadTimetablePdf(teacher)}
                 disabled={timetablePdfTeacherId !== null}
-                title="Download this teacher's timetable as PDF"
+                title={t("Download this teacher's timetable as PDF")}
                 className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
               >
                 <DocumentArrowDownIcon className="h-4 w-4 mr-1" />
-                {timetablePdfTeacherId === teacher.id ? 'Preparing...' : 'Timetable PDF'}
+                {timetablePdfTeacherId === teacher.id ? t('Preparing...') : t('Timetable PDF')}
               </button>
             </div>
           )}

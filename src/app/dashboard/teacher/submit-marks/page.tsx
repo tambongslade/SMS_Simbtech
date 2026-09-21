@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Types
 interface Subject {
@@ -62,6 +63,7 @@ interface StudentMarkRow extends Student {
 }
 
 export default function SubmitMarks() {
+  const { t } = useLanguage();
   // Filter state
   const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | ''>('');
   const [selectedExamSequence, setSelectedExamSequence] = useState<number | ''>('');
@@ -135,11 +137,11 @@ export default function SubmitMarks() {
       const error = academicYearsError || examSequencesError || subClassesError || subjectsError;
       console.error("Data Fetch Error:", error);
       if (error?.status === 403) {
-        toast.error('Access denied: Unable to load required data');
+        toast.error(t('Access denied: Unable to load required data'));
       } else if (error?.status === 401) {
-        toast.error('Please log in to access this page');
+        toast.error(t('Please log in to access this page'));
       } else {
-        toast.error('Failed to load required data');
+        toast.error(t('Failed to load required data'));
       }
     }
   }, [academicYearsError, examSequencesError, subClassesError, subjectsError]);
@@ -205,9 +207,9 @@ export default function SubmitMarks() {
     } catch (error: any) {
       console.error('Error fetching students and marks:', error);
       if (error?.status === 403) {
-        toast.error('Access denied: You cannot manage marks for this subject/class combination');
+        toast.error(t('Access denied: You cannot manage marks for this subject/class combination'));
       } else {
-        toast.error('Failed to load students and marks: ' + (error?.message || 'Unknown error'));
+        toast.error(t('Failed to load students and marks') + ': ' + (error?.message || t('Unknown error')));
       }
       setStudentsWithMarks([]);
       setSaveError(error?.message || 'Failed to load data');
@@ -266,7 +268,7 @@ export default function SubmitMarks() {
     const changedStudents = studentsWithMarks.filter(student => student.hasChanges);
 
     if (changedStudents.length === 0) {
-      toast('No changes to save');
+      toast(t('No changes to save'));
       return;
     }
 
@@ -312,7 +314,7 @@ export default function SubmitMarks() {
         hasChanges: false
       })));
 
-      toast.success(`Successfully saved marks for ${changedStudents.length} students`);
+      toast.success(`${t('Successfully saved marks for')} ${changedStudents.length} ${t('students')}`);
 
       // Refresh data
       await fetchStudentsAndMarks();
@@ -320,9 +322,9 @@ export default function SubmitMarks() {
     } catch (error: any) {
       console.error('Error saving marks:', error);
       if (error?.status === 403) {
-        toast.error('Access denied: You cannot submit marks for this subject/class combination');
+        toast.error(t('Access denied: You cannot submit marks for this subject/class combination'));
       } else {
-        toast.error('Failed to save marks: ' + (error?.message || 'Unknown error'));
+        toast.error(t('Failed to save marks') + ': ' + (error?.message || t('Unknown error')));
       }
       setSaveError(error?.message || 'Failed to save marks');
     } finally {
@@ -357,13 +359,13 @@ export default function SubmitMarks() {
         disabled={isLoading || disabled}
         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md disabled:bg-gray-100"
       >
-        <option value="">{placeholder || `Select ${label}`}</option>
-        {isLoading && <option>Loading...</option>}
+        <option value="">{placeholder || `${t('Select')} ${label}`}</option>
+        {isLoading && <option>{t('Loading...')}</option>}
         {!isLoading && options.map((option) => (
           <option key={option.id} value={option.id}>{option.name}</option>
         ))}
         {!isLoading && options.length === 0 && value === '' && (
-          <option disabled>No options available</option>
+          <option disabled>{t('No options available')}</option>
         )}
       </select>
     </div>
@@ -374,12 +376,12 @@ export default function SubmitMarks() {
 
   return (
     <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Submit Marks</h1>
+      <h1 className="text-2xl font-bold mb-6">{t('Submit Marks')}</h1>
 
       {/* Filters Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded shadow">
         {renderFilterDropdown(
-          'Academic Year',
+          t('Academic Year'),
           selectedAcademicYear,
           (e) => setSelectedAcademicYear(Number(e.target.value) || ''),
           academicYears,
@@ -387,7 +389,7 @@ export default function SubmitMarks() {
         )}
 
         {renderFilterDropdown(
-          'Exam Sequence',
+          t('Exam Sequence'),
           selectedExamSequence,
           (e) => setSelectedExamSequence(Number(e.target.value) || ''),
           filteredExamSequences,
@@ -396,7 +398,7 @@ export default function SubmitMarks() {
         )}
 
         {renderFilterDropdown(
-          'Subclass',
+          t('Subclass'),
           selectedSubClass,
           (e) => setSelectedSubClass(Number(e.target.value) || ''),
           subClasses.map(sc => ({ id: sc.id, name: `${sc.class.name} - ${sc.name}` })),
@@ -405,7 +407,7 @@ export default function SubmitMarks() {
         )}
 
         {renderFilterDropdown(
-          'Subject',
+          t('Subject'),
           selectedSubject,
           (e) => setSelectedSubject(Number(e.target.value) || ''),
           subjects,
@@ -434,7 +436,7 @@ export default function SubmitMarks() {
         {isLoadingStudents && (
           <div className="text-center py-10">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading students and marks...</p>
+            <p className="mt-2 text-gray-600">{t('Loading students and marks...')}</p>
           </div>
         )}
 
@@ -442,7 +444,7 @@ export default function SubmitMarks() {
         {!isLoadingStudents && studentsWithMarks.length === 0 &&
           (!selectedAcademicYear || !selectedExamSequence || !selectedSubClass || !selectedSubject) && (
             <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
-              Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.
+              {t('Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.')}
             </div>
           )}
 
@@ -450,7 +452,7 @@ export default function SubmitMarks() {
         {!isLoadingStudents && studentsWithMarks.length === 0 &&
           selectedAcademicYear && selectedExamSequence && selectedSubClass && selectedSubject && (
             <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
-              No students found for the selected filters, or you don't have access to this subject/class combination.
+              {t("No students found for the selected filters, or you don't have access to this subject/class combination.")}
             </div>
           )}
 
@@ -465,16 +467,16 @@ export default function SubmitMarks() {
                       #
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Matricule
+                      {t('Matricule')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Student Name
+                      {t('Student Name')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Mark (out of 20)
+                      {t('Mark (out of 20)')}
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
+                      {t('Status')}
                     </th>
                   </tr>
                 </thead>
@@ -509,15 +511,15 @@ export default function SubmitMarks() {
                       <td className="px-4 py-3 whitespace-nowrap">
                         {student.hasChanges ? (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            Modified
+                            {t('Modified')}
                           </span>
                         ) : student.originalScore !== null ? (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Recorded
+                            {t('Recorded')}
                           </span>
                         ) : (
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            Pending
+                            {t('Pending')}
                           </span>
                         )}
                       </td>
@@ -541,13 +543,13 @@ export default function SubmitMarks() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Matricule</span>
+                    <span className="text-xs text-gray-500">{t('Matricule')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {student.matricule || 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Mark (out of 20)</span>
+                    <span className="text-xs text-gray-500">{t('Mark (out of 20)')}</span>
                     <input
                       type="number"
                       step="0.25"
@@ -564,7 +566,7 @@ export default function SubmitMarks() {
                     />
                   </div>
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">Status</span>
+                    <span className="text-xs text-gray-500">{t('Status')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
                       {student.hasChanges ? (
                         <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
@@ -593,17 +595,17 @@ export default function SubmitMarks() {
                   disabled={currentPage === 1 || isLoadingStudents || isSaving}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Previous
+                  {t('Previous')}
                 </button>
                 <span className="text-sm text-gray-700">
-                  Page {currentPage} of {totalPages}
+                  {t('Page')} {currentPage} {t('of')} {totalPages}
                 </span>
                 <button
                   onClick={handleNextPage}
                   disabled={currentPage === totalPages || isLoadingStudents || isSaving}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Next
+                  {t('Next')}
                 </button>
               </div>
             )}
@@ -621,10 +623,10 @@ export default function SubmitMarks() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Saving...
+                    {t('Saving...')}
                   </span>
                 ) : (
-                  `Save All Changes${hasChanges ? ` (${studentsWithMarks.filter(s => s.hasChanges).length})` : ''}`
+                  `${t('Save All Changes')}${hasChanges ? ` (${studentsWithMarks.filter(s => s.hasChanges).length})` : ''}`
                 )}
               </button>
             </div>

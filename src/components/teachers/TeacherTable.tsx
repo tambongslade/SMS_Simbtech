@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { TeacherSearchItem } from '@/lib/teacherSearchApi';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface TeacherTableProps {
     teachers: TeacherSearchItem[];
@@ -87,8 +88,10 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
     isLoading,
     renderActions,
     getTeacherHref,
-    emptyMessage = 'No teachers found matching your criteria',
+    emptyMessage,
 }) => {
+    const { t } = useLanguage();
+    const effectiveEmptyMessage = emptyMessage ?? t('No teachers found matching your criteria');
     const columnCount = renderActions ? 7 : 6;
 
     const body = () => {

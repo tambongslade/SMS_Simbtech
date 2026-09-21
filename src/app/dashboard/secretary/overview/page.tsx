@@ -9,12 +9,14 @@ import {
   ChevronLeftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { StatsCard } from '@/components/ui';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import { fetchStudents, fetchTeachers, fetchClasses } from '../lib/secretaryApi';
 
 export default function SecretaryOverviewPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [stats, setStats] = useState({ students: 0, teachers: 0, classes: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,30 +51,30 @@ export default function SecretaryOverviewPage() {
           className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 mb-2"
         >
           <ChevronLeftIcon className="h-4 w-4 mr-1" />
-          Back to menu
+          {t('Back to menu')}
         </Link>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Overview</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{t('Overview')}</h1>
         <p className="text-sm text-gray-600 mt-0.5">
-          Totals at a glance
+          {t('Totals at a glance')}
           {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
         </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <StatsCard
-          title="Students"
+          title={t('Students')}
           value={isLoading ? '—' : String(stats.students)}
           icon={UserGroupIcon}
           color="primary"
         />
         <StatsCard
-          title="Teachers"
+          title={t('Teachers')}
           value={isLoading ? '—' : String(stats.teachers)}
           icon={AcademicCapIcon}
           color="success"
         />
         <StatsCard
-          title="Classes"
+          title={t('Classes')}
           value={isLoading ? '—' : String(stats.classes)}
           icon={BuildingLibraryIcon}
           color="secondary"

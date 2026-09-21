@@ -12,6 +12,7 @@ import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import Modal from '@/components/ui/Modal'; // Assuming Modal component is available
 import { Input } from '@/components/ui/Input'; // Importing Input component as named export
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
@@ -83,6 +84,7 @@ export default function InterviewsPage() {
   const [comments, setComments] = useState<string>('');
 
   const { currentAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   // Fetch interviews data
   const { data: interviewsData, error: interviewsError, isLoading: interviewsLoading, mutate: mutateInterviews } = useSWR<GetInterviewsResponse>(
@@ -106,7 +108,7 @@ export default function InterviewsPage() {
     setIsLoading(interviewsLoading || subClassesLoading);
 
     if (interviewsError || subClassesError) {
-      toast.error('Failed to load data');
+      toast.error(t('Failed to load data'));
       console.error('Error fetching data:', interviewsError || subClassesError);
     }
   }, [interviewsData, subClassesData, interviewsError, subClassesError, interviewsLoading, subClassesLoading]);
@@ -226,12 +228,12 @@ export default function InterviewsPage() {
   // Handle class assignment
   const handleAssignClass = async () => {
     if (!subClassToAssign) {
-      toast.error('Please select a class to assign');
+      toast.error(t('Please select a class to assign'));
       return;
     }
 
     if (selectedStudents.length === 0) {
-      toast.error('Please select students to assign');
+      toast.error(t('Please select students to assign'));
       return;
     }
 
@@ -240,7 +242,7 @@ export default function InterviewsPage() {
       const selectedSubClass = subClasses.find(sc => sc.id.toString() === subClassToAssign);
 
       if (!selectedSubClass) {
-        toast.error('Selected subclass not found.');
+        toast.error(t('Selected subclass not found.'));
         setIsLoading(false);
         return;
       }
@@ -253,7 +255,7 @@ export default function InterviewsPage() {
         });
       }
 
-      toast.success(`${selectedStudents.length} students assigned successfully.`);
+      toast.success(`${selectedStudents.length} ${t('students assigned successfully.')}`);
       mutateInterviews(); // Re-fetch interviews after assignment
       setShowAssignModal(false);
       setSelectedStudents([]);
@@ -261,7 +263,7 @@ export default function InterviewsPage() {
       setSelectAll(false);
     } catch (error) {
       console.error('Error assigning class:', error);
-      toast.error('Failed to assign students to class.');
+      toast.error(t('Failed to assign students to class.'));
     } finally {
       setIsLoading(false);
     }
@@ -270,7 +272,7 @@ export default function InterviewsPage() {
   // Handle recording interview score
   const handleRecordScore = async () => {
     if (!currentStudentForScore || score === null || score === undefined) {
-      toast.error('Please select a student and enter a valid score.');
+      toast.error(t('Please select a student and enter a valid score.'));
       return;
     }
 
@@ -283,7 +285,7 @@ export default function InterviewsPage() {
         academicYearId: currentAcademicYear?.id,
       });
 
-      toast.success(`Interview score recorded for ${currentStudentForScore.studentName}.`);
+      toast.success(`${t('Interview score recorded for')} ${currentStudentForScore.studentName}.`);
       mutateInterviews(); // Re-fetch interviews after recording score
       setShowRecordScoreModal(false);
       setCurrentStudentForScore(null);
@@ -291,7 +293,7 @@ export default function InterviewsPage() {
       setComments('');
     } catch (error) {
       console.error('Error recording score:', error);
-      toast.error('Failed to record interview score.');
+      toast.error(t('Failed to record interview score.'));
     } finally {
       setIsLoading(false);
     }
@@ -353,7 +355,7 @@ export default function InterviewsPage() {
 
   return (
     <div className="container mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Interview Management</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-6">{t('Interview Management')}</h1>
 
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
         <div className="flex space-x-4">
@@ -363,7 +365,7 @@ export default function InterviewsPage() {
             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <UserPlusIcon className="w-5 h-5 inline-block mr-2" />
-            Assign Selected to Class ({selectedStudents.length})
+            {t('Assign Selected to Class')} ({selectedStudents.length})
           </button>
         </div>
 
@@ -374,7 +376,7 @@ export default function InterviewsPage() {
             </div>
             <input
               type="text"
-              placeholder="Search students..."
+              placeholder={t('Search students...')}
               value={searchQuery}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -388,7 +390,7 @@ export default function InterviewsPage() {
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedClass(e.target.value)}
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             >
-              <option value="all">All Classes</option>
+              <option value="all">{t('All Classes')}</option>
               {Array.from(new Set(subClasses.map(cls => cls.className))).map((className) => (
                 <option key={className} value={className}>
                   {className}
@@ -404,10 +406,10 @@ export default function InterviewsPage() {
               onChange={(e: ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             >
-              <option value="all">All Statuses</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="OVERDUE">Overdue</option>
-              <option value="PENDING">Pending</option>
+              <option value="all">{t('All Statuses')}</option>
+              <option value="COMPLETED">{t('Completed')}</option>
+              <option value="OVERDUE">{t('Overdue')}</option>
+              <option value="PENDING">{t('Pending')}</option>
             </select>
           </div>
         </div>
@@ -431,7 +433,7 @@ export default function InterviewsPage() {
                 onClick={() => handleSort('studentName')}
               >
                 <div className="flex items-center">
-                  <span>Student</span>
+                  <span>{t('Student')}</span>
                   {sortField === 'studentName' && (
                     <ChevronDownIcon
                       className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`}
@@ -445,7 +447,7 @@ export default function InterviewsPage() {
                 onClick={() => handleSort('interviewStatus')}
               >
                 <div className="flex items-center">
-                  <span>Status</span>
+                  <span>{t('Status')}</span>
                   {sortField === 'interviewStatus' && (
                     <ChevronDownIcon
                       className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`}
@@ -459,7 +461,7 @@ export default function InterviewsPage() {
                 onClick={() => handleSort('registrationDate')}
               >
                 <div className="flex items-center">
-                  <span>Registration Date</span>
+                  <span>{t('Registration Date')}</span>
                   {sortField === 'registrationDate' && (
                     <ChevronDownIcon
                       className={`ml-1 h-4 w-4 ${sortDirection === 'desc' ? 'transform rotate-180' : ''}`}
@@ -471,10 +473,10 @@ export default function InterviewsPage() {
                 scope="col"
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
-                Class Assigned
+                {t('Class Assigned')}
               </th>
               <th scope="col" className="relative px-6 py-3">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t('Actions')}</span>
               </th>
             </tr>
           </thead>
@@ -482,13 +484,13 @@ export default function InterviewsPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                  Loading...
+                  {t('Loading...')}
                 </td>
               </tr>
             ) : filteredInterviews.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                  No students found
+                  {t('No students found')}
                 </td>
               </tr>
             ) : (
@@ -523,7 +525,7 @@ export default function InterviewsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900" style={nonSelectableStyle}>{interview.studentName}</div>
-                      <div className="text-sm text-gray-500" style={nonSelectableStyle}>Matricule: {interview.studentMatricule}</div>
+                      <div className="text-sm text-gray-500" style={nonSelectableStyle}>{t('Matricule')}: {interview.studentMatricule}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${interview.interviewStatus === 'COMPLETED' ? 'bg-green-100 text-green-800' :
@@ -533,11 +535,11 @@ export default function InterviewsPage() {
                         {interview.interviewStatus.charAt(0).toUpperCase() + interview.interviewStatus.slice(1)}
                       </span>
                       {interview.score !== undefined && interview.score !== null && (
-                        <div className="text-sm text-gray-500 mt-1" style={nonSelectableStyle}>Score: {interview.score}/20</div>
+                        <div className="text-sm text-gray-500 mt-1" style={nonSelectableStyle}>{t('Score')}: {interview.score}/20</div>
                       )}
                       {interview.comments && (
                         <div className="text-sm text-gray-500 mt-1 truncate" style={{ maxWidth: '150px', ...nonSelectableStyle }} title={interview.comments}>
-                          Comments: {interview.comments}
+                          {t('Comments')}: {interview.comments}
                         </div>
                       )}
                     </td>
@@ -550,7 +552,7 @@ export default function InterviewsPage() {
                           {interview.subclassName}
                         </span>
                       ) : (
-                        <span className="text-sm text-gray-500" style={nonSelectableStyle}>Not Assigned</span>
+                        <span className="text-sm text-gray-500" style={nonSelectableStyle}>{t('Not Assigned')}</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -559,7 +561,7 @@ export default function InterviewsPage() {
                           onClick={() => openRecordScoreModal(interview)}
                           className="text-indigo-600 hover:text-indigo-900 mr-4"
                         >
-                          Record Score
+                          {t('Record Score')}
                         </button>
                       ) : (
                         <button
@@ -567,14 +569,14 @@ export default function InterviewsPage() {
                           className="text-gray-400 cursor-not-allowed mr-4"
                           disabled
                         >
-                          Score Recorded
+                          {t('Score Recorded')}
                         </button>
                       )}
                       <button
                         onClick={() => {/* handle edit interview */ }}
                         className="text-indigo-600 hover:text-indigo-900"
                       >
-                        Edit
+                        {t('Edit')}
                       </button>
                     </td>
                   </tr>
@@ -590,21 +592,21 @@ export default function InterviewsPage() {
         <Modal
           isOpen={showAssignModal}
           onClose={() => setShowAssignModal(false)}
-          title="Assign Students to Class"
+          title={t('Assign Students to Class')}
         >
           <div className="p-4">
             <p className="text-sm text-gray-700 mb-4">
-              Assign {selectedStudents.length} selected students to a subclass.
+              {t('Assign')} {selectedStudents.length} {t('selected students to a subclass.')}
             </p>
             <div className="mb-4">
-              <label htmlFor="class-select" className="block text-sm font-medium text-gray-700">Select Subclass:</label>
+              <label htmlFor="class-select" className="block text-sm font-medium text-gray-700">{t('Select Subclass:')}</label>
               <select
                 id="class-select"
                 value={subClassToAssign}
                 onChange={(e: ChangeEvent<HTMLSelectElement>) => setSubClassToAssign(e.target.value)}
                 className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
               >
-                <option value="">Select a class</option>
+                <option value="">{t('Select a class')}</option>
                 {subClasses.map((cls) => (
                   <option key={cls.id} value={cls.id}> {/* Use subclass ID as value */}
                     {cls.name} ({cls.currentEnrollment}/{cls.maxCapacity}) - {cls.className}
@@ -620,7 +622,7 @@ export default function InterviewsPage() {
               onClick={() => setShowAssignModal(false)}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="button"
@@ -634,7 +636,7 @@ export default function InterviewsPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               )}
-              Assign
+              {t('Assign')}
             </button>
           </div>
         </Modal>
@@ -645,11 +647,11 @@ export default function InterviewsPage() {
         <Modal
           isOpen={showRecordScoreModal}
           onClose={() => setShowRecordScoreModal(false)}
-          title={`Record Score for ${currentStudentForScore?.studentName}`}
+          title={`${t('Record Score for')} ${currentStudentForScore?.studentName}`}
         >
           <div className="p-4">
             <div className="mb-4">
-              <label htmlFor="score" className="block text-sm font-medium text-gray-700">Score (out of 20):</label>
+              <label htmlFor="score" className="block text-sm font-medium text-gray-700">{t('Score (out of 20):')}</label>
               <Input
                 type="number"
                 id="score"
@@ -661,7 +663,7 @@ export default function InterviewsPage() {
               />
             </div>
             <div className="mb-4">
-              <label htmlFor="comments" className="block text-sm font-medium text-gray-700">Comments:</label>
+              <label htmlFor="comments" className="block text-sm font-medium text-gray-700">{t('Comments:')}</label>
               <textarea
                 id="comments"
                 value={comments}
@@ -677,7 +679,7 @@ export default function InterviewsPage() {
               onClick={() => setShowRecordScoreModal(false)}
               className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-100"
             >
-              Cancel
+              {t('Cancel')}
             </button>
             <button
               type="button"
@@ -691,7 +693,7 @@ export default function InterviewsPage() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               )}
-              Record Score
+              {t('Record Score')}
             </button>
           </div>
         </Modal>

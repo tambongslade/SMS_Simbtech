@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { SequenceForm } from './components/SequenceForm';
 import apiService from '../../../../lib/apiService';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // --- Types ---
 type AcademicYear = {
@@ -58,7 +59,8 @@ const ConfirmDialog: React.FC<{
     message: string;
     confirmLabel?: string;
     isLoading?: boolean;
-}> = ({ isOpen, onClose, onConfirm, title, message, confirmLabel = 'Delete', isLoading }) => {
+}> = ({ isOpen, onClose, onConfirm, title, message, confirmLabel, isLoading }) => {
+    const { t } = useLanguage();
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
@@ -71,14 +73,14 @@ const ConfirmDialog: React.FC<{
                         disabled={isLoading}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
                     >
-                        Cancel
+                        {t('Cancel')}
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={isLoading}
                         className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 disabled:opacity-50"
                     >
-                        {isLoading ? 'Deleting...' : confirmLabel}
+                        {isLoading ? t('Deleting...') : (confirmLabel || t('Delete'))}
                     </button>
                 </div>
             </div>
@@ -94,6 +96,7 @@ const StatusUpdateModal: React.FC<{
     onUpdateStatus: (sequenceId: number, status: SequenceStatusUpdate['status']) => Promise<void>;
     isLoading: boolean;
 }> = ({ isOpen, onClose, sequence, onUpdateStatus, isLoading }) => {
+    const { t } = useLanguage();
     const [selectedStatus, setSelectedStatus] = useState<SequenceStatusUpdate['status']>('OPEN');
 
     useEffect(() => {
@@ -115,12 +118,12 @@ const StatusUpdateModal: React.FC<{
     };
 
     const statusOptions = [
-        { value: 'OPEN', label: 'Open', description: 'Sequence is open for submissions and marking' },
-        { value: 'CLOSED', label: 'Closed', description: 'Sequence is closed, no more submissions allowed' },
-        { value: 'FINALIZED', label: 'Finalized', description: 'All marks are finalized and locked' },
-        { value: 'REPORTS_GENERATING', label: 'Reports Generating', description: 'Report cards are being generated' },
-        { value: 'REPORTS_AVAILABLE', label: 'Reports Available', description: 'Report cards are ready and available' },
-        { value: 'REPORTS_FAILED', label: 'Reports Failed', description: 'Report generation failed, needs attention' }
+        { value: 'OPEN', label: t('Open'), description: t('Sequence is open for submissions and marking') },
+        { value: 'CLOSED', label: t('Closed'), description: t('Sequence is closed, no more submissions allowed') },
+        { value: 'FINALIZED', label: t('Finalized'), description: t('All marks are finalized and locked') },
+        { value: 'REPORTS_GENERATING', label: t('Reports Generating'), description: t('Report cards are being generated') },
+        { value: 'REPORTS_AVAILABLE', label: t('Reports Available'), description: t('Report cards are ready and available') },
+        { value: 'REPORTS_FAILED', label: t('Reports Failed'), description: t('Report generation failed, needs attention') }
     ] as const;
 
     if (!sequence) return null;
@@ -129,13 +132,13 @@ const StatusUpdateModal: React.FC<{
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Update Status - Sequence {sequence.sequence_number}
+                    {t('Update Status')} - {t('Sequence')} {sequence.sequence_number}
                 </h3>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Select Status
+                            {t('Select Status')}
                         </label>
                         <div className="space-y-2">
                             {statusOptions.map((option) => (
@@ -165,14 +168,14 @@ const StatusUpdateModal: React.FC<{
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
                         >
-                            Cancel
+                            {t('Cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
                         >
-                            {isLoading ? 'Updating...' : 'Update Status'}
+                            {isLoading ? t('Updating...') : t('Update Status')}
                         </button>
                     </div>
                 </form>
@@ -189,6 +192,7 @@ const EditSequenceModal: React.FC<{
     onSave: (sequenceId: number, data: { sequence_number: number }) => Promise<void>;
     isLoading: boolean;
 }> = ({ isOpen, onClose, sequence, onSave, isLoading }) => {
+    const { t } = useLanguage();
     const [seqNumber, setSeqNumber] = useState(1);
 
     useEffect(() => {
@@ -209,10 +213,10 @@ const EditSequenceModal: React.FC<{
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Sequence</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('Edit Sequence')}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Sequence Number</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('Sequence Number')}</label>
                         <input
                             type="number"
                             min="1"
@@ -229,14 +233,14 @@ const EditSequenceModal: React.FC<{
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
                         >
-                            Cancel
+                            {t('Cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading || seqNumber < 1}
                             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 disabled:opacity-50"
                         >
-                            {isLoading ? 'Saving...' : 'Save'}
+                            {isLoading ? t('Saving...') : t('Save')}
                         </button>
                     </div>
                 </form>
@@ -252,6 +256,7 @@ const AddTermModal: React.FC<{
     onSave: (data: { name: string; start_date?: string; end_date?: string }) => Promise<void>;
     isLoading: boolean;
 }> = ({ isOpen, onClose, onSave, isLoading }) => {
+    const { t } = useLanguage();
     const [name, setName] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -276,15 +281,15 @@ const AddTermModal: React.FC<{
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Term</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">{t('Add New Term')}</h3>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Term Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t('Term Name')}</label>
                         <input
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g. First Term"
+                            placeholder={t('e.g. First Term')}
                             className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
                             disabled={isLoading}
                             required
@@ -292,7 +297,7 @@ const AddTermModal: React.FC<{
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('Start Date')}</label>
                             <input
                                 type="date"
                                 value={startDate}
@@ -302,7 +307,7 @@ const AddTermModal: React.FC<{
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{t('End Date')}</label>
                             <input
                                 type="date"
                                 value={endDate}
@@ -319,14 +324,14 @@ const AddTermModal: React.FC<{
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 disabled:opacity-50"
                         >
-                            Cancel
+                            {t('Cancel')}
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading}
                             className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 disabled:opacity-50"
                         >
-                            {isLoading ? 'Creating...' : 'Create Term'}
+                            {isLoading ? t('Creating...') : t('Create Term')}
                         </button>
                     </div>
                 </form>
@@ -364,6 +369,7 @@ const StatusBadge: React.FC<{ status?: string }> = ({ status = 'OPEN' }) => {
 };
 
 export default function ExaminationStructurePage() {
+    const { t } = useLanguage();
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [selectedYearId, setSelectedYearId] = useState<number | ''>('');
     const [terms, setTerms] = useState<Term[]>([]);
@@ -589,9 +595,9 @@ export default function ExaminationStructurePage() {
         <div className="min-h-screen bg-gray-50 p-6">
             <div className="max-w-5xl mx-auto">
                 <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 bg-white p-4 rounded-lg shadow-sm gap-4">
-                    <h1 className="text-2xl font-bold text-gray-900">Examination Structure</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">{t('Examination Structure')}</h1>
                     <div className="w-full md:w-64">
-                        <label htmlFor="academicYearSelect" className="block text-sm font-medium text-gray-700 mb-1">Academic Year</label>
+                        <label htmlFor="academicYearSelect" className="block text-sm font-medium text-gray-700 mb-1">{t('Academic Year')}</label>
                         <select
                             id="academicYearSelect"
                             value={selectedYearId}
@@ -599,7 +605,7 @@ export default function ExaminationStructurePage() {
                             disabled={isLoading}
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                         >
-                            <option value="" disabled>{isLoading ? 'Loading Years...' : '-- Select Year --'}</option>
+                            <option value="" disabled>{isLoading ? t('Loading Years...') : t('-- Select Year --')}</option>
                             {academicYears.map((year) => (
                                 <option key={year.id} value={year.id}>{year.name}</option>
                             ))}
@@ -609,13 +615,13 @@ export default function ExaminationStructurePage() {
 
                 {/* Loading/Empty State */}
                 {selectedYearId === '' && !isLoading && (
-                    <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">Please select an academic year to view its structure.</p>
+                    <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">{t('Please select an academic year to view its structure.')}</p>
                 )}
                 {isLoadingTerms && (
-                    <p className="text-center text-gray-500 py-4">Loading terms and sequences...</p>
+                    <p className="text-center text-gray-500 py-4">{t('Loading terms and sequences...')}</p>
                 )}
                 {!isLoadingTerms && selectedYearId !== '' && terms.length === 0 && (
-                    <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">No terms found for the selected academic year.</p>
+                    <p className="text-center text-gray-500 py-4 bg-white rounded-lg shadow-sm">{t('No terms found for the selected academic year.')}</p>
                 )}
 
                 {/* Terms and Sequences Display */}
@@ -635,13 +641,13 @@ export default function ExaminationStructurePage() {
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-1">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                             </svg>
-                                            Add Sequence
+                                            {t('Add Sequence')}
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm({ type: 'term', id: term.id, label: term.name })}
                                             className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
                                             disabled={isLoading || isLoadingTerms || isDeleting}
-                                            title="Delete term"
+                                            title={t('Delete term')}
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
@@ -659,15 +665,15 @@ export default function ExaminationStructurePage() {
                                                         <div className="flex-1">
                                                             <div className="flex items-center space-x-3 mb-2">
                                                                 <span className="font-medium text-gray-700">
-                                                                    Sequence {seq.sequence_number}
+                                                                    {t('Sequence')} {seq.sequence_number}
                                                                 </span>
                                                                 <StatusBadge status={seq.status} />
                                                             </div>
                                                             {(seq.start_date || seq.end_date) && (
                                                                 <div className="text-sm text-gray-500">
-                                                                    {seq.start_date && `Start: ${new Date(seq.start_date).toLocaleDateString()}`}
+                                                                    {seq.start_date && `${t('Start')}: ${new Date(seq.start_date).toLocaleDateString()}`}
                                                                     {seq.start_date && seq.end_date && ' | '}
-                                                                    {seq.end_date && `End: ${new Date(seq.end_date).toLocaleDateString()}`}
+                                                                    {seq.end_date && `${t('End')}: ${new Date(seq.end_date).toLocaleDateString()}`}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -680,7 +686,7 @@ export default function ExaminationStructurePage() {
                                                                 className="text-xs text-purple-600 hover:text-purple-800 hover:underline disabled:opacity-50 px-2 py-1 border border-purple-200 rounded hover:bg-purple-50"
                                                                 disabled={isLoading || isUpdatingStatus}
                                                             >
-                                                                Update Status
+                                                                {t('Update Status')}
                                                             </button>
                                                             <button
                                                                 onClick={() => {
@@ -690,14 +696,14 @@ export default function ExaminationStructurePage() {
                                                                 className="text-xs text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 px-2 py-1 border border-blue-200 rounded hover:bg-blue-50"
                                                                 disabled={isLoading}
                                                             >
-                                                                Edit
+                                                                {t('Edit')}
                                                             </button>
                                                             <button
-                                                                onClick={() => setDeleteConfirm({ type: 'sequence', id: seq.id, label: `Sequence ${seq.sequence_number}` })}
+                                                                onClick={() => setDeleteConfirm({ type: 'sequence', id: seq.id, label: `${t('Sequence')} ${seq.sequence_number}` })}
                                                                 className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 px-2 py-1 border border-red-200 rounded hover:bg-red-50"
                                                                 disabled={isLoading || isDeleting}
                                                             >
-                                                                Delete
+                                                                {t('Delete')}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -705,7 +711,7 @@ export default function ExaminationStructurePage() {
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-sm text-gray-500 italic pl-2">No sequences defined for this term yet.</p>
+                                        <p className="text-sm text-gray-500 italic pl-2">{t('No sequences defined for this term yet.')}</p>
                                     )}
                                 </div>
                             </div>
@@ -717,7 +723,7 @@ export default function ExaminationStructurePage() {
                                 className="text-sm text-green-600 hover:text-green-800 disabled:opacity-50 border border-green-300 px-4 py-2 rounded-md hover:bg-green-50"
                                 disabled={isLoading || isAddingTerm}
                             >
-                                + Add New Term
+                                + {t('Add New Term')}
                             </button>
                         </div>
                     </div>
@@ -768,8 +774,8 @@ export default function ExaminationStructurePage() {
                 isOpen={!!deleteConfirm}
                 onClose={() => setDeleteConfirm(null)}
                 onConfirm={handleConfirmDelete}
-                title={`Delete ${deleteConfirm?.type === 'term' ? 'Term' : 'Sequence'}`}
-                message={`Are you sure you want to delete "${deleteConfirm?.label}"? This action cannot be undone.${deleteConfirm?.type === 'term' ? ' All sequences in this term will also be deleted.' : ''}`}
+                title={`${t('Delete')} ${deleteConfirm?.type === 'term' ? t('Term') : t('Sequence')}`}
+                message={`${t('Are you sure you want to delete')} "${deleteConfirm?.label}"? ${t('This action cannot be undone.')}${deleteConfirm?.type === 'term' ? ' ' + t('All sequences in this term will also be deleted.') : ''}`}
                 isLoading={isDeleting}
             />
         </div>

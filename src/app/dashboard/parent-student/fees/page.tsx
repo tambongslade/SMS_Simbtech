@@ -1,43 +1,117 @@
 'use client'
 
-import { FC } from 'react';
+import { FC, useEffect, useState } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { useStudentFees } from '../hooks/useStudentFees';
-import { StatsCard, Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
-import { CurrencyDollarIcon, CalendarIcon, CheckCircleIcon, ExclamationTriangleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { Card, CardHeader, CardTitle, CardBody, Button } from '@/components/ui';
+import {
+    CurrencyDollarIcon,
+    CheckCircleIcon,
+    ExclamationTriangleIcon,
+    ArrowPathIcon,
+    ExclamationCircleIcon,
+    ClockIcon,
+} from '@heroicons/react/24/outline';
+import { formatMoney, getActiveMatricule, getSavedMatricules, setActiveMatricule } from '@/lib/parentPortalApi';
 
-const ParentStudentFeesPage: FC = () => {
-    // In a real implementation, you would get studentId from:
-    // 1. URL parameters (useParams)
-    // 2. User context/auth
-    // 3. Local storage
-    // For now, using a default value
-    const studentId = 1; // This should be dynamically determined
-    const { data, isLoading, error } = useStudentFees(studentId);
+interface ParentStudentFeesPageProps {
+    studentId?: number;
+    matricule?: string;
+}
+
+const urgencyStyles: Record<string, string> = {
+    PAID:     'bg-emerald-50 text-emerald-700 ring-emerald-100',
+    OK:       'bg-blue-50 text-blue-700 ring-blue-100',
+    DUE_SOON: 'bg-amber-50 text-amber-700 ring-amber-100',
+    OVERDUE:  'bg-rose-50 text-rose-700 ring-rose-100',
+};
+
+function StatTile({ label, value, tone, icon: Icon, sub }: { label: string; value: string; tone: 'blue' | 'emerald' | 'rose' | 'slate'; icon: any; sub?: string }) {
+    const map: Record<string, string> = {
+        blue: 'from-blue-50 text-blue-900',
+        emerald: 'from-emerald-50 text-emerald-900',
+        rose: 'from-rose-50 text-rose-900',
+        slate: 'from-slate-50 text-slate-900',
+    };
+    return (
+        <div className={`rounded-2xl border border-slate-100 shadow-sm bg-gradient-to-br ${map[tone]} to-white p-5`}>
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-slate-500">
+                <Icon className="w-4 h-4" />
+                {label}
+            </div>
+            <div className="mt-2 text-2xl font-semibold">{value}</div>
+            {sub && <div className="text-xs text-slate-500 mt-1">{sub}</div>}
+        </div>
+    );
+}
+
+const ParentStudentFeesPage: FC<ParentStudentFeesPageProps> = ({ matricule: propMatricule }) => {
+    const { t } = useLanguage();
+    const [matricule, setMatricule] = useState<string | null>(propMatricule ?? null);
+    const [availableMatricules, setAvailableMatricules] = useState<string[]>([]);
+
+    useEffect(() => {
+        if (propMatricule) return;
+        const saved = getSavedMatricules();
+        setAvailableMatricules(saved);
+        setMatricule(getActiveMatricule() || saved[0] || null);
+    }, [propMatricule]);
+
+    const { data, isLoading, error, refetch } = useStudentFees(matricule);
+
+    const handleSwitch = (m: string) => {
+        setActiveMatricule(m);
+        setMatricule(m);
+    };
+
+    if (!matricule) {
+        return (
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full rounded-3xl bg-white shadow-sm border border-slate-100 p-8 text-center">
+                    <CurrencyDollarIcon className="mx-auto h-12 w-12 text-slate-300" />
+                    <h2 className="mt-4 text-lg font-semibold text-slate-900">{t('No child selected')}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{t('Add a child from the overview page to see fees.')}</p>
+                </div>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-96">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-4">
+                <div className="rounded-3xl h-24 bg-slate-100 animate-pulse" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {[0, 1, 2].map(i => <div key={i} className="rounded-2xl h-32 bg-slate-100 animate-pulse" />)}
+                </div>
+                <div className="rounded-2xl h-64 bg-slate-100 animate-pulse" />
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="text-center py-8">
-                <ExclamationTriangleIcon className="mx-auto h-12 w-12 text-red-500" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading fees</h3>
-                <p className="mt-1 text-sm text-gray-500">{error}</p>
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full rounded-3xl bg-white shadow-sm border border-slate-100 p-8 text-center">
+                    <ExclamationCircleIcon className="mx-auto h-12 w-12 text-rose-400" />
+                    <h2 className="mt-4 text-lg font-semibold text-slate-900">{t('Error loading fees')}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{error}</p>
+                    <Button onClick={refetch} className="mt-6 rounded-full inline-flex items-center" variant="outline">
+                        <ArrowPathIcon className="w-4 h-4 mr-2" />
+                        {t('Try Again')}
+                    </Button>
+                </div>
             </div>
         );
     }
 
     if (!data) {
         return (
-            <div className="text-center py-8">
-                <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No fee records</h3>
-                <p className="mt-1 text-sm text-gray-500">No fee records found for this student.</p>
+            <div className="min-h-[60vh] flex items-center justify-center p-6">
+                <div className="max-w-md w-full rounded-3xl bg-white shadow-sm border border-slate-100 p-8 text-center">
+                    <CurrencyDollarIcon className="mx-auto h-12 w-12 text-slate-300" />
+                    <h2 className="mt-4 text-lg font-semibold text-slate-900">{t('No fee records')}</h2>
+                    <p className="mt-1 text-sm text-slate-500">{t('No fee records found for this student.')}</p>
+                </div>
             </div>
         );
     }
@@ -46,135 +120,192 @@ const ParentStudentFeesPage: FC = () => {
         totalExpected,
         totalPaid,
         outstandingBalance,
-        lastPaymentDate,
-        paymentHistory = [],
-        outstandingFees = []
-    } = data || {};
+        urgency,
+        daysOverdue,
+        dueDate,
+        paymentHistory,
+        outstandingFees,
+        items,
+    } = data;
 
-    const stats = [
-        {
-            title: 'Total Fees',
-            value: `${(totalExpected || 0).toLocaleString()} FCFA`,
-            icon: CurrencyDollarIcon,
-            color: 'primary' as const,
-        },
-        {
-            title: 'Total Paid',
-            value: `${(totalPaid || 0).toLocaleString()} FCFA`,
-            icon: CheckCircleIcon,
-            color: 'success' as const,
-        },
-        {
-            title: 'Outstanding Balance',
-            value: `${(outstandingBalance || 0).toLocaleString()} FCFA`,
-            icon: ExclamationTriangleIcon,
-            color: 'danger' as const,
-        }
-    ];
+    const paidPct = totalExpected > 0 ? (totalPaid / totalExpected) * 100 : 0;
 
     return (
-        <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {stats.map((stat, index) => (
-                    <StatsCard key={index} {...stat} />
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Payment History</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="hidden md:block overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Method</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {paymentHistory.map((payment) => (
-                                        <tr key={payment.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap">{payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 'N/A'}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{(payment.amount || 0).toLocaleString()} FCFA</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{payment.paymentMethod}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{payment.receiptNumber}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+            <div className="max-w-6xl mx-auto p-4 sm:p-8 space-y-6">
+                {/* Header */}
+                <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-6 sm:p-8">
+                    <div className="flex flex-wrap justify-between items-start gap-4">
+                        <div>
+                            <p className="text-xs uppercase tracking-widest text-slate-400 font-medium">{t('School Fees')}</p>
+                            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{data.studentName}</h1>
+                            <p className="mt-1 text-sm text-slate-500">{t('Matricule')}: {data.matricule}</p>
                         </div>
-                        <div className="md:hidden divide-y divide-gray-100">
-                            {paymentHistory.map((payment) => (
-                                <div key={payment.id} className="p-4 space-y-1.5">
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : 'N/A'}</p>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Amount</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{(payment.amount || 0).toLocaleString()} FCFA</span>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Method</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{payment.paymentMethod}</span>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Receipt</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{payment.receiptNumber}</span>
-                                    </div>
-                                </div>
+                        <div className="flex flex-wrap gap-2 items-center">
+                            {urgency && (
+                                <span className={`inline-flex items-center gap-1 rounded-full ring-1 ${urgencyStyles[urgency]} px-3 py-1 text-xs font-medium`}>
+                                    <ExclamationTriangleIcon className="w-4 h-4" />
+                                    {urgency === 'PAID' ? t('Fully paid') :
+                                     urgency === 'OK' ? t('Up to date') :
+                                     urgency === 'DUE_SOON' ? t('Due soon') :
+                                     t('Overdue')}
+                                    {daysOverdue ? ` · ${daysOverdue} ${t('days')}` : ''}
+                                </span>
+                            )}
+                            {availableMatricules.length > 1 && availableMatricules.map(m => (
+                                <button
+                                    key={m}
+                                    onClick={() => handleSwitch(m)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                                        m === matricule
+                                            ? 'bg-slate-900 text-white'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    }`}
+                                >
+                                    {m}
+                                </button>
                             ))}
                         </div>
-                    </CardBody>
-                </Card>
+                    </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Outstanding Fees</CardTitle>
-                    </CardHeader>
-                    <CardBody>
-                        <div className="hidden md:block overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fee Type</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Due</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {outstandingFees.map((fee) => (
-                                        <tr key={fee.id}>
-                                            <td className="px-6 py-4 whitespace-nowrap">{fee.feeType}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{(fee.amountDue || 0).toLocaleString()} FCFA</td>
-                                            <td className="px-6 py-4 whitespace-nowrap">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</td>
-                                        </tr>
+                    {/* Progress bar */}
+                    <div className="mt-6">
+                        <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                            <span>{t('Paid')} · {formatMoney(totalPaid)}</span>
+                            <span>{t('Expected')} · {formatMoney(totalExpected)}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all"
+                                style={{ width: `${Math.max(0, Math.min(100, paidPct))}%` }}
+                            />
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">{paidPct.toFixed(1)}% {t('paid')}</div>
+                    </div>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <StatTile label={t('Total Fees')} value={formatMoney(totalExpected)} tone="blue" icon={CurrencyDollarIcon} />
+                    <StatTile label={t('Total Paid')} value={formatMoney(totalPaid)} tone="emerald" icon={CheckCircleIcon} />
+                    <StatTile
+                        label={t('Outstanding')}
+                        value={formatMoney(outstandingBalance)}
+                        tone={outstandingBalance > 0 ? 'rose' : 'emerald'}
+                        icon={ExclamationTriangleIcon}
+                        sub={dueDate ? `${t('Due')} ${new Date(dueDate).toLocaleDateString()}` : undefined}
+                    />
+                </div>
+
+                {/* Fee items breakdown */}
+                {items && items.length > 0 && (
+                    <Card className="rounded-2xl border border-slate-100 shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-slate-900">{t('Fee breakdown')}</CardTitle>
+                        </CardHeader>
+                        <CardBody>
+                            <ul className="divide-y divide-slate-100">
+                                {items.map(it => {
+                                    const pct = it.amountExpected > 0 ? (it.amountPaid / it.amountExpected) * 100 : 100;
+                                    return (
+                                        <li key={it.id} className="py-4">
+                                            <div className="flex justify-between items-start gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium text-slate-900">{it.name}</p>
+                                                    {it.description && <p className="text-xs text-slate-500">{it.description}</p>}
+                                                </div>
+                                                <span className={`shrink-0 inline-flex px-2 py-0.5 rounded-full text-xs font-medium ring-1 ${
+                                                    it.status === 'PAID' ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' :
+                                                    it.status === 'PARTIAL' ? 'bg-amber-50 text-amber-700 ring-amber-100' :
+                                                    'bg-rose-50 text-rose-700 ring-rose-100'
+                                                }`}>
+                                                    {it.status}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 flex items-center gap-3">
+                                                <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                                    <div className="h-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
+                                                </div>
+                                                <span className="text-xs tabular-nums text-slate-600 shrink-0">
+                                                    {formatMoney(it.amountPaid)} / {formatMoney(it.amountExpected)}
+                                                </span>
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </CardBody>
+                    </Card>
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <Card className="rounded-2xl border border-slate-100 shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-slate-900 flex items-center gap-2">
+                                <ClockIcon className="w-5 h-5 text-slate-400" />
+                                {t('Payment History')}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardBody>
+                            {paymentHistory.length === 0 ? (
+                                <div className="text-center py-8 text-sm text-slate-500">{t('No payments yet.')}</div>
+                            ) : (
+                                <ul className="divide-y divide-slate-100">
+                                    {paymentHistory.map(p => (
+                                        <li key={p.id} className="py-3 flex justify-between items-center">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-slate-900">{formatMoney(p.amount)}</p>
+                                                <p className="text-xs text-slate-500">
+                                                    {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : ''}
+                                                    {p.paymentMethod ? ` · ${p.paymentMethod}` : ''}
+                                                </p>
+                                            </div>
+                                            {p.receiptNumber && (
+                                                <span className="shrink-0 text-xs text-slate-400 font-mono">#{p.receiptNumber}</span>
+                                            )}
+                                        </li>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div className="md:hidden divide-y divide-gray-100">
-                            {outstandingFees.map((fee) => (
-                                <div key={fee.id} className="p-4 space-y-1.5">
-                                    <p className="text-sm font-semibold text-gray-900 break-words">{fee.feeType}</p>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Amount Due</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{(fee.amountDue || 0).toLocaleString()} FCFA</span>
-                                    </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Due Date</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{fee.dueDate ? new Date(fee.dueDate).toLocaleDateString() : 'N/A'}</span>
-                                    </div>
+                                </ul>
+                            )}
+                        </CardBody>
+                    </Card>
+
+                    <Card className="rounded-2xl border border-slate-100 shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-slate-900">{t('Outstanding')}</CardTitle>
+                        </CardHeader>
+                        <CardBody>
+                            {outstandingFees.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <CheckCircleIcon className="mx-auto h-10 w-10 text-emerald-400" />
+                                    <p className="mt-2 text-sm font-medium text-slate-900">{t('All paid up!')}</p>
+                                    <p className="text-xs text-slate-500">{t('No outstanding balances.')}</p>
                                 </div>
-                            ))}
-                        </div>
-                    </CardBody>
-                </Card>
+                            ) : (
+                                <ul className="divide-y divide-slate-100">
+                                    {outstandingFees.map(f => (
+                                        <li key={f.id} className="py-3 flex justify-between items-center">
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium text-slate-900">{f.feeType}</p>
+                                                {f.dueDate && (
+                                                    <p className="text-xs text-slate-500">
+                                                        {t('Due')} {new Date(f.dueDate).toLocaleDateString()}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <span className="shrink-0 text-sm font-semibold text-rose-600 tabular-nums">
+                                                {formatMoney(f.amountDue)}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </CardBody>
+                    </Card>
+                </div>
             </div>
         </div>
     );
 };
 
-export default ParentStudentFeesPage; 
+export default ParentStudentFeesPage;

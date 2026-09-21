@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardBody, CardHeader, CardTitle, Select, Button, Input } from "@/components/ui";
 import apiService from '../../../../lib/apiService';
 import { toast } from 'react-hot-toast';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface Student {
     id: number;
@@ -32,6 +33,7 @@ interface Subject {
 }
 
 export default function TeacherMarksPage() {
+    const { t } = useLanguage();
     const [students, setStudents] = useState<Student[]>([]);
     const [marks, setMarks] = useState<Record<number, number>>({});
     const [isLoading, setIsLoading] = useState(true);
@@ -61,9 +63,9 @@ export default function TeacherMarksPage() {
             } catch (error: any) {
                 console.error('Error fetching initial data:', error);
                 if (error?.status === 403) {
-                    toast.error('Access denied: Unable to load your assigned subjects');
+                    toast.error(t('Access denied: Unable to load your assigned subjects'));
                 } else {
-                    toast.error('Failed to load subjects or exam sequences');
+                    toast.error(t('Failed to load subjects or exam sequences'));
                 }
             } finally {
                 setIsLoading(false);
@@ -99,7 +101,7 @@ export default function TeacherMarksPage() {
 
             } catch (error) {
                 console.error('Error fetching students:', error);
-                toast.error('Failed to load students or marks');
+                toast.error(t('Failed to load students or marks'));
             } finally {
                 setIsLoading(false);
             }
@@ -137,10 +139,10 @@ export default function TeacherMarksPage() {
             });
 
             await Promise.all(markPromises.filter(p => p !== undefined));
-            toast.success('Marks saved successfully');
+            toast.success(t('Marks saved successfully'));
         } catch (error) {
             console.error('Error saving marks:', error);
-            toast.error('Failed to save marks');
+            toast.error(t('Failed to save marks'));
         } finally {
             setIsSaving(false);
         }
@@ -153,15 +155,15 @@ export default function TeacherMarksPage() {
                 {/* Header */}
                 <div className="flex justify-between items-center">
                     <div>
-                        <h1 className="text-3xl font-bold">Marks Management</h1>
-                        <p className="text-gray-600">Enter and manage student marks for exams</p>
+                        <h1 className="text-3xl font-bold">{t('Marks Management')}</h1>
+                        <p className="text-gray-600">{t('Enter and manage student marks for exams')}</p>
                     </div>
                 </div>
 
                 {/* Loading State */}
                 <div className="text-center py-12">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                    <p className="mt-2 text-gray-600">Loading...</p>
+                    <p className="mt-2 text-gray-600">{t('Loading...')}</p>
                 </div>
             </div>
         );
@@ -180,7 +182,7 @@ export default function TeacherMarksPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Select Subject</CardTitle>
+                        <CardTitle>{t('Select Subject')}</CardTitle>
                     </CardHeader>
                     <CardBody>
                         <select
@@ -188,7 +190,7 @@ export default function TeacherMarksPage() {
                             onChange={(e) => setSelectedSubject(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                            <option value="">Select a subject...</option>
+                            <option value="">{t('Select a subject...')}</option>
                             {subjects.map(subject => (
                                 <option key={subject.id} value={subject.id.toString()}>
                                     {subject.name} ({subject.subClassName})
@@ -200,7 +202,7 @@ export default function TeacherMarksPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Select Exam Sequence</CardTitle>
+                        <CardTitle>{t('Select Exam Sequence')}</CardTitle>
                     </CardHeader>
                     <CardBody>
                         <select
@@ -208,7 +210,7 @@ export default function TeacherMarksPage() {
                             onChange={(e) => setSelectedSequence(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         >
-                            <option value="">Select an exam sequence...</option>
+                            <option value="">{t('Select an exam sequence...')}</option>
                             {examSequences.map(sequence => (
                                 <option key={sequence.id} value={sequence.id.toString()}>
                                     {sequence.name}
@@ -221,17 +223,17 @@ export default function TeacherMarksPage() {
 
             {isLoading ? (
                 <div className="text-center py-10">
-                    <p className="text-gray-500">Loading...</p>
+                    <p className="text-gray-500">{t('Loading...')}</p>
                 </div>
             ) : selectedSubject && selectedSequence ? (
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between">
-                        <CardTitle>Student Marks</CardTitle>
+                        <CardTitle>{t('Student Marks')}</CardTitle>
                         <Button
                             onClick={handleSave}
                             disabled={isSaving || students.length === 0}
                         >
-                            {isSaving ? 'Saving...' : 'Save Marks'}
+                            {isSaving ? t('Saving...') : t('Save Marks')}
                         </Button>
                     </CardHeader>
                     <CardBody>
@@ -257,7 +259,7 @@ export default function TeacherMarksPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-center text-gray-500 py-4">No students found for this subject.</p>
+                            <p className="text-center text-gray-500 py-4">{t('No students found for this subject.')}</p>
                         )}
                     </CardBody>
                 </Card>
@@ -265,7 +267,7 @@ export default function TeacherMarksPage() {
                 <Card>
                     <CardBody>
                         <p className="text-center text-gray-500 py-4">
-                            Please select both a subject and an exam sequence to manage marks.
+                            {t('Please select both a subject and an exam sequence to manage marks.')}
                         </p>
                     </CardBody>
                 </Card>

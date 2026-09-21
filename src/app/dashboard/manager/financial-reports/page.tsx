@@ -11,9 +11,9 @@ import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardBody, StatsCard } from '@/components/ui';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import { getExpenditureSummary, CATEGORY_LABELS, ExpenditureSummary } from '@/lib/expendituresApi';
-import { saveFile } from '@/lib/download';
 
 // ── GET /dashboard/financial-overview ──
 // Actual shape: { schoolOverview: { totalExpected, totalCollected,
@@ -48,6 +48,7 @@ function BarListRow({ label, value, max, display }: { label: string; value: numb
 
 export default function ManagerFinancialReportsPage() {
     const { selectedAcademicYear } = useAuth();
+    const { t } = useLanguage();
 
     // Fall back to the current academic year when none is selected in the sidebar
     const { data: yearsResult } = useSWR<{ data: { id: number; name: string; isCurrent: boolean }[] }>(
@@ -68,7 +69,7 @@ export default function ManagerFinancialReportsPage() {
             onError: (err) => {
                 // 403 for MANAGER is expected — stay silent
                 if (err?.status !== 403 && err?.message !== 'Unauthorized') {
-                    toast.error('Failed to load financial overview');
+                    toast.error(t('Failed to load financial overview'));
                 }
             },
         }
@@ -95,148 +96,49 @@ export default function ManagerFinancialReportsPage() {
         { onError: () => { /* section simply stays empty */ } }
     );
 
-    // Classes for name lookups and the export filter. Fee records usually carry
-    // only enrollment.classId / subClassId, so names are resolved from here.
-    const { data: classesResult } = useSWR<{ data: { id: number; name: string; subClasses?: { id: number; classId: number }[] }[] }>('/classes', fetcher);
-    const classNameById = useMemo(() => {
-        const map = new Map<number, string>();
-        (classesResult?.data ?? []).forEach(c => map.set(c.id, c.name));
-        return map;
-    }, [classesResult]);
-    const classIdBySubClassId = useMemo(() => {
-        const map = new Map<number, number>();
-        (classesResult?.data ?? []).forEach(c => (c.subClasses ?? []).forEach(sc => map.set(sc.id, c.id)));
-        return map;
-    }, [classesResult]);
-
-    // Per-class fee collection, aggregated from fee records
-    const { data: feeRecords, isLoading: isLoadingFees } = useSWR(
-        effectiveYear?.id ? ['manager-fee-records', effectiveYear.id] : null,
-        ([, yearId]) => fetchAllFees(yearId as number)
-    );
-
-    const classReports = useMemo<ClassFeeReport[]>(() => {
-        const byClass = new Map<string, ClassFeeReport>();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (feeRecords ?? []).forEach((record: any) => {
-            const enr = record.enrollment ?? {};
-            let cid: number | null = enr.classId ?? enr.class?.id ?? null;
-            if (cid == null && enr.subClassId != null) cid = classIdBySubClassId.get(Number(enr.subClassId)) ?? null;
-            if (cid == null && enr.subClass?.classId != null) cid = enr.subClass.classId;
-            const classId = cid != null ? String(cid) : 'unknown';
-            const className = enr.class?.name
-                || (cid != null ? classNameById.get(Number(cid)) : undefined)
-                || 'Unassigned';
-            let agg = byClass.get(classId);
-            if (!agg) {
-                agg = { classId, className, totalStudents: 0, totalExpected: 0, totalCollected: 0, outstanding: 0, collectionRate: 0 };
-                byClass.set(classId, agg);
-            }
-            const expected = record.amountExpected || 0;
-            const paid = record.amountPaid || 0;
-            agg.totalStudents += 1;
-            agg.totalExpected += expected;
-            agg.totalCollected += paid;
-            agg.outstanding += Math.max(0, expected - paid);
-        });
-        // Classes with no fee records at all still get a zero-row, so nothing
-        // silently disappears from the report.
-        classNameById.forEach((name, id) => {
-            const key = String(id);
-            if (!byClass.has(key)) {
-                byClass.set(key, { classId: key, className: name, totalStudents: 0, totalExpected: 0, totalCollected: 0, outstanding: 0, collectionRate: 0 });
-            }
-        });
-        return Array.from(byClass.values())
-            .map(agg => ({
-                ...agg,
-                collectionRate: agg.totalExpected > 0 ? (agg.totalCollected / agg.totalExpected) * 100 : 0,
-            }))
-            .sort((a, b) => b.outstanding - a.outstanding || b.totalExpected - a.totalExpected);
-    }, [feeRecords, classNameById, classIdBySubClassId]);
-
-    // Classes for the export filter
-    const classes = useMemo(
-        () => sortClassesByLevel(classesResult?.data || []),
-        [classesResult]
-    );
-
-    // ── Export panel state ──
-    const [reportType, setReportType] = useState<'summary' | 'detailed' | 'analytics'>('detailed');
-    const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx' | 'pdf' | 'docx'>('xlsx');
-    const [selectedClass, setSelectedClass] = useState<string>('all');
-    const [isExporting, setIsExporting] = useState(false);
-
-    const generateReport = async () => {
-        if (!effectiveYear?.id) {
-            toast.error('No academic year available.');
-            return;
-        }
-        setIsExporting(true);
-        try {
-            const params = new URLSearchParams({
-                reportType,
-                format: exportFormat,
-                academicYearId: String(effectiveYear.id),
-            });
-            if (selectedClass !== 'all') params.append('classId', selectedClass);
-
-            const blob = await apiService.get(`/fees/export?${params.toString()}`, {}, 'blob');
-            const reportTypeNames = { summary: 'Fee-Summary', detailed: 'Detailed-Fees', analytics: 'Payment-Analytics' };
-            await saveFile(blob, `${reportTypeNames[reportType]}_${new Date().toISOString().split('T')[0]}.${exportFormat}`);
-            toast.success(`${reportTypeNames[reportType]} exported as ${exportFormat.toUpperCase()}`);
-        } catch (error) {
-            console.error('Export error:', error);
-            toast.error('Failed to export report. Please try again.');
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
-    const maxMethodAmount = Math.max(0, ...(overview?.byMethod ?? []).map(m => m.amount));
     const maxCategoryAmount = Math.max(0, ...(expenditureSummary?.byCategory ?? []).map(c => c.amount));
 
     return (
         <div className="p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Financial Reports</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{t('Financial Reports')}</h1>
                 <p className="text-gray-600">
-                    Outstanding balances and expenditures
+                    {t('Outstanding balances and expenditures')}
                     {effectiveYear ? ` · ${effectiveYear.name}` : ''}
                 </p>
             </div>
 
             {overviewError && overviewError.status !== 403 && overviewError.message !== 'Unauthorized' && (
                 <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded" role="alert">
-                    <strong className="font-bold">Error!</strong>
-                    <span className="block sm:inline"> Failed to load financial data. Please try again.</span>
+                    <strong className="font-bold">{t('Error!')}</strong>
+                    <span className="block sm:inline"> {t('Failed to load financial data. Please try again.')}</span>
                 </div>
             )}
 
             {/* Overview cards — receivables + expenditure only */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-                <StatsCard title="Outstanding Fees" value={isLoadingOverview ? '...' : formatCurrency(receivables?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
+                <StatsCard title={t('Outstanding Fees')} value={isLoadingOverview ? '...' : formatCurrency(receivables?.outstanding)} icon={CurrencyDollarIcon} color="danger" />
                 <StatsCard
-                    title="Students Owing"
+                    title={t('Students Owing')}
                     value={isLoadingOverview ? '...' : receivables?.studentsOwing != null
                         ? `${receivables.studentsOwing.toLocaleString()}${receivables.totalAccounts ? ` / ${receivables.totalAccounts.toLocaleString()}` : ''}`
                         : '—'}
                     icon={ReceiptPercentIcon}
                     color="warning"
                 />
-                <StatsCard title="Spent This Month" value={formatCurrency(expenditureSummary?.totalAmount)} icon={ReceiptRefundIcon} color="primary" />
+                <StatsCard title={t('Spent This Month')} value={formatCurrency(expenditureSummary?.totalAmount)} icon={ReceiptRefundIcon} color="primary" />
             </div>
 
             {/* This month's expenditures by category */}
             <Card>
                 <CardHeader className="flex items-center justify-between">
-                    <CardTitle>Expenditures This Month ({currentMonth})</CardTitle>
-                    <Link href="/dashboard/manager/expenditures" className="text-xs font-medium text-blue-600 hover:text-blue-800">View ledger →</Link>
+                    <CardTitle>{t('Expenditures This Month')} ({currentMonth})</CardTitle>
+                    <Link href="/dashboard/manager/expenditures" className="text-xs font-medium text-blue-600 hover:text-blue-800">{t('View ledger')} →</Link>
                 </CardHeader>
                 <CardBody className="space-y-2">
                     {(expenditureSummary?.byCategory?.length ?? 0) === 0 ? (
-                        <p className="text-sm text-gray-500">No expenditures recorded this month.</p>
+                        <p className="text-sm text-gray-500">{t('No expenditures recorded this month.')}</p>
                     ) : (
                         <>
                             {expenditureSummary!.byCategory.map((cat) => (
@@ -249,8 +151,8 @@ export default function ManagerFinancialReportsPage() {
                                 />
                             ))}
                             <p className="pt-2 text-sm text-gray-600 text-right">
-                                Total: <span className="font-semibold text-gray-900">{formatCurrency(expenditureSummary!.totalAmount)}</span>
-                                {' '}across {expenditureSummary!.count} entries
+                                {t('Total')}: <span className="font-semibold text-gray-900">{formatCurrency(expenditureSummary!.totalAmount)}</span>
+                                {' '}{t('across')} {expenditureSummary!.count} {t('entries')}
                             </p>
                         </>
                     )}
@@ -260,25 +162,25 @@ export default function ManagerFinancialReportsPage() {
             {/* Quick links to sibling finance pages */}
             <Card>
                 <CardHeader>
-                    <CardTitle>Related</CardTitle>
+                    <CardTitle>{t('Related')}</CardTitle>
                 </CardHeader>
                 <CardBody>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <Link href="/dashboard/manager/expenditures" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Expenditure ledger</p>
-                            <p className="text-xs text-gray-500">Review school spending</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Expenditure ledger')}</p>
+                            <p className="text-xs text-gray-500">{t('Review school spending')}</p>
                         </Link>
                         <Link href="/dashboard/manager/finance-requests" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Expense requisitions</p>
-                            <p className="text-xs text-gray-500">Approvals &amp; verifications</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Expense requisitions')}</p>
+                            <p className="text-xs text-gray-500">{t('Approvals & verifications')}</p>
                         </Link>
                         <Link href="/dashboard/manager/salaries" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Salary management</p>
-                            <p className="text-xs text-gray-500">Payroll overview</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Salary management')}</p>
+                            <p className="text-xs text-gray-500">{t('Payroll overview')}</p>
                         </Link>
                         <Link href="/dashboard/manager/defaulters" className="rounded-lg border border-gray-100 p-3 hover:border-blue-300 hover:shadow-sm transition">
-                            <p className="text-sm font-semibold text-gray-900">Fee defaulters</p>
-                            <p className="text-xs text-gray-500">Who has outstanding balances</p>
+                            <p className="text-sm font-semibold text-gray-900">{t('Fee defaulters')}</p>
+                            <p className="text-xs text-gray-500">{t('Who has outstanding balances')}</p>
                         </Link>
                     </div>
                 </CardBody>

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Class, SubClass } from "@/app/dashboard/super-manager/classes/types/class"; // Assuming SubClass is exported here
 import { DocumentArrowDownIcon, TableCellsIcon, ChartBarIcon, DocumentTextIcon, ChevronDownIcon } from '@heroicons/react/24/outline'; // Import icons
 import { sortClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface FiltersProps {
   sortMode?: 'latest' | 'name' | 'balance';
@@ -26,15 +27,6 @@ interface FiltersProps {
 type ExportFormat = 'xlsx' | 'pdf' | 'docx' | 'csv';
 type ExportReportType = 'detailed' | 'summary' | 'analytics';
 
-const EXPORT_OPTIONS: { format: ExportFormat; reportType: ExportReportType; label: string; icon: typeof TableCellsIcon }[] = [
-  { format: 'xlsx', reportType: 'detailed', label: 'Student list — Excel', icon: TableCellsIcon },
-  { format: 'pdf', reportType: 'detailed', label: 'Student list — PDF', icon: DocumentArrowDownIcon },
-  { format: 'docx', reportType: 'detailed', label: 'Student list — Word', icon: DocumentTextIcon },
-  { format: 'csv', reportType: 'detailed', label: 'Student list — CSV', icon: DocumentTextIcon },
-  { format: 'xlsx', reportType: 'summary', label: 'Class summary — Excel', icon: TableCellsIcon },
-  { format: 'xlsx', reportType: 'analytics', label: 'Payment methods — Excel', icon: TableCellsIcon },
-];
-
 export const Filters = ({
   searchQuery,
   setSearchQuery,
@@ -51,8 +43,18 @@ export const Filters = ({
   classes,
   isLoadingClasses,
 }: FiltersProps) => {
+  const { t } = useLanguage();
   const [showExportDropdown, setShowExportDropdown] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
+
+  const EXPORT_OPTIONS: { format: ExportFormat; reportType: ExportReportType; label: string; icon: typeof TableCellsIcon }[] = [
+    { format: 'xlsx', reportType: 'detailed', label: t('Student list — Excel'), icon: TableCellsIcon },
+    { format: 'pdf', reportType: 'detailed', label: t('Student list — PDF'), icon: DocumentArrowDownIcon },
+    { format: 'docx', reportType: 'detailed', label: t('Student list — Word'), icon: DocumentTextIcon },
+    { format: 'csv', reportType: 'detailed', label: t('Student list — CSV'), icon: DocumentTextIcon },
+    { format: 'xlsx', reportType: 'summary', label: t('Class summary — Excel'), icon: TableCellsIcon },
+    { format: 'xlsx', reportType: 'analytics', label: t('Payment methods — Excel'), icon: TableCellsIcon },
+  ];
 
   // Close the export menu when clicking outside it
   useEffect(() => {
@@ -90,7 +92,7 @@ export const Filters = ({
         {/* Search Input */}
         <input
           type="text"
-          placeholder="Search student or admission number..."
+          placeholder={t('Search student or admission number...')}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -103,9 +105,9 @@ export const Filters = ({
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
           disabled={isLoadingClasses} // Disable while loading
         >
-          <option value="all">All Classes</option>
+          <option value="all">{t('All Classes')}</option>
           {isLoadingClasses ? (
-            <option value="" disabled>Loading classes...</option>
+            <option value="" disabled>{t('Loading classes...')}</option>
           ) : (
             allClasses.map((cls) => (
               <option key={cls.id} value={cls.id}>
@@ -121,10 +123,10 @@ export const Filters = ({
           onChange={(e) => setSelectedPaymentStatus(e.target.value)}
           className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="all">All Statuses</option>
-          <option value="paid">Paid</option>
-          <option value="partial">Partial</option>
-          <option value="unpaid">Unpaid</option>
+          <option value="all">{t('All Statuses')}</option>
+          <option value="paid">{t('Paid')}</option>
+          <option value="partial">{t('Partial')}</option>
+          <option value="unpaid">{t('Unpaid')}</option>
         </select>
 
         {/* Sort */}
@@ -133,11 +135,11 @@ export const Filters = ({
             value={sortMode || 'latest'}
             onChange={(e) => setSortMode(e.target.value as 'latest' | 'name' | 'balance')}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            title="Sort order"
+            title={t('Sort order')}
           >
-            <option value="latest">Latest registered first</option>
-            <option value="name">Name (A–Z)</option>
-            <option value="balance">Highest balance first</option>
+            <option value="latest">{t('Latest registered first')}</option>
+            <option value="name">{t('Name (A–Z)')}</option>
+            <option value="balance">{t('Highest balance first')}</option>
           </select>
         )}
 
@@ -150,7 +152,7 @@ export const Filters = ({
               : "bg-gray-100 text-gray-600"
               }`}
           >
-            List View
+            {t('List View')}
           </button>
           <button
             onClick={() => setViewMode("cards")}
@@ -159,7 +161,7 @@ export const Filters = ({
               : "bg-gray-100 text-gray-600"
               }`}
           >
-            Card View
+            {t('Card View')}
           </button>
         </div>
       </div>
@@ -174,7 +176,7 @@ export const Filters = ({
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               <ChartBarIcon className="h-5 w-5" />
-              Subclass Summary
+              {t('Subclass Summary')}
             </button>
           )}
         </div>
@@ -186,7 +188,7 @@ export const Filters = ({
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
           >
             <DocumentArrowDownIcon className="h-5 w-5" />
-            Export
+            {t('Export')}
             <ChevronDownIcon className={`h-4 w-4 transition-transform ${showExportDropdown ? 'rotate-180' : ''}`} />
           </button>
           {showExportDropdown && (

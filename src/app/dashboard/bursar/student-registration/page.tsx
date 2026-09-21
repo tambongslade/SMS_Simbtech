@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
 import {
@@ -144,6 +144,25 @@ type EnrollmentStatusFilter = 'all' | 'enrolled' | 'not-enrolled';
 
 const STUDENTS_PER_PAGE = 10; // Define how many students per page
 
+const LIST_STATE_STORAGE_KEY = 'sm.bursarStudentRegistration.listState.v1';
+
+type PersistedListState = {
+    searchTerm: string;
+    enrollmentFilter: EnrollmentStatusFilter;
+    subClassFilter: string;
+    currentPage: number;
+};
+
+const readPersistedListState = (): Partial<PersistedListState> => {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = window.sessionStorage.getItem(LIST_STATE_STORAGE_KEY);
+        return raw ? (JSON.parse(raw) as Partial<PersistedListState>) : {};
+    } catch {
+        return {};
+    }
+};
+
 export default function StudentManagement() {
     const { selectedAcademicYear } = useAuth(); // Change from currentAcademicYear to selectedAcademicYear
     const router = useRouter();
@@ -243,11 +262,13 @@ export default function StudentManagement() {
     const [parentCredentials, setParentCredentials] = useState<{ matricule: string, temporaryPassword: string, name: string, email?: string, phone: string } | null>(null);
 
     // --- State for Filters & Pagination ---
-    const [searchTerm, setSearchTerm] = useState('');
-    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(''); // Server-side search term
-    const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>('all');
-    const [subClassFilter, setSubClassFilter] = useState<string>('all'); // Store subclass ID as string or 'all'
-    const [currentPage, setCurrentPage] = useState(1);
+    // Hydrate from sessionStorage so filters/search/page persist across profile navigation.
+    const persistedListState = useMemo(readPersistedListState, []);
+    const [searchTerm, setSearchTerm] = useState(persistedListState.searchTerm ?? '');
+    const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(persistedListState.searchTerm ?? ''); // Server-side search term
+    const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>(persistedListState.enrollmentFilter ?? 'all');
+    const [subClassFilter, setSubClassFilter] = useState<string>(persistedListState.subClassFilter ?? 'all'); // Store subclass ID as string or 'all'
+    const [currentPage, setCurrentPage] = useState(persistedListState.currentPage ?? 1);
 
     // --- State for Manage Parents Modal ---
     const [isManageParentsModalOpen, setIsManageParentsModalOpen] = useState(false);
@@ -458,14 +479,36 @@ export default function StudentManagement() {
         }
     };
 
+    // Persist filter/search/pagination state so returning from a student profile restores it.
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const snapshot: PersistedListState = {
+                searchTerm,
+                enrollmentFilter,
+                subClassFilter,
+                currentPage,
+            };
+            window.sessionStorage.setItem(LIST_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+        } catch {
+            /* sessionStorage unavailable — ignore */
+        }
+    }, [searchTerm, enrollmentFilter, subClassFilter, currentPage]);
+
     // Debounce the search box before hitting the server.
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearchTerm(searchTerm), 400);
         return () => clearTimeout(t);
     }, [searchTerm]);
 
-    // Reset to first page whenever the search term changes.
+    // Reset to first page whenever the search term changes. Skip the initial mount so
+    // a restored page (from sessionStorage) isn't wiped on hydration.
+    const skipSearchResetOnMountRef = useRef(true);
     useEffect(() => {
+        if (skipSearchResetOnMountRef.current) {
+            skipSearchResetOnMountRef.current = false;
+            return;
+        }
         setCurrentPage(1);
     }, [debouncedSearchTerm]);
 

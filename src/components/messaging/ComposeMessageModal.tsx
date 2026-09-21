@@ -5,6 +5,7 @@ import { sendMessage, getContacts, MESSAGE_CATEGORIES, Contact } from '@/lib/mes
 import { toast } from 'react-hot-toast';
 import { XMarkIcon, MagnifyingGlassIcon, UserIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/ui/Modal';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface ComposeMessageModalProps {
     isOpen: boolean;
@@ -33,6 +34,7 @@ export default function ComposeMessageModal({
     const [loadingContacts, setLoadingContacts] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [showContactList, setShowContactList] = useState(false);
+    const { t } = useLanguage();
 
     // Fetch contacts on modal open
     useEffect(() => {
@@ -181,7 +183,7 @@ export default function ComposeMessageModal({
         <Modal isOpen={isOpen} onClose={handleClose} size="lg">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Compose Message</h2>
+                <h2 className="text-xl font-semibold text-gray-900">{t('Compose Message')}</h2>
             </div>
 
             {/* Form Content */}
@@ -189,7 +191,7 @@ export default function ComposeMessageModal({
                 {/* Recipient Selection */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        To *
+                        {t('To')} *
                     </label>
 
                     {selectedContact ? (
@@ -226,7 +228,7 @@ export default function ComposeMessageModal({
                                     type="text"
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    placeholder="Search contacts..."
+                                    placeholder={t('Search contacts...')}
                                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 />
                             </div>
@@ -234,7 +236,7 @@ export default function ComposeMessageModal({
                             {/* Contact List */}
                             <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-lg">
                                 {loadingContacts ? (
-                                    <div className="p-3 text-center text-gray-500">Loading contacts...</div>
+                                    <div className="p-3 text-center text-gray-500">{t('Loading contacts...')}</div>
                                 ) : filteredContacts.length > 0 ? (
                                     filteredContacts.map((contact) => (
                                         <button
@@ -256,7 +258,7 @@ export default function ComposeMessageModal({
                                     ))
                                 ) : (
                                     <div className="p-3 text-center text-gray-500">
-                                        {searchTerm ? 'No contacts found' : 'No contacts available'}
+                                        {searchTerm ? t('No contacts found') : t('No contacts available')}
                                     </div>
                                 )}
                             </div>
@@ -269,7 +271,7 @@ export default function ComposeMessageModal({
                         >
                             <div className="flex items-center space-x-2">
                                 <UserIcon className="h-5 w-5" />
-                                <span>Select a recipient</span>
+                                <span>{t('Select a recipient')}</span>
                             </div>
                         </button>
                     )}
@@ -281,7 +283,7 @@ export default function ComposeMessageModal({
                 {/* Subject */}
                 <div>
                     <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
-                        Subject *
+                        {t('Subject')} *
                     </label>
                     <input
                         type="text"
@@ -291,7 +293,7 @@ export default function ComposeMessageModal({
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                             errors.subject ? 'border-red-300' : 'border-gray-300'
                         }`}
-                        placeholder="Enter message subject"
+                        placeholder={t('Enter message subject')}
                         maxLength={200}
                         disabled={isSubmitting}
                     />
@@ -299,14 +301,14 @@ export default function ComposeMessageModal({
                         <p className="mt-1 text-sm text-red-600">{errors.subject}</p>
                     )}
                     <p className="mt-1 text-sm text-gray-500">
-                        {formData.subject.length}/200 characters
+                        {formData.subject.length}/200 {t('characters')}
                     </p>
                 </div>
 
                 {/* Category */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Category *
+                        {t('Category')} *
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                         {MESSAGE_CATEGORIES.map((category) => (
@@ -344,7 +346,7 @@ export default function ComposeMessageModal({
                 {/* Message Content */}
                 <div>
                     <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-2">
-                        Message *
+                        {t('Message')} *
                     </label>
                     <textarea
                         id="content"
@@ -354,7 +356,7 @@ export default function ComposeMessageModal({
                         className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${
                             errors.content ? 'border-red-300' : 'border-gray-300'
                         }`}
-                        placeholder="Enter your message..."
+                        placeholder={t('Enter your message...')}
                         maxLength={1000}
                         disabled={isSubmitting}
                     />
@@ -362,7 +364,7 @@ export default function ComposeMessageModal({
                         <p className="mt-1 text-sm text-red-600">{errors.content}</p>
                     )}
                     <p className="mt-1 text-sm text-gray-500">
-                        {formData.content.length}/1000 characters
+                        {formData.content.length}/1000 {t('characters')}
                     </p>
                 </div>
 
@@ -374,7 +376,7 @@ export default function ComposeMessageModal({
                         disabled={isSubmitting}
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
-                        Cancel
+                        {t('Cancel')}
                     </button>
                     <button
                         type="submit"
@@ -387,7 +389,7 @@ export default function ComposeMessageModal({
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
                         )}
-                        <span>{isSubmitting ? 'Sending...' : 'Send Message'}</span>
+                        <span>{isSubmitting ? t('Sending...') : t('Send Message')}</span>
                     </button>
                 </div>
             </form>

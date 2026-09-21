@@ -12,6 +12,7 @@ import { PersonnelFilters } from './components/PersonnelFilters';
 import { AddEditPersonnelModal } from './components/AddEditPersonnelModal';
 import { ManageUserRolesModal } from './components/ManageUserRolesModal';
 import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
+import { useLanguage } from '@/components/context/LanguageContext';
 // import { LinkStudentToParentModal } from './components/LinkStudentToParentModal'; // REMOVED
 
 // Types are now primarily managed within the hook or its imported types
@@ -22,6 +23,7 @@ import { ConfirmDeleteModal } from './components/ConfirmDeleteModal';
 
 // Main Page Component for Personnel Management
 export default function PersonnelManagement() {
+  const { t } = useLanguage();
   const {
     personnel,
     isLoading,
@@ -72,10 +74,10 @@ export default function PersonnelManagement() {
         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
           <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Personnel Management</h1>
-              <p className="text-gray-600 mt-1">Oversee all staff members and their roles</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{t('Personnel Management')}</h1>
+              <p className="text-gray-600 mt-1">{t('Oversee all staff members and their roles')}</p>
               <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                <span>Total Personnel: {totalItems}</span>
+                <span>{t('Total Personnel')}: {totalItems}</span>
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
@@ -87,7 +89,7 @@ export default function PersonnelManagement() {
                 <svg className="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
                 </svg>
-                Refresh
+                {t('Refresh')}
               </button>
               <button
                 onClick={openAddModal}
@@ -97,12 +99,12 @@ export default function PersonnelManagement() {
                 {isLoading || isMutating ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Processing...
+                    {t('Processing...')}
                   </>
                 ) : (
                   <>
                     <UserPlusIcon className="h-5 w-5 mr-2" />
-                    Add New Personnel
+                    {t('Add New Personnel')}
                   </>
                 )}
               </button>
@@ -132,9 +134,9 @@ export default function PersonnelManagement() {
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
               </svg>
               <div>
-                <h3 className="text-sm font-medium text-red-800">Error Loading Personnel Data</h3>
+                <h3 className="text-sm font-medium text-red-800">{t('Error Loading Personnel Data')}</h3>
                 <p className="text-sm text-red-700 mt-1">
-                  {fetchError.message || 'An unknown error occurred'}. Please try refreshing the page.
+                  {fetchError.message || t('An unknown error occurred')}. {t('Please try refreshing the page.')}
                 </p>
               </div>
             </div>

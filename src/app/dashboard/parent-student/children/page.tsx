@@ -1,28 +1,74 @@
 'use client'
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { useParentDashboard } from '../hooks/useParentDashboard';
-import { Card, CardHeader, CardTitle, CardBody, Button, Input } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
 import { ChildCard } from '../components/ChildCard';
 import {
     UserGroupIcon,
     MagnifyingGlassIcon,
-    FunnelIcon,
     ExclamationCircleIcon,
-    PlusIcon
+    PlusIcon,
+    AcademicCapIcon,
+    CurrencyDollarIcon,
+    ExclamationTriangleIcon,
+    ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { compareClasses } from '@/lib/classOrdering';
+import { formatMoney } from '@/lib/parentPortalApi';
+
+function StatTile({ label, value, sub, icon: Icon, tone }: { label: string; value: string; sub?: string; icon: any; tone: 'blue' | 'emerald' | 'amber' | 'rose' | 'slate' }) {
+    const map: Record<string, string> = {
+        blue:    'from-blue-50 text-blue-900',
+        emerald: 'from-emerald-50 text-emerald-900',
+        amber:   'from-amber-50 text-amber-900',
+        rose:    'from-rose-50 text-rose-900',
+        slate:   'from-slate-50 text-slate-900',
+    };
+    return (
+        <div className={`rounded-2xl border border-slate-100 shadow-sm bg-gradient-to-br ${map[tone]} to-white p-5`}>
+            <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-slate-500">
+                <Icon className="w-4 h-4" />
+                <span className="truncate">{label}</span>
+            </div>
+            <div className="mt-2 text-2xl font-semibold truncate">{value}</div>
+            {sub && <div className="text-xs text-slate-500 mt-1 truncate">{sub}</div>}
+        </div>
+    );
+}
+
+function ChildCardSkeleton() {
+    return (
+        <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5 animate-pulse space-y-4">
+            <div className="flex gap-4">
+                <div className="w-20 h-20 rounded-2xl bg-slate-100" />
+                <div className="flex-1 space-y-2 pt-1">
+                    <div className="h-4 w-32 bg-slate-100 rounded" />
+                    <div className="h-3 w-24 bg-slate-100 rounded" />
+                    <div className="h-3 w-40 bg-slate-100 rounded" />
+                </div>
+            </div>
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+                <div className="h-4 w-full bg-slate-100 rounded" />
+                <div className="h-4 w-full bg-slate-100 rounded" />
+                <div className="h-4 w-full bg-slate-100 rounded" />
+            </div>
+            <div className="h-10 w-full bg-slate-100 rounded-full" />
+        </div>
+    );
+}
 
 export default function MyChildrenPage() {
     const router = useRouter();
-    const { data, isLoading, error, addChild } = useParentDashboard();
+    const { t } = useLanguage();
+    const { data, isLoading, error, addChild, refetch } = useParentDashboard();
     const [searchTerm, setSearchTerm] = useState('');
     const [classFilter, setClassFilter] = useState('');
     const [newMatricule, setNewMatricule] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
-    // Details are served by the public matricule-based snapshot page
     const handleViewDetails = (childId: number) => {
         const child = data?.children?.find(c => c.id === childId);
         if (child?.matricule) {
@@ -38,206 +84,161 @@ export default function MyChildrenPage() {
         if (ok) setNewMatricule('');
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-blue-500"></div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="text-red-500 text-center">
-                    <ExclamationCircleIcon className="w-12 h-12 mx-auto" />
-                    <h2 className="mt-2 text-xl font-semibold">Failed to load children</h2>
-                    <p>{error}</p>
-                </div>
-            </div>
-        );
-    }
-
     const children = data?.children || [];
 
-    // Filter children based on search and class filter
-    const filteredChildren = children.filter(child => {
-        const matchesSearch = child.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const filteredChildren = useMemo(() => children.filter(child => {
+        const matchesSearch = child.name.toLowerCase().includes(searchTerm.toLowerCase())
+            || (child.matricule?.toLowerCase() || '').includes(searchTerm.toLowerCase());
         const matchesClass = !classFilter || child.className === classFilter;
         return matchesSearch && matchesClass;
-    });
+    }), [children, searchTerm, classFilter]);
 
-    // Get unique classes for filter
-    const uniqueClasses = [...new Set(children.map(child => child.className).filter(Boolean))]
-        .sort((a, b) => compareClasses({ name: a }, { name: b }));
+    const uniqueClasses = useMemo(() => [...new Set(children.map(c => c.className).filter(Boolean))]
+        .sort((a, b) => compareClasses({ name: a }, { name: b })), [children]);
+
+    const totalFees = children.reduce((s, c) => s + (c.pendingFees || 0), 0);
+    const totalDiscipline = children.reduce((s, c) => s + (c.disciplineIssues || 0), 0);
+    const activeCount = children.filter(c => c.enrollmentStatus === 'ENROLLED' || c.enrollmentStatus === 'ASSIGNED_TO_CLASS').length;
 
     return (
-        <div className="p-4 sm:p-6">
-            <div className="mb-6">
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center">
-                    <UserGroupIcon className="w-6 h-6 sm:w-7 sm:h-7 mr-2 shrink-0" />
-                    My Children
-                </h1>
-                <p className="text-gray-600">Manage and monitor all your children's academic progress</p>
-            </div>
-
-            {/* Add another child by matricule (device-local list, no login needed) */}
-            <Card className="mb-6">
-                <CardBody>
-                    <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-                        <div className="flex-1">
-                            <Input
-                                label="Add a child"
-                                placeholder="Enter another child's matricule, e.g. SS24STD0002"
-                                value={newMatricule}
-                                onChange={(e) => setNewMatricule(e.target.value)}
-                            />
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+            <div className="max-w-7xl mx-auto p-4 sm:p-8 space-y-6">
+                {/* Header */}
+                <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-6 sm:p-8">
+                    <div className="flex flex-wrap justify-between items-start gap-4">
+                        <div>
+                            <p className="text-xs uppercase tracking-widest text-slate-400 font-medium">{t('Family')}</p>
+                            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900 inline-flex items-center gap-2">
+                                <UserGroupIcon className="w-7 h-7 text-slate-500" />
+                                {t('My Children')}
+                            </h1>
+                            <p className="mt-1 text-sm text-slate-500">
+                                {t("Manage and monitor all your children's academic progress")}
+                            </p>
                         </div>
-                        <Button
-                            onClick={handleAddChild}
-                            disabled={!newMatricule.trim() || isAdding}
-                            className="shrink-0"
-                        >
-                            <PlusIcon className="w-4 h-4 mr-1" />
-                            {isAdding ? 'Checking…' : 'Add Child'}
+                        <Button variant="outline" onClick={refetch} className="rounded-full inline-flex items-center">
+                            <ArrowPathIcon className="w-4 h-4 mr-2" />
+                            {t('Refresh')}
                         </Button>
                     </div>
-                </CardBody>
-            </Card>
+                </div>
 
-            {/* Filters and Search */}
-            <Card className="mb-6">
-                <CardBody>
-                    <div className="flex flex-col md:flex-row gap-4">
+                {/* Add-child bar */}
+                <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-5 sm:p-6">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
                         <div className="flex-1">
-                            <div className="relative">
-                                <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                                <Input
+                            <label className="text-xs font-medium text-slate-600">{t('Add a child')}</label>
+                            <div className="mt-1 relative">
+                                <PlusIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                                <input
                                     type="text"
-                                    placeholder="Search children by name..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-10"
+                                    placeholder={t("Enter another child's matricule, e.g. SS24STD0002")}
+                                    value={newMatricule}
+                                    onChange={(e) => setNewMatricule(e.target.value.toUpperCase())}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddChild(); }}
+                                    className="w-full pl-10 pr-3 py-2.5 rounded-full text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition"
                                 />
                             </div>
                         </div>
-                        <div className="md:w-64">
+                        <button
+                            onClick={handleAddChild}
+                            disabled={!newMatricule.trim() || isAdding}
+                            className="shrink-0 inline-flex items-center justify-center gap-1 px-5 py-2.5 rounded-full text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                        >
+                            {isAdding ? (
+                                <>
+                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    {t('Checking…')}
+                                </>
+                            ) : (
+                                <>
+                                    <PlusIcon className="w-4 h-4" />
+                                    {t('Add Child')}
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
+                {/* Stats */}
+                {!isLoading && children.length > 0 && (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <StatTile label={t('Total Children')} value={String(children.length)} sub={`${activeCount} ${t('active')}`} tone="blue" icon={UserGroupIcon} />
+                        <StatTile label={t('Active Enrollments')} value={String(activeCount)} tone="emerald" icon={AcademicCapIcon} sub={t('Currently in class')} />
+                        <StatTile label={t('Pending Fees')} value={formatMoney(totalFees)} tone={totalFees > 0 ? 'rose' : 'emerald'} icon={CurrencyDollarIcon} sub={t('Across all children')} />
+                        <StatTile label={t('Discipline Issues')} value={String(totalDiscipline)} tone={totalDiscipline > 0 ? 'amber' : 'emerald'} icon={ExclamationTriangleIcon} sub={t('Open items')} />
+                    </div>
+                )}
+
+                {/* Search + filter */}
+                {children.length > 0 && (
+                    <div className="rounded-2xl bg-white border border-slate-100 shadow-sm p-4 sm:p-5 flex flex-col md:flex-row gap-3">
+                        <div className="flex-1 relative">
+                            <MagnifyingGlassIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder={t('Search by name or matricule…')}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-3 py-2.5 rounded-full text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition"
+                            />
+                        </div>
+                        <div className="md:w-56">
                             <select
                                 value={classFilter}
                                 onChange={(e) => setClassFilter(e.target.value)}
-                                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full px-4 py-2.5 rounded-full text-sm bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition appearance-none"
                             >
-                                <option value="">All Classes</option>
+                                <option value="">{t('All Classes')}</option>
                                 {uniqueClasses.map(className => (
                                     <option key={className} value={className}>{className}</option>
                                 ))}
                             </select>
                         </div>
-                        <Button variant="outline" className="flex items-center">
-                            <FunnelIcon className="w-4 h-4 mr-2" />
-                            Filters
+                    </div>
+                )}
+
+                {/* Error */}
+                {error && !isLoading && (
+                    <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-8 text-center">
+                        <ExclamationCircleIcon className="mx-auto h-12 w-12 text-rose-400" />
+                        <h2 className="mt-4 text-lg font-semibold text-slate-900">{t('Failed to load children')}</h2>
+                        <p className="mt-1 text-sm text-slate-500">{error}</p>
+                        <Button onClick={refetch} className="mt-6 rounded-full inline-flex items-center" variant="outline">
+                            <ArrowPathIcon className="w-4 h-4 mr-2" />
+                            {t('Try Again')}
                         </Button>
                     </div>
-                </CardBody>
-            </Card>
+                )}
 
-            {/* Children Overview Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <UserGroupIcon className="h-8 w-8 text-blue-600" />
-                            </div>
-                            <div className="ml-3 sm:ml-4 min-w-0">
-                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{children.length}</div>
-                                <div className="text-xs sm:text-sm text-gray-500">Total Children</div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                                    <span className="text-green-600 font-bold">✓</span>
-                                </div>
-                            </div>
-                            <div className="ml-3 sm:ml-4 min-w-0">
-                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
-                                    {children.filter(c => c.enrollmentStatus === 'ACTIVE').length}
-                                </div>
-                                <div className="text-xs sm:text-sm text-gray-500">Active Enrollments</div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                                    <span className="text-yellow-600 font-bold">⚠</span>
-                                </div>
-                            </div>
-                            <div className="ml-3 sm:ml-4 min-w-0">
-                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
-                                    {children.reduce((total, child) => total + child.disciplineIssues, 0)}
-                                </div>
-                                <div className="text-xs sm:text-sm text-gray-500">Discipline Issues</div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
-
-                <Card>
-                    <CardBody>
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0">
-                                <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center">
-                                    <span className="text-red-600 font-bold">₣</span>
-                                </div>
-                            </div>
-                            <div className="ml-3 sm:ml-4 min-w-0">
-                                <div className="text-lg sm:text-2xl font-bold text-gray-900 truncate">
-                                    {children.reduce((total, child) => total + child.pendingFees, 0).toLocaleString()}
-                                </div>
-                                <div className="text-xs sm:text-sm text-gray-500">Pending Fees (FCFA)</div>
-                            </div>
-                        </div>
-                    </CardBody>
-                </Card>
+                {/* Children grid or skeletons */}
+                {isLoading ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <ChildCardSkeleton /><ChildCardSkeleton /><ChildCardSkeleton />
+                    </div>
+                ) : filteredChildren.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        {filteredChildren.map(child => (
+                            <ChildCard key={child.id} child={child} onViewDetails={handleViewDetails} />
+                        ))}
+                    </div>
+                ) : !error && (
+                    <div className="rounded-3xl bg-white border border-slate-100 shadow-sm p-10 text-center">
+                        <UserGroupIcon className="mx-auto h-14 w-14 text-slate-300" />
+                        <h3 className="mt-3 text-base font-semibold text-slate-900">
+                            {children.length === 0 ? t('No children linked yet') : t('No children found')}
+                        </h3>
+                        <p className="mt-1 text-sm text-slate-500">
+                            {children.length === 0
+                                ? t("Add your first child using the matricule above. Any parent with the child's matricule can view.")
+                                : (searchTerm || classFilter
+                                    ? t('Try adjusting your search or filter criteria.')
+                                    : t('No children are currently enrolled.'))
+                            }
+                        </p>
+                    </div>
+                )}
             </div>
-
-            {/* Children Grid */}
-            {filteredChildren.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                    {filteredChildren.map((child) => (
-                        <ChildCard
-                            key={child.id}
-                            child={child}
-                            onViewDetails={handleViewDetails}
-                        />
-                    ))}
-                </div>
-            ) : (
-                <Card>
-                    <CardBody>
-                        <div className="text-center py-8">
-                            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-                            <h3 className="mt-2 text-sm font-medium text-gray-900">No children found</h3>
-                            <p className="mt-1 text-sm text-gray-500">
-                                {searchTerm || classFilter
-                                    ? 'Try adjusting your search or filter criteria.'
-                                    : 'No children are currently enrolled.'}
-                            </p>
-                        </div>
-                    </CardBody>
-                </Card>
-            )}
         </div>
     );
-} 
+}

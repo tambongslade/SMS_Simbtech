@@ -31,6 +31,7 @@ import {
   type DisciplineWarning,
   type ParentSummons,
 } from '@/lib/disciplineExtApi';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SearchStudent {
   id: number;
@@ -66,6 +67,7 @@ function StatChip({ label, value, tone }: { label: string; value: number; tone: 
 
 export default function StudentDisciplineProfilesPage() {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [results, setResults] = useState<SearchStudent[]>([]);
@@ -126,7 +128,7 @@ export default function StudentDisciplineProfilesPage() {
     if (summonsRes.status === 'fulfilled') setSummons(summonsRes.value || []);
     if (actionsRes.status === 'fulfilled') setActions(actionsRes.value.data || []);
     if ([issuesRes, warningsRes, summonsRes, actionsRes].every(r => r.status === 'rejected')) {
-      toast.error('Failed to load discipline information.');
+      toast.error(t('Failed to load discipline information.'));
     }
     setIsLoadingProfile(false);
   };
@@ -145,10 +147,10 @@ export default function StudentDisciplineProfilesPage() {
       {!selected ? (
         <>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Student Discipline Profiles</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('Student Discipline Profiles')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Search a student to see their full discipline record
-              {selectedAcademicYear ? ` for ${selectedAcademicYear.name}` : ''}.
+              {t('Search a student to see their full discipline record')}
+              {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
             </p>
           </div>
 
@@ -158,13 +160,13 @@ export default function StudentDisciplineProfilesPage() {
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Search by name or matricule (min 2 characters)…"
+              placeholder={t('Search by name or matricule (min 2 characters)…')}
               className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               autoFocus
             />
           </div>
 
-          {isSearching && <p className="text-sm text-gray-400">Searching…</p>}
+          {isSearching && <p className="text-sm text-gray-400">{t('Searching…')}</p>}
 
           <div className="bg-white rounded-lg shadow divide-y divide-gray-100 overflow-hidden">
             {results.map(s => (
@@ -177,14 +179,14 @@ export default function StudentDisciplineProfilesPage() {
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
                   <p className="text-xs text-gray-500">
-                    {s.matricule || 'No matricule'}
+                    {s.matricule || t('No matricule')}
                     {s.subClassName ? ` · ${s.className || ''} ${s.subClassName}` : ''}
                   </p>
                 </div>
               </button>
             ))}
             {!isSearching && searchTerm.trim().length >= 2 && results.length === 0 && (
-              <p className="p-6 text-sm text-gray-400 text-center">No students found.</p>
+              <p className="p-6 text-sm text-gray-400 text-center">{t('No students found.')}</p>
             )}
           </div>
         </>
@@ -192,7 +194,7 @@ export default function StudentDisciplineProfilesPage() {
         <>
           {/* Profile header */}
           <button onClick={() => setSelected(null)} className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">
-            <ArrowLeftIcon className="w-4 h-4" /> Back to search
+            <ArrowLeftIcon className="w-4 h-4" /> {t('Back to search')}
           </button>
 
           <div className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
@@ -200,34 +202,34 @@ export default function StudentDisciplineProfilesPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-gray-900 truncate">{selected.name}</h1>
               <p className="text-sm text-gray-500">
-                {selected.matricule || 'No matricule'}
+                {selected.matricule || t('No matricule')}
                 {selected.subClassName ? ` · ${selected.className || ''} ${selected.subClassName}` : ''}
               </p>
             </div>
           </div>
 
           {isLoadingProfile ? (
-            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">Loading discipline record…</div>
+            <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">{t('Loading discipline record…')}</div>
           ) : (
             <>
               {/* Summary chips */}
               <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                <StatChip label="Lateness" value={stats.lateness} tone={stats.lateness > 0 ? 'amber' : 'gray'} />
-                <StatChip label="Absences" value={stats.absences} tone={stats.absences > 0 ? 'red' : 'gray'} />
-                <StatChip label="Misconduct" value={stats.misconduct} tone={stats.misconduct > 0 ? 'purple' : 'gray'} />
-                <StatChip label="Open Warnings" value={stats.openWarnings} tone={stats.openWarnings > 0 ? 'amber' : 'gray'} />
-                <StatChip label="Summons" value={stats.pendingSummons} tone={stats.pendingSummons > 0 ? 'blue' : 'gray'} />
-                <StatChip label="Sanctions" value={stats.activeActions} tone={stats.activeActions > 0 ? 'red' : 'gray'} />
+                <StatChip label={t('Lateness')} value={stats.lateness} tone={stats.lateness > 0 ? 'amber' : 'gray'} />
+                <StatChip label={t('Absences')} value={stats.absences} tone={stats.absences > 0 ? 'red' : 'gray'} />
+                <StatChip label={t('Misconduct')} value={stats.misconduct} tone={stats.misconduct > 0 ? 'purple' : 'gray'} />
+                <StatChip label={t('Open Warnings')} value={stats.openWarnings} tone={stats.openWarnings > 0 ? 'amber' : 'gray'} />
+                <StatChip label={t('Summons')} value={stats.pendingSummons} tone={stats.pendingSummons > 0 ? 'blue' : 'gray'} />
+                <StatChip label={t('Sanctions')} value={stats.activeActions} tone={stats.activeActions > 0 ? 'red' : 'gray'} />
               </div>
 
               {/* Discipline issues */}
               <section className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-                  <h2 className="font-semibold text-gray-900 text-sm">Discipline Issues ({issues.length})</h2>
+                  <h2 className="font-semibold text-gray-900 text-sm">{t('Discipline Issues')} ({issues.length})</h2>
                 </div>
                 {issues.length === 0 ? (
-                  <p className="p-4 text-sm text-gray-400">No discipline issues recorded.</p>
+                  <p className="p-4 text-sm text-gray-400">{t('No discipline issues recorded.')}</p>
                 ) : (
                   <ul className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
                     {issues.map(i => (
@@ -237,7 +239,7 @@ export default function StudentDisciplineProfilesPage() {
                           <span className="text-xs text-gray-400 shrink-0">{dateLabel(i.createdAt)}</span>
                         </div>
                         {i.description && <p className="text-xs text-gray-500 mt-0.5">{i.description}</p>}
-                        {i.actionTaken && <p className="text-xs text-green-700 mt-0.5">Action: {i.actionTaken}</p>}
+                        {i.actionTaken && <p className="text-xs text-green-700 mt-0.5">{t('Action')}: {i.actionTaken}</p>}
                       </li>
                     ))}
                   </ul>
@@ -248,20 +250,20 @@ export default function StudentDisciplineProfilesPage() {
               <section className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <BellIcon className="w-5 h-5 text-amber-500" />
-                  <h2 className="font-semibold text-gray-900 text-sm">Warnings ({warnings.length})</h2>
+                  <h2 className="font-semibold text-gray-900 text-sm">{t('Warnings')} ({warnings.length})</h2>
                 </div>
                 {warnings.length === 0 ? (
-                  <p className="p-4 text-sm text-gray-400">No warnings issued.</p>
+                  <p className="p-4 text-sm text-gray-400">{t('No warnings issued.')}</p>
                 ) : (
                   <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
                     {warnings.map(w => (
                       <li key={w.id} className={`px-4 py-2.5 ${w.resolved ? 'opacity-60' : ''}`}>
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium text-gray-900">
-                            Level {w.warningLevel} · {enumLabel(w.reason)}
+                            {t('Level')} {w.warningLevel} · {enumLabel(w.reason)}
                           </span>
                           <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${w.resolved ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                            {w.resolved ? 'Resolved' : 'Open'}
+                            {w.resolved ? t('Resolved') : t('Open')}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">{w.description}</p>
@@ -276,21 +278,21 @@ export default function StudentDisciplineProfilesPage() {
               <section className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <UserGroupIcon className="w-5 h-5 text-blue-500" />
-                  <h2 className="font-semibold text-gray-900 text-sm">Parent Summons ({summons.length})</h2>
+                  <h2 className="font-semibold text-gray-900 text-sm">{t('Parent Summons')} ({summons.length})</h2>
                 </div>
                 {summons.length === 0 ? (
-                  <p className="p-4 text-sm text-gray-400">No parent summons.</p>
+                  <p className="p-4 text-sm text-gray-400">{t('No parent summons.')}</p>
                 ) : (
                   <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
                     {summons.map(s => (
                       <li key={s.id} className={`px-4 py-2.5 ${s.status === 'CANCELLED' ? 'opacity-60' : ''}`}>
                         <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium text-gray-900 truncate">{s.parent?.name || 'Parent'}</span>
+                          <span className="text-sm font-medium text-gray-900 truncate">{s.parent?.name || t('Parent')}</span>
                           <span className="text-xs px-2 py-0.5 rounded-full shrink-0 bg-blue-50 text-blue-700">{enumLabel(s.status)}</span>
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">{s.reason}</p>
                         <p className="text-[11px] text-gray-400 mt-0.5">
-                          {s.scheduledDate ? `Scheduled ${new Date(s.scheduledDate).toLocaleString()}` : dateLabel(s.createdAt)}
+                          {s.scheduledDate ? `${t('Scheduled')} ${new Date(s.scheduledDate).toLocaleString()}` : dateLabel(s.createdAt)}
                         </p>
                       </li>
                     ))}
@@ -302,10 +304,10 @@ export default function StudentDisciplineProfilesPage() {
               <section className="bg-white rounded-lg shadow overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
                   <ScaleIcon className="w-5 h-5 text-red-500" />
-                  <h2 className="font-semibold text-gray-900 text-sm">Sanctions ({actions.length})</h2>
+                  <h2 className="font-semibold text-gray-900 text-sm">{t('Sanctions')} ({actions.length})</h2>
                 </div>
                 {actions.length === 0 ? (
-                  <p className="p-4 text-sm text-gray-400">No sanctions recorded.</p>
+                  <p className="p-4 text-sm text-gray-400">{t('No sanctions recorded.')}</p>
                 ) : (
                   <ul className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
                     {actions.map(a => (

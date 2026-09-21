@@ -42,6 +42,7 @@ import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
 import ChatIndicator from '@/components/chat/ChatIndicator';
+import SyncStatusMarquee from '@/components/dashboard/SyncStatusMarquee';
 import { menuItems, type MenuItem } from '@/lib/roleMenus';
 
 
@@ -213,6 +214,7 @@ export default function DashboardLayout({
     'discipline-master': 'Discipline Master',
     'senior-discipline-master': 'Senior Discipline Master',
     'dean-of-discipline': 'Dean of Discipline',
+    'discipline-coordinator': 'Discipline Coordinator',
     'dean-of-studies': 'Dean of Studies',
     'fee-auditor': 'Fee Auditor',
     secretary: 'Secretary',
@@ -260,6 +262,7 @@ export default function DashboardLayout({
             'DISCIPLINE_MASTER': '/dashboard/discipline-master',
             'SENIOR_DISCIPLINE_MASTER': '/dashboard/senior-discipline-master',
             'DEAN_OF_DISCIPLINE': '/dashboard/dean-of-discipline',
+            'DISCIPLINE_COORDINATOR': '/dashboard/discipline-coordinator',
             'DEAN_OF_STUDIES': '/dashboard/dean-of-studies',
             'GUIDANCE_COUNSELOR': '/dashboard/guidance-counselor',
             'FEE_AUDITOR': '/dashboard/fee-auditor',
@@ -588,6 +591,9 @@ export default function DashboardLayout({
           </div>
         </div>
       </nav>
+
+      {/* Mobile-only, SUPER_MANAGER-only: scrolling "Last data sync" strip. */}
+      <SyncStatusMarquee />
 
       {/* Sidebar and Main Content */}
       <div className="flex" style={{ paddingTop: 'var(--app-header-height)' }}>

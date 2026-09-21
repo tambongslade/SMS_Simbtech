@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StatsCard, Card, CardHeader, CardTitle, CardBody, Badge } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import apiService from '@/lib/apiService';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 
@@ -135,6 +136,7 @@ const fetcher = (url: string) => apiService.get(url);
 
 export default function ManagerOverviewPage() {
     const { selectedAcademicYear } = useAuth();
+    const { t } = useLanguage();
     const yearParam = selectedAcademicYear?.id ? `?academicYearId=${selectedAcademicYear.id}` : '';
 
     const { data: opsRes, error: opsError, isLoading: isLoadingOps } = useSWR<{ data?: OperationalDashboard }>(`/manager/dashboard${yearParam}`, fetcher);
@@ -152,7 +154,7 @@ export default function ManagerOverviewPage() {
     useEffect(() => {
         if (opsError && opsError.message !== 'Unauthorized') {
             console.error('Manager dashboard fetch error:', opsError);
-            toast.error('Failed to load some dashboard data');
+            toast.error(t('Failed to load some dashboard data'));
         }
     }, [opsError]);
 
@@ -160,66 +162,66 @@ export default function ManagerOverviewPage() {
 
     const schoolStats = useMemo(() => ([
         {
-            title: 'Students',
+            title: t('Students'),
             value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.totalStudents ?? 0),
             icon: IdentificationIcon,
             color: 'primary' as const,
             href: '/dashboard/manager/academic-reports',
         },
         {
-            title: 'Teachers',
+            title: t('Teachers'),
             value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.totalTeachers ?? teachers?.totalTeachers ?? 0),
             icon: AcademicCapIcon,
             color: 'secondary' as const,
             href: '/dashboard/manager/departments',
         },
         {
-            title: 'Open Discipline Issues',
+            title: t('Open Discipline Issues'),
             value: isLoadingEnhanced ? '...' : String(analytics?.schoolOverview?.openDisciplineIssues ?? 0),
             icon: ClipboardDocumentListIcon,
             color: 'warning' as const,
             href: '/dashboard/manager/disciplinary-actions',
         },
         {
-            title: 'Pending Reports',
+            title: t('Pending Reports'),
             value: isLoadingEnhanced ? '...' : String(analytics?.reportAnalytics?.pending ?? 0),
             icon: DocumentChartBarIcon,
             color: 'neutral' as const,
             href: '/dashboard/manager/academic-reports',
         },
-    ]), [analytics, teachers, isLoadingEnhanced]);
+    ]), [analytics, teachers, isLoadingEnhanced, t]);
 
     return (
         <div className="flex-1 p-4 space-y-6">
             <div>
-                <h1 className="text-xl sm:text-2xl font-bold">Manager Dashboard</h1>
+                <h1 className="text-xl sm:text-2xl font-bold">{t('Manager Dashboard')}</h1>
                 <p className="text-gray-600">
-                    School operations overview
+                    {t('School operations overview')}
                     {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}
                 </p>
             </div>
 
             {/* ── People (staff / teachers / administrators) ── */}
             <section>
-                <h2 className="text-lg font-semibold text-gray-900 mb-3">People</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-3">{t('People')}</h2>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-                    <StatsCard title="Total Staff" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.totalStaff ?? 0)} icon={UserGroupIcon} color="primary" />
-                    <StatsCard title="Teachers" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.teachers ?? 0)} icon={AcademicCapIcon} color="secondary" />
-                    <StatsCard title="Administrators" value={isLoadingEnhanced ? '...' : String(staffBreakdown?.administrators ?? 0)} icon={ShieldCheckIcon} color="neutral" />
-                    <StatsCard title="Active Staff" value={isLoadingOps ? '...' : String(ops?.overview?.activeStaff ?? 0)} icon={CheckCircleIcon} color="success" />
+                    <StatsCard title={t('Total Staff')} value={isLoadingEnhanced ? '...' : String(staffBreakdown?.totalStaff ?? 0)} icon={UserGroupIcon} color="primary" />
+                    <StatsCard title={t('Teachers')} value={isLoadingEnhanced ? '...' : String(staffBreakdown?.teachers ?? 0)} icon={AcademicCapIcon} color="secondary" />
+                    <StatsCard title={t('Administrators')} value={isLoadingEnhanced ? '...' : String(staffBreakdown?.administrators ?? 0)} icon={ShieldCheckIcon} color="neutral" />
+                    <StatsCard title={t('Active Staff')} value={isLoadingOps ? '...' : String(ops?.overview?.activeStaff ?? 0)} icon={CheckCircleIcon} color="success" />
                 </div>
             </section>
 
             {/* ── Enrollment by class ── */}
             <section>
                 <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-lg font-semibold text-gray-900">Enrollment by class</h2>
+                    <h2 className="text-lg font-semibold text-gray-900">{t('Enrollment by class')}</h2>
                     <span className="text-sm text-gray-500">
-                        {isLoadingEnhanced ? 'Loading…' : `Total enrolled: ${enrollment?.totalEnrolled ?? 0}`}
+                        {isLoadingEnhanced ? t('Loading…') : `${t('Total enrolled')}: ${enrollment?.totalEnrolled ?? 0}`}
                     </span>
                 </div>
                 {(enrollment?.classes?.length ?? 0) === 0 ? (
-                    <p className="text-sm text-gray-500">{isLoadingEnhanced ? 'Loading…' : 'No enrollments yet.'}</p>
+                    <p className="text-sm text-gray-500">{isLoadingEnhanced ? t('Loading…') : t('No enrollments yet.')}</p>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
                         {enrollment!.classes.map((cls) => (
@@ -231,11 +233,11 @@ export default function ManagerOverviewPage() {
                                             {cls.className}
                                         </span>
                                     </CardTitle>
-                                    <Badge color="blue" size="sm">{cls.totalStudents} students</Badge>
+                                    <Badge color="blue" size="sm">{cls.totalStudents} {t('students')}</Badge>
                                 </CardHeader>
                                 <CardBody>
                                     {cls.subClasses.length === 0 ? (
-                                        <p className="text-sm text-gray-500">No sub-classes.</p>
+                                        <p className="text-sm text-gray-500">{t('No sub-classes.')}</p>
                                     ) : (
                                         <ul className="divide-y divide-gray-100">
                                             {cls.subClasses.map((sc) => (
@@ -275,7 +277,7 @@ export default function ManagerOverviewPage() {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Staff Attendance</CardTitle>
+                        <CardTitle>{t('Staff Attendance')}</CardTitle>
                         <span className="text-sm font-semibold text-gray-900">{(ops?.attendance?.overallAttendanceRate ?? 0).toFixed(1)}%</span>
                     </CardHeader>
                     <CardBody className="space-y-3">
@@ -293,30 +295,30 @@ export default function ManagerOverviewPage() {
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-gray-500">{isLoadingOps ? 'Loading…' : 'No attendance data.'}</p>
+                            <p className="text-sm text-gray-500">{isLoadingOps ? t('Loading…') : t('No attendance data.')}</p>
                         )}
                     </CardBody>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Teachers</CardTitle>
-                        <span className="text-sm font-semibold text-gray-900">{(teachers?.attendanceRate ?? 0).toFixed(1)}% attendance</span>
+                        <CardTitle>{t('Teachers')}</CardTitle>
+                        <span className="text-sm font-semibold text-gray-900">{(teachers?.attendanceRate ?? 0).toFixed(1)}% {t('attendance')}</span>
                     </CardHeader>
                     <CardBody className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <p className="text-xs text-gray-500">Hours Scheduled</p>
+                                <p className="text-xs text-gray-500">{t('Hours Scheduled')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{(teachers?.hoursScheduled ?? 0).toLocaleString()}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Hours Taught</p>
+                                <p className="text-xs text-gray-500">{t('Hours Taught')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{(teachers?.hoursTaught ?? 0).toLocaleString()}</p>
                             </div>
                         </div>
                         {(teachers?.topPerformers?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Top Performers</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Top Performers')}</p>
                                 <ul className="divide-y divide-gray-100">
                                     {teachers!.topPerformers.slice(0, 3).map((t) => (
                                         <li key={t.userId} className="py-1.5 flex items-center justify-between gap-2">
@@ -329,7 +331,7 @@ export default function ManagerOverviewPage() {
                         )}
                         {(teachers?.underperformers?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Needs Attention</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Needs Attention')}</p>
                                 <ul className="divide-y divide-gray-100">
                                     {teachers!.underperformers.slice(0, 3).map((t) => (
                                         <li key={t.userId} className="py-1.5 flex items-center justify-between gap-2">
@@ -348,9 +350,9 @@ export default function ManagerOverviewPage() {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Maintenance & Inventory</CardTitle>
+                        <CardTitle>{t('Maintenance & Inventory')}</CardTitle>
                         {(support?.maintenance?.openRequests ?? 0) > 0 && (
-                            <Badge color="yellow" size="sm">{support!.maintenance.openRequests} open</Badge>
+                            <Badge color="yellow" size="sm">{support!.maintenance.openRequests} {t('open')}</Badge>
                         )}
                     </CardHeader>
                     <CardBody className="space-y-3">
@@ -375,7 +377,7 @@ export default function ManagerOverviewPage() {
                         )}
                         {(support?.inventoryAlerts?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Low Stock</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Low Stock')}</p>
                                 <ul className="divide-y divide-gray-100">
                                     {support!.inventoryAlerts.slice(0, 4).map((alert) => (
                                         <li key={alert.item} className="py-1.5 flex items-center justify-between gap-2">
@@ -386,38 +388,38 @@ export default function ManagerOverviewPage() {
                                 </ul>
                             </div>
                         )}
-                        {!support && <p className="text-sm text-gray-500">Loading…</p>}
+                        {!support && <p className="text-sm text-gray-500">{t('Loading…')}</p>}
                     </CardBody>
                 </Card>
 
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Tasks</CardTitle>
+                        <CardTitle>{t('Tasks')}</CardTitle>
                         {(ops?.tasks?.overdueTasks ?? 0) > 0 && (
-                            <Badge color="red" size="sm">{ops!.tasks.overdueTasks} overdue</Badge>
+                            <Badge color="red" size="sm">{ops!.tasks.overdueTasks} {t('overdue')}</Badge>
                         )}
                     </CardHeader>
                     <CardBody className="space-y-3">
                         <div className="flex flex-wrap gap-x-6 gap-y-2">
                             <div>
-                                <p className="text-xs text-gray-500">Active</p>
+                                <p className="text-xs text-gray-500">{t('Active')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{ops?.tasks?.totalActiveTasks ?? 0}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Completed This Week</p>
+                                <p className="text-xs text-gray-500">{t('Completed This Week')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{ops?.tasks?.completedThisWeek ?? 0}</p>
                             </div>
                         </div>
                         {(ops?.tasks?.upcomingDeadlines?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Upcoming Deadlines</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Upcoming Deadlines')}</p>
                                 <ul className="divide-y divide-gray-100">
                                     {ops!.tasks.upcomingDeadlines.slice(0, 5).map((task) => (
                                         <li key={task.id} className="py-1.5 flex items-center justify-between gap-2">
                                             <div className="min-w-0">
                                                 <p className="text-sm text-gray-900 truncate">{task.title}</p>
                                                 <p className="text-xs text-gray-500 truncate">
-                                                    {task.assignedTo} · due {new Date(task.deadline).toLocaleDateString()}
+                                                    {task.assignedTo} · {t('due')} {new Date(task.deadline).toLocaleDateString()}
                                                 </p>
                                             </div>
                                             <Badge color={priorityColor(task.priority)} size="sm">{formatLabel(task.priority)}</Badge>
@@ -434,14 +436,14 @@ export default function ManagerOverviewPage() {
             <section className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Staff Performance</CardTitle>
+                        <CardTitle>{t('Staff Performance')}</CardTitle>
                         <span className="text-sm font-semibold text-gray-900">{(ops?.performance?.staffPerformanceScore ?? 0).toFixed(1)} / 100</span>
                     </CardHeader>
                     <CardBody className="space-y-3">
                         <ProgressBar rate={ops?.performance?.staffPerformanceScore ?? 0} />
                         {(ops?.performance?.topPerformers?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Top Performers</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Top Performers')}</p>
                                 <ul className="divide-y divide-gray-100">
                                     {ops!.performance.topPerformers.slice(0, 5).map((p) => (
                                         <li key={p.userId} className="py-1.5 flex items-center justify-between gap-2">
@@ -456,7 +458,7 @@ export default function ManagerOverviewPage() {
                         )}
                         {(ops?.performance?.improvementAreas?.length ?? 0) > 0 && (
                             <div>
-                                <p className="text-xs font-medium text-gray-500 mb-1">Improvement Areas</p>
+                                <p className="text-xs font-medium text-gray-500 mb-1">{t('Improvement Areas')}</p>
                                 <div className="flex flex-wrap gap-2">
                                     {ops!.performance.improvementAreas.map((area) => (
                                         <Badge key={area} color="yellow" size="sm">{area}</Badge>
@@ -469,36 +471,36 @@ export default function ManagerOverviewPage() {
 
                 <Card>
                     <CardHeader className="flex items-center justify-between">
-                        <CardTitle>Report Cards & Forms</CardTitle>
-                        <Link href="/dashboard/manager/academic-reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</Link>
+                        <CardTitle>{t('Report Cards & Forms')}</CardTitle>
+                        <Link href="/dashboard/manager/academic-reports" className="text-xs font-medium text-blue-600 hover:text-blue-800">{t('View all')} →</Link>
                     </CardHeader>
                     <CardBody className="space-y-3">
                         <div className="flex flex-wrap gap-x-6 gap-y-2">
                             <div>
-                                <p className="text-xs text-gray-500">Total Reports</p>
+                                <p className="text-xs text-gray-500">{t('Total Reports')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.totalReports ?? 0}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Generated</p>
+                                <p className="text-xs text-gray-500">{t('Generated')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.generated ?? 0}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Pending</p>
+                                <p className="text-xs text-gray-500">{t('Pending')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{analytics?.reportAnalytics?.pending ?? 0}</p>
                             </div>
                         </div>
                         <div className="flex items-center justify-between gap-3">
-                            <span className="text-sm text-gray-500">Generation rate</span>
+                            <span className="text-sm text-gray-500">{t('Generation rate')}</span>
                             <span className="text-sm font-semibold text-gray-900">{(analytics?.reportAnalytics?.generationRate ?? 0).toFixed(1)}%</span>
                         </div>
                         <ProgressBar rate={analytics?.reportAnalytics?.generationRate ?? 0} />
                         <div className="pt-1 flex flex-wrap gap-x-6 gap-y-2">
                             <div>
-                                <p className="text-xs text-gray-500">Active Forms</p>
+                                <p className="text-xs text-gray-500">{t('Active Forms')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{analytics?.formManagement?.totalForms ?? 0}</p>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Open Submissions</p>
+                                <p className="text-xs text-gray-500">{t('Open Submissions')}</p>
                                 <p className="text-lg font-semibold text-gray-900">{analytics?.formManagement?.openSubmissions ?? 0}</p>
                             </div>
                         </div>

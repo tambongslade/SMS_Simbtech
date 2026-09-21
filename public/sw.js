@@ -6,7 +6,18 @@
  *   - API calls and other cross-origin requests: network only (never cached).
  * Bump CACHE_VERSION to invalidate old caches on the next deploy.
  */
-const CACHE_VERSION = 'v2';
+// Bumped: v3 could cache a non-OK response (e.g. a 404 hit during the brief
+// window a deploy swaps .next -- see deploy-onprem.ps1) under a static asset's
+// URL with no expiry, so a transient build-time 404 was replayed forever thereafter,
+// even once the server had the file again. Bumping this deletes that cache
+// (see 'activate' below) so anyone carrying a poisoned entry gets a clean one
+// on their next visit.
+const CACHE_VERSION = 'v4';
+// Network-first navigations had no timeout: a slow/hung connection (seen on
+// some iOS Safari sessions) meant the fetch promise just never settled, so
+// respondWith() never resolved and the page spun forever instead of falling
+// back to cache/offline. NAV_TIMEOUT_MS bounds that wait.
+const NAV_TIMEOUT_MS = 8000;
 const STATIC_CACHE = `sms-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `sms-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
@@ -58,35 +69,47 @@ self.addEventListener('fetch', (event) => {
   // Never intercept cross-origin requests (the API lives on another origin).
   if (url.origin !== self.location.origin) return;
 
-  // App navigations: network-first with offline fallback.
+  // App navigations: network-first with offline fallback, bounded by a
+  // timeout so a hung connection falls back instead of spinning forever.
   if (request.mode === 'navigate') {
+    const networkFetch = fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
+      }
+      return response;
+    });
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('nav timeout')), NAV_TIMEOUT_MS)
+    );
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() =>
-          caches
-            .match(request)
-            .then((cached) => cached || caches.match(OFFLINE_URL))
-        )
+      Promise.race([networkFetch, timeout]).catch(() => {
+        // Race lost to the timeout or the fetch itself failed. Either way,
+        // silence the loser so it doesn't surface as an unhandled rejection
+        // once it eventually settles, then fall back to cache/offline.
+        networkFetch.catch(() => {});
+        return caches.match(request).then((cached) => cached || caches.match(OFFLINE_URL));
+      })
     );
     return;
   }
 
-  // Immutable Next.js build assets: cache-first.
+  // Immutable Next.js build assets: cache-first. Only a genuinely successful
+  // response is cached -- a build-time 404 (see CACHE_VERSION comment above)
+  // must never get stuck here, since cache-first means it would otherwise be
+  // replayed forever with no further network check.
   if (isStaticAsset(url)) {
     event.respondWith(
       caches.match(request).then(
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            const copy = response.clone();
-            caches
-              .open(STATIC_CACHE)
-              .then((cache) => cache.put(request, copy));
+            if (response.ok) {
+              const copy = response.clone();
+              caches
+                .open(STATIC_CACHE)
+                .then((cache) => cache.put(request, copy));
+            }
             return response;
           })
       )
@@ -100,10 +123,12 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((cached) => {
         const network = fetch(request)
           .then((response) => {
-            const copy = response.clone();
-            caches
-              .open(RUNTIME_CACHE)
-              .then((cache) => cache.put(request, copy));
+            if (response.ok) {
+              const copy = response.clone();
+              caches
+                .open(RUNTIME_CACHE)
+                .then((cache) => cache.put(request, copy));
+            }
             return response;
           })
           .catch(() => cached);

@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 
 // Validated light-mode palette (see dataviz reference palette).
 // Categorical slots are assigned in this fixed order, never cycled.
@@ -33,6 +34,16 @@ export const formatLabel = (raw: string) =>
 
 export const formatMoney = (amount?: number | null) => `FCFA ${(amount ?? 0).toLocaleString()}`;
 
+// Money renderer that hides the FCFA prefix on mobile (breakpoint < sm).
+// Use where tight layouts (chart legends, dense grids) would otherwise
+// truncate the accompanying label on narrow screens.
+export const MoneyResponsive = ({ amount }: { amount?: number | null }) => (
+    <>
+        <span className="hidden sm:inline">FCFA </span>
+        {(amount ?? 0).toLocaleString()}
+    </>
+);
+
 export const formatNumber = (n?: number | null) => (n ?? 0).toLocaleString();
 
 export const formatPercent = (n?: number | null) => `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
@@ -50,17 +61,35 @@ export const formatRelativeTime = (iso?: string) => {
 
 // ── Stat tiles (KPI numbers are tiles, not charts) ──
 
-export function StatTile({ label, value, sub, tone = 'default' }: {
+export function StatTile({ label, value, sub, tone = 'default', href }: {
     label: string;
     value: React.ReactNode;
     sub?: string;
     tone?: 'default' | 'alert';
+    // When set, the whole tile becomes a link into the underlying data so a
+    // number here is never a dead end.
+    href?: string;
 }) {
-    return (
-        <div className="min-w-0 rounded-lg border border-gray-100 bg-white p-3">
+    const body = (
+        <>
             <p className="text-xs text-gray-500 truncate" title={label}>{label}</p>
             <p className={`mt-0.5 text-lg font-semibold break-words ${tone === 'alert' ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
             {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        </>
+    );
+    if (href) {
+        return (
+            <Link
+                href={href}
+                className="block min-w-0 rounded-lg border border-gray-100 bg-white p-3 transition hover:shadow-md hover:ring-2 hover:ring-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+                {body}
+            </Link>
+        );
+    }
+    return (
+        <div className="min-w-0 rounded-lg border border-gray-100 bg-white p-3">
+            {body}
         </div>
     );
 }
@@ -75,6 +104,7 @@ export interface BarRow {
     label: string;
     value: number;
     display?: string; // formatted value (e.g. money); defaults to the number
+    raw?: string; // original (pre-formatLabel) key, for building drill-down hrefs
 }
 
 export function BarList({ rows, maxRows = 10 }: { rows: BarRow[]; maxRows?: number }) {
@@ -106,6 +136,9 @@ export interface Segment {
     value: number;
     color: string;
     display?: string;
+    // Optional rich (JSX) render used in the legend body — falls back to
+    // `display`, then to the raw number. Tooltips still use `display`.
+    displayNode?: React.ReactNode;
 }
 
 // Assign fixed-order categorical slots; fold the tail past 7 into "Other"
@@ -149,7 +182,7 @@ export function SegmentBar({ segments, title }: { segments: Segment[]; title?: s
                             <span key={s.label} className="inline-flex items-center gap-1.5 text-xs text-gray-600">
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
                                 {s.label}
-                                <span className="font-medium text-gray-900 tabular-nums">{s.display ?? formatNumber(s.value)}</span>
+                                <span className="font-medium text-gray-900 tabular-nums">{s.displayNode ?? s.display ?? formatNumber(s.value)}</span>
                             </span>
                         ))}
                     </div>
@@ -176,11 +209,13 @@ const arcPath = (cx: number, cy: number, rOuter: number, rInner: number, start: 
     return `M ${x0} ${y0} A ${rOuter} ${rOuter} 0 ${large} 1 ${x1} ${y1} L ${x2} ${y2} A ${rInner} ${rInner} 0 ${large} 0 ${x3} ${y3} Z`;
 };
 
-export function DonutChart({ segments, title, centerText, centerSub }: {
+export function DonutChart({ segments, title, centerText, centerSub, getHref }: {
     segments: Segment[];
     title?: string;
     centerText?: string; // defaults to the formatted total
     centerSub?: string;
+    // When set, each legend row links into the underlying data for that segment.
+    getHref?: (segment: Segment) => string | undefined;
 }) {
     const total = segments.reduce((s, x) => s + x.value, 0);
     const visible = segments.filter(s => s.value > 0);
@@ -225,16 +260,30 @@ export function DonutChart({ segments, title, centerText, centerSub }: {
                     </div>
                 </div>
                 <ul className="min-w-0 flex-1 space-y-1.5">
-                    {segments.map(s => (
-                        <li key={s.label} className="flex items-center gap-2 text-sm">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
-                            <span className="text-gray-600 truncate min-w-0" title={s.label}>{s.label}</span>
-                            <span className="ml-auto shrink-0 font-medium text-gray-900 tabular-nums">{s.display ?? formatNumber(s.value)}</span>
-                            <span className="w-12 shrink-0 text-right text-xs text-gray-400 tabular-nums">
-                                {total > 0 ? `${((s.value / total) * 100).toFixed(1)}%` : ''}
-                            </span>
-                        </li>
-                    ))}
+                    {segments.map(s => {
+                        const href = getHref?.(s);
+                        const row = (
+                            <>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: s.color }} />
+                                <span className="text-gray-600 truncate min-w-0" title={s.label}>{s.label}</span>
+                                <span className="ml-auto shrink-0 font-medium text-gray-900 tabular-nums">{s.displayNode ?? s.display ?? formatNumber(s.value)}</span>
+                                <span className="w-12 shrink-0 text-right text-xs text-gray-400 tabular-nums">
+                                    {total > 0 ? `${((s.value / total) * 100).toFixed(1)}%` : ''}
+                                </span>
+                            </>
+                        );
+                        return href ? (
+                            <li key={s.label}>
+                                <Link href={href} className="flex items-center gap-2 text-sm rounded px-1 -mx-1 hover:bg-gray-50 hover:ring-1 hover:ring-blue-200">
+                                    {row}
+                                </Link>
+                            </li>
+                        ) : (
+                            <li key={s.label} className="flex items-center gap-2 text-sm">
+                                {row}
+                            </li>
+                        );
+                    })}
                 </ul>
             </div>
         </div>
@@ -243,10 +292,12 @@ export function DonutChart({ segments, title, centerText, centerSub }: {
 
 // ── Vertical bar (column) chart — magnitude comparison, one sequential hue ──
 
-export function BarChart({ rows, title, maxCols = 8 }: {
+export function BarChart({ rows, title, maxCols = 8, getHref }: {
     rows: BarRow[];
     title?: string;
     maxCols?: number;
+    // When set, each column links into the underlying data for that row.
+    getHref?: (row: BarRow) => string | undefined;
 }) {
     const shown = rows.slice(0, maxCols);
     const max = Math.max(0, ...shown.map(r => r.value));
@@ -262,25 +313,34 @@ export function BarChart({ rows, title, maxCols = 8 }: {
         <div>
             {title && <p className="text-xs font-medium text-gray-500 mb-2">{title}</p>}
             <div className="flex items-end gap-2 sm:gap-3 h-40 border-b border-gray-200">
-                {shown.map(r => (
-                    <div
-                        key={r.label}
-                        className="flex-1 min-w-0 h-full flex flex-col justify-end items-center"
-                        title={`${r.label}: ${r.display ?? formatNumber(r.value)}`}
-                    >
-                        <span className="text-[11px] font-medium text-gray-700 tabular-nums mb-1 max-w-full truncate">
-                            {r.display ?? formatNumber(r.value)}
-                        </span>
-                        <div
-                            className="w-full max-w-[44px] rounded-t transition-opacity hover:opacity-75"
-                            style={{
-                                // 82% ceiling leaves room for the value label; ratios are preserved
-                                height: `${max > 0 ? Math.max(1.5, (r.value / max) * 82) : 0}%`,
-                                backgroundColor: SEQUENTIAL,
-                            }}
-                        />
-                    </div>
-                ))}
+                {shown.map(r => {
+                    const href = getHref?.(r);
+                    const barClassName = `flex-1 min-w-0 h-full flex flex-col justify-end items-center ${href ? 'cursor-pointer group' : ''}`;
+                    const content = (
+                        <>
+                            <span className="text-[11px] font-medium text-gray-700 tabular-nums mb-1 max-w-full truncate">
+                                {r.display ?? formatNumber(r.value)}
+                            </span>
+                            <div
+                                className={`w-full max-w-[44px] rounded-t transition-opacity hover:opacity-75 ${href ? 'group-hover:opacity-75 ring-0 group-hover:ring-2 group-hover:ring-blue-300' : ''}`}
+                                style={{
+                                    // 82% ceiling leaves room for the value label; ratios are preserved
+                                    height: `${max > 0 ? Math.max(1.5, (r.value / max) * 82) : 0}%`,
+                                    backgroundColor: SEQUENTIAL,
+                                }}
+                            />
+                        </>
+                    );
+                    return href ? (
+                        <Link key={r.label} href={href} className={barClassName} title={`${r.label}: ${r.display ?? formatNumber(r.value)}`}>
+                            {content}
+                        </Link>
+                    ) : (
+                        <div key={r.label} className={barClassName} title={`${r.label}: ${r.display ?? formatNumber(r.value)}`}>
+                            {content}
+                        </div>
+                    );
+                })}
             </div>
             <div className="flex gap-2 sm:gap-3 mt-1.5">
                 {shown.map(r => (

@@ -5,11 +5,13 @@ import '@fontsource/inter/700.css';
 import './globals.css';
 import { SWRProvider } from '@/components/providers/SWRProvider';
 import { AuthProvider } from '@/components/context/AuthContext';
+import { LanguageProvider } from '@/components/context/LanguageContext';
 import { Toaster } from 'react-hot-toast';
 import { Inter } from 'next/font/google';
 import type { Metadata, Viewport } from 'next';
 import React from 'react';
 import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
+import ChunkErrorReload from '@/components/pwa/ChunkErrorReload';
 import CapacitorBackButton from '@/components/CapacitorBackButton';
 import OneSignalInit from '@/components/OneSignalInit';
 import OfflineProvider from '@/components/offline/OfflineProvider';
@@ -60,14 +62,17 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className} suppressHydrationWarning>
         <ServiceWorkerRegister />
+        <ChunkErrorReload />
         <CapacitorBackButton />
         <OneSignalInit />
         <SWRProvider>
           <AuthProvider>
-            <OfflineProvider>
-              <OfflineBanner />
-              {children}
-            </OfflineProvider>
+            <LanguageProvider>
+              <OfflineProvider>
+                <OfflineBanner />
+                {children}
+              </OfflineProvider>
+            </LanguageProvider>
             <Toaster
               position="top-right"
               containerStyle={{ top: 'calc(var(--safe-top) + 1rem)' }}

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { toast } from 'react-hot-toast';
 import apiService from '@/lib/apiService';
 import { AcademicCapIcon, PlusIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface AcademicYear {
     id: number;
@@ -18,6 +19,7 @@ interface AcademicYear {
 }
 
 export default function SettingsPage() {
+    const { t } = useLanguage();
     const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,10 +131,10 @@ export default function SettingsPage() {
     return (
         <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
+                <h1 className="text-3xl font-bold text-gray-900">{t('Settings')}</h1>
                 <Button onClick={() => handleAddEdit()} className="flex items-center space-x-2">
                     <PlusIcon className="h-5 w-5" />
-                    <span>Add Academic Year</span>
+                    <span>{t('Add Academic Year')}</span>
                 </Button>
             </div>
 
@@ -140,25 +142,25 @@ export default function SettingsPage() {
                 <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
                         <AcademicCapIcon className="h-6 w-6 text-blue-500" />
-                        <span>Academic Year Management</span>
+                        <span>{t('Academic Year Management')}</span>
                     </CardTitle>
                 </CardHeader>
                 <CardBody>
                     {isLoading ? (
-                        <div className="text-center py-8 text-gray-500">Loading academic years...</div>
+                        <div className="text-center py-8 text-gray-500">{t('Loading academic years...')}</div>
                     ) : academicYears.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">No academic years found. Add one to get started.</div>
+                        <div className="text-center py-8 text-gray-500">{t('No academic years found. Add one to get started.')}</div>
                     ) : (
                         <>
                         <div className="hidden md:block overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End Date</th>
-                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Name')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Start Date')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('End Date')}</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Status')}</th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -170,20 +172,20 @@ export default function SettingsPage() {
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${year.isCurrent ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                                                     }`}>
-                                                    {year.isCurrent ? 'Current' : 'Archived'}
+                                                    {year.isCurrent ? t('Current') : t('Archived')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                                                 {!year.isCurrent && (
                                                     <Button size="sm" variant="outline" onClick={() => handleSetCurrent(year.id)}>
-                                                        Set Current
+                                                        {t('Set Current')}
                                                     </Button>
                                                 )}
                                                 <Button size="sm" onClick={() => handleAddEdit(year)}>
-                                                    Edit
+                                                    {t('Edit')}
                                                 </Button>
                                                 <Button size="sm" color="danger" onClick={() => handleDelete(year.id)}>
-                                                    Delete
+                                                    {t('Delete')}
                                                 </Button>
                                             </td>
                                         </tr>
@@ -196,15 +198,15 @@ export default function SettingsPage() {
                                 <div key={year.id} className={`p-4 space-y-1.5 ${year.isCurrent ? 'bg-blue-50' : ''}`}>
                                     <div className="text-sm font-semibold text-gray-900 break-words">{year.name}</div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Start Date</span>
+                                        <span className="text-xs text-gray-500">{t('Start Date')}</span>
                                         <span className="text-sm text-gray-900 text-right break-words">{new Date(year.startDate).toLocaleDateString()}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">End Date</span>
+                                        <span className="text-xs text-gray-500">{t('End Date')}</span>
                                         <span className="text-sm text-gray-900 text-right break-words">{new Date(year.endDate).toLocaleDateString()}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500">Status</span>
+                                        <span className="text-xs text-gray-500">{t('Status')}</span>
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${year.isCurrent ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                                             }`}>
                                             {year.isCurrent ? 'Current' : 'Archived'}
@@ -213,14 +215,14 @@ export default function SettingsPage() {
                                     <div className="flex flex-wrap gap-2 pt-1.5">
                                         {!year.isCurrent && (
                                             <Button size="sm" variant="outline" onClick={() => handleSetCurrent(year.id)}>
-                                                Set Current
+                                                {t('Set Current')}
                                             </Button>
                                         )}
                                         <Button size="sm" onClick={() => handleAddEdit(year)}>
-                                            Edit
+                                            {t('Edit')}
                                         </Button>
                                         <Button size="sm" color="danger" onClick={() => handleDelete(year.id)}>
-                                            Delete
+                                            {t('Delete')}
                                         </Button>
                                     </div>
                                 </div>
@@ -231,20 +233,20 @@ export default function SettingsPage() {
                 </CardBody>
             </Card>
 
-            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingYear ? 'Edit Academic Year' : 'Add New Academic Year'}>
+            <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingYear ? t('Edit Academic Year') : t('Add New Academic Year')}>
                 <div className="space-y-4">
                     <div>
-                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
+                        <label htmlFor="name" className="block text-sm font-medium text-gray-700">{t('Name')}</label>
                         <Input
                             type="text"
                             id="name"
                             value={form.name}
                             onChange={(e) => setForm({ ...form, name: e.target.value })}
-                            placeholder="e.g., 2024-2025 Academic Year"
+                            placeholder={t('e.g., 2024-2025 Academic Year')}
                         />
                     </div>
                     <div>
-                        <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">Start Date</label>
+                        <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">{t('Start Date')}</label>
                         <Input
                             type="date"
                             id="startDate"
@@ -253,7 +255,7 @@ export default function SettingsPage() {
                         />
                     </div>
                     <div>
-                        <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">End Date</label>
+                        <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">{t('End Date')}</label>
                         <Input
                             type="date"
                             id="endDate"
@@ -263,9 +265,9 @@ export default function SettingsPage() {
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
-                    <Button color="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                    <Button color="secondary" onClick={() => setIsModalOpen(false)}>{t('Cancel')}</Button>
                     <Button onClick={handleSubmit}>
-                        {editingYear ? 'Update' : 'Add'} Academic Year
+                        {editingYear ? t('Update Academic Year') : t('Add Academic Year')}
                     </Button>
                 </div>
             </Modal>

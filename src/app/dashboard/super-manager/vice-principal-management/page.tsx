@@ -6,6 +6,7 @@ import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { EditVicePrincipalModal, VicePrincipalEditableFields } from './components/EditVicePrincipalModal';
 import { RoleManagementFilters } from './components/RoleManagementFilters';
 import apiService from '../../../../lib/apiService';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // TODO: Define necessary types (VicePrincipal, Class, SubClass, Assignment)
 
@@ -38,6 +39,7 @@ type AcademicYear = {
 };
 
 export default function VicePrincipalManagement() {
+    const { t } = useLanguage();
     const [vicePrincipals, setVicePrincipals] = useState<VicePrincipal[]>([]);
     const [classes, setClasses] = useState<ClassInfo[]>([]);
     const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
@@ -212,11 +214,11 @@ export default function VicePrincipalManagement() {
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Vice Principal Management</h1>
-                        <p className="text-gray-600 mt-1">Manage vice principal assignments and class allocations.</p>
+                        <h1 className="text-2xl font-bold text-gray-900">{t('Vice Principal Management')}</h1>
+                        <p className="text-gray-600 mt-1">{t('Manage vice principal assignments and class allocations.')}</p>
                         {selectedAcademicYear && (
                             <div className="mt-2 text-sm text-gray-500">
-                                Academic Year: {academicYears.find(ay => String(ay.id) === selectedAcademicYear)?.name || 'Unknown'}
+                                {t('Academic Year')}: {academicYears.find(ay => String(ay.id) === selectedAcademicYear)?.name || t('Unknown')}
                             </div>
                         )}
                     </div>
@@ -231,29 +233,29 @@ export default function VicePrincipalManagement() {
                     setSelectedAcademicYear={setSelectedAcademicYear}
                     isLoading={isLoading}
                     resultCount={vicePrincipals.length}
-                    roleName="Vice Principals"
-                    searchPlaceholder="Search by name, email, matricule..."
+                    roleName={t('Vice Principals')}
+                    searchPlaceholder={t('Search by name, email, matricule...')}
                 />
 
-                {isLoading && <p className="text-center text-gray-500 py-4">Loading vice principals...</p>}
+                {isLoading && <p className="text-center text-gray-500 py-4">{t('Loading vice principals...')}</p>}
 
                 {!isLoading && (
                     <div className="hidden md:block bg-white shadow-md rounded-lg overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned Subclasses</th>
-                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Name')}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Email')}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Phone')}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Assigned Subclasses')}</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Actions')}</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {vicePrincipals.length === 0 && !isLoading ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                                            No vice principals found matching your criteria
+                                            {t('No vice principals found matching your criteria')}
                                         </td>
                                     </tr>
                                 ) : (
@@ -275,26 +277,26 @@ export default function VicePrincipalManagement() {
                                                         })}
                                                     </ul>
                                                 ) : (
-                                                    <span className="text-gray-400 italic">None</span>
+                                                    <span className="text-gray-400 italic">{t('None')}</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                                                 <button
                                                     onClick={() => openAssignmentModal(vp)}
                                                     disabled={isLoading}
-                                                    title="Manage Subclass Assignments"
+                                                    title={t('Manage Subclass Assignments')}
                                                     className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                                                 >
-                                                    Manage Assignments
+                                                    {t('Manage Assignments')}
                                                 </button>
                                                 <button
                                                     onClick={() => openEditVpModal(vp)}
                                                     disabled={isLoading}
-                                                    title="Edit Vice Principal Details"
+                                                    title={t('Edit Vice Principal Details')}
                                                     className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
                                                 >
                                                     <PencilSquareIcon className="h-4 w-4 mr-1" />
-                                                    Edit
+                                                    {t('Edit')}
                                                 </button>
                                             </td>
                                         </tr>
@@ -310,22 +312,22 @@ export default function VicePrincipalManagement() {
                         <div className="md:hidden divide-y divide-gray-100">
                             {vicePrincipals.length === 0 && !isLoading ? (
                                 <div className="px-4 py-8 text-center text-gray-500">
-                                    No vice principals found matching your criteria
+                                    {t('No vice principals found matching your criteria')}
                                 </div>
                             ) : (
                                 vicePrincipals.map((vp) => (
                                     <div key={vp.id} className="p-4 space-y-1.5">
                                         <div className="text-sm font-semibold text-gray-900 break-words">{vp.name}</div>
                                         <div className="flex items-start justify-between gap-3">
-                                            <span className="text-xs text-gray-500">Email</span>
+                                            <span className="text-xs text-gray-500">{t('Email')}</span>
                                             <span className="text-sm text-gray-900 text-right break-words">{vp.email || '-'}</span>
                                         </div>
                                         <div className="flex items-start justify-between gap-3">
-                                            <span className="text-xs text-gray-500">Phone</span>
+                                            <span className="text-xs text-gray-500">{t('Phone')}</span>
                                             <span className="text-sm text-gray-900 text-right break-words">{vp.phone || '-'}</span>
                                         </div>
                                         <div className="flex items-start justify-between gap-3">
-                                            <span className="text-xs text-gray-500">Assigned Subclasses</span>
+                                            <span className="text-xs text-gray-500">{t('Assigned Subclasses')}</span>
                                             <span className="text-sm text-gray-900 text-right break-words">
                                                 {vp.assignedSubClassIds && vp.assignedSubClassIds.length > 0 ? (
                                                     <ul className="space-y-1">
@@ -339,7 +341,7 @@ export default function VicePrincipalManagement() {
                                                         })}
                                                     </ul>
                                                 ) : (
-                                                    <span className="text-gray-400 italic">None</span>
+                                                    <span className="text-gray-400 italic">{t('None')}</span>
                                                 )}
                                             </span>
                                         </div>
@@ -347,19 +349,19 @@ export default function VicePrincipalManagement() {
                                             <button
                                                 onClick={() => openAssignmentModal(vp)}
                                                 disabled={isLoading}
-                                                title="Manage Subclass Assignments"
+                                                title={t('Manage Subclass Assignments')}
                                                 className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                                             >
-                                                Manage Assignments
+                                                {t('Manage Assignments')}
                                             </button>
                                             <button
                                                 onClick={() => openEditVpModal(vp)}
                                                 disabled={isLoading}
-                                                title="Edit Vice Principal Details"
+                                                title={t('Edit Vice Principal Details')}
                                                 className="inline-flex items-center px-2.5 py-1.5 border border-transparent text-xs font-medium rounded text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:opacity-50"
                                             >
                                                 <PencilSquareIcon className="h-4 w-4 mr-1" />
-                                                Edit
+                                                {t('Edit')}
                                             </button>
                                         </div>
                                     </div>
@@ -376,17 +378,17 @@ export default function VicePrincipalManagement() {
                     <div className="relative bg-white p-6 rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-medium text-gray-900">
-                                Manage Assignments: {selectedVp.name}
+                                {t('Manage Assignments')}: {selectedVp.name}
                             </h3>
                             <button onClick={closeAssignmentModal} className="text-gray-400 hover:text-gray-600">
-                                <span className="sr-only">Close</span>
+                                <span className="sr-only">{t('Close')}</span>
                                 &#x2715;
                             </button>
                         </div>
 
                         <div className="space-y-4">
                             <p className="text-sm text-gray-600">
-                                Select the subclasses that {selectedVp.name} should oversee:
+                                {t('Select the subclasses that this vice principal should oversee:')}
                             </p>
 
                             <div className="max-h-60 overflow-y-auto border border-gray-200 rounded p-3">
@@ -411,14 +413,14 @@ export default function VicePrincipalManagement() {
                                     className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500"
                                     disabled={isLoading}
                                 >
-                                    Cancel
+                                    {t('Cancel')}
                                 </button>
                                 <button
                                     onClick={saveAssignments}
                                     className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
                                     disabled={isLoading}
                                 >
-                                    {isLoading ? 'Saving...' : 'Save Assignments'}
+                                    {isLoading ? t('Saving...') : t('Save Assignments')}
                                 </button>
                             </div>
                         </div>

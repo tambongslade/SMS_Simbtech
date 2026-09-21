@@ -12,6 +12,7 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { Button, Input, Select, Modal } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import {
@@ -34,6 +35,7 @@ const todayStr = () => new Date().toISOString().split('T')[0];
 
 export default function BursarOverpaymentsPage() {
   const { selectedAcademicYear, selectedRole } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   // Recording a refund outright is a Super Manager privilege; everyone else
@@ -57,7 +59,7 @@ export default function BursarOverpaymentsPage() {
   const [amount, setAmount] = useState('');
   const [refundDate, setRefundDate] = useState(todayStr());
   const [method, setMethod] = useState<RefundMethod>('CASH');
-  const [reason, setReason] = useState('Overpayment refund');
+  const [reason, setReason] = useState(t('Overpayment refund'));
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -115,7 +117,7 @@ export default function BursarOverpaymentsPage() {
 
   const handleExport = async () => {
     setIsExporting(true);
-    toast.loading('Generating export…', { id: 'overpaid-export' });
+    toast.loading(t('Generating export…'), { id: 'overpaid-export' });
     try {
       const blob = await exportOverpaid({
         academicYearId: selectedAcademicYear?.id,
@@ -124,10 +126,10 @@ export default function BursarOverpaymentsPage() {
         minOverpayment: minOverpayment ? Number(minOverpayment) : undefined,
       });
       await downloadBlob(blob, `overpayments_${todayStr()}.xlsx`);
-      toast.success('Export downloaded.', { id: 'overpaid-export' });
+      toast.success(t('Export downloaded.'), { id: 'overpaid-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Export failed.', { id: 'overpaid-export' });
+        toast.error(error?.message || t('Export failed.'), { id: 'overpaid-export' });
       } else {
         toast.dismiss('overpaid-export');
       }
@@ -141,7 +143,7 @@ export default function BursarOverpaymentsPage() {
     setAmount(String(row.currentOverpayment));
     setRefundDate(todayStr());
     setMethod('CASH');
-    setReason('Overpayment refund');
+    setReason(t('Overpayment refund'));
     setNotes('');
   };
 
@@ -150,15 +152,15 @@ export default function BursarOverpaymentsPage() {
     if (!refundRow) return;
     const amountNum = Number(amount);
     if (!amountNum || amountNum <= 0) {
-      toast.error('Amount must be greater than 0.');
+      toast.error(t('Amount must be greater than 0.'));
       return;
     }
     if (amountNum > refundRow.currentOverpayment) {
-      toast.error(`Refund cannot exceed the current overpayment (${fmtMoney(refundRow.currentOverpayment)}).`);
+      toast.error(`${t('Refund cannot exceed the current overpayment')} (${fmtMoney(refundRow.currentOverpayment)}).`);
       return;
     }
     if (!reason.trim()) {
-      toast.error('A reason is required.');
+      toast.error(t('A reason is required.'));
       return;
     }
     setIsSaving(true);
@@ -176,7 +178,7 @@ export default function BursarOverpaymentsPage() {
           },
         });
         toast.success(
-          `Refund request #${created.id} sent to the Super Manager for approval. The overpayment stays on file until it is approved.`,
+          `${t('Refund request')} #${created.id} ${t('sent to the Super Manager for approval. The overpayment stays on file until it is approved.')}`,
         );
         setRefundRow(null);
         return;
@@ -190,7 +192,7 @@ export default function BursarOverpaymentsPage() {
         reason: reason.trim(),
         notes: notes.trim() || undefined,
       });
-      toast.success(`Refund recorded. Remaining overpayment: ${fmtMoney(result.feeAfter.currentOverpayment)}.`);
+      toast.success(`${t('Refund recorded. Remaining overpayment')}: ${fmtMoney(result.feeAfter.currentOverpayment)}.`);
       // Update the row in place from the server response.
       setRows((prev) =>
         prev
@@ -211,7 +213,7 @@ export default function BursarOverpaymentsPage() {
       setRefundRow(null);
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {
-        toast.error(error?.message || 'Failed to record refund.');
+        toast.error(error?.message || t('Failed to record refund.'));
       }
     } finally {
       setIsSaving(false);
@@ -223,15 +225,15 @@ export default function BursarOverpaymentsPage() {
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Overpayments &amp; Refunds</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Overpayments & Refunds')}</h1>
           <p className="text-gray-600 mt-1">
-            Students who have paid more than expected
+            {t('Students who have paid more than expected')}
             {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
-            {!canRecordDirectly && ' Refunds are sent to the Super Manager for approval.'}
+            {!canRecordDirectly && ' ' + t('Refunds are sent to the Super Manager for approval.')}
           </p>
         </div>
         <Button variant="outline" leftIcon={DocumentArrowDownIcon} isLoading={isExporting} onClick={handleExport}>
-          Export Excel
+          {t('Export Excel')}
         </Button>
       </div>
 
@@ -239,26 +241,26 @@ export default function BursarOverpaymentsPage() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-wrap gap-3 items-end">
         <div className="min-w-[180px]">
           <Select
-            label="Class"
+            label={t('Class')}
             value={classFilter}
             onChange={(e) => {
               setClassFilter(e.target.value);
               setSubClassFilter('');
             }}
-            options={[{ value: '', label: 'All classes' }, ...classes.map((c) => ({ value: String(c.id), label: c.name }))]}
+            options={[{ value: '', label: t('All classes') }, ...classes.map((c) => ({ value: String(c.id), label: c.name }))]}
           />
         </div>
         <div className="min-w-[180px]">
           <Select
-            label="Subclass"
+            label={t('Subclass')}
             value={subClassFilter}
             onChange={(e) => setSubClassFilter(e.target.value)}
-            options={[{ value: '', label: 'All subclasses' }, ...subClassOptions.map((sc) => ({ value: String(sc.id), label: sc.name }))]}
+            options={[{ value: '', label: t('All subclasses') }, ...subClassOptions.map((sc) => ({ value: String(sc.id), label: sc.name }))]}
           />
         </div>
         <div className="min-w-[160px]">
           <Input
-            label="Min overpayment"
+            label={t('Min overpayment')}
             type="number"
             min={1}
             value={minOverpayment}
@@ -273,26 +275,26 @@ export default function BursarOverpaymentsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Class</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Expected</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Paid</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Refunded</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Current Overpayment</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Student')}</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">{t('Class')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Expected')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Paid')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Refunded')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Current Overpayment')}</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">{t('Actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    Loading overpayments…
+                    {t('Loading overpayments…')}
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No overpayments found.
+                    {t('No overpayments found.')}
                   </td>
                 </tr>
               ) : (
@@ -325,7 +327,7 @@ export default function BursarOverpaymentsPage() {
                           leftIcon={EyeIcon}
                           onClick={() => router.push(`/dashboard/bursar/student-registration/${row.studentId}`)}
                         >
-                          View
+                          {t('View')}
                         </Button>
                         <Button
                           size="xs"
@@ -334,7 +336,7 @@ export default function BursarOverpaymentsPage() {
                           onClick={() => openRefund(row)}
                           disabled={row.currentOverpayment <= 0}
                         >
-                          {canRecordDirectly ? 'Refund' : 'Request Refund'}
+                          {canRecordDirectly ? t('Refund') : t('Request Refund')}
                         </Button>
                       </div>
                     </td>
@@ -348,9 +350,9 @@ export default function BursarOverpaymentsPage() {
         {/* Mobile cards */}
         <div className="md:hidden divide-y divide-gray-100">
           {isLoading ? (
-            <div className="px-4 py-8 text-center text-gray-500">Loading overpayments…</div>
+            <div className="px-4 py-8 text-center text-gray-500">{t('Loading overpayments…')}</div>
           ) : rows.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">No overpayments found.</div>
+            <div className="px-4 py-8 text-center text-gray-500">{t('No overpayments found.')}</div>
           ) : (
             rows.map((row) => (
               <div key={row.enrollmentId} className="p-4 space-y-1.5">
@@ -359,22 +361,22 @@ export default function BursarOverpaymentsPage() {
                   <div className="text-xs text-gray-500">{row.matricule}</div>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Class</span>
+                  <span className="text-xs text-gray-500">{t('Class')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">
                     {row.className || '—'}
                     {row.subClassName ? <span className="text-gray-400"> · {row.subClassName}</span> : null}
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Expected</span>
+                  <span className="text-xs text-gray-500">{t('Expected')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(row.amountExpected)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Paid</span>
+                  <span className="text-xs text-gray-500">{t('Paid')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{fmtMoney(row.amountPaid)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Refunded</span>
+                  <span className="text-xs text-gray-500">{t('Refunded')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">
                     {row.totalRefunded > 0 ? fmtMoney(row.totalRefunded) : '—'}
                     {row.refundsCount > 0 && (
@@ -383,7 +385,7 @@ export default function BursarOverpaymentsPage() {
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Current Overpayment</span>
+                  <span className="text-xs text-gray-500">{t('Current Overpayment')}</span>
                   <span className="text-sm font-semibold text-emerald-700 text-right break-words">
                     {fmtMoney(row.currentOverpayment)}
                   </span>
@@ -415,14 +417,14 @@ export default function BursarOverpaymentsPage() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
           <span className="text-sm text-gray-600">
-            {total} student{total === 1 ? '' : 's'} with overpayments · Page {page} of {totalPages}
+            {total} {total === 1 ? t('student with overpayments') : t('students with overpayments')} · {t('Page')} {page} {t('of')} {totalPages}
           </span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" leftIcon={ChevronLeftIcon} disabled={page <= 1 || isLoading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-              Prev
+              {t('Prev')}
             </Button>
             <Button variant="outline" size="sm" rightIcon={ChevronRightIcon} disabled={page >= totalPages || isLoading} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
-              Next
+              {t('Next')}
             </Button>
           </div>
         </div>
@@ -432,7 +434,7 @@ export default function BursarOverpaymentsPage() {
       <Modal
         isOpen={!!refundRow}
         onClose={() => setRefundRow(null)}
-        title={canRecordDirectly ? 'Record Refund' : 'Request Refund'}
+        title={canRecordDirectly ? t('Record Refund') : t('Request Refund')}
         size="md"
       >
         {refundRow && (
@@ -441,46 +443,45 @@ export default function BursarOverpaymentsPage() {
               <div className="font-medium text-gray-900">{refundRow.name}</div>
               <div className="text-gray-500">{refundRow.matricule}</div>
               <div className="mt-1">
-                Current overpayment:{' '}
+                {t('Current overpayment')}:{' '}
                 <span className="font-semibold text-emerald-700">{fmtMoney(refundRow.currentOverpayment)}</span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Amount (XAF) *"
+                label={t('Amount (XAF) *')}
                 type="number"
                 min={1}
                 max={refundRow.currentOverpayment}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
-                helperText={`Max ${fmtMoney(refundRow.currentOverpayment)}`}
+                helperText={`${t('Max')} ${fmtMoney(refundRow.currentOverpayment)}`}
               />
-              <Input label="Refund Date *" type="date" value={refundDate} onChange={(e) => setRefundDate(e.target.value)} required />
+              <Input label={t('Refund Date *')} type="date" value={refundDate} onChange={(e) => setRefundDate(e.target.value)} required />
               <Select
-                label="Method *"
+                label={t('Method *')}
                 value={method}
                 onChange={(e) => setMethod(e.target.value as RefundMethod)}
                 options={REFUND_METHODS}
               />
-              <Input label="Reason *" value={reason} onChange={(e) => setReason(e.target.value)} required />
+              <Input label={t('Reason *')} value={reason} onChange={(e) => setReason(e.target.value)} required />
             </div>
-            <Input label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <Input label={t('Notes')} value={notes} onChange={(e) => setNotes(e.target.value)} />
 
             {!canRecordDirectly && (
               <p className="text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
-                This goes to the Super Manager for approval. The refund is only issued — and the
-                fees adjusted — once they approve it.
+                {t('This goes to the Super Manager for approval. The refund is only issued — and the fees adjusted — once they approve it.')}
               </p>
             )}
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
               <Button type="button" variant="outline" onClick={() => setRefundRow(null)} disabled={isSaving}>
-                Cancel
+                {t('Cancel')}
               </Button>
               <Button type="submit" color="primary" isLoading={isSaving}>
-                {canRecordDirectly ? 'Record Refund' : 'Send for Approval'}
+                {canRecordDirectly ? t('Record Refund') : t('Send for Approval')}
               </Button>
             </div>
           </form>

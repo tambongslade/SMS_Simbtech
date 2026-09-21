@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BellAlertIcon, ArrowPathIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
+import { useLanguage } from '@/components/context/LanguageContext';
 import { getLatenessAlerts, type LatenessAlert } from '@/lib/disciplineApi';
 import { SchedulePunishmentModal, type PunishmentPrefill } from './SchedulePunishmentModal';
 
@@ -18,6 +19,7 @@ interface LatenessAlertsProps {
  */
 export function LatenessAlerts({ onScheduled }: LatenessAlertsProps) {
   const { selectedAcademicYear } = useAuth();
+  const { t } = useLanguage();
   const [alerts, setAlerts] = useState<LatenessAlert[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [prefill, setPrefill] = useState<PunishmentPrefill | null>(null);
@@ -51,22 +53,22 @@ export function LatenessAlerts({ onScheduled }: LatenessAlertsProps) {
         <div className="flex items-center gap-2">
           <BellAlertIcon className={`h-6 w-6 ${alerts.length ? 'text-amber-500' : 'text-gray-300'}`} />
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">3-Strike Alerts</h2>
+            <h2 className="text-lg font-semibold text-gray-900">{t('3-Strike Alerts')}</h2>
             <p className="text-sm text-gray-500">
-              Students owing a Saturday punishment for repeated lateness this term.
+              {t('Students owing a Saturday punishment for repeated lateness this term.')}
             </p>
           </div>
         </div>
         <Button variant="outline" size="sm" leftIcon={ArrowPathIcon} onClick={load} disabled={isLoading}>
-          Refresh
+          {t('Refresh')}
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="text-center text-gray-500 py-6">Loading alerts…</div>
+        <div className="text-center text-gray-500 py-6">{t('Loading alerts…')}</div>
       ) : alerts.length === 0 ? (
         <div className="text-center text-gray-500 py-6">
-          No pending alerts — everyone is caught up. 🎉
+          {t('No pending alerts — everyone is caught up.')} 🎉
         </div>
       ) : (
         <div className="divide-y divide-gray-100">
@@ -85,16 +87,16 @@ export function LatenessAlerts({ onScheduled }: LatenessAlertsProps) {
                 </div>
                 <div className="text-xs mt-0.5">
                   <span className="text-amber-700 font-medium">
-                    {a.latenessCountInTerm} lates this term
+                    {a.latenessCountInTerm} {t('lates this term')}
                   </span>
                   <span className="text-gray-400">
                     {' '}
-                    · {a.pendingPunishmentsScheduled} scheduled · owes {a.punishmentsOwed}
+                    · {a.pendingPunishmentsScheduled} {t('scheduled')} · {t('owes')} {a.punishmentsOwed}
                   </span>
                 </div>
               </div>
               <Button size="xs" color="warning" leftIcon={CalendarDaysIcon} onClick={() => openSchedule(a)}>
-                Schedule
+                {t('Schedule')}
               </Button>
             </div>
           ))}

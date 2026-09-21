@@ -267,7 +267,7 @@ export function SchemesOfWorkPage({ basePath, readOnly = false }: SchemesOfWorkP
         ) : (
           <div className="space-y-2">
             {schemes.map((s) => {
-              const moduleCount = s._count?.modules ?? s.modules?.length ?? 0;
+              const moduleCount = s.moduleCount ?? s.modules?.length ?? 0;
               return (
                 <Card key={s.id}>
                   <CardBody>

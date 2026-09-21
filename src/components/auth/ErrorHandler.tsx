@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Card, CardBody, Button } from '@/components/ui';
+import { useLanguage } from '@/components/context/LanguageContext';
 import {
     ExclamationTriangleIcon,
     XCircleIcon,
@@ -90,6 +91,7 @@ const ErrorHandler: React.FC<ErrorHandlerProps> = ({
     onDismiss,
     className = ''
 }) => {
+    const { t } = useLanguage();
     if (!error) return null;
 
     const errorDisplay = getErrorDisplay(error);
@@ -114,17 +116,17 @@ const ErrorHandler: React.FC<ErrorHandlerProps> = ({
     const getTitle = (type: ErrorType) => {
         switch (type) {
             case 'authentication':
-                return 'Authentication Failed';
+                return t('Authentication Failed');
             case 'network':
-                return 'Network Error';
+                return t('Network Error');
             case 'validation':
-                return 'Invalid Input';
+                return t('Invalid Input');
             case 'server':
-                return 'Server Error';
+                return t('Server Error');
             case 'session':
-                return 'Session Expired';
+                return t('Session Expired');
             default:
-                return 'Error';
+                return t('Error');
         }
     };
 
@@ -157,16 +159,16 @@ const ErrorHandler: React.FC<ErrorHandlerProps> = ({
                             {getTitle(errorDisplay.type)}
                         </h3>
                         <p className="text-sm text-gray-700 mb-2">
-                            {errorDisplay.message}
+                            {t(errorDisplay.message)}
                         </p>
                         {errorDisplay.details && (
                             <p className="text-xs text-gray-500 mb-3">
-                                {errorDisplay.details}
+                                {t(errorDisplay.details)}
                             </p>
                         )}
                         {errorDisplay.code && (
                             <p className="text-xs text-gray-400">
-                                Error code: {errorDisplay.code}
+                                {t('Error code:')} {errorDisplay.code}
                             </p>
                         )}
                     </div>
@@ -181,7 +183,7 @@ const ErrorHandler: React.FC<ErrorHandlerProps> = ({
                                 onClick={onDismiss}
                                 className="text-gray-600 hover:text-gray-800"
                             >
-                                Dismiss
+                                {t('Dismiss')}
                             </Button>
                         )}
                         {errorDisplay.retryable && onRetry && (
@@ -191,7 +193,7 @@ const ErrorHandler: React.FC<ErrorHandlerProps> = ({
                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                                 <ArrowPathIcon className="h-4 w-4 mr-1" />
-                                Try Again
+                                {t('Try Again')}
                             </Button>
                         )}
                     </div>

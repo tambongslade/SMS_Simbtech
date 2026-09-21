@@ -1,5 +1,6 @@
 'use client';
 import React, { Dispatch, SetStateAction } from 'react';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Define Role type (can be imported if shared)
 type Role = {
@@ -28,6 +29,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
     onAssignRoles,
     isLoading,
 }) => {
+    const { t } = useLanguage();
     if (!isOpen) return null;
 
     const handleRoleToggle = (roleValue: string) => {
@@ -43,8 +45,8 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
             <div className="relative mx-auto p-6 border w-full max-w-lg shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h3 className="text-lg font-medium leading-6 text-gray-900">Manage Roles</h3>
-                        <p className="text-sm text-gray-600 mt-1">Assign roles to <span className="font-medium text-indigo-600">{userName}</span></p>
+                        <h3 className="text-lg font-medium leading-6 text-gray-900">{t('Manage Roles')}</h3>
+                        <p className="text-sm text-gray-600 mt-1">{t('Assign roles to')} <span className="font-medium text-indigo-600">{userName}</span></p>
                     </div>
                     <button
                         onClick={onClose}
@@ -59,7 +61,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
 
                 <div className="mb-6">
                     <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Current Roles ({currentRoles.length})</h4>
+                        <h4 className="text-sm font-medium text-gray-700 mb-2">{t('Current Roles')} ({currentRoles.length})</h4>
                         <div className="flex flex-wrap gap-2">
                             {currentRoles.length > 0 ? (
                                 currentRoles.map(roleValue => {
@@ -71,12 +73,12 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                                     );
                                 })
                             ) : (
-                                <span className="text-sm text-gray-500 italic">No roles assigned</span>
+                                <span className="text-sm text-gray-500 italic">{t('No roles assigned')}</span>
                             )}
                         </div>
                     </div>
 
-                    <h4 className="text-sm font-medium text-gray-700 mb-3">Available Roles</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">{t('Available Roles')}</h4>
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-2">
                         {availableRoles.map(role => {
                             const isSelected = currentRoles.includes(role.value);
@@ -142,7 +144,7 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                         className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" 
                         disabled={isLoading}
                     >
-                        Cancel
+                        {t('Cancel')}
                     </button>
                     <button
                         type="button"
@@ -153,14 +155,14 @@ export const ManageUserRolesModal: React.FC<ManageUserRolesModalProps> = ({
                         {isLoading ? (
                             <>
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Assigning...
+                                {t('Assigning...')}
                             </>
                         ) : (
                             <>
                                 <svg className="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
                                 </svg>
-                                Assign Roles
+                                {t('Assign Roles')}
                             </>
                         )}
                     </button>

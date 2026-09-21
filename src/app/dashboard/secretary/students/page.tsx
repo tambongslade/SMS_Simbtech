@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, Suspense } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -73,7 +73,27 @@ const emptyForm: CreateStudentPayload = {
   parents: [{ ...emptyParent }],
 };
 
-const LIMIT = 20;
+const DEFAULT_PAGE_SIZE = 100;
+const PAGE_SIZE_OPTIONS = [20, 50, 100, 200, 500];
+
+const LIST_STATE_STORAGE_KEY = 'sm.secretaryStudents.listState.v1';
+
+type PersistedListState = {
+  searchTerm: string;
+  subClassFilter: string;
+  page: number;
+  pageSize: number;
+};
+
+const readPersistedListState = (): Partial<PersistedListState> => {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.sessionStorage.getItem(LIST_STATE_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Partial<PersistedListState>) : {};
+  } catch {
+    return {};
+  }
+};
 
 // Edit form mirrors the registration form fields (all editable to fix mistakes).
 type EditFormState = {
@@ -116,16 +136,19 @@ function SecretaryStudentsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Hydrate from sessionStorage so filters/search/page persist across profile navigation.
+  const persistedListState = useMemo(readPersistedListState, []);
   const [students, setStudents] = useState<SecretaryStudent[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(persistedListState.page ?? 1);
+  const [pageSize, setPageSize] = useState(persistedListState.pageSize ?? DEFAULT_PAGE_SIZE);
   const [isLoading, setIsLoading] = useState(false);
 
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
   const [classes, setClasses] = useState<ClassInfo[]>([]);
-  const [subClassFilter, setSubClassFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [subClassFilter, setSubClassFilter] = useState<string>(persistedListState.subClassFilter ?? 'all');
+  const [searchTerm, setSearchTerm] = useState(persistedListState.searchTerm ?? '');
+  const [debouncedSearch, setDebouncedSearch] = useState(persistedListState.searchTerm?.trim() ?? '');
   const [mobileView, setMobileView] = useState<'cards' | 'list'>('list');
   const [expandedListRow, setExpandedListRow] = useState<number | null>(null);
 
@@ -207,8 +230,8 @@ function SecretaryStudentsPageInner() {
     try {
       const academicYearId = selectedAcademicYear?.id;
       const res = debouncedSearch
-        ? await searchStudents({ q: debouncedSearch, academicYearId, page, limit: LIMIT })
-        : await fetchStudents({ academicYearId, subClassId: subClassFilter, page, limit: LIMIT });
+        ? await searchStudents({ q: debouncedSearch, academicYearId, page, limit: pageSize })
+        : await fetchStudents({ academicYearId, subClassId: subClassFilter, page, limit: pageSize });
       setStudents(res.data || []);
       setTotal(res.meta?.total ?? res.data?.length ?? 0);
     } catch {
@@ -216,7 +239,7 @@ function SecretaryStudentsPageInner() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedAcademicYear?.id, subClassFilter, page, debouncedSearch]);
+  }, [selectedAcademicYear?.id, subClassFilter, page, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchSubClasses().then(setSubClasses).catch(() => setSubClasses([]));
@@ -227,12 +250,34 @@ function SecretaryStudentsPageInner() {
     loadStudents();
   }, [loadStudents]);
 
-  // Reset to first page when the filter or search changes
+  // Persist filter/search/page state so returning from a student profile restores it.
   useEffect(() => {
-    setPage(1);
-  }, [subClassFilter, debouncedSearch]);
+    if (typeof window === 'undefined') return;
+    try {
+      const snapshot: PersistedListState = {
+        searchTerm,
+        subClassFilter,
+        page,
+        pageSize,
+      };
+      window.sessionStorage.setItem(LIST_STATE_STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      /* sessionStorage unavailable — ignore */
+    }
+  }, [searchTerm, subClassFilter, page, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(total / LIMIT));
+  // Reset to first page when the filter, search, or page size changes. Skip the
+  // initial mount so a restored page (from sessionStorage) isn't wiped on hydration.
+  const skipFilterResetOnMountRef = useRef(true);
+  useEffect(() => {
+    if (skipFilterResetOnMountRef.current) {
+      skipFilterResetOnMountRef.current = false;
+      return;
+    }
+    setPage(1);
+  }, [subClassFilter, debouncedSearch, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const classNameFor = useCallback(
     (student: SecretaryStudent) =>
@@ -980,10 +1025,24 @@ function SecretaryStudentsPageInner() {
       </div>
 
       {/* Mobile pagination (shared by list & cards views) */}
-      <div className="md:hidden flex items-center justify-between bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3">
-        <span className="text-xs text-gray-600">
-          Page {page} of {totalPages}
-        </span>
+      <div className="md:hidden bg-white rounded-lg shadow-sm border border-gray-200 px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-600">
+            {total} student{total === 1 ? '' : 's'} · Page {page} of {totalPages}
+          </span>
+          <label className="flex items-center gap-1 text-xs text-gray-600">
+            Per page
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="border border-gray-300 rounded-md text-xs py-1 pl-1.5 pr-6 focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              {PAGE_SIZE_OPTIONS.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+        </div>
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -1139,25 +1198,39 @@ function SecretaryStudentsPageInner() {
           <span className="text-sm text-gray-600">
             {total} student{total === 1 ? '' : 's'} · Page {page} of {totalPages}
           </span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              leftIcon={ChevronLeftIcon}
-              disabled={page <= 1 || isLoading}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Prev
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              rightIcon={ChevronRightIcon}
-              disabled={page >= totalPages || isLoading}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </Button>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-1.5 text-sm text-gray-600">
+              Per page
+              <select
+                value={pageSize}
+                onChange={(e) => setPageSize(Number(e.target.value))}
+                className="border border-gray-300 rounded-md text-sm py-1.5 pl-2 pr-7 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                {PAGE_SIZE_OPTIONS.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={ChevronLeftIcon}
+                disabled={page <= 1 || isLoading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Prev
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                rightIcon={ChevronRightIcon}
+                disabled={page >= totalPages || isLoading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
           </div>
         </div>
       </div>

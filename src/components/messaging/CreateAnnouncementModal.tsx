@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import Modal from '@/components/ui/Modal';
 import { SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 interface CreateAnnouncementModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export default function CreateAnnouncementModal({
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { t } = useLanguage();
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -96,7 +98,7 @@ export default function CreateAnnouncementModal({
     <Modal isOpen={isOpen} onClose={handleClose} size="lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Create Announcement</h2>
+        <h2 className="text-xl font-semibold text-gray-900">{t('Create Announcement')}</h2>
       </div>
 
       {/* Form Content */}
@@ -104,7 +106,7 @@ export default function CreateAnnouncementModal({
         {/* Title */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-            Title *
+            {t('Title')} *
           </label>
           <input
             type="text"
@@ -114,7 +116,7 @@ export default function CreateAnnouncementModal({
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
               errors.title ? 'border-red-300' : 'border-gray-300'
             }`}
-            placeholder="Enter announcement title"
+            placeholder={t('Enter announcement title')}
             maxLength={200}
             disabled={isSubmitting}
           />
@@ -122,14 +124,14 @@ export default function CreateAnnouncementModal({
             <p className="mt-1 text-sm text-red-600">{errors.title}</p>
           )}
           <p className="mt-1 text-sm text-gray-500">
-            {formData.title.length}/200 characters
+            {formData.title.length}/200 {t('characters')}
           </p>
         </div>
 
         {/* Message */}
         <div>
           <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-            Message *
+            {t('Message')} *
           </label>
           <textarea
             id="message"
@@ -139,7 +141,7 @@ export default function CreateAnnouncementModal({
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none ${
               errors.message ? 'border-red-300' : 'border-gray-300'
             }`}
-            placeholder="Enter your announcement message..."
+            placeholder={t('Enter your announcement message...')}
             maxLength={1000}
             disabled={isSubmitting}
           />
@@ -147,14 +149,14 @@ export default function CreateAnnouncementModal({
             <p className="mt-1 text-sm text-red-600">{errors.message}</p>
           )}
           <p className="mt-1 text-sm text-gray-500">
-            {formData.message.length}/1000 characters
+            {formData.message.length}/1000 {t('characters')}
           </p>
         </div>
 
         {/* Audience */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">
-            Target Audience *
+            {t('Target Audience')} *
           </label>
           <div className="space-y-3">
             {AUDIENCE_OPTIONS.map((option) => (
@@ -198,7 +200,7 @@ export default function CreateAnnouncementModal({
             disabled={isSubmitting}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t('Cancel')}
           </button>
           <button
             type="submit"
@@ -212,7 +214,7 @@ export default function CreateAnnouncementModal({
               </svg>
             )}
             <SpeakerWaveIcon className="h-4 w-4" />
-            <span>{isSubmitting ? 'Creating...' : 'Create Announcement'}</span>
+            <span>{isSubmitting ? t('Creating...') : t('Create Announcement')}</span>
           </button>
         </div>
       </form>

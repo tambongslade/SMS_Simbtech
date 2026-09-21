@@ -7,6 +7,7 @@ import useSWR from 'swr';
 import apiService from '@/lib/apiService';
 import { StudentPhoto } from '@/components/ui';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { useLanguage } from '@/components/context/LanguageContext';
 
 // Types
 interface Student {
@@ -77,6 +78,7 @@ interface SubClassesApiResponse {
 }
 
 export default function TeacherStudents() {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubClass, setSelectedSubClass] = useState<string>('all');
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
@@ -128,17 +130,17 @@ export default function TeacherStudents() {
     if (studentsError && studentsError.message !== 'Unauthorized') {
       console.error("Students Fetch Error:", studentsError);
       if (studentsError.status === 403) {
-        toast.error('Access denied: Unable to load student data');
+        toast.error(t('Access denied: Unable to load student data'));
       } else {
-        toast.error('Failed to load students data');
+        toast.error(t('Failed to load students data'));
       }
     }
     if (subClassesError && subClassesError.message !== 'Unauthorized') {
       console.error("Sub-classes Fetch Error:", subClassesError);
       if (subClassesError.status === 403) {
-        toast.error('Access denied: Unable to load class data');
+        toast.error(t('Access denied: Unable to load class data'));
       } else {
-        toast.error('Failed to load class data');
+        toast.error(t('Failed to load class data'));
       }
     }
   }, [studentsError, subClassesError]);
@@ -196,21 +198,21 @@ export default function TeacherStudents() {
 
   // Helper function to render performance indicator
   const renderPerformanceIndicator = (performance: number) => {
-    if (performance >= 85) return <span className="text-green-600 font-medium">Excellent</span>;
-    if (performance >= 70) return <span className="text-blue-600 font-medium">Good</span>;
-    if (performance >= 50) return <span className="text-yellow-600 font-medium">Average</span>;
-    return <span className="text-red-600 font-medium">Needs Improvement</span>;
+    if (performance >= 85) return <span className="text-green-600 font-medium">{t('Excellent')}</span>;
+    if (performance >= 70) return <span className="text-blue-600 font-medium">{t('Good')}</span>;
+    if (performance >= 50) return <span className="text-yellow-600 font-medium">{t('Average')}</span>;
+    return <span className="text-red-600 font-medium">{t('Needs Improvement')}</span>;
   };
 
   // Helper function to render attendance status
   const renderAttendanceStatus = (status: string) => {
     switch (status) {
       case 'Present':
-        return <span className="inline-flex items-center text-green-600"><CheckCircleIcon className="w-4 h-4 mr-1" /> Present</span>;
+        return <span className="inline-flex items-center text-green-600"><CheckCircleIcon className="w-4 h-4 mr-1" /> {t('Present')}</span>;
       case 'Absent':
-        return <span className="inline-flex items-center text-red-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> Absent</span>;
+        return <span className="inline-flex items-center text-red-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> {t('Absent')}</span>;
       case 'Late':
-        return <span className="inline-flex items-center text-yellow-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> Late</span>;
+        return <span className="inline-flex items-center text-yellow-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> {t('Late')}</span>;
       default:
         return <span>{status}</span>;
     }
@@ -239,14 +241,14 @@ export default function TeacherStudents() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-2">My Students</h1>
-      <p className="text-gray-600 mb-6">Students in classes where you teach at least one subject</p>
+      <h1 className="text-2xl font-bold mb-2">{t('My Students')}</h1>
+      <p className="text-gray-600 mb-6">{t('Students in classes where you teach at least one subject')}</p>
 
       {/* Display error message if fetch failed */}
       {hasErrors && !isLoading && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
-          <strong className="font-bold">Error!</strong>
-          <span className="block sm:inline"> Failed to load data. Please check your connection and try again.</span>
+          <strong className="font-bold">{t('Error!')}</strong>
+          <span className="block sm:inline"> {t('Failed to load data. Please check your connection and try again.')}</span>
         </div>
       )}
 
@@ -254,7 +256,7 @@ export default function TeacherStudents() {
         <div className="relative flex-1">
           <input
             type="text"
-            placeholder="Search students by name or matricule..."
+            placeholder={t('Search students by name or matricule...')}
             className="w-full p-2 pl-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -269,10 +271,10 @@ export default function TeacherStudents() {
             onChange={(e) => setSelectedSubClass(e.target.value)}
             disabled={isLoading}
           >
-            <option value="all">All Sub-Classes</option>
+            <option value="all">{t('All Sub-Classes')}</option>
             {subClasses.map(subClass => (
               <option key={subClass.id} value={subClass.id.toString()}>
-                {subClass.name} ({subClass.class.name}) - {subClass.studentCount} students
+                {subClass.name} ({subClass.class.name}) - {subClass.studentCount} {t('students')}
               </option>
             ))}
           </select>
@@ -283,7 +285,7 @@ export default function TeacherStudents() {
             onChange={(e) => setSelectedSubject(e.target.value)}
             disabled={isLoading}
           >
-            <option value="all">All Subjects</option>
+            <option value="all">{t('All Subjects')}</option>
             {teacherSubjects.map(subject => (
               <option key={subject.id} value={subject.id.toString()}>
                 {subject.name}
@@ -296,28 +298,28 @@ export default function TeacherStudents() {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Total Students</h3>
+          <h3 className="text-sm font-medium text-gray-500">{t('Total Students')}</h3>
           <p className="text-2xl font-bold">{isLoading ? '...' : totalStudents}</p>
-          <p className="text-xs text-gray-400 mt-1">Students you teach</p>
+          <p className="text-xs text-gray-400 mt-1">{t('Students you teach')}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Present Today</h3>
+          <h3 className="text-sm font-medium text-gray-500">{t('Present Today')}</h3>
           <p className="text-2xl font-bold text-green-600">
             {isLoading ? '...' : sortedStudents.filter(s => s.lastAttendance === 'Present').length}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Absent Today</h3>
+          <h3 className="text-sm font-medium text-gray-500">{t('Absent Today')}</h3>
           <p className="text-2xl font-bold text-red-600">
             {isLoading ? '...' : sortedStudents.filter(s => s.lastAttendance === 'Absent').length}
           </p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
-          <h3 className="text-sm font-medium text-gray-500">Classes Teaching</h3>
+          <h3 className="text-sm font-medium text-gray-500">{t('Classes Teaching')}</h3>
           <p className="text-2xl font-bold text-blue-600">
             {isLoading ? '...' : subClasses.length}
           </p>
-          <p className="text-xs text-gray-400 mt-1">Sub-classes assigned</p>
+          <p className="text-xs text-gray-400 mt-1">{t('Sub-classes assigned')}</p>
         </div>
       </div>
 
@@ -326,16 +328,16 @@ export default function TeacherStudents() {
         {isLoading ? (
           <div className="text-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading students...</p>
+            <p className="mt-2 text-gray-600">{t('Loading students...')}</p>
           </div>
         ) : sortedStudents.length === 0 ? (
           <div className="text-center py-8">
             <UserGroupIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-600">No students found</p>
+            <p className="text-gray-600">{t('No students found')}</p>
             <p className="text-sm text-gray-500">
               {students.length === 0
-                ? "You don't have any assigned classes yet"
-                : "Try adjusting your search filters"
+                ? t("You don't have any assigned classes yet")
+                : t("Try adjusting your search filters")
               }
             </p>
           </div>
@@ -346,26 +348,26 @@ export default function TeacherStudents() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Photo
+                    {t('Photo')}
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort('name')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>Name</span>
+                      <span>{t('Name')}</span>
                       {renderSortIcon('name')}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Matricule
+                    {t('Matricule')}
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort('class')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>Class</span>
+                      <span>{t('Class')}</span>
                       {renderSortIcon('class')}
                     </div>
                   </th>
@@ -374,19 +376,19 @@ export default function TeacherStudents() {
                     onClick={() => requestSort('subClassName')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>Sub-Class</span>
+                      <span>{t('Sub-Class')}</span>
                       {renderSortIcon('subClassName')}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Your Subjects
+                    {t('Your Subjects')}
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => requestSort('performance')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>Performance</span>
+                      <span>{t('Performance')}</span>
                       {renderSortIcon('performance')}
                     </div>
                   </th>
@@ -395,12 +397,12 @@ export default function TeacherStudents() {
                     onClick={() => requestSort('attendance')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>Attendance</span>
+                      <span>{t('Attendance')}</span>
                       {renderSortIcon('attendance')}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    {t('Status')}
                   </th>
                 </tr>
               </thead>
@@ -440,7 +442,7 @@ export default function TeacherStudents() {
                           >
                             {subject.subjectName}
                           </span>
-                        )) || <span className="text-xs text-gray-400">None</span>}
+                        )) || <span className="text-xs text-gray-400">{t('None')}</span>}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -476,19 +478,19 @@ export default function TeacherStudents() {
                   <div className="text-sm font-semibold text-gray-900 break-words">{student.name}</div>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Matricule</span>
+                  <span className="text-xs text-gray-500">{t('Matricule')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{student.matricule || 'N/A'}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Class</span>
+                  <span className="text-xs text-gray-500">{t('Class')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{student.class}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Sub-Class</span>
+                  <span className="text-xs text-gray-500">{t('Sub-Class')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{student.subClassName}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Your Subjects</span>
+                  <span className="text-xs text-gray-500">{t('Your Subjects')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">
                     <span className="flex flex-wrap justify-end gap-1">
                       {student.teacherSubjects?.map(subject => (
@@ -504,18 +506,18 @@ export default function TeacherStudents() {
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Performance</span>
+                  <span className="text-xs text-gray-500">{t('Performance')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">
                     <span className="font-medium">{student.performance}%</span>
                     <span className="ml-2">{renderPerformanceIndicator(student.performance || 0)}</span>
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Attendance</span>
+                  <span className="text-xs text-gray-500">{t('Attendance')}</span>
                   <span className="text-sm font-medium text-gray-900 text-right break-words">{student.attendance}%</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">Status</span>
+                  <span className="text-xs text-gray-500">{t('Status')}</span>
                   <span className="text-sm text-gray-900 text-right break-words">{renderAttendanceStatus(student.lastAttendance || 'Unknown')}</span>
                 </div>
               </div>
@@ -529,7 +531,7 @@ export default function TeacherStudents() {
       {studentsData?.meta && studentsData.meta.total > pageSize && (
         <div className="mt-6 flex justify-between items-center">
           <div className="text-sm text-gray-700">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, studentsData.meta.total)} of {studentsData.meta.total} students
+            {t('Showing')} {((currentPage - 1) * pageSize) + 1} {t('to')} {Math.min(currentPage * pageSize, studentsData.meta.total)} {t('of')} {studentsData.meta.total} {t('students')}
           </div>
           <div className="flex space-x-2">
             <button
@@ -537,17 +539,17 @@ export default function TeacherStudents() {
               disabled={currentPage === 1}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Previous
+              {t('Previous')}
             </button>
             <span className="px-3 py-2 text-sm font-medium text-gray-700">
-              Page {currentPage} of {Math.ceil(studentsData.meta.total / pageSize)}
+              {t('Page')} {currentPage} {t('of')} {Math.ceil(studentsData.meta.total / pageSize)}
             </span>
             <button
               onClick={() => setCurrentPage(prev => prev + 1)}
               disabled={currentPage * pageSize >= studentsData.meta.total}
               className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Next
+              {t('Next')}
             </button>
           </div>
         </div>
@@ -556,17 +558,17 @@ export default function TeacherStudents() {
       {/* Subject Summary for Teacher */}
       {subClasses.length > 0 && (
         <div className="mt-6 bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium mb-4">Your Teaching Assignments</h3>
+          <h3 className="text-lg font-medium mb-4">{t('Your Teaching Assignments')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {subClasses.map(subClass => (
               <div key={subClass.id} className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900">{subClass.class.name} - {subClass.name}</h4>
-                <p className="text-sm text-gray-600 mb-2">{subClass.studentCount} students</p>
+                <p className="text-sm text-gray-600 mb-2">{subClass.studentCount} {t('students')}</p>
                 <div className="space-y-1">
                   {subClass.subjects?.map(subject => (
                     <div key={subject.id} className="flex justify-between text-xs">
                       <span className="text-gray-700">{subject.name}</span>
-                      <span className="text-gray-500">{subject.periodsPerWeek}p/week</span>
+                      <span className="text-gray-500">{subject.periodsPerWeek}p/{t('week')}</span>
                     </div>
                   ))}
                 </div>
