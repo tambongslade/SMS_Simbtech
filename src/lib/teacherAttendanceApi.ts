@@ -189,3 +189,26 @@ export const setDeanSubClasses = async (
     academicYearId: academicYearId ?? undefined,
   });
 };
+
+// ---- Bulk "mark all present" for one day ---------------------------------------
+
+export interface MarkAllPresentResult {
+  date: string;
+  total: number;
+  created: number;
+  alreadyRecorded: number;
+}
+
+// Fills PRESENT only where nothing is recorded yet for that one day; never overwrites.
+export const markAllTeachersPresent = async (
+  date: string,
+  subClassIds?: number[],
+  academicYearId?: number
+): Promise<MarkAllPresentResult> => {
+  const res = await apiService.post<{ data: MarkAllPresentResult }>('/discipline-master/teacher-attendance/mark-all-present', {
+    date,
+    subClassIds: subClassIds && subClassIds.length ? subClassIds : undefined,
+    academicYearId: academicYearId ?? undefined,
+  });
+  return res.data;
+};

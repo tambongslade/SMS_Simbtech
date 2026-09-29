@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { ArrowPathIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
+import { Modal } from '@/components/ui';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
 import {
   type OverviewPeriod,
@@ -12,6 +13,7 @@ import {
   type TeacherAttendanceStatus,
   type TeacherWeekOverview,
   getTeacherAttendanceWeekOverview,
+  markAllTeachersPresent,
 } from '@/lib/teacherAttendanceApi';
 // The very same helpers the school-wide timetable view builds its tables with,
 // so these tables have the same rows (bell-schedule groups, day headers, periods)
@@ -91,6 +93,9 @@ export default function TeachersAttendanceOverviewPage() {
   const [mode, setMode] = useState<ViewMode | null>(null); // null until the role is known
   const [classId, setClassId] = useState<number | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
+  const [markDay, setMarkDay] = useState<string>(''); // DAYS_ORDER name of the day to bulk-mark
+  const [markConfirmOpen, setMarkConfirmOpen] = useState(false);
+  const [isMarking, setIsMarking] = useState(false);
 
   // A dean lands on their own classes; everyone else on the whole school.
   useEffect(() => {
@@ -244,18 +249,83 @@ export default function TeachersAttendanceOverviewPage() {
     return acc;
   }, [data, dateByDay, attendanceByKey, inScope]);
 
+  // ---- Mark all present (one day at a time) ----------------------------------
+  // Scope follows the tab: whole school, the dean's own classes, or the chosen class.
+  const markScopeSubClassIds = useMemo<number[] | undefined>(() => {
+    if (activeMode === 'mine') return data?.mySubClassIds ?? [];
+    if (activeMode === 'class') return classId != null ? [classId] : [];
+    return undefined;
+  }, [activeMode, data, classId]);
+
+  const isFutureDay = useCallback(
+    (day: string) => !!data && !!dateByDay[day] && dateByDay[day] > data.today,
+    [data, dateByDay]
+  );
+
+  // Default the day picker to today (when it is in the shown week), else the latest day already due.
+  useEffect(() => {
+    if (!data) return;
+    const shown = DAYS_ORDER.filter(d => dateByDay[d]);
+    if (markDay && shown.includes(markDay)) return;
+    const today = shown.find(d => dateByDay[d] === data.today);
+    const lastDue = [...shown].reverse().find(d => !isFutureDay(d));
+    setMarkDay(today ?? lastDue ?? shown[0] ?? '');
+  }, [data, dateByDay, markDay, isFutureDay]);
+
+  // Periods on the chosen day, inside the current scope, with nothing recorded yet.
+  const unrecordedForMarkDay = useMemo(() => {
+    const date = dateByDay[markDay];
+    if (!data || !date) return 0;
+    let n = 0;
+    data.subclasses.forEach(block => {
+      if (!inScope(block.subClass.id)) return;
+      block.slots.forEach(slot => {
+        if (slot.day !== markDay || !slot.teacherId) return;
+        if (slot.periodType && !isAssignablePeriod(slot.periodType)) return;
+        if (!attendanceByKey.has(`${slot.id}|${date}`)) n += 1;
+      });
+    });
+    return n;
+  }, [data, dateByDay, markDay, inScope, attendanceByKey]);
+
+  const scopeLabel =
+    activeMode === 'mine' ? t('your classes') : activeMode === 'class'
+      ? allSubClasses.find(sc => sc.id === classId)?.name ?? ''
+      : t('the whole school');
+
+  const canMarkAll =
+    !!markDay && !isFutureDay(markDay) && !(markScopeSubClassIds && markScopeSubClassIds.length === 0);
+
+  const confirmMarkAll = async () => {
+    const date = dateByDay[markDay];
+    if (!date) return;
+    setIsMarking(true);
+    try {
+      const res = await markAllTeachersPresent(date, markScopeSubClassIds, selectedAcademicYear?.id);
+      toast.success(
+        `${res.created} ${t('periods marked present')}${res.alreadyRecorded ? ` (${res.alreadyRecorded} ${t('already recorded, left unchanged')})` : ''}`
+      );
+      setMarkConfirmOpen(false);
+      await load(true);
+    } catch (error) {
+      toast.error(error instanceof Error && error.message ? error.message : t('Failed to mark teachers present.'));
+    } finally {
+      setIsMarking(false);
+    }
+  };
+
   // One timetable cell: teacher name + Present / Late / Absent, tinted by status.
   const renderCell = (subClassId: number, period: PeriodDefinition | undefined, day: string) => {
     if (!period) {
       return (
-        <td key={`${subClassId}-${day}-none`} className="px-2 py-2 text-center text-xs text-gray-300 border-r h-20">
+        <td key={`${subClassId}-${day}-none`} className="px-2 py-2 text-center text-xs text-gray-300 border-r border-b h-20">
           —
         </td>
       );
     }
     if (!isAssignablePeriod(period.type)) {
       return (
-        <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r bg-gray-100 h-20">
+        <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r border-b bg-gray-100 h-20">
           <div className="truncate">{period.type === 'PREP' ? t('Preps') : t('Break')}</div>
         </td>
       );
@@ -263,7 +333,7 @@ export default function TeachersAttendanceOverviewPage() {
 
     const slots = slotsByCell.get(`${subClassId}|${period.id}`) ?? [];
     if (slots.length === 0) {
-      return <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 border-r bg-white h-20" />;
+      return <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 border-r border-b bg-white h-20" />;
     }
 
     const date = dateByDay[day];
@@ -290,7 +360,7 @@ export default function TeachersAttendanceOverviewPage() {
     return (
       <td
         key={`${subClassId}-${day}-${period.id}`}
-        className={`px-1 py-2 text-center text-xs border-r h-20 ${single ? STATUS_TEXT[items[0].state].bg : 'bg-white'} ${
+        className={`px-1 py-2 text-center text-xs border-r border-b h-20 ${single ? STATUS_TEXT[items[0].state].bg : 'bg-white'} ${
           single && items[0].dim ? 'opacity-30' : ''
         }`}
         title={title}
@@ -340,21 +410,23 @@ export default function TeachersAttendanceOverviewPage() {
         </div>
 
         <div className="w-full border rounded-lg">
-          <div className="overflow-x-auto">
+          {/* Scrolls in both directions inside a fixed height so the class header row and
+              the current day's row can stay pinned to the top while you scroll. */}
+          <div className="overflow-auto max-h-[80vh]">
             <div className="inline-block min-w-full">
-              <table className="min-w-full divide-y divide-gray-200 text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-24">
+              <table className="min-w-full text-xs border-separate border-spacing-0">
+                <thead>
+                  <tr className="h-9">
+                    <th className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b w-24">
                       {t('Period')}
                     </th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r w-20">
+                    <th className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b w-20">
                       {t('Time')}
                     </th>
                     {group.columns.map(col => (
                       <th
                         key={col.id}
-                        className="px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r text-gray-500"
+                        className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r border-b text-gray-500"
                         title={col.name}
                         style={{ minWidth: '100px', width: '150px', maxWidth: '150px' }}
                       >
@@ -363,29 +435,33 @@ export default function TeachersAttendanceOverviewPage() {
                     ))}
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {DAYS_ORDER.map(day => (
-                    <React.Fragment key={day}>
-                      <tr className="bg-blue-50">
-                        <td colSpan={2 + group.columns.length} className="px-4 py-3 text-center text-sm font-bold text-blue-900 border-b">
-                          {dayHeader(day)}
-                        </td>
-                      </tr>
-                      {group.rows.map(row => {
+                {/* One tbody per day: the day row is pinned under the class header and is
+                    replaced by the next day's row as you scroll into it. */}
+                {DAYS_ORDER.map(day => (
+                  <tbody key={day} className="bg-white">
+                    <tr>
+                      <td
+                        colSpan={2 + group.columns.length}
+                        className="sticky top-9 z-10 bg-blue-50 py-2 border-b text-sm font-bold text-blue-900"
+                      >
+                        {/* pinned to the left edge too, so the day name stays visible however far you scroll sideways */}
+                        <div className="sticky left-0 inline-block px-4">{dayHeader(day)}</div>
+                      </td>
+                    </tr>
+                    {group.rows.map(row => {
                         const period = row.byDay[day];
                         return (
                           <tr key={`${day}-${row.sequence}`} className="hover:bg-gray-50">
-                            <td className="px-2 py-2 text-center text-xs font-medium border-r w-24">{(period ?? row.label).name}</td>
-                            <td className="px-2 py-2 text-center text-xs text-gray-600 border-r w-20">
+                            <td className="px-2 py-2 text-center text-xs font-medium border-r border-b w-24">{(period ?? row.label).name}</td>
+                            <td className="px-2 py-2 text-center text-xs text-gray-600 border-r border-b w-20">
                               <div className="truncate">{formatTimeRange((period ?? row.label).startTime, (period ?? row.label).endTime)}</div>
                             </td>
                             {group.columns.map(col => renderCell(col.id, period, day))}
                           </tr>
                         );
                       })}
-                    </React.Fragment>
-                  ))}
-                </tbody>
+                  </tbody>
+                ))}
               </table>
             </div>
           </div>
@@ -401,25 +477,25 @@ export default function TeachersAttendanceOverviewPage() {
     }
     return (
       <div className="w-full border rounded-lg">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 text-xs">
-            <thead className="bg-gray-50 sticky top-0 z-10">
+        <div className="overflow-auto max-h-[80vh]">
+          <table className="min-w-full text-xs border-separate border-spacing-0">
+            <thead className="bg-gray-50 sticky top-0 z-20">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r sticky left-0 bg-gray-50 z-20 min-w-[120px]">
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b sticky left-0 bg-gray-50 z-30 min-w-[120px]">
                   {t('Period')} / {t('Time')}
                 </th>
                 {DAYS_ORDER.map(day => (
-                  <th key={day} className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r min-w-[140px]">
+                  <th key={day} className="sticky top-0 bg-gray-50 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b min-w-[140px]">
                     {day.charAt(0) + day.slice(1).toLowerCase()}
                     {dateByDay[day] && <div className="text-[10px] font-normal normal-case text-gray-400">{dateByDay[day]}</div>}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white">
               {classRows.map(row => (
-                <tr key={row.sequence} className="border-b hover:bg-gray-50">
-                  <th className="px-2 py-2 border-r bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
+                <tr key={row.sequence} className="hover:bg-gray-50">
+                  <th className="px-2 py-2 border-r border-b bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
                     <div className="text-center text-sm font-semibold">{row.label.name}</div>
                     <div className="text-xs text-gray-500 font-normal text-center mt-1">
                       {formatTimeRange(row.label.startTime, row.label.endTime)}
@@ -492,6 +568,65 @@ export default function TeachersAttendanceOverviewPage() {
           </select>
         )}
       </div>
+
+      {/* Mark all present -- affects the ONE chosen day only, and only periods with nothing recorded yet */}
+      <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-gray-700">{t('Mark all present for')}</span>
+        <select
+          value={markDay}
+          onChange={e => setMarkDay(e.target.value)}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
+          aria-label={t('Day')}
+        >
+          {DAYS_ORDER.filter(d => dateByDay[d]).map(d => (
+            <option key={d} value={d} disabled={isFutureDay(d)}>
+              {d.charAt(0) + d.slice(1).toLowerCase()} {dateByDay[d]}
+              {isFutureDay(d) ? ` (${t('upcoming')})` : ''}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={() => setMarkConfirmOpen(true)}
+          disabled={!canMarkAll || unrecordedForMarkDay === 0}
+          className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+        >
+          {t('Mark all present')}
+        </button>
+        <span className="text-xs text-gray-500">
+          {unrecordedForMarkDay} {t('periods not recorded yet')} · {scopeLabel}
+        </span>
+      </div>
+
+      <Modal isOpen={markConfirmOpen} onClose={() => !isMarking && setMarkConfirmOpen(false)} title={t('Mark all present')} size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            {t('Mark')} <strong>{unrecordedForMarkDay}</strong> {t('unrecorded periods as present for')}{' '}
+            <strong>
+              {markDay ? markDay.charAt(0) + markDay.slice(1).toLowerCase() : ''} {dateByDay[markDay]}
+            </strong>{' '}
+            ({scopeLabel})?
+          </p>
+          <p className="text-xs text-gray-500">
+            {t('Only this day is affected. Periods already recorded as present, late or absent are not changed.')}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setMarkConfirmOpen(false)}
+              disabled={isMarking}
+              className="px-4 py-2 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm"
+            >
+              {t('Cancel')}
+            </button>
+            <button
+              onClick={confirmMarkAll}
+              disabled={isMarking}
+              className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {isMarking ? t('Saving...') : t('Confirm')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Controls */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-4">
