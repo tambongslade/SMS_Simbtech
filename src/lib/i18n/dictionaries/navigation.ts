@@ -66,6 +66,7 @@ export const navigation: Record<string, string> = {
   'Period Roll Call': 'Appel par période',
   'Teacher Roll Calls': 'Appels des enseignants',
   'Teacher Attendance': 'Présence des enseignants',
+  'Teachers Attendance Overview': "Aperçu de la présence des enseignants",
   'Warnings & Summons': 'Avertissements et convocations',
   'Attendance & Lateness': 'Présence et retards',
   'Disciplinary Actions': 'Actions disciplinaires',

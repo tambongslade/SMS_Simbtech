@@ -170,6 +170,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Discipline Issues', href: '/dashboard/super-manager/discipline-issues', icon: ClipboardDocumentListIcon },
     { label: 'Class Absences', href: '/dashboard/super-manager/absences', icon: ExclamationTriangleIcon },
     { label: 'Roll Call', href: '/dashboard/super-manager/dm-roll-call', icon: ClockIcon },
+    { label: 'Teachers Attendance Overview', href: '/dashboard/super-manager/teachers-attendance-overview', icon: CalendarDaysIcon },
     { label: 'Warnings & Summons', href: '/dashboard/super-manager/warnings-summons', icon: BellIcon },
     { label: 'Disciplinary Actions', href: '/dashboard/super-manager/disciplinary-actions', icon: ShieldExclamationIcon },
     { label: 'Saturday Punishments', href: '/dashboard/super-manager/punishments', icon: CalendarDaysIcon },
@@ -250,6 +251,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/manager/defaulters' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
+    { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/manager/teachers-attendance-overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/manager/statistics' },
   ],
   'dean-of-studies': [
@@ -269,6 +271,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },
+    { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/dean-of-discipline/teachers-attendance-overview' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },

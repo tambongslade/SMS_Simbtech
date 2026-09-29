@@ -85,3 +85,46 @@ export const updateTeacherAttendance = async (
 export const deleteTeacherAttendance = async (id: number): Promise<void> => {
   await apiService.delete(`/discipline-master/teacher-attendance/${id}`);
 };
+
+// ---- Weekly overview (Dean of Discipline / Manager / Super Manager) ----------
+// Read-only grid built from what the DMs record via saveTeacherAttendanceDay.
+
+export interface TeacherWeekCell {
+  teacherPeriodId: number;
+  period: { id: number; name: string; startTime: string; endTime: string; sequence: number };
+  subject?: { id: number; name: string };
+  subClass?: { id: number; name: string; class?: { id: number; name: string } };
+  status: TeacherAttendanceStatus | null; // null = not recorded yet
+  reason?: string | null;
+  recordedBy?: { id: number; name: string } | null;
+}
+
+export interface TeacherWeekRow {
+  id: number;
+  name: string;
+  matricule: string | null;
+  days: Record<string, TeacherWeekCell[]>; // keyed by YYYY-MM-DD
+  totals: { present: number; late: number; absent: number; pending: number; upcoming: number };
+}
+
+export interface TeacherWeekOverview {
+  academicYearId: number;
+  weekStart: string;
+  weekEnd: string;
+  today: string;
+  days: { date: string; dayOfWeek: string }[];
+  teachers: TeacherWeekRow[];
+}
+
+export const getTeacherAttendanceWeekOverview = async (
+  weekStart: string,
+  academicYearId?: number
+): Promise<TeacherWeekOverview> => {
+  const qs = new URLSearchParams({ weekStart });
+  if (academicYearId) qs.append('academicYearId', String(academicYearId));
+  const res = await apiService.get<{ data: TeacherWeekOverview }>(
+    `/discipline-master/teacher-attendance/overview?${qs.toString()}`
+  );
+  const data = res.data || ({} as TeacherWeekOverview);
+  return { ...data, days: data.days || [], teachers: data.teachers || [] };
+};
