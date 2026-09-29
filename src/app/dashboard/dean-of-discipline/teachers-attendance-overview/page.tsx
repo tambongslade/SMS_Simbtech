@@ -28,6 +28,7 @@ import {
   type PeriodType,
 } from '@/app/dashboard/super-manager/timetable/components/TimetableContext';
 import DeanAssignmentsModal from './DeanAssignmentsModal';
+import EditAttendanceModal, { type EditTarget } from './EditAttendanceModal';
 
 // The tables refresh themselves so a period the discipline masters just saved
 // shows up without anyone reloading the page.
@@ -93,7 +94,7 @@ export default function TeachersAttendanceOverviewPage() {
   const [mode, setMode] = useState<ViewMode | null>(null); // null until the role is known
   const [classId, setClassId] = useState<number | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
-  const [markDay, setMarkDay] = useState<string>(''); // DAYS_ORDER name of the day to bulk-mark
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [markConfirmOpen, setMarkConfirmOpen] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
 
@@ -152,7 +153,7 @@ export default function TeachersAttendanceOverviewPage() {
   }, [data]);
 
   const attendanceByKey = useMemo(() => {
-    const m = new Map<string, { status: TeacherAttendanceStatus; reason?: string | null; recordedBy?: { name: string } | null }>();
+    const m = new Map<string, { id: number; status: TeacherAttendanceStatus; reason?: string | null; recordedBy?: { name: string } | null }>();
     (data?.attendance ?? []).forEach(a => m.set(`${a.teacherPeriodId}|${a.date}`, a));
     return m;
   }, [data]);
@@ -262,15 +263,12 @@ export default function TeachersAttendanceOverviewPage() {
     [data, dateByDay]
   );
 
-  // Default the day picker to today (when it is in the shown week), else the latest day already due.
-  useEffect(() => {
-    if (!data) return;
-    const shown = DAYS_ORDER.filter(d => dateByDay[d]);
-    if (markDay && shown.includes(markDay)) return;
-    const today = shown.find(d => dateByDay[d] === data.today);
-    const lastDue = [...shown].reverse().find(d => !isFutureDay(d));
-    setMarkDay(today ?? lastDue ?? shown[0] ?? '');
-  }, [data, dateByDay, markDay, isFutureDay]);
+  // "Mark all present" always acts on today (one day only). Empty when today is not a
+  // school day inside the week being shown.
+  const markDay = useMemo(
+    () => (data ? DAYS_ORDER.find(d => dateByDay[d] === data.today) ?? '' : ''),
+    [data, dateByDay]
+  );
 
   // Periods on the chosen day, inside the current scope, with nothing recorded yet.
   const unrecordedForMarkDay = useMemo(() => {
@@ -293,8 +291,7 @@ export default function TeachersAttendanceOverviewPage() {
       ? allSubClasses.find(sc => sc.id === classId)?.name ?? ''
       : t('the whole school');
 
-  const canMarkAll =
-    !!markDay && !isFutureDay(markDay) && !(markScopeSubClassIds && markScopeSubClassIds.length === 0);
+  const canMarkAll = !!markDay && !(markScopeSubClassIds && markScopeSubClassIds.length === 0);
 
   const confirmMarkAll = async () => {
     const date = dateByDay[markDay];
@@ -312,6 +309,20 @@ export default function TeachersAttendanceOverviewPage() {
     } finally {
       setIsMarking(false);
     }
+  };
+
+  // Open the edit dialog for one slot on one day. Upcoming days can't be edited yet.
+  const openEdit = (slot: OverviewSlot, day: string, period: PeriodDefinition) => {
+    const date = dateByDay[day];
+    if (!date || isFutureDay(day)) return;
+    setEditTarget({
+      slot,
+      date,
+      dayLabel: day.charAt(0) + day.slice(1).toLowerCase(),
+      periodLabel: `${period.name} · ${formatTimeRange(period.startTime, period.endTime)}`,
+      className: (data?.subclasses ?? []).find(b => b.subClass.id === slot.subClassId)?.subClass.name ?? '',
+      existing: attendanceByKey.get(`${slot.id}|${date}`),
+    });
   };
 
   // One timetable cell: teacher name + Present / Late / Absent, tinted by status.
@@ -357,13 +368,16 @@ export default function TeachersAttendanceOverviewPage() {
       .join('\n');
 
     const single = items.length === 1;
+    const clickable = !!date && !isFutureDay(day);
+    const click = clickable ? 'cursor-pointer hover:brightness-95' : '';
     return (
       <td
         key={`${subClassId}-${day}-${period.id}`}
         className={`px-1 py-2 text-center text-xs border-r border-b h-20 ${single ? STATUS_TEXT[items[0].state].bg : 'bg-white'} ${
           single && items[0].dim ? 'opacity-30' : ''
-        }`}
-        title={title}
+        } ${single ? click : ''}`}
+        title={clickable ? `${title}\n${t('Click to change')}` : title}
+        onClick={single && clickable ? () => openEdit(items[0].slot, day, period) : undefined}
       >
         <div className={`h-full flex flex-col justify-center ${single ? 'space-y-1' : 'gap-0.5'}`}>
           {items.map(({ slot, state, dim }, i) => (
@@ -371,7 +385,8 @@ export default function TeachersAttendanceOverviewPage() {
               key={slot.id}
               className={`${!single ? `${STATUS_TEXT[state].bg} rounded px-0.5 py-0.5` : ''} ${!single && dim ? 'opacity-30' : ''} ${
                 i > 0 && !single ? 'mt-0.5' : ''
-              }`}
+              } ${!single ? click : ''}`}
+              onClick={!single && clickable ? () => openEdit(slot, day, period) : undefined}
             >
               <div className={`truncate font-semibold leading-tight px-1 ${single ? 'text-xs' : 'text-[10px]'}`}>
                 {slot.teacherName ?? t('No teacher')}
@@ -569,33 +584,35 @@ export default function TeachersAttendanceOverviewPage() {
         )}
       </div>
 
-      {/* Mark all present -- affects the ONE chosen day only, and only periods with nothing recorded yet */}
+      {/* Mark all present -- TODAY only, only periods with nothing recorded yet.
+          Not offered in the school-wide view (only in "My classes" and the class view). */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium text-gray-700">{t('Mark all present for')}</span>
-        <select
-          value={markDay}
-          onChange={e => setMarkDay(e.target.value)}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm bg-white"
-          aria-label={t('Day')}
-        >
-          {DAYS_ORDER.filter(d => dateByDay[d]).map(d => (
-            <option key={d} value={d} disabled={isFutureDay(d)}>
-              {d.charAt(0) + d.slice(1).toLowerCase()} {dateByDay[d]}
-              {isFutureDay(d) ? ` (${t('upcoming')})` : ''}
-            </option>
-          ))}
-        </select>
-        <button
-          onClick={() => setMarkConfirmOpen(true)}
-          disabled={!canMarkAll || unrecordedForMarkDay === 0}
-          className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-        >
-          {t('Mark all present')}
-        </button>
-        <span className="text-xs text-gray-500">
-          {unrecordedForMarkDay} {t('periods not recorded yet')} · {scopeLabel}
-        </span>
+        {activeMode !== 'school' && (
+          <>
+            <button
+              onClick={() => setMarkConfirmOpen(true)}
+              disabled={!canMarkAll || unrecordedForMarkDay === 0}
+              className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
+            >
+              {t('Mark all present')}
+              {markDay ? ` — ${markDay.charAt(0) + markDay.slice(1).toLowerCase()} ${dateByDay[markDay]}` : ''}
+            </button>
+            <span className="text-xs text-gray-500">
+              {markDay
+                ? `${unrecordedForMarkDay} ${t('periods not recorded yet')} · ${scopeLabel}`
+                : t('Today is not a school day in the week shown. Go to this week to mark today.')}
+            </span>
+          </>
+        )}
+        <span className="text-xs text-gray-400 ml-auto">{t('Tip: click any cell to change present / late / absent.')}</span>
       </div>
+
+      <EditAttendanceModal
+        target={editTarget}
+        academicYearId={selectedAcademicYear?.id}
+        onClose={() => setEditTarget(null)}
+        onSaved={() => load(true)}
+      />
 
       <Modal isOpen={markConfirmOpen} onClose={() => !isMarking && setMarkConfirmOpen(false)} title={t('Mark all present')} size="sm">
         <div className="space-y-4">

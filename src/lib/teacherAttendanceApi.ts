@@ -122,6 +122,7 @@ export interface OverviewSubclassBlock {
 }
 
 export interface OverviewAttendance {
+  id: number;
   teacherPeriodId: number;
   date: string; // YYYY-MM-DD
   status: TeacherAttendanceStatus;
