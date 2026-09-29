@@ -138,6 +138,8 @@ export interface TeacherWeekOverview {
   days: { date: string; dayOfWeek: string }[];
   subclasses: OverviewSubclassBlock[];
   attendance: OverviewAttendance[];
+  /** Sub-classes assigned to the viewer as Dean of Discipline (empty for everyone else). */
+  mySubClassIds: number[];
 }
 
 export const getTeacherAttendanceWeekOverview = async (
@@ -155,5 +157,35 @@ export const getTeacherAttendanceWeekOverview = async (
     days: data.days || [],
     subclasses: data.subclasses || [],
     attendance: data.attendance || [],
+    mySubClassIds: data.mySubClassIds || [],
   };
+};
+
+// ---- Dean of Discipline class assignments ------------------------------------
+
+export interface DeanAssignment {
+  id: number;
+  name: string;
+  matricule?: string | null;
+  subClassIds: number[];
+}
+
+export const listDeansWithAssignments = async (academicYearId?: number): Promise<DeanAssignment[]> => {
+  const qs = academicYearId ? `?academicYearId=${academicYearId}` : '';
+  const res = await apiService.get<{ data: { deans: DeanAssignment[] } }>(
+    `/discipline-master/teacher-attendance/deans${qs}`
+  );
+  return res.data?.deans || [];
+};
+
+// Replaces the dean's assigned sub-classes for the year with exactly this set.
+export const setDeanSubClasses = async (
+  userId: number,
+  subClassIds: number[],
+  academicYearId?: number
+): Promise<void> => {
+  await apiService.put(`/discipline-master/teacher-attendance/deans/${userId}/sub-classes`, {
+    subClassIds,
+    academicYearId: academicYearId ?? undefined,
+  });
 };
