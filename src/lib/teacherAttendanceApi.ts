@@ -87,33 +87,57 @@ export const deleteTeacherAttendance = async (id: number): Promise<void> => {
 };
 
 // ---- Weekly overview (Dean of Discipline / Manager / Super Manager) ----------
-// Read-only grid built from what the DMs record via saveTeacherAttendanceDay.
+// Same payload as /timetables/full-school (the school-wide timetable) plus the
+// week's recorded attendance. Join attendance onto a slot with
+// slot.id (= TeacherPeriod id) + the date of the slot's day column.
 
-export interface TeacherWeekCell {
+export interface OverviewPeriod {
+  id: number;
+  name: string;
+  dayOfWeek: string;
+  startTime: string;
+  endTime: string;
+  sequence: number;
+  type?: 'TEACHING' | 'BREAK' | 'PREP';
+  isBreak?: boolean;
+  periodSetId?: number | null;
+}
+
+export interface OverviewSlot {
+  id: number; // TeacherPeriod id
+  subClassId: number;
+  day: string;
+  periodId: number;
+  periodType?: 'TEACHING' | 'BREAK' | 'PREP';
+  subjectName: string | null;
+  teacherId: number | null;
+  teacherName: string | null;
+}
+
+export interface OverviewSubclassBlock {
+  subClass: { id: number; name: string; className: string; classId: number };
+  periodSet: { id: number; code: string; name: string } | null;
+  periods: OverviewPeriod[];
+  slots: OverviewSlot[];
+}
+
+export interface OverviewAttendance {
   teacherPeriodId: number;
-  period: { id: number; name: string; startTime: string; endTime: string; sequence: number };
-  subject?: { id: number; name: string };
-  subClass?: { id: number; name: string; class?: { id: number; name: string } };
-  status: TeacherAttendanceStatus | null; // null = not recorded yet
+  date: string; // YYYY-MM-DD
+  status: TeacherAttendanceStatus;
   reason?: string | null;
   recordedBy?: { id: number; name: string } | null;
 }
 
-export interface TeacherWeekRow {
-  id: number;
-  name: string;
-  matricule: string | null;
-  days: Record<string, TeacherWeekCell[]>; // keyed by YYYY-MM-DD
-  totals: { present: number; late: number; absent: number; pending: number; upcoming: number };
-}
-
 export interface TeacherWeekOverview {
   academicYearId: number;
+  academicYearName: string;
   weekStart: string;
   weekEnd: string;
   today: string;
   days: { date: string; dayOfWeek: string }[];
-  teachers: TeacherWeekRow[];
+  subclasses: OverviewSubclassBlock[];
+  attendance: OverviewAttendance[];
 }
 
 export const getTeacherAttendanceWeekOverview = async (
@@ -126,5 +150,10 @@ export const getTeacherAttendanceWeekOverview = async (
     `/discipline-master/teacher-attendance/overview?${qs.toString()}`
   );
   const data = res.data || ({} as TeacherWeekOverview);
-  return { ...data, days: data.days || [], teachers: data.teachers || [] };
+  return {
+    ...data,
+    days: data.days || [],
+    subclasses: data.subclasses || [],
+    attendance: data.attendance || [],
+  };
 };

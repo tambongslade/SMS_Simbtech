@@ -284,4 +284,8 @@ export const discipline: Record<string, string> = {
   'No teachers found for this week.': "Aucun enseignant trouvé pour cette semaine.",
   'Week total': "Total de la semaine",
   'Recorded by': "Enregistré par",
+  'Preps': "Études",
+  'Break': "Pause",
+  'No teacher': "Sans enseignant",
+  'No timetable found for this academic year.': "Aucun emploi du temps trouvé pour cette année académique.",
 };
