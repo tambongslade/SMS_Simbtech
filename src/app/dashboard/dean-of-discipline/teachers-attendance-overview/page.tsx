@@ -55,6 +55,18 @@ const addDays = (iso: string, n: number) => {
 // The stored period-set name says "F1–F4", but Form 5 follows the first-cycle schedule too.
 const cycleName = (ps: { code: string; name: string }) => (ps.code === 'FIRST_CYCLE' ? 'First Cycle (F1–F5)' : ps.name);
 
+// School days are Monday-Friday: a weekend date snaps back to the previous Friday.
+const toWeekday = (iso: string) => {
+  const dow = new Date(`${iso}T00:00:00`).getDay(); // 0 = Sunday
+  return dow === 0 ? addDays(iso, -2) : dow === 6 ? addDays(iso, -1) : iso;
+};
+// The next (dir = 1) or previous (dir = -1) school day.
+const stepWeekday = (iso: string, dir: 1 | -1): string => {
+  let d = addDays(iso, dir);
+  while ([0, 6].includes(new Date(`${d}T00:00:00`).getDay())) d = addDays(d, dir);
+  return d;
+};
+
 const normalizePeriod = (p: OverviewPeriod): PeriodDefinition => {
   const type: PeriodType =
     p.type === 'BREAK' || p.type === 'PREP' || p.type === 'TEACHING' ? p.type : p.isBreak ? 'BREAK' : 'TEACHING';
@@ -88,7 +100,10 @@ export default function TeachersAttendanceOverviewPage() {
   const isDean = selectedRole === 'DEAN_OF_DISCIPLINE';
   const canAssign = !!selectedRole && ASSIGNER_ROLES.includes(selectedRole);
 
-  const [weekStart, setWeekStart] = useState(() => mondayOf(toIso(new Date())));
+  const [anchor, setAnchor] = useState(() => toWeekday(toIso(new Date()))); // the day being viewed (or any day of the viewed week)
+  const [span, setSpan] = useState<'day' | 'week'>('day'); // school view: daily (default) or weekly
+  const weekStart = mondayOf(anchor);
+  const dayName = DAYS_ORDER[(new Date(`${anchor}T00:00:00`).getDay() + 6) % 7] ?? '';
   const [data, setData] = useState<TeacherWeekOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -261,6 +276,7 @@ export default function TeachersAttendanceOverviewPage() {
       if (!inScope(block.subClass.id)) return;
       block.slots.forEach(slot => {
         if (slot.periodType && !isAssignablePeriod(slot.periodType)) return;
+        if (activeMode !== 'class' && span === 'day' && slot.day !== dayName) return; // daily view: just that day
         const date = dateByDay[slot.day];
         if (!date || !data) return;
         const rec = attendanceByKey.get(`${slot.id}|${date}`);
@@ -269,7 +285,7 @@ export default function TeachersAttendanceOverviewPage() {
       });
     });
     return acc;
-  }, [data, dateByDay, attendanceByKey, inScope]);
+  }, [data, dateByDay, attendanceByKey, inScope, activeMode, span, dayName]);
 
   // ---- Mark all present (one day at a time) ----------------------------------
   // Scope follows the tab: whole school, the dean's own classes, or the chosen class.
@@ -484,7 +500,7 @@ export default function TeachersAttendanceOverviewPage() {
                 </thead>
                 {/* One tbody per day: the day row is pinned under the class header and is
                     replaced by the next day's row as you scroll into it. */}
-                {DAYS_ORDER.map(day => (
+                {(span === 'day' ? DAYS_ORDER.filter(d => d === dayName) : DAYS_ORDER).map(day => (
                   <tbody key={day} className="bg-white">
                     <tr>
                       <td
@@ -700,40 +716,93 @@ export default function TeachersAttendanceOverviewPage() {
 
       {/* Controls */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-4">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setWeekStart(addDays(weekStart, -7))}
-            className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-            aria-label={t('Previous week')}
-          >
-            <ChevronLeftIcon className="w-4 h-4" />
-          </button>
-          <div className="text-sm font-medium text-gray-800 min-w-[190px] text-center">{rangeLabel}</div>
-          <button
-            onClick={() => setWeekStart(addDays(weekStart, 7))}
-            className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-            aria-label={t('Next week')}
-          >
-            <ChevronRightIcon className="w-4 h-4" />
-          </button>
-          {weekStart !== thisWeek && (
-            <button
-              onClick={() => setWeekStart(thisWeek)}
-              className="px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm"
-            >
-              {t('This week')}
-            </button>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Go to date')}</label>
-          <input
-            type="date"
-            value={weekStart}
-            onChange={e => e.target.value && setWeekStart(mondayOf(e.target.value))}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
-        </div>
+        {activeMode === 'class' ? (
+          <>
+            {/* Class view: the class grid is always a week, so it keeps week navigation and a date jump */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAnchor(addDays(anchor, -7))}
+                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
+                aria-label={t('Previous week')}
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <div className="text-sm font-medium text-gray-800 min-w-[190px] text-center">{rangeLabel}</div>
+              <button
+                onClick={() => setAnchor(addDays(anchor, 7))}
+                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
+                aria-label={t('Next week')}
+              >
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+              {weekStart !== thisWeek && (
+                <button
+                  onClick={() => setAnchor(toWeekday(toIso(new Date())))}
+                  className="px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm"
+                >
+                  {t('This week')}
+                </button>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Go to date')}</label>
+              <input
+                type="date"
+                value={anchor}
+                onChange={e => e.target.value && setAnchor(e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            {/* School view / My classes: Daily view (default) or Weekly view, no calendar */}
+            <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label={t('View')}>
+              {([
+                { key: 'day', label: t('Daily view') },
+                { key: 'week', label: t('Weekly view') },
+              ] as { key: 'day' | 'week'; label: string }[]).map(o => (
+                <button
+                  key={o.key}
+                  onClick={() => {
+                    setSpan(o.key);
+                    if (o.key === 'day') setAnchor(a => toWeekday(a));
+                  }}
+                  className={`px-4 py-2 ${span === o.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, -1) : addDays(anchor, -7))}
+                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
+                aria-label={span === 'day' ? t('Previous day') : t('Previous week')}
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </button>
+              <div className="text-sm font-medium text-gray-800 min-w-[190px] text-center">
+                {span === 'day' ? `${dayName.charAt(0) + dayName.slice(1).toLowerCase()} ${anchor}` : rangeLabel}
+              </div>
+              <button
+                onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, 1) : addDays(anchor, 7))}
+                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
+                aria-label={span === 'day' ? t('Next day') : t('Next week')}
+              >
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
+              {(span === 'day' ? anchor !== toWeekday(toIso(new Date())) : weekStart !== thisWeek) && (
+                <button
+                  onClick={() => setAnchor(toWeekday(toIso(new Date())))}
+                  className="px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm"
+                >
+                  {span === 'day' ? t('Today') : t('This week')}
+                </button>
+              )}
+            </div>
+          </>
+        )}
         <div className="flex-1 min-w-[200px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('Search teacher')}</label>
           <input

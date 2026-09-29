@@ -330,4 +330,8 @@ export const discipline: Record<string, string> = {
   'Second cycle': "Second cycle",
   'Whole school': "Toute l'école",
   'Cycle': "Cycle",
+  'Daily view': "Vue journalière",
+  'Weekly view': "Vue hebdomadaire",
+  'Previous day': "Jour précédent",
+  'Next day': "Jour suivant",
 };
