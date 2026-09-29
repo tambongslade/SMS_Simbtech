@@ -326,4 +326,8 @@ export const discipline: Record<string, string> = {
   'Today is not a school day in the week shown. Go to this week to mark today.': "Aujourd'hui n'est pas un jour de classe dans la semaine affichée. Allez à cette semaine pour marquer aujourd'hui.",
   'Tip: click any cell to change present / late / absent.': "Astuce : cliquez sur une cellule pour changer présent / en retard / absent.",
   "Tip: click a cell of today's column to change present / late / absent. Other days are read-only.": "Astuce : cliquez sur une cellule de la colonne du jour pour changer présent / en retard / absent. Les autres jours sont en lecture seule.",
+  'First cycle': "Premier cycle",
+  'Second cycle': "Second cycle",
+  'Whole school': "Toute l'école",
+  'Cycle': "Cycle",
 };

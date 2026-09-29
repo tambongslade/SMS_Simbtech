@@ -52,6 +52,9 @@ const addDays = (iso: string, n: number) => {
   return toIso(d);
 };
 
+// The stored period-set name says "F1–F4", but Form 5 follows the first-cycle schedule too.
+const cycleName = (ps: { code: string; name: string }) => (ps.code === 'FIRST_CYCLE' ? 'First Cycle (F1–F5)' : ps.name);
+
 const normalizePeriod = (p: OverviewPeriod): PeriodDefinition => {
   const type: PeriodType =
     p.type === 'BREAK' || p.type === 'PREP' || p.type === 'TEACHING' ? p.type : p.isBreak ? 'BREAK' : 'TEACHING';
@@ -92,6 +95,7 @@ export default function TeachersAttendanceOverviewPage() {
   const [search, setSearch] = useState('');
   const [onlyIssues, setOnlyIssues] = useState(false);
   const [mode, setMode] = useState<ViewMode | null>(null); // null until the role is known
+  const [cycle, setCycle] = useState<string>('all'); // school view: 'all' or a period-set id
   const [classId, setClassId] = useState<number | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
@@ -176,12 +180,29 @@ export default function TeachersAttendanceOverviewPage() {
     setClassId((mineFirst ?? allSubClasses[0]).id);
   }, [classId, allSubClasses, data]);
 
+  // The bell-schedule cycles present in the data (first / second cycle).
+  const cycles = useMemo(() => {
+    const seen = new Map<string, { key: string; code: string; label: string }>();
+    (data?.subclasses ?? []).forEach(b => {
+      if (!b.periodSet) return;
+      const key = String(b.periodSet.id);
+      if (seen.has(key)) return;
+      const label =
+        b.periodSet.code === 'FIRST_CYCLE' ? t('First cycle') : b.periodSet.code === 'SECOND_CYCLE' ? t('Second cycle') : cycleName(b.periodSet);
+      seen.set(key, { key, code: b.periodSet.code, label });
+    });
+    return Array.from(seen.values()).sort((a, b) => a.code.localeCompare(b.code));
+  }, [data, t]);
+
   // Which sub-classes the current tab shows.
   const scopeIds = useMemo<Set<number> | null>(() => {
     if (activeMode === 'mine') return new Set(data?.mySubClassIds ?? []);
     if (activeMode === 'class') return classId != null ? new Set([classId]) : new Set();
+    if (cycle !== 'all') {
+      return new Set((data?.subclasses ?? []).filter(b => b.periodSet && String(b.periodSet.id) === cycle).map(b => b.subClass.id));
+    }
     return null; // whole school
-  }, [activeMode, data, classId]);
+  }, [activeMode, data, classId, cycle]);
   const inScope = useCallback((id: number) => scopeIds === null || scopeIds.has(id), [scopeIds]);
 
   // One matrix per bell schedule, exactly like the school-wide timetable view.
@@ -193,7 +214,7 @@ export default function TeachersAttendanceOverviewPage() {
       const key = String(block.periodSet.id);
       let group = bySet.get(key);
       if (!group) {
-        group = { key, name: block.periodSet.name, rows: buildPeriodRows(block.periods.map(normalizePeriod)), columns: [] };
+        group = { key, name: cycleName(block.periodSet), rows: buildPeriodRows(block.periods.map(normalizePeriod)), columns: [] };
         bySet.set(key, group);
       }
       group.columns.push({ id: block.subClass.id, name: block.subClass.name, className: block.subClass.className });
@@ -340,14 +361,14 @@ export default function TeachersAttendanceOverviewPage() {
   const renderCell = (subClassId: number, period: PeriodDefinition | undefined, day: string) => {
     if (!period) {
       return (
-        <td key={`${subClassId}-${day}-none`} className="px-2 py-2 text-center text-xs text-gray-300 border-r border-b h-20">
+        <td key={`${subClassId}-${day}-none`} className="px-1 py-1 text-center text-[10px] text-gray-300 border-r border-b h-11">
           —
         </td>
       );
     }
     if (!isAssignablePeriod(period.type)) {
       return (
-        <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 text-center text-xs text-gray-600 border-r border-b bg-gray-100 h-20">
+        <td key={`${subClassId}-${day}-${period.id}`} className="px-1 py-1 text-center text-[10px] text-gray-600 border-r border-b bg-gray-100 h-11">
           <div className="truncate">{period.type === 'PREP' ? t('Preps') : t('Break')}</div>
         </td>
       );
@@ -355,7 +376,7 @@ export default function TeachersAttendanceOverviewPage() {
 
     const slots = slotsByCell.get(`${subClassId}|${period.id}`) ?? [];
     if (slots.length === 0) {
-      return <td key={`${subClassId}-${day}-${period.id}`} className="px-2 py-2 border-r border-b bg-white h-20" />;
+      return <td key={`${subClassId}-${day}-${period.id}`} className="px-1 py-1 border-r border-b bg-white h-11" />;
     }
 
     const date = dateByDay[day];
@@ -384,13 +405,13 @@ export default function TeachersAttendanceOverviewPage() {
     return (
       <td
         key={`${subClassId}-${day}-${period.id}`}
-        className={`px-1 py-2 text-center text-xs border-r border-b h-20 ${single ? STATUS_TEXT[items[0].state].bg : 'bg-white'} ${
+        className={`px-0.5 py-0.5 text-center text-xs border-r border-b h-11 ${single ? STATUS_TEXT[items[0].state].bg : 'bg-white'} ${
           single && items[0].dim ? 'opacity-30' : ''
         } ${single ? click : ''}`}
         title={clickable ? `${title}\n${t('Click to change')}` : title}
         onClick={single && clickable ? () => openEdit(items[0].slot, day, period) : undefined}
       >
-        <div className={`h-full flex flex-col justify-center ${single ? 'space-y-1' : 'gap-0.5'}`}>
+        <div className={`h-full flex flex-col justify-center ${single ? 'space-y-0' : 'gap-0.5'}`}>
           {items.map(({ slot, state, dim }, i) => (
             <div
               key={slot.id}
@@ -399,15 +420,15 @@ export default function TeachersAttendanceOverviewPage() {
               } ${!single ? click : ''}`}
               onClick={!single && clickable ? () => openEdit(slot, day, period) : undefined}
             >
-              <div className={`truncate font-semibold leading-tight px-1 ${single ? 'text-xs' : 'text-[10px]'}`}>
+              <div className={`break-words font-semibold leading-[1.15] px-0.5 ${single ? 'text-[11px]' : 'text-[10px]'}`}>
                 {slot.teacherName ?? t('No teacher')}
               </div>
               {STATUS_TEXT[state].label && (
-                <div className={`truncate font-semibold leading-tight px-1 ${STATUS_TEXT[state].text} ${single ? 'text-xs' : 'text-[10px]'}`}>
+                <div className={`break-words font-semibold leading-[1.15] px-0.5 ${STATUS_TEXT[state].text} ${single ? 'text-[10px]' : 'text-[9px]'}`}>
                   {STATUS_TEXT[state].label}
                 </div>
               )}
-              <div className={`truncate text-gray-500 leading-tight px-1 ${single ? 'text-[11px]' : 'text-[9px]'}`}>
+              <div className={`break-words text-gray-500 leading-[1.15] px-0.5 ${single ? 'text-[10px]' : 'text-[9px]'}`}>
                 {slot.subjectName ?? ''}
               </div>
             </div>
@@ -442,19 +463,19 @@ export default function TeachersAttendanceOverviewPage() {
             <div className="inline-block min-w-full">
               <table className="min-w-full text-xs border-separate border-spacing-0">
                 <thead>
-                  <tr className="h-9">
-                    <th className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b w-24">
+                  <tr className="h-7">
+                    <th className="sticky top-0 z-20 bg-gray-50 px-1 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider border-r border-b w-14">
                       {t('Period')}
                     </th>
-                    <th className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b w-20">
+                    <th className="sticky top-0 z-20 bg-gray-50 px-1 py-1 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider border-r border-b w-[78px]">
                       {t('Time')}
                     </th>
                     {group.columns.map(col => (
                       <th
                         key={col.id}
-                        className="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-left text-xs font-medium uppercase tracking-wider border-r border-b text-gray-500"
+                        className="sticky top-0 z-20 bg-gray-50 px-1 py-1 text-left text-[10px] font-medium uppercase tracking-wider border-r border-b text-gray-500"
                         title={col.name}
-                        style={{ minWidth: '100px', width: '150px', maxWidth: '150px' }}
+                        style={{ minWidth: '96px', width: '118px', maxWidth: '118px' }}
                       >
                         <div className="truncate">{col.name}</div>
                       </th>
@@ -468,19 +489,19 @@ export default function TeachersAttendanceOverviewPage() {
                     <tr>
                       <td
                         colSpan={2 + group.columns.length}
-                        className="sticky top-9 z-10 bg-blue-50 py-2 border-b text-sm font-bold text-blue-900"
+                        className="sticky top-7 z-10 bg-blue-50 py-1 border-b text-xs font-bold text-blue-900"
                       >
                         {/* pinned to the left edge too, so the day name stays visible however far you scroll sideways */}
-                        <div className="sticky left-0 inline-block px-4">{dayHeader(day)}</div>
+                        <div className="sticky left-0 inline-block px-3">{dayHeader(day)}</div>
                       </td>
                     </tr>
                     {group.rows.map(row => {
                         const period = row.byDay[day];
                         return (
                           <tr key={`${day}-${row.sequence}`} className="hover:bg-gray-50">
-                            <td className="px-2 py-2 text-center text-xs font-medium border-r border-b w-24">{(period ?? row.label).name}</td>
-                            <td className="px-2 py-2 text-center text-xs text-gray-600 border-r border-b w-20">
-                              <div className="truncate">{formatTimeRange((period ?? row.label).startTime, (period ?? row.label).endTime)}</div>
+                            <td className="px-1 py-1 text-center text-[11px] font-medium border-r border-b w-14">{(period ?? row.label).name}</td>
+                            <td className="px-1 py-1 text-center text-[10px] text-gray-600 border-r border-b w-[78px]">
+                              <div className="whitespace-nowrap">{formatTimeRange((period ?? row.label).startTime, (period ?? row.label).endTime)}</div>
                             </td>
                             {group.columns.map(col => renderCell(col.id, period, day))}
                           </tr>
@@ -507,11 +528,11 @@ export default function TeachersAttendanceOverviewPage() {
           <table className="min-w-full text-xs border-separate border-spacing-0">
             <thead className="bg-gray-50 sticky top-0 z-20">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b sticky left-0 bg-gray-50 z-30 min-w-[120px]">
+                <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider border-r border-b sticky left-0 bg-gray-50 z-30 min-w-[84px]">
                   {t('Period')} / {t('Time')}
                 </th>
                 {DAYS_ORDER.map(day => (
-                  <th key={day} className="sticky top-0 bg-gray-50 px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-b min-w-[140px]">
+                  <th key={day} className="sticky top-0 bg-gray-50 px-2 py-1.5 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-b min-w-[112px]">
                     {day.charAt(0) + day.slice(1).toLowerCase()}
                     {dateByDay[day] && <div className="text-[10px] font-normal normal-case text-gray-400">{dateByDay[day]}</div>}
                   </th>
@@ -521,9 +542,9 @@ export default function TeachersAttendanceOverviewPage() {
             <tbody className="bg-white">
               {classRows.map(row => (
                 <tr key={row.sequence} className="hover:bg-gray-50">
-                  <th className="px-2 py-2 border-r border-b bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[120px]">
-                    <div className="text-center text-sm font-semibold">{row.label.name}</div>
-                    <div className="text-xs text-gray-500 font-normal text-center mt-1">
+                  <th className="px-1 py-1 border-r border-b bg-gray-50 font-medium text-gray-800 sticky left-0 z-10 min-w-[84px]">
+                    <div className="text-center text-xs font-semibold">{row.label.name}</div>
+                    <div className="text-[10px] text-gray-500 font-normal text-center whitespace-nowrap">
                       {formatTimeRange(row.label.startTime, row.label.endTime)}
                     </div>
                   </th>
@@ -579,26 +600,47 @@ export default function TeachersAttendanceOverviewPage() {
             {tab.label}
           </button>
         ))}
-        {activeMode === 'class' && (
-          <select
-            value={classId ?? ''}
-            onChange={e => setClassId(Number(e.target.value) || null)}
-            className="ml-auto mb-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm bg-white"
-            aria-label={t('Class')}
-          >
-            {allSubClasses.map(sc => (
-              <option key={sc.id} value={sc.id}>
-                {sc.className} — {sc.name}
-              </option>
-            ))}
-          </select>
-        )}
+        <div className="ml-auto flex flex-wrap items-center gap-3 mb-1">
+          <span className="text-xs text-gray-400">
+            {isDean
+              ? t("Tip: click a cell of today's column to change present / late / absent. Other days are read-only.")
+              : t('Tip: click any cell to change present / late / absent.')}
+          </span>
+          {activeMode === 'school' && cycles.length > 0 && (
+            <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label={t('Cycle')}>
+              {[{ key: 'all', label: t('Whole school') }, ...cycles].map(c => (
+                <button
+                  key={c.key}
+                  onClick={() => setCycle(c.key)}
+                  className={`px-3 py-1.5 ${cycle === c.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          )}
+          {activeMode === 'class' && (
+            <select
+              value={classId ?? ''}
+              onChange={e => setClassId(Number(e.target.value) || null)}
+              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm bg-white"
+              aria-label={t('Class')}
+            >
+              {allSubClasses.map(sc => (
+                <option key={sc.id} value={sc.id}>
+                  {sc.className} — {sc.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* Mark all present -- TODAY only, only periods with nothing recorded yet.
           Not offered in the school-wide view (only in "My classes" and the class view). */}
+      {activeMode !== 'school' && (
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3">
-        {activeMode !== 'school' && (
+        {(
           <>
             <button
               onClick={() => setMarkConfirmOpen(true)}
@@ -615,12 +657,8 @@ export default function TeachersAttendanceOverviewPage() {
             </span>
           </>
         )}
-        <span className="text-xs text-gray-400 ml-auto">
-          {isDean
-            ? t("Tip: click a cell of today's column to change present / late / absent. Other days are read-only.")
-            : t('Tip: click any cell to change present / late / absent.')}
-        </span>
       </div>
+      )}
 
       <EditAttendanceModal
         target={editTarget}
