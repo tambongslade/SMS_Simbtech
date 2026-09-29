@@ -88,8 +88,8 @@ export default function TeachersAttendanceOverviewPage() {
         const res = await getTeacherAttendanceWeekOverview(weekStart, selectedAcademicYear?.id);
         setData(res);
         setLastUpdated(new Date());
-      } catch (error: any) {
-        if (!silent) toast.error(error.message || t('Failed to load teachers attendance overview.'));
+      } catch (error) {
+        if (!silent) toast.error(error instanceof Error && error.message ? error.message : t('Failed to load teachers attendance overview.'));
       } finally {
         if (!silent) setIsLoading(false);
       }
