@@ -263,6 +263,17 @@ export default function TeachersAttendanceOverviewPage() {
     [data, dateByDay]
   );
 
+  // Which days can be edited: never a future day; and a Dean of Discipline only today
+  // (Manager / Super Manager can also correct past days). The server enforces the same rule.
+  const canEditDay = useCallback(
+    (day: string) => {
+      const date = dateByDay[day];
+      if (!data || !date || isFutureDay(day)) return false;
+      return isDean ? date === data.today : true;
+    },
+    [data, dateByDay, isFutureDay, isDean]
+  );
+
   // "Mark all present" always acts on today (one day only). Empty when today is not a
   // school day inside the week being shown.
   const markDay = useMemo(
@@ -314,7 +325,7 @@ export default function TeachersAttendanceOverviewPage() {
   // Open the edit dialog for one slot on one day. Upcoming days can't be edited yet.
   const openEdit = (slot: OverviewSlot, day: string, period: PeriodDefinition) => {
     const date = dateByDay[day];
-    if (!date || isFutureDay(day)) return;
+    if (!date || !canEditDay(day)) return;
     setEditTarget({
       slot,
       date,
@@ -368,7 +379,7 @@ export default function TeachersAttendanceOverviewPage() {
       .join('\n');
 
     const single = items.length === 1;
-    const clickable = !!date && !isFutureDay(day);
+    const clickable = !!date && canEditDay(day);
     const click = clickable ? 'cursor-pointer hover:brightness-95' : '';
     return (
       <td
@@ -604,7 +615,11 @@ export default function TeachersAttendanceOverviewPage() {
             </span>
           </>
         )}
-        <span className="text-xs text-gray-400 ml-auto">{t('Tip: click any cell to change present / late / absent.')}</span>
+        <span className="text-xs text-gray-400 ml-auto">
+          {isDean
+            ? t("Tip: click a cell of today's column to change present / late / absent. Other days are read-only.")
+            : t('Tip: click any cell to change present / late / absent.')}
+        </span>
       </div>
 
       <EditAttendanceModal
