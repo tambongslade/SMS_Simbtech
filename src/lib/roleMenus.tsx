@@ -26,6 +26,7 @@ import {
   ExclamationTriangleIcon,
   ShieldExclamationIcon,
   DocumentTextIcon,
+  FolderOpenIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -343,13 +344,14 @@ export const menuItems: MenuItemsStructure = {
   ],
 };
 
-// Every staff role gets the shared Inventory + Leave & Loans sections; parents can't hold
-// inventory so they're excluded.
+// Every staff role gets the shared Inventory, Leave & Loans and File Management sections; parents can't hold
+// inventory and get no access to the file app, so they're excluded.
 (Object.entries(menuItems) as [RoleKey, MenuItem[]][]).forEach(([key, items]) => {
   if (key === 'parent-student') return;
   const slug = key === 'guidancecounselor' ? 'guidance-counselor' : key;
   items.push({ icon: ArchiveBoxIcon, label: 'Inventory', href: `/dashboard/${slug}/inventory` });
   items.push({ icon: CurrencyDollarIcon, label: 'Leave & Loans', href: '/dashboard/leave-and-loans' });
+  items.push({ icon: FolderOpenIcon, label: 'File Management', href: '/dashboard/file-management' });
 });
 
 // Super Manager also gets the approval queue.
