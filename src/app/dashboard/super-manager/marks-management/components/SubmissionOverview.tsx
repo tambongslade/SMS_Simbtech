@@ -124,7 +124,7 @@ export default function SubmissionOverview({ examSequenceId }: { examSequenceId:
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            {['Subclass', 'Students', 'Total subjects', 'Submitted', 'Partial', 'Not submitted', 'Marks submitted'].map(h => (
+                            {['Subclass', 'Total subjects', 'Submitted', 'Partial', 'Not submitted', 'Marks submitted'].map(h => (
                                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                             ))}
                         </tr>
@@ -138,7 +138,6 @@ export default function SubmissionOverview({ examSequenceId }: { examSequenceId:
                                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
                                             <span className="inline-block w-4 text-gray-400">{open ? '▾' : '▸'}</span>{c.subClassName}
                                         </td>
-                                        <td className="px-4 py-2 text-sm text-gray-700">{c.totalStudents}</td>
                                         <td className="px-4 py-2 text-sm text-gray-700">{c.subjects.length}</td>
                                         <td className="px-4 py-2 text-sm text-green-700 font-medium">{subjectsOf(c, 'complete').length}</td>
                                         <td className="px-4 py-2 text-sm text-amber-700 font-medium">{subjectsOf(c, 'partial').length}</td>
@@ -147,7 +146,7 @@ export default function SubmissionOverview({ examSequenceId }: { examSequenceId:
                                     </tr>
                                     {open && (
                                         <tr className="bg-gray-50">
-                                            <td colSpan={7} className="px-4 py-3">
+                                            <td colSpan={6} className="px-4 py-3">
                                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                                     {(['complete', 'partial', 'missing'] as const).map(status => (
                                                         <div key={status}>
