@@ -146,6 +146,8 @@ export const teacher: Record<string, string> = {
   'Enter student marks': 'Saisir les notes des élèves',
   'Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.':
     'Veuillez sélectionner une année académique, une séquence d\'examen, une sous-classe et une matière pour soumettre des notes.',
+  'Please select an Exam Sequence, Subclass, and Subject to submit marks.':
+    'Veuillez sélectionner une séquence d\x27examen, une sous-classe et une matière pour soumettre des notes.',
   'Please select both a subject and an exam sequence to manage marks.':
     'Veuillez sélectionner à la fois une matière et une séquence d\'examen pour gérer les notes.',
   'Student Marks': 'Notes de l\'élève',

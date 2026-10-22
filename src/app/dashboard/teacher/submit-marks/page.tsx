@@ -1,6 +1,6 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { FILTER_KEYS, useAcademicYearFilter, useRememberedFilter } from '@/hooks/useRememberedFilter';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { FILTER_KEYS, useRememberedFilter } from '@/hooks/useRememberedFilter';
 import { ExclamationCircleIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
@@ -28,6 +28,7 @@ interface AcademicYear {
   id: number;
   name: string;
   isCurrent?: boolean;
+  terms?: { id: number; startDate: string; endDate: string }[];
 }
 
 interface SubClass {
@@ -120,10 +121,11 @@ export default function SubmitMarks() {
 
   // Year / sequence / subclass / subject are remembered per user, so the
   // teacher lands on the same selection next time (year defaults to current).
-  const { data: academicYearsData, isLoading: academicYearsLoading } =
+  const { data: academicYearsData } =
     useSWR<{ success: boolean; data: AcademicYear[] }>('/academic-years', fetcher);
   const academicYears = useMemo(() => academicYearsData?.data ?? [], [academicYearsData]);
-  const [selectedAcademicYear, setSelectedAcademicYear] = useAcademicYearFilter(academicYears);
+  // Always the current academic year (no picker).
+  const selectedAcademicYear: number | '' = academicYears.find(y => y.isCurrent)?.id ?? academicYears[0]?.id ?? '';
 
   const { data: examSequencesData, isLoading: examSequencesLoading } =
     useSWR<{ success: boolean; data: ExamSequence[] }>(
@@ -143,6 +145,22 @@ export default function SubmitMarks() {
       fetcher
     );
   const subClasses = sortSubClassesByLevel(subClassesData?.data ?? []);
+  // Default sequence: sequences carry no dates, so it is the first OPEN sequence (lowest
+  // number) of the term containing today, else the first open one, else the first.
+  // Applied once per visit; the teacher can still pick another sequence.
+  const sequenceDefaulted = useRef(false);
+  useEffect(() => {
+    if (sequenceDefaulted.current || examSequences.length === 0) return;
+    const year = academicYears.find(y => y.id === selectedAcademicYear);
+    const now = Date.now();
+    const term = year?.terms?.find(tm => new Date(tm.startDate).getTime() <= now && now <= new Date(tm.endDate).getTime());
+    const isOpen = (seq: ExamSequence) => seq.status === 'OPEN';
+    const pick = examSequences.find(seq => term && seq.term?.id === term.id && isOpen(seq))
+      ?? examSequences.find(isOpen) ?? examSequences[0];
+    sequenceDefaulted.current = true;
+    if (pick) setSelectedExamSequence(pick.id);
+  }, [examSequences, academicYears, selectedAcademicYear, setSelectedExamSequence]);
+
   const [selectedSubClass, setSelectedSubClass] =
     useRememberedFilter<number>(FILTER_KEYS.subClass, subClasses.map(sc => sc.id));
 
@@ -331,14 +349,7 @@ export default function SubmitMarks() {
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">{t('Submit Marks')}</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded shadow">
-        {renderSelect(t('Academic Year'), selectedAcademicYear, v => {
-          setSelectedAcademicYear(v);
-          setSelectedExamSequence('');
-          setSelectedSubClass('');
-          setSelectedSubject('');
-        }, academicYears, academicYearsLoading)}
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded shadow">
         {renderSelect(t('Exam Sequence'), selectedExamSequence, setSelectedExamSequence,
           examSequences.map(s => ({
             id: s.id,
@@ -381,7 +392,7 @@ export default function SubmitMarks() {
 
         {!isLoadingSheet && !sheet && !loadError && (
           <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
-            {t('Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.')}
+            {t('Please select an Exam Sequence, Subclass, and Subject to submit marks.')}
           </div>
         )}
 
