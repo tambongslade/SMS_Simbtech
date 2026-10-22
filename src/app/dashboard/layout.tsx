@@ -59,7 +59,7 @@ const formatRoleName = (role: string | undefined | null): string => {
 
 // Dashboard sections that belong to every role rather than to one, so their
 // first path segment is a page name and not a role.
-const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'marks-management'];
+const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'marks-management', 'archives'];
 
 const formatRoleForURL = (role: string | undefined | null): string => {
   if (!role) return '';
