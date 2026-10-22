@@ -18,12 +18,9 @@ interface Subject {
 
 interface ExamSequence {
   id: number;
-  name: string;
+  sequenceNumber: number;
   status: string;
-  academicYear?: {
-    id: number;
-    name: string;
-  };
+  academicYearId: number;
 }
 
 interface AcademicYear {
@@ -128,8 +125,8 @@ export default function SubmitMarks() {
 
   // Filter exam sequences by selected academic year
   const filteredExamSequences = examSequences.filter(seq =>
-    !selectedAcademicYear || seq.academicYear?.id === selectedAcademicYear
-  );
+    !selectedAcademicYear || seq.academicYearId === selectedAcademicYear
+  ).map(seq => ({ id: seq.id, name: `${t("Sequence")} ${seq.sequenceNumber}` }));
 
   // Error handling
   useEffect(() => {
