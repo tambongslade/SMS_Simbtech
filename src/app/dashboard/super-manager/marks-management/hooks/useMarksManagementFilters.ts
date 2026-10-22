@@ -9,6 +9,9 @@ import { sortSubClassesByLevel } from '@/lib/classOrdering';
 type ExamSequence = {
     id: number;
     name: string;
+    sequenceNumber?: number;
+    termId?: number;
+    status?: string;
     // other fields...
 };
 
@@ -28,6 +31,7 @@ type SubClass = {
 type AcademicYear = {
     id: number;
     name: string;
+    isCurrent?: boolean;
     terms: any[]; // Keep if needed for sequence filtering logic
     examSequences: ExamSequence[];
     // other fields...
@@ -63,6 +67,7 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
         return yearsResult.data.map((year: any) => ({
             id: year.id,
             name: year.name,
+            isCurrent: !!year.isCurrent,
             // Map other essential fields if needed
             terms: year.terms || [],
             examSequences: (year.examSequences || []).map((seq: any) => ({
@@ -71,7 +76,8 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
                 // Map other sequence fields if needed
                 sequenceNumber: seq.sequenceNumber, 
                 academicYearId: seq.academicYearId,
-                termId: seq.termId
+                termId: seq.termId,
+                status: seq.status
             }))
         }));
     }, [yearsResult]);
@@ -105,6 +111,40 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
         return selectedSubClass?.subjects || [];
     }, [selectedSubClassId, subClasses]);
 
+    // --- Defaults: current academic year and ongoing sequence ---
+    const currentYearId = useMemo((): number | '' => {
+        const current = academicYears.find(y => y.isCurrent);
+        return current?.id ?? '';
+    }, [academicYears]);
+
+    // Ongoing sequence: the term containing today is split into equal slices, one per
+    // sequence in number order, and the slice holding today is the ongoing sequence.
+    // Falls back to the latest open sequence, then the latest sequence of the year.
+    const getOngoingSequenceId = (yearId: number | ''): number | '' => {
+        const year = academicYears.find(y => y.id === yearId);
+        const sequences = [...(year?.examSequences || [])].sort(
+            (a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0)
+        );
+        if (!year || sequences.length === 0) return '';
+        const now = Date.now();
+        const activeTerm = (year.terms || []).find((t: any) => {
+            if (!t.startDate || !t.endDate || t.isHoliday) return false;
+            return new Date(t.startDate).getTime() <= now && now <= new Date(t.endDate).getTime();
+        });
+        const termSequences = activeTerm ? sequences.filter(s => s.termId === activeTerm.id) : [];
+        if (activeTerm && termSequences.length > 0) {
+            const start = new Date(activeTerm.startDate).getTime();
+            const end = new Date(activeTerm.endDate).getTime();
+            const slice = Math.min(
+                termSequences.length - 1,
+                Math.floor(((now - start) / Math.max(end - start, 1)) * termSequences.length)
+            );
+            return termSequences[slice].id;
+        }
+        const open = sequences.filter(s => s.status === 'OPEN');
+        return (open.length > 0 ? open[open.length - 1] : sequences[sequences.length - 1]).id;
+    };
+
     // --- Consolidated Loading & Error --- 
     const isLoadingFilters = isLoadingYears || isLoadingSubClasses;
     const filterError = useMemo(() => {
@@ -126,6 +166,8 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
         subClasses,             // List for SubClass dropdown
         derivedExamSequences,   // Filtered list for Sequence dropdown
         derivedSubjects,        // Filtered list for Subject dropdown
+        currentYearId,          // Id of the current academic year ('' until loaded)
+        getOngoingSequenceId,   // Default sequence for a year
         isLoadingFilters,       // Combined loading state for filter data
         filterError,            // Combined error state for filter data
     };

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import { TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useMarksManagementFilters } from './hooks/useMarksManagementFilters';
+import SubmissionOverview from './components/SubmissionOverview';
 
 // --- Types ---
 // Adjusted based on API docs and expected usage
@@ -125,6 +126,8 @@ export default function MarksManagementPage() {
         subClasses,             // Renamed from allSubClassesData
         derivedExamSequences,   // Derived list
         derivedSubjects,        // Derived list
+        currentYearId,          // Current academic year (default selection)
+        getOngoingSequenceId,   // Ongoing sequence for a year (default selection)
         isLoadingFilters,       // Loading state from hook
         filterError,            // Error state from hook
     } = useMarksManagementFilters(selectedYearId, selectedSubClassId); // Pass selected IDs
@@ -220,6 +223,22 @@ export default function MarksManagementPage() {
         setStudentsWithMarks([]);
     }, [selectedYearId]);
 
+    // Default to the current academic year once the years have loaded
+    useEffect(() => {
+        if (currentYearId !== '' && selectedYearId === '') setSelectedYearId(currentYearId);
+    }, [currentYearId, selectedYearId]);
+
+    // Default to the ongoing sequence once per year. Declared after the reset effect above
+    // so it runs later in the same commit and is not cleared by it.
+    const defaultedYearRef = useRef<number | null>(null);
+    useEffect(() => {
+        if (selectedYearId === '' || defaultedYearRef.current === selectedYearId) return;
+        const ongoing = getOngoingSequenceId(selectedYearId);
+        if (ongoing === '') return;
+        defaultedYearRef.current = selectedYearId;
+        setSelectedExamSequenceId(ongoing);
+    }, [selectedYearId, getOngoingSequenceId]);
+
     // Reset Subject when Subclass changes
     useEffect(() => {
                  setSelectedSubjectId('');
@@ -281,6 +300,8 @@ export default function MarksManagementPage() {
                 {renderFilterDropdown('Subclass', selectedSubClassId, (e) => setSelectedSubClassId(Number(e.target.value) || ''), subClasses, isLoadingFilters, !selectedYearId)}
                 {renderFilterDropdown('Subject', selectedSubjectId, (e) => setSelectedSubjectId(Number(e.target.value) || ''), derivedSubjects, isLoadingFilters, !selectedSubClassId)}
             </div>
+
+            <SubmissionOverview examSequenceId={selectedExamSequenceId} />
 
             {/* Display Filter Errors */}
             {filterError && <p className="text-red-500 mb-4">Error loading filters: {filterError}</p>}
