@@ -352,7 +352,6 @@ export const menuItems: MenuItemsStructure = {
   items.push({ icon: ArchiveBoxIcon, label: 'Inventory', href: `/dashboard/${slug}/inventory` });
   items.push({ icon: CurrencyDollarIcon, label: 'Leave & Loans', href: '/dashboard/leave-and-loans' });
   items.push({ icon: FolderOpenIcon, label: 'File Management', href: '/dashboard/file-management' });
-  items.push({ icon: ArchiveBoxIcon, label: 'Archives', href: '/dashboard/archives' });
 });
 
 // Principal, Vice Principal and Dean of Studies follow marks submission through the shared page.

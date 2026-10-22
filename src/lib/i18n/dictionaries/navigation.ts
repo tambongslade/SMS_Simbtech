@@ -124,5 +124,4 @@ export const navigation: Record<string, string> = {
   'Leave & Loans': 'Congés et prêts',
   'Leave & Loans (Approvals)': 'Congés et prêts (Approbations)',
   'File Management': 'Gestion des fichiers',
-  'Archives': 'Archives',
 };
