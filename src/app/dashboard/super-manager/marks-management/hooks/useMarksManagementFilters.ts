@@ -117,9 +117,9 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
         return current?.id ?? '';
     }, [academicYears]);
 
-    // Ongoing sequence: the term containing today is split into equal slices, one per
-    // sequence in number order, and the slice holding today is the ongoing sequence.
-    // Falls back to the latest open sequence, then the latest sequence of the year.
+    // Ongoing sequence: sequences carry no dates, so it is the first OPEN sequence (lowest
+    // number) of the term containing today. Closing a sequence moves the default to the next.
+    // Falls back to the first open sequence of the year, then its first sequence.
     const getOngoingSequenceId = (yearId: number | ''): number | '' => {
         const year = academicYears.find(y => y.id === yearId);
         const sequences = [...(year?.examSequences || [])].sort(
@@ -131,18 +131,11 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
             if (!t.startDate || !t.endDate || t.isHoliday) return false;
             return new Date(t.startDate).getTime() <= now && now <= new Date(t.endDate).getTime();
         });
-        const termSequences = activeTerm ? sequences.filter(s => s.termId === activeTerm.id) : [];
-        if (activeTerm && termSequences.length > 0) {
-            const start = new Date(activeTerm.startDate).getTime();
-            const end = new Date(activeTerm.endDate).getTime();
-            const slice = Math.min(
-                termSequences.length - 1,
-                Math.floor(((now - start) / Math.max(end - start, 1)) * termSequences.length)
-            );
-            return termSequences[slice].id;
-        }
-        const open = sequences.filter(s => s.status === 'OPEN');
-        return (open.length > 0 ? open[open.length - 1] : sequences[sequences.length - 1]).id;
+        const isOpen = (s: ExamSequence) => s.status === 'OPEN';
+        const pick = sequences.find(s => activeTerm && s.termId === activeTerm.id && isOpen(s))
+            ?? sequences.find(isOpen)
+            ?? sequences[0];
+        return pick.id;
     };
 
     // --- Consolidated Loading & Error --- 
