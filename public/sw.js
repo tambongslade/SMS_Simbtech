@@ -1,4 +1,4 @@
-/* SMS Simbtech service worker.
+/* SMS SSIC service worker.
  * Strategy:
  *   - Navigations: network-first, fall back to cache, then the offline page.
  *   - Next.js immutable static assets (/_next/static): cache-first.

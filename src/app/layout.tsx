@@ -20,17 +20,17 @@ import OfflineBanner from '@/components/offline/OfflineBanner';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  applicationName: 'SMS Simbtech',
+  applicationName: 'SMS SSIC',
   title: {
-    default: 'SMS Simbtech - School Management System',
-    template: '%s | SMS Simbtech',
+    default: 'SMS SSIC - School Management System',
+    template: '%s | SMS SSIC',
   },
   description: 'Manage students, teachers, fees, marks and academic activities.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'SMS Simbtech',
+    title: 'SMS SSIC',
   },
   icons: {
     icon: [

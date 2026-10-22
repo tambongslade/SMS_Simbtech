@@ -154,11 +154,11 @@ function createMenu() {
       label: 'Help',
       submenu: [
         {
-          label: 'About SMS Simbtech',
+          label: 'About SMS SSIC',
           click: () => {
             dialog.showMessageBox(mainWindow, {
               type: 'info',
-              title: 'About SMS Simbtech',
+              title: 'About SMS SSIC',
               message: 'School Management System',
               detail: 'A comprehensive school management system built with Next.js and Electron.\nVersion: ' + app.getVersion()
             });

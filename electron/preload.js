@@ -25,12 +25,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 // Handle errors
 window.addEventListener('DOMContentLoaded', () => {
-  console.log('SMS Simbtech Desktop App loaded');
+  console.log('SMS SSIC Desktop App loaded');
 });
 
 // Expose some useful properties
 contextBridge.exposeInMainWorld('app', {
-  name: 'SMS Simbtech',
+  name: 'SMS SSIC',
   version: process.env.npm_package_version || '1.0.0',
   platform: process.platform
 });
