@@ -21,11 +21,14 @@ interface ExamSequence {
   sequenceNumber: number;
   status: string;
   academicYearId: number;
+  termId: number;
 }
 
 interface AcademicYear {
   id: number;
   name: string;
+  isCurrent?: boolean;
+  terms?: { id: number; startDate: string; endDate: string }[];
 }
 
 interface SubClass {
@@ -220,13 +223,26 @@ export default function SubmitMarks() {
     fetchStudentsAndMarks();
   }, [fetchStudentsAndMarks]);
 
-  // Reset dependent selections when parent selection changes
+  // The academic year is always the current one (no picker).
   useEffect(() => {
-    setSelectedExamSequence('');
-    setSelectedSubClass('');
-    setSelectedSubject('');
-    setStudentsWithMarks([]);
-  }, [selectedAcademicYear]);
+    const current = academicYears.find(y => y.isCurrent);
+    if (current && !selectedAcademicYear) setSelectedAcademicYear(current.id);
+  }, [academicYears, selectedAcademicYear]);
+
+  // Default sequence: sequences carry no dates, so it is the first OPEN sequence (lowest
+  // number) of the term containing today, else the first open one of the year.
+  useEffect(() => {
+    if (selectedExamSequence !== '' || !selectedAcademicYear || examSequences.length === 0) return;
+    const year = academicYears.find(y => y.id === selectedAcademicYear);
+    const now = Date.now();
+    const term = year?.terms?.find(tm => new Date(tm.startDate).getTime() <= now && now <= new Date(tm.endDate).getTime());
+    const ofYear = examSequences
+      .filter(seq => seq.academicYearId === selectedAcademicYear)
+      .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+    const isOpen = (seq: ExamSequence) => seq.status === 'OPEN';
+    const pick = ofYear.find(seq => term && seq.termId === term.id && isOpen(seq)) ?? ofYear.find(isOpen) ?? ofYear[0];
+    if (pick) setSelectedExamSequence(pick.id);
+  }, [examSequences, academicYears, selectedAcademicYear, selectedExamSequence]);
 
   useEffect(() => {
     setSelectedSubject('');
@@ -376,15 +392,7 @@ export default function SubmitMarks() {
       <h1 className="text-2xl font-bold mb-6">{t('Submit Marks')}</h1>
 
       {/* Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded shadow">
-        {renderFilterDropdown(
-          t('Academic Year'),
-          selectedAcademicYear,
-          (e) => setSelectedAcademicYear(Number(e.target.value) || ''),
-          academicYears,
-          academicYearsLoading
-        )}
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded shadow">
         {renderFilterDropdown(
           t('Exam Sequence'),
           selectedExamSequence,
