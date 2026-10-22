@@ -1,6 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react';
-import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { FILTER_KEYS, useAcademicYearFilter, useRememberedFilter } from '@/hooks/useRememberedFilter';
+import { ExclamationCircleIcon, LockClosedIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import apiService from '@/lib/apiService';
@@ -11,629 +12,442 @@ import { useLanguage } from '@/components/context/LanguageContext';
 interface Subject {
   id: number;
   name: string;
-  subClassId: number;
-  subClassName: string;
-  className: string;
+  subClasses?: { id: number }[];
 }
 
 interface ExamSequence {
   id: number;
+  name: string;
   sequenceNumber: number;
   status: string;
-  academicYearId: number;
-  termId: number;
+  term?: { id: number; name: string } | null;
+  academicYear?: { id: number; name: string } | null;
 }
 
 interface AcademicYear {
   id: number;
   name: string;
   isCurrent?: boolean;
-  terms?: { id: number; startDate: string; endDate: string }[];
 }
 
 interface SubClass {
   id: number;
   name: string;
-  class: {
-    id: number;
-    name: string;
-  };
-  studentCount: number;
+  class: { id: number; name: string };
 }
 
-interface Student {
-  id: number;
-  name: string;
-  matricule: string;
-}
-
-interface Mark {
-  id?: number;
+// GET /marks/entry-sheet
+interface EntrySheetStudent {
   studentId: number;
-  mark: number;
-  examSequenceId: number;
-  subjectId: number;
+  enrollmentId: number;
+  name: string;
+  matricule: string | null;
+  markId: number | null;
+  score: number | null;
+  updatedAt: string | null;
 }
 
-interface StudentMarkRow extends Student {
-  markId: number | null;
-  currentScore: number | string;
-  originalScore: number | null;
-  hasChanges: boolean;
+interface EntrySheet {
+  examSequence: {
+    id: number;
+    sequenceNumber: number;
+    termName: string | null;
+    status: string;
+    submissionDeadline: string | null;
+    isOpen: boolean;
+    closedReason: string | null;
+  };
+  minScore: number;
+  maxScore: number;
+  totalStudents: number;
+  markedCount: number;
+  students: EntrySheetStudent[];
+}
+
+interface Row {
+  studentId: number;
+  name: string;
+  matricule: string | null;
+  savedScore: number | null; // what the server has
+  input: string; // what is in the box
+}
+
+const MIN_SCORE = 0;
+const MAX_SCORE = 20;
+
+type RowState = 'invalid' | 'unsaved' | 'saved' | 'pending';
+
+// Returns an error message for the typed value, or null when it is acceptable.
+function validateInput(value: string): string | null {
+  const v = value.trim();
+  if (v === '') return null;
+  const n = Number(v.replace(',', '.'));
+  if (!Number.isFinite(n)) return 'Not a number';
+  if (n < MIN_SCORE || n > MAX_SCORE) return `Mark must be between ${MIN_SCORE} and ${MAX_SCORE}`;
+  return null;
+}
+
+function parseInput(value: string): number | null {
+  const v = value.trim();
+  return v === '' ? null : Number(v.replace(',', '.'));
+}
+
+function rowState(row: Row): RowState {
+  if (validateInput(row.input)) return 'invalid';
+  if (parseInput(row.input) !== row.savedScore) return 'unsaved';
+  return row.savedScore !== null ? 'saved' : 'pending';
+}
+
+function sheetToRows(sheet: EntrySheet): Row[] {
+  return (sheet.students ?? []).map(s => ({
+    studentId: s.studentId,
+    name: s.name,
+    matricule: s.matricule,
+    savedScore: s.score ?? null,
+    input: s.score === null || s.score === undefined ? '' : String(s.score),
+  }));
 }
 
 export default function SubmitMarks() {
   const { t } = useLanguage();
-  // Filter state
-  const [selectedAcademicYear, setSelectedAcademicYear] = useState<number | ''>('');
-  const [selectedExamSequence, setSelectedExamSequence] = useState<number | ''>('');
-  const [selectedSubClass, setSelectedSubClass] = useState<number | ''>('');
-  const [selectedSubject, setSelectedSubject] = useState<number | ''>('');
-
-  // Table state
-  const [studentsWithMarks, setStudentsWithMarks] = useState<StudentMarkRow[]>([]);
-  const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [sheet, setSheet] = useState<EntrySheet | null>(null);
+  const [rows, setRows] = useState<Row[]>([]);
+  const [isLoadingSheet, setIsLoadingSheet] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const limit = 20;
+  const fetcher = (url: string) => apiService.get(url);
 
-  // Fetch academic years
-  const {
-    data: academicYearsData,
-    error: academicYearsError,
-    isLoading: academicYearsLoading
-  } = useSWR<{ success: boolean; data: AcademicYear[] }>(
-    '/academic-years',
-    (url: string) => apiService.get(url)
+  // Year / sequence / subclass / subject are remembered per user, so the
+  // teacher lands on the same selection next time (year defaults to current).
+  const { data: academicYearsData, isLoading: academicYearsLoading } =
+    useSWR<{ success: boolean; data: AcademicYear[] }>('/academic-years', fetcher);
+  const academicYears = useMemo(() => academicYearsData?.data ?? [], [academicYearsData]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useAcademicYearFilter(academicYears);
+
+  const { data: examSequencesData, isLoading: examSequencesLoading } =
+    useSWR<{ success: boolean; data: ExamSequence[] }>(
+      selectedAcademicYear ? `/exams?academicYearId=${selectedAcademicYear}&limit=50` : null,
+      fetcher
+    );
+  const examSequences = useMemo(
+    () => [...(examSequencesData?.data ?? [])].sort((a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0)),
+    [examSequencesData]
   );
+  const [selectedExamSequence, setSelectedExamSequence] =
+    useRememberedFilter<number>(FILTER_KEYS.sequence, examSequences.map(s => s.id));
 
-  // Fetch active exam sequences
-  const {
-    data: examSequencesData,
-    error: examSequencesError,
-    isLoading: examSequencesLoading
-  } = useSWR<{ success: boolean; data: ExamSequence[] }>(
-    '/exams?status=ACTIVE',
-    (url: string) => apiService.get(url)
-  );
+  const { data: subClassesData, isLoading: subClassesLoading } =
+    useSWR<{ success: boolean; data: SubClass[] }>(
+      selectedAcademicYear ? `/teachers/me/subclasses?academicYearId=${selectedAcademicYear}` : null,
+      fetcher
+    );
+  const subClasses = sortSubClassesByLevel(subClassesData?.data ?? []);
+  const [selectedSubClass, setSelectedSubClass] =
+    useRememberedFilter<number>(FILTER_KEYS.subClass, subClasses.map(sc => sc.id));
 
-  // Fetch teacher's subclasses
-  const {
-    data: subClassesData,
-    error: subClassesError,
-    isLoading: subClassesLoading
-  } = useSWR<{ success: boolean; data: SubClass[] }>(
-    '/teachers/me/subclasses',
-    (url: string) => apiService.get(url)
-  );
-
-  // Fetch teacher's subjects for selected subclass
-  const {
-    data: subjectsData,
-    error: subjectsError,
-    isLoading: subjectsLoading
-  } = useSWR<{ success: boolean; data: Subject[] }>(
-    selectedSubClass ? `/teachers/me/subjects?subClassId=${selectedSubClass}` : null,
-    (url: string) => apiService.get(url)
-  );
-
-  const academicYears = academicYearsData?.data || [];
-  const examSequences = examSequencesData?.data || [];
-  const subClasses = sortSubClassesByLevel(subClassesData?.data || []);
-  const subjects = subjectsData?.data || [];
-
-  // Filter exam sequences by selected academic year
-  const filteredExamSequences = examSequences.filter(seq =>
-    !selectedAcademicYear || seq.academicYearId === selectedAcademicYear
-  ).map(seq => ({ id: seq.id, name: `${t("Sequence")} ${seq.sequenceNumber}` }));
-
-  // Error handling
-  useEffect(() => {
-    if (academicYearsError || examSequencesError || subClassesError || subjectsError) {
-      const error = academicYearsError || examSequencesError || subClassesError || subjectsError;
-      console.error("Data Fetch Error:", error);
-      if (error?.status === 403) {
-        toast.error(t('Access denied: Unable to load required data'));
-      } else if (error?.status === 401) {
-        toast.error(t('Please log in to access this page'));
-      } else {
-        toast.error(t('Failed to load required data'));
-      }
+  const { data: subjectsData, isLoading: subjectsLoading } =
+    useSWR<{ success: boolean; data: Subject[] }>(
+      selectedSubClass ? `/teachers/me/subjects?subClassId=${selectedSubClass}&academicYearId=${selectedAcademicYear}` : null,
+      fetcher
+    );
+  // /teachers/me/subjects returns every subject the teacher has, each with the
+  // subclasses it is taught in; keep only those taught in the chosen subclass.
+  const subjects = useMemo(() => {
+    const seen = new Map<number, Subject>();
+    for (const s of subjectsData?.data ?? []) {
+      const inSubClass = !s.subClasses || s.subClasses.some(sc => sc.id === selectedSubClass);
+      if (inSubClass && !seen.has(s.id)) seen.set(s.id, { id: s.id, name: s.name });
     }
-  }, [academicYearsError, examSequencesError, subClassesError, subjectsError]);
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [subjectsData, selectedSubClass]);
+  const [selectedSubject, setSelectedSubject] =
+    useRememberedFilter<number>('subjectId', subjects.map(sj => sj.id));
 
-  // Fetch students and marks
-  const fetchStudentsAndMarks = useCallback(async () => {
-    if (!selectedAcademicYear || !selectedExamSequence || !selectedSubClass || !selectedSubject) {
-      setStudentsWithMarks([]);
-      setTotalPages(1);
-      setCurrentPage(1);
+  const unsavedCount = rows.filter(r => rowState(r) === 'unsaved').length;
+  const invalidCount = rows.filter(r => rowState(r) === 'invalid').length;
+  const hasPendingEdits = unsavedCount + invalidCount > 0;
+
+  // Warn before leaving the page with unsaved marks.
+  useEffect(() => {
+    if (!hasPendingEdits) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasPendingEdits]);
+
+  // Ask before a filter change throws typed marks away.
+  const confirmDiscard = () =>
+    !hasPendingEdits ||
+    window.confirm(t('You have unsaved marks. Discard them and continue?'));
+
+  const loadSheet = useCallback(async () => {
+    if (!selectedExamSequence || !selectedSubClass || !selectedSubject) {
+      setSheet(null);
+      setRows([]);
       return;
     }
-
-    setIsLoadingStudents(true);
-    setSaveError(null);
-
+    setIsLoadingSheet(true);
+    setLoadError(null);
     try {
-      // Check access first
-      const accessCheckResponse = await apiService.get(
-        `/teachers/me/access-check?subjectId=${selectedSubject}&subClassId=${selectedSubClass}`
-      );
-
-      if (!accessCheckResponse.success) {
-        throw new Error('Access denied: You cannot manage marks for this subject/class combination');
-      }
-
-      // Fetch students for the selected subclass and subject
-      const studentsParams = new URLSearchParams({
-        subClassId: String(selectedSubClass),
-        subjectId: String(selectedSubject),
-        page: String(currentPage),
-        limit: String(limit),
-      });
-
-      const studentsResponse = await apiService.get(`/teachers/me/students?${studentsParams}`);
-      const students = studentsResponse.data || [];
-
-      // Fetch existing marks for this exam sequence and subject
-      const marksParams = new URLSearchParams({
+      const params = new URLSearchParams({
         examSequenceId: String(selectedExamSequence),
-        subjectId: String(selectedSubject),
         subClassId: String(selectedSubClass),
+        subjectId: String(selectedSubject),
       });
-
-      const marksResponse = await apiService.get(`/marks?${marksParams}`);
-      const existingMarks = marksResponse.data || [];
-
-      // Create student-mark rows
-      const studentMarkRows: StudentMarkRow[] = students.map((student: Student) => {
-        const existingMark = existingMarks.find((mark: Mark) => mark.studentId === student.id);
-        return {
-          ...student,
-          markId: existingMark?.id || null,
-          currentScore: existingMark?.mark ?? '',
-          originalScore: existingMark?.mark ?? null,
-          hasChanges: false,
-        };
-      });
-
-      setStudentsWithMarks(studentMarkRows);
-      setTotalPages(studentsResponse.meta?.totalPages || 1);
-
-    } catch (error: any) {
-      console.error('Error fetching students and marks:', error);
-      if (error?.status === 403) {
-        toast.error(t('Access denied: You cannot manage marks for this subject/class combination'));
-      } else {
-        toast.error(t('Failed to load students and marks') + ': ' + (error?.message || t('Unknown error')));
-      }
-      setStudentsWithMarks([]);
-      setSaveError(error?.message || 'Failed to load data');
+      const res = await apiService.get(`/marks/entry-sheet?${params}`, { silent: true });
+      const data: EntrySheet = res.data;
+      setSheet(data);
+      setRows(sheetToRows(data));
+    } catch (error) {
+      setSheet(null);
+      setRows([]);
+      setLoadError((error as Error)?.message || t('Failed to load students and marks'));
     } finally {
-      setIsLoadingStudents(false);
+      setIsLoadingSheet(false);
     }
-  }, [selectedAcademicYear, selectedExamSequence, selectedSubClass, selectedSubject, currentPage, limit]);
-
-  // Trigger fetch when filters change
-  useEffect(() => {
-    fetchStudentsAndMarks();
-  }, [fetchStudentsAndMarks]);
-
-  // The academic year is always the current one (no picker).
-  useEffect(() => {
-    const current = academicYears.find(y => y.isCurrent);
-    if (current && !selectedAcademicYear) setSelectedAcademicYear(current.id);
-  }, [academicYears, selectedAcademicYear]);
-
-  // Default sequence: sequences carry no dates, so it is the first OPEN sequence (lowest
-  // number) of the term containing today, else the first open one of the year.
-  useEffect(() => {
-    if (selectedExamSequence !== '' || !selectedAcademicYear || examSequences.length === 0) return;
-    const year = academicYears.find(y => y.id === selectedAcademicYear);
-    const now = Date.now();
-    const term = year?.terms?.find(tm => new Date(tm.startDate).getTime() <= now && now <= new Date(tm.endDate).getTime());
-    const ofYear = examSequences
-      .filter(seq => seq.academicYearId === selectedAcademicYear)
-      .sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-    const isOpen = (seq: ExamSequence) => seq.status === 'OPEN';
-    const pick = ofYear.find(seq => term && seq.termId === term.id && isOpen(seq)) ?? ofYear.find(isOpen) ?? ofYear[0];
-    if (pick) setSelectedExamSequence(pick.id);
-  }, [examSequences, academicYears, selectedAcademicYear, selectedExamSequence]);
+  }, [selectedExamSequence, selectedSubClass, selectedSubject, t]);
 
   useEffect(() => {
-    setSelectedSubject('');
-    setStudentsWithMarks([]);
-  }, [selectedSubClass]);
+    loadSheet();
+  }, [loadSheet]);
 
-  useEffect(() => {
-    setStudentsWithMarks([]);
-  }, [selectedExamSequence, selectedSubject]);
-
-  // Handle mark changes
   const handleMarkChange = (studentId: number, value: string) => {
-    const numValue = value === '' ? '' : parseFloat(value);
-
-    // Validate input
-    if (value !== '' && (isNaN(Number(value)) || Number(value) < 0 || Number(value) > 20)) {
-      return;
-    }
-
-    setStudentsWithMarks(prev => prev.map(student => {
-      if (student.id === studentId) {
-        const originalScore = student.originalScore;
-        const newScore = value === '' ? null : numValue;
-        return {
-          ...student,
-          currentScore: value,
-          hasChanges: newScore !== originalScore
-        };
-      }
-      return student;
-    }));
+    setRows(prev => prev.map(r => (r.studentId === studentId ? { ...r, input: value } : r)));
   };
 
-  // Save all marks
-  const handleSaveAllMarks = async () => {
-    const changedStudents = studentsWithMarks.filter(student => student.hasChanges);
-
-    if (changedStudents.length === 0) {
+  const handleSave = async () => {
+    if (invalidCount > 0) {
+      toast.error(t(`Fix the marks shown in red first. Marks must be between ${MIN_SCORE} and ${MAX_SCORE}.`));
+      return;
+    }
+    const changed = rows.filter(r => rowState(r) === 'unsaved');
+    if (changed.length === 0) {
       toast(t('No changes to save'));
       return;
     }
-
     setIsSaving(true);
-    setSaveError(null);
-
     try {
-      // Check access before saving
-      const accessCheckResponse = await apiService.get(
-        `/teachers/me/access-check?subjectId=${selectedSubject}&subClassId=${selectedSubClass}`
-      );
-
-      if (!accessCheckResponse.success) {
-        throw new Error('Access denied: You cannot submit marks for this subject/class combination');
-      }
-
-      // Prepare marks for submission
-      const markPromises = changedStudents.map(student => {
-        const markData = {
-          examId: Number(selectedExamSequence),
-          studentId: student.id,
-          subjectId: Number(selectedSubject),
-          mark: student.currentScore === '' ? null : Number(student.currentScore)
-        };
-
-        if (student.markId) {
-          // Update existing mark
-          return apiService.put(`/marks/${student.markId}`, {
-            mark: markData.mark
-          });
-        } else {
-          // Create new mark
-          return apiService.post('/marks', markData);
-        }
-      });
-
-      await Promise.all(markPromises);
-
-      // Update state to reflect saved changes
-      setStudentsWithMarks(prev => prev.map(student => ({
-        ...student,
-        originalScore: student.currentScore === '' ? null : Number(student.currentScore),
-        hasChanges: false
-      })));
-
-      toast.success(`${t('Successfully saved marks for')} ${changedStudents.length} ${t('students')}`);
-
-      // Refresh data
-      await fetchStudentsAndMarks();
-
-    } catch (error: any) {
-      console.error('Error saving marks:', error);
-      if (error?.status === 403) {
-        toast.error(t('Access denied: You cannot submit marks for this subject/class combination'));
+      const res = await apiService.post('/marks/bulk', {
+        examSequenceId: Number(selectedExamSequence),
+        subClassId: Number(selectedSubClass),
+        subjectId: Number(selectedSubject),
+        marks: changed.map(r => ({ studentId: r.studentId, score: parseInput(r.input) })),
+      }, { silent: true });
+      const data: EntrySheet | undefined = res?.data?.sheet;
+      if (data) {
+        setSheet(data);
+        // Keep anything typed after the save started; refresh everything else from the server.
+        const server = new Map(sheetToRows(data).map(r => [r.studentId, r]));
+        setRows(prev => prev.map(r => {
+          const fresh = server.get(r.studentId);
+          if (!fresh) return r;
+          const wasSent = changed.some(c => c.studentId === r.studentId && c.input === r.input);
+          return wasSent || rowState(r) !== 'unsaved' ? fresh : { ...fresh, input: r.input };
+        }));
       } else {
-        toast.error(t('Failed to save marks') + ': ' + (error?.message || t('Unknown error')));
+        await loadSheet();
       }
-      setSaveError(error?.message || 'Failed to save marks');
+      toast.success(`${t('Saved marks for')} ${changed.length} ${t('students')}`);
+    } catch (error) {
+      toast.error(`${t('Failed to save marks')}: ${(error as Error)?.message || t('Unknown error')}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Pagination handlers
-  const handlePreviousPage = () => {
-    if (currentPage > 1) setCurrentPage(prev => prev - 1);
-  };
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(prev => prev + 1);
-  };
-
-  // Filter dropdown component
-  const renderFilterDropdown = (
+  const renderSelect = (
     label: string,
     value: number | '',
-    onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void,
+    onChange: (v: number | '') => void,
     options: { id: number; name: string }[],
     isLoading: boolean,
-    disabled: boolean = false,
-    placeholder?: string
+    disabled = false
   ) => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <select
         value={value}
-        onChange={onChange}
+        onChange={e => {
+          if (!confirmDiscard()) return;
+          onChange(Number(e.target.value) || '');
+        }}
         disabled={isLoading || disabled}
         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md disabled:bg-gray-100"
       >
-        <option value="">{placeholder || `${t('Select')} ${label}`}</option>
-        {isLoading && <option>{t('Loading...')}</option>}
-        {!isLoading && options.map((option) => (
-          <option key={option.id} value={option.id}>{option.name}</option>
+        <option value="">{isLoading ? t('Loading...') : `${t('Select')} ${label}`}</option>
+        {options.map(o => (
+          <option key={o.id} value={o.id}>{o.name}</option>
         ))}
-        {!isLoading && options.length === 0 && value === '' && (
-          <option disabled>{t('No options available')}</option>
-        )}
       </select>
     </div>
   );
 
-  const hasChanges = studentsWithMarks.some(student => student.hasChanges);
-  const isDataLoading = academicYearsLoading || examSequencesLoading || subClassesLoading || subjectsLoading;
+  const isOpen = sheet?.examSequence?.isOpen ?? true;
+  const savedCount = rows.filter(r => r.savedScore !== null).length;
+
+  const statusBadge = (state: RowState) => {
+    switch (state) {
+      case 'invalid':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">{t('Invalid')}</span>;
+      case 'unsaved':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{t('Not saved')}</span>;
+      case 'saved':
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">{t('Saved')}</span>;
+      default:
+        return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('Pending')}</span>;
+    }
+  };
+
+  const markInput = (row: Row) => {
+    const state = rowState(row);
+    const error = validateInput(row.input);
+    return (
+      <div>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={row.input}
+          onChange={e => handleMarkChange(row.studentId, e.target.value)}
+          aria-invalid={!!error}
+          className={`w-24 p-1.5 border rounded text-sm ${state === 'invalid'
+            ? 'border-red-500 ring-1 ring-red-300 bg-red-50'
+            : state === 'unsaved'
+              ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50'
+              : 'border-gray-300'
+            } focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed`}
+          disabled={isSaving || !isOpen}
+          placeholder={`${MIN_SCORE}-${MAX_SCORE}`}
+        />
+        {error && <p className="mt-1 text-xs text-red-600">{t(error)}</p>}
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">{t('Submit Marks')}</h1>
 
-      {/* Filters Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-white rounded shadow">
-        {renderFilterDropdown(
-          t('Exam Sequence'),
-          selectedExamSequence,
-          (e) => setSelectedExamSequence(Number(e.target.value) || ''),
-          filteredExamSequences,
-          examSequencesLoading,
-          !selectedAcademicYear
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded shadow">
+        {renderSelect(t('Academic Year'), selectedAcademicYear, v => {
+          setSelectedAcademicYear(v);
+          setSelectedExamSequence('');
+          setSelectedSubClass('');
+          setSelectedSubject('');
+        }, academicYears, academicYearsLoading)}
 
-        {renderFilterDropdown(
-          t('Subclass'),
-          selectedSubClass,
-          (e) => setSelectedSubClass(Number(e.target.value) || ''),
-          subClasses.map(sc => ({ id: sc.id, name: `${sc.class.name} - ${sc.name}` })),
-          subClassesLoading,
-          !selectedAcademicYear
-        )}
+        {renderSelect(t('Exam Sequence'), selectedExamSequence, setSelectedExamSequence,
+          examSequences.map(s => ({
+            id: s.id,
+            name: `${s.name || `${t('Sequence')} ${s.sequenceNumber}`}${s.term?.name ? ` (${s.term.name})` : ''}${s.status && s.status !== 'OPEN' ? ` - ${t('closed')}` : ''}`,
+          })),
+          examSequencesLoading, !selectedAcademicYear)}
 
-        {renderFilterDropdown(
-          t('Subject'),
-          selectedSubject,
-          (e) => setSelectedSubject(Number(e.target.value) || ''),
-          subjects,
-          subjectsLoading,
-          !selectedSubClass
-        )}
+        {renderSelect(t('Subclass'), selectedSubClass, v => {
+          setSelectedSubClass(v);
+          setSelectedSubject('');
+        }, subClasses.map(sc => ({ id: sc.id, name: sc.name?.toUpperCase().startsWith(sc.class?.name?.toUpperCase() ?? '') ? sc.name : `${sc.class?.name ?? ''} - ${sc.name}` })),
+          subClassesLoading, !selectedAcademicYear)}
+
+        {renderSelect(t('Subject'), selectedSubject, setSelectedSubject, subjects, subjectsLoading, !selectedSubClass)}
       </div>
 
-      {/* Display Filter Errors */}
-      {saveError && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <ExclamationCircleIcon className="h-5 w-5 text-red-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{saveError}</p>
-            </div>
-          </div>
+      {loadError && (
+        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 flex">
+          <ExclamationCircleIcon className="h-5 w-5 text-red-400 flex-shrink-0" />
+          <p className="ml-3 text-sm text-red-700">{loadError}</p>
         </div>
       )}
 
-      {/* Marks Table Area */}
+      {sheet && !isOpen && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 flex">
+          <LockClosedIcon className="h-5 w-5 text-yellow-500 flex-shrink-0" />
+          <p className="ml-3 text-sm text-yellow-800">
+            {sheet.examSequence.closedReason || t('Mark submission is closed for this exam sequence.')} {t('Marks are shown read-only.')}
+          </p>
+        </div>
+      )}
+
       <div className="mt-6">
-        {/* Loading State */}
-        {isLoadingStudents && (
+        {isLoadingSheet && (
           <div className="text-center py-10">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-2 text-gray-600">{t('Loading students and marks...')}</p>
           </div>
         )}
 
-        {/* Prompt to select filters */}
-        {!isLoadingStudents && studentsWithMarks.length === 0 &&
-          (!selectedAcademicYear || !selectedExamSequence || !selectedSubClass || !selectedSubject) && (
-            <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
-              {t('Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.')}
-            </div>
-          )}
+        {!isLoadingSheet && !sheet && !loadError && (
+          <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
+            {t('Please select an Academic Year, Exam Sequence, Subclass, and Subject to submit marks.')}
+          </div>
+        )}
 
-        {/* No Students Found */}
-        {!isLoadingStudents && studentsWithMarks.length === 0 &&
-          selectedAcademicYear && selectedExamSequence && selectedSubClass && selectedSubject && (
-            <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
-              {t("No students found for the selected filters, or you don't have access to this subject/class combination.")}
-            </div>
-          )}
+        {!isLoadingSheet && sheet && rows.length === 0 && (
+          <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
+            {t('No students are enrolled in this class.')}
+          </div>
+        )}
 
-        {/* Students Table */}
-        {!isLoadingStudents && studentsWithMarks.length > 0 && (
+        {!isLoadingSheet && sheet && rows.length > 0 && (
           <>
+            {/* Progress + save bar (sticky so it stays reachable on a long class list) */}
+            <div className="sticky top-0 z-10 bg-white shadow rounded-md p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm text-gray-700 flex flex-wrap gap-x-4 gap-y-1">
+                <span><strong>{savedCount}</strong> / {rows.length} {t('saved')}</span>
+                {unsavedCount > 0 && <span className="text-yellow-700"><strong>{unsavedCount}</strong> {t('not saved yet')}</span>}
+                {invalidCount > 0 && <span className="text-red-700"><strong>{invalidCount}</strong> {t('invalid')}</span>}
+              </div>
+              <button
+                onClick={handleSave}
+                disabled={isSaving || !isOpen || unsavedCount === 0}
+                className="px-6 py-2 bg-green-600 text-white font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving ? t('Saving...') : `${t('Save All Changes')}${unsavedCount > 0 ? ` (${unsavedCount})` : ''}`}
+              </button>
+            </div>
+
             <div className="hidden md:block overflow-x-auto shadow border-b border-gray-200 sm:rounded-lg mb-6">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      #
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('Matricule')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('Student Name')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('Mark (out of 20)')}
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      {t('Status')}
-                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Matricule')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Student Name')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Mark (out of 20)')}</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t('Status')}</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {studentsWithMarks.map((student, index) => (
-                    <tr key={student.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {index + 1 + (currentPage - 1) * limit}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
-                        {student.matricule || 'N/A'}
-                      </td>
-                      <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {student.name}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        <input
-                          type="number"
-                          step="0.25"
-                          min="0"
-                          max="20"
-                          value={student.currentScore}
-                          onChange={(e) => handleMarkChange(student.id, e.target.value)}
-                          className={`w-24 p-1.5 border rounded text-sm ${student.hasChanges
-                            ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50'
-                            : 'border-gray-300'
-                            } focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                          disabled={isSaving}
-                          placeholder="0-20"
-                        />
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {student.hasChanges ? (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            {t('Modified')}
-                          </span>
-                        ) : student.originalScore !== null ? (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            {t('Recorded')}
-                          </span>
-                        ) : (
-                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            {t('Pending')}
-                          </span>
-                        )}
-                      </td>
+                  {rows.map((row, index) => (
+                    <tr key={row.studentId} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">{row.matricule || 'N/A'}</td>
+                      <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">{row.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-500">{markInput(row)}</td>
+                      <td className="px-4 py-3 whitespace-nowrap">{statusBadge(rowState(row))}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
-            {/* Mobile Card List */}
             <div className="md:hidden divide-y divide-gray-100 bg-white shadow sm:rounded-lg mb-6">
-              {studentsWithMarks.map((student, index) => (
-                <div key={student.id} className="p-4 space-y-1.5">
-                  <div className="text-sm font-semibold text-gray-900 break-words">
-                    {student.name}
-                  </div>
+              {rows.map((row, index) => (
+                <div key={row.studentId} className="p-4 space-y-1.5">
                   <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">#</span>
-                    <span className="text-sm text-gray-900 text-right break-words">
-                      {index + 1 + (currentPage - 1) * limit}
-                    </span>
+                    <span className="text-sm font-semibold text-gray-900 break-words">{index + 1}. {row.name}</span>
+                    {statusBadge(rowState(row))}
                   </div>
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">{t('Matricule')}</span>
-                    <span className="text-sm text-gray-900 text-right break-words">
-                      {student.matricule || 'N/A'}
-                    </span>
-                  </div>
+                  <div className="text-xs text-gray-500">{row.matricule || 'N/A'}</div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">{t('Mark (out of 20)')}</span>
-                    <input
-                      type="number"
-                      step="0.25"
-                      min="0"
-                      max="20"
-                      value={student.currentScore}
-                      onChange={(e) => handleMarkChange(student.id, e.target.value)}
-                      className={`w-24 p-1.5 border rounded text-sm ${student.hasChanges
-                        ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50'
-                        : 'border-gray-300'
-                        } focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed`}
-                      disabled={isSaving}
-                      placeholder="0-20"
-                    />
-                  </div>
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="text-xs text-gray-500">{t('Status')}</span>
-                    <span className="text-sm text-gray-900 text-right break-words">
-                      {student.hasChanges ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                          Modified
-                        </span>
-                      ) : student.originalScore !== null ? (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Recorded
-                        </span>
-                      ) : (
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                          Pending
-                        </span>
-                      )}
-                    </span>
+                    {markInput(row)}
                   </div>
                 </div>
               ))}
-            </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between mt-4 mb-6 px-1">
-                <button
-                  onClick={handlePreviousPage}
-                  disabled={currentPage === 1 || isLoadingStudents || isSaving}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t('Previous')}
-                </button>
-                <span className="text-sm text-gray-700">
-                  {t('Page')} {currentPage} {t('of')} {totalPages}
-                </span>
-                <button
-                  onClick={handleNextPage}
-                  disabled={currentPage === totalPages || isLoadingStudents || isSaving}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t('Next')}
-                </button>
-              </div>
-            )}
-
-            {/* Save Button */}
-            <div className="text-right mt-6">
-              <button
-                onClick={handleSaveAllMarks}
-                disabled={isSaving || isLoadingStudents || !hasChanges}
-                className="px-6 py-2 bg-green-600 text-white font-medium rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <span className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    {t('Saving...')}
-                  </span>
-                ) : (
-                  `${t('Save All Changes')}${hasChanges ? ` (${studentsWithMarks.filter(s => s.hasChanges).length})` : ''}`
-                )}
-              </button>
             </div>
           </>
         )}
