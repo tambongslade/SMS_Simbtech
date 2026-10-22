@@ -34,6 +34,9 @@ type SyncOverview = {
 };
 
 const REFRESH_MS = 60_000;
+const SYNC_POLL_MS = 4_000;
+
+type SyncRunStatus = { syncInFlight: boolean; remotePeerConfigured: boolean };
 
 const CATEGORY_BADGE: Record<CategoryComparison['status'], { label: string; className: string }> = {
     in_sync: { label: 'Synchronized', className: 'bg-green-100 text-green-800' },
@@ -58,6 +61,8 @@ export default function SyncStatusPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const [syncing, setSyncing] = useState(false);
+    const [starting, setStarting] = useState(false);
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -74,6 +79,48 @@ export default function SyncStatusPage() {
             setLoading(false);
         }
     }, []);
+
+    const checkRunning = useCallback(async (): Promise<boolean> => {
+        try {
+            const res = await apiService.get<{ success: boolean; data: SyncRunStatus }>('/system/sync/status');
+            const running = !!(res.success && res.data?.syncInFlight);
+            setSyncing(running);
+            return running;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const handleSync = async () => {
+        if (syncing || starting) return;
+        setStarting(true);
+        try {
+            const res = await apiService.post<{ success: boolean; message?: string; error?: string }, Record<string, never>>('/system/sync/start', {});
+            if (!res.success) throw new Error(res.error || 'Could not start the sync');
+            toast.success(res.message || 'Sync started');
+            setSyncing(true);
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Could not start the sync');
+        } finally {
+            setStarting(false);
+        }
+    };
+
+    // While a sync runs, poll its state; when it ends, reload the comparison.
+    useEffect(() => {
+        if (!syncing) return;
+        const timer = setInterval(async () => {
+            if (!(await checkRunning())) {
+                toast.success('Sync finished');
+                load(true);
+            }
+        }, SYNC_POLL_MS);
+        return () => clearInterval(timer);
+    }, [syncing, checkRunning, load]);
+
+    useEffect(() => {
+        checkRunning();
+    }, [checkRunning]);
 
     useEffect(() => {
         load();
@@ -98,14 +145,24 @@ export default function SyncStatusPage() {
                         Records held by this (local) server compared with the online server, by area.
                     </p>
                 </div>
-                <button
-                    onClick={() => load()}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
-                >
-                    <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => load()}
+                        disabled={loading}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                    >
+                        <ArrowPathIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </button>
+                    <button
+                        onClick={handleSync}
+                        disabled={syncing || starting || (data !== null && !data.online.reachable)}
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <ArrowPathIcon className={`h-4 w-4 ${syncing || starting ? 'animate-spin' : ''}`} />
+                        {syncing ? 'Syncing...' : 'Sync now'}
+                    </button>
+                </div>
             </div>
 
             {error && <div className="mb-4 p-3 rounded bg-red-50 text-red-700 text-sm">{error}</div>}
