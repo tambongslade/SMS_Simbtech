@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useMarksManagementFilters } from './hooks/useMarksManagementFilters';
 import SubmissionOverview from './components/SubmissionOverview';
+import MarksManagementTabs from './components/MarksManagementTabs';
 
 // --- Types ---
 // Adjusted based on API docs and expected usage
@@ -291,7 +292,8 @@ export default function MarksManagementPage() {
     // --- JSX Rendering --- 
     return (
         <div className="container mx-auto p-6">
-            <h1 className="text-2xl font-bold mb-6">Marks Management</h1>
+            <h1 className="text-2xl font-bold mb-4">Marks Management</h1>
+            <MarksManagementTabs />
 
             {/* Filters Row - Use data from hook */} 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-white rounded shadow">
