@@ -56,6 +56,7 @@ export const navigation: Record<string, string> = {
   'Question Management': 'Gestion des questions',
   'Submit Marks': 'Soumettre les notes',
   'Marks Management': 'Gestion des notes',
+  'Sync Status': 'État de synchronisation',
   'Marks Submission': 'Soumission des notes',
   'Exams': 'Examens',
   'Examination Structure': 'Structure des examens',

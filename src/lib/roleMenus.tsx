@@ -185,6 +185,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
+    { label: 'Sync Status', href: '/dashboard/super-manager/sync-status', icon: ArrowPathIcon },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/super-manager/overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/super-manager/statistics' },
   ],
