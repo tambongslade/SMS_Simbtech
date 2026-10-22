@@ -162,8 +162,10 @@ export default function SubmissionOverview({ examSequenceId }: { examSequenceId:
                                                                             {status === 'partial' && (
                                                                                 <span className="text-gray-500"> ({s.marksSubmitted}/{s.totalStudents})</span>
                                                                             )}
-                                                                            {status !== 'complete' && s.assignedTeachers.length > 0 && (
-                                                                                <span className="text-gray-400"> – {s.assignedTeachers.map(t => t.name).join(', ')}</span>
+                                                                            {status !== 'complete' && (
+                                                                                <span className="text-gray-400"> – {s.assignedTeachers.length > 0
+                                                                                    ? s.assignedTeachers.map(t => t.name).join(', ')
+                                                                                    : 'no teacher in the timetable'}</span>
                                                                             )}
                                                                         </li>
                                                                     ))}

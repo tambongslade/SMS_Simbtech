@@ -354,6 +354,11 @@ export const menuItems: MenuItemsStructure = {
   items.push({ icon: FolderOpenIcon, label: 'File Management', href: '/dashboard/file-management' });
 });
 
+// Principal, Vice Principal and Dean of Studies follow marks submission through the shared page.
+(['principal', 'vice-principal', 'dean-of-studies'] as RoleKey[]).forEach((key) => {
+  menuItems[key].push({ icon: ClipboardDocumentCheckIcon, label: 'Marks Management', href: '/dashboard/marks-management' });
+});
+
 // Super Manager also gets the approval queue.
 menuItems['super-manager'].push({
   icon: CurrencyDollarIcon,
