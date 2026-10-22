@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -64,7 +65,7 @@ const timeLabel = (iso?: string | null) => {
   const today = new Date();
   return d.toDateString() === today.toDateString()
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    : d.toLocaleDateString(appDateLocale(), { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const lastSeenLabel = (iso?: string | null) => {
@@ -137,7 +138,7 @@ function UserPicker({
         <div className="flex flex-wrap gap-1.5 mb-2">
           {selected.map(u => (
             <span key={u.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
-              {u.name}
+              {u.name}{u.matricule ? ` (${u.matricule})` : ''}
               <button type="button" onClick={() => onChange(selected.filter(s => s.id !== u.id))}>
                 <XMarkIcon className="w-3 h-3" />
               </button>
@@ -161,7 +162,10 @@ function UserPicker({
               onClick={() => { onChange([...selected, u]); setTerm(''); setResults([]); }}
               className="w-full text-left p-2 text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
             >
-              {u.name} <span className="text-gray-400 text-xs">{(u.roles || []).join(', ')}</span>
+              {u.name}
+              {/* Matricule tells apart staff with the same/similar names. */}
+              {u.matricule && <span className="text-gray-500 text-xs"> ({u.matricule})</span>}
+              {' '}<span className="text-gray-400 text-xs">{(u.roles || []).join(', ')}</span>
             </button>
           ))}
         </div>
@@ -890,7 +894,7 @@ export default function ChatPage() {
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString(appDateLocale(), { day: 'numeric', month: 'short' });
   };
 
   const AVATAR_COLORS = [
@@ -1553,6 +1557,7 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
                 {c.name} <PresenceDot online={c.presence.online} />
               </p>
               <p className="text-xs text-gray-500 truncate">
+                {c.matricule ? `${c.matricule} · ` : ''}
                 {(c.roles || []).join(', ')}
                 {c.presence.online ? ` · ${t('Online')}` : c.presence.lastSeenAt ? ` · ${lastSeenLabel(c.presence.lastSeenAt)}` : ''}
               </p>

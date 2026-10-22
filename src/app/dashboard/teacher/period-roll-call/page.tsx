@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -179,7 +180,7 @@ function PeriodRollCallInner() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <span className="font-semibold text-sm text-gray-900">{t("Today's Periods")}</span>
-          <span className="text-xs text-gray-400">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+          <span className="text-xs text-gray-400">{new Date().toLocaleDateString(appDateLocale(), { weekday: 'long', month: 'short', day: 'numeric' })}</span>
         </div>
         {loadingToday ? (
           <div className="p-4 text-sm text-gray-500">{t('Loading your schedule…')}</div>
@@ -277,9 +278,10 @@ function PeriodRollCallInner() {
                 const status = statuses[r.enrollmentId] || 'PRESENT';
                 return (
                   <li key={r.enrollmentId} className="px-4 py-3">
-                    <div className="flex items-center justify-between gap-3">
+                    {/* Phones: name on its own line (full, wrapped) above the status buttons so it isn't truncated (QA U11). */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{r.student.name}</p>
+                        <p className="text-sm font-medium text-gray-900 break-words">{r.student.name}</p>
                         <p className="text-xs text-gray-500">{r.student.matricule || '—'}</p>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
@@ -366,7 +368,7 @@ function PeriodRollCallInner() {
                       {rc.teacherPeriod?.subject?.name} — {rc.teacherPeriod?.subClass?.class?.name} {rc.teacherPeriod?.subClass?.name}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(rc.date).toLocaleDateString()} · {rc._count?.entries ?? 0} {t('students')}
+                      {new Date(rc.date).toLocaleDateString(appDateLocale())} · {rc.entryCount ?? rc._count?.entries ?? 0} {t('students')}
                     </p>
                   </div>
                   <div className="flex gap-1.5 shrink-0 text-xs">

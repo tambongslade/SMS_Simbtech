@@ -29,6 +29,9 @@ export default function CommunicationPage({
     const [showCreateAnnouncement, setShowCreateAnnouncement] = useState(false);
     const [showComposeMessage, setShowComposeMessage] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    // Bumped after a successful create so the list remounts and refetches (QA U14).
+    const [announcementsVersion, setAnnouncementsVersion] = useState(0);
+    const [messagesVersion, setMessagesVersion] = useState(0);
 
     const canCreate = canCreateAnnouncements(userRole);
 
@@ -53,12 +56,12 @@ export default function CommunicationPage({
 
     const handleAnnouncementSuccess = () => {
         setShowCreateAnnouncement(false);
-        // Could trigger refresh of announcements list here
+        setAnnouncementsVersion((v) => v + 1);
     };
 
     const handleMessageSuccess = () => {
         setShowComposeMessage(false);
-        // Could trigger refresh of messages list here
+        setMessagesVersion((v) => v + 1);
     };
 
     const handleNotificationUpdate = () => {
@@ -158,6 +161,7 @@ export default function CommunicationPage({
                 <div className="p-6">
                     {activeTab === 'announcements' && (
                         <AnnouncementList
+                            key={announcementsVersion}
                             userRole={userRole}
                             onCreateClick={() => setShowCreateAnnouncement(true)}
                             showCreateButton={false} // We have it in the header
@@ -166,6 +170,7 @@ export default function CommunicationPage({
 
                     {activeTab === 'messages' && (
                         <MessageList
+                            key={messagesVersion}
                             onComposeClick={() => setShowComposeMessage(true)}
                             showComposeButton={false} // We have it in the header
                         />

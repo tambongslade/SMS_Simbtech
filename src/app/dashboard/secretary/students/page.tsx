@@ -53,7 +53,7 @@ const emptyParent: ParentContactPayload = {
   name: '',
   phone: '',
   address: '',
-  phoneIsWhatsapp: true,
+  phoneIsWhatsapp: false,
   whatsapp: '',
   relationship: undefined,
 };
@@ -127,8 +127,9 @@ type EditParentContact = {
   id: number;
   name: string;
   phone: string;
+  whatsapp: string;
   address: string;
-  orig: { name: string; phone: string; address: string };
+  orig: { name: string; phone: string; whatsapp: string; address: string };
 };
 
 function SecretaryStudentsPageInner() {
@@ -193,7 +194,7 @@ function SecretaryStudentsPageInner() {
     name: '',
     phone: '',
     address: '',
-    phoneIsWhatsapp: true,
+    phoneIsWhatsapp: false,
     whatsapp: '',
     relationship: '' as Relationship | '',
   });
@@ -202,7 +203,7 @@ function SecretaryStudentsPageInner() {
     name: '',
     phone: '',
     address: '',
-    phoneIsWhatsapp: true,
+    phoneIsWhatsapp: false,
     whatsapp: '',
     relationship: '' as Relationship | '',
   };
@@ -323,8 +324,21 @@ function SecretaryStudentsPageInner() {
       return;
     }
     const first = form.parents[0];
-    if (!form.studentNom || !form.studentPrenom || !form.classId || !first?.name || !first?.phone || !first?.address) {
-      toast.error('Family name, given name, class, and the first contact’s name, phone and address are required.');
+    // List only what is really missing, with the labels shown on the form.
+    const missing = [
+      !form.studentNom?.trim() && 'Family Name',
+      !form.studentPrenom?.trim() && 'Given Name(s)',
+      !form.dateOfBirth && 'Date of Birth',
+      !form.placeOfBirth?.trim() && 'Place of Birth',
+      !form.gender && 'Gender',
+      !form.classId && 'Class',
+      !form.residence?.trim() && 'Residence',
+      !first?.name?.trim() && 'Contact 1 name',
+      !first?.phone?.trim() && 'Contact 1 phone',
+      !first?.address?.trim() && 'Contact 1 address',
+    ].filter(Boolean);
+    if (missing.length) {
+      toast.error(`Please fill in: ${missing.join(', ')}.`);
       return;
     }
     // Keep only filled contacts and strip the WhatsApp field when the phone is
@@ -344,13 +358,17 @@ function SecretaryStudentsPageInner() {
       const res = await createStudentWithParent({
         ...form,
         classId: Number(form.classId),
+        subClassId: createSubClassId ? Number(createSubClassId) : undefined,
         academicYearId: selectedAcademicYear.id,
         // Ream only matters for new students.
         reamOfPaperCollected: form.isNewStudent ? form.reamOfPaperCollected : false,
         parents,
       });
       const newStudentId = res?.data?.student?.id;
-      if (createSubClassId && newStudentId) {
+      if (res?.data?.subClassWarning) {
+        toast.error(res.data.subClassWarning);
+      } else if (createSubClassId && newStudentId && !res?.data?.enrollment?.subClassId) {
+        // Older API that ignores subClassId on create: assign the stream separately.
         try {
           await enrollStudentInSubclass(
             newStudentId,
@@ -457,6 +475,7 @@ function SecretaryStudentsPageInner() {
               const orig = {
                 name: pr.name || '',
                 phone: pr.phone || '',
+                whatsapp: pr.whatsappNumber || pr.whatsapp_number || '',
                 address: pr.address || '',
               };
               return { id: pr.id, ...orig, orig };
@@ -594,9 +613,11 @@ function SecretaryStudentsPageInner() {
 
       // Update only the parent contacts (and fields) that changed.
       for (const parent of editParents) {
-        const patch: { name?: string; phone?: string; address?: string } = {};
+        const patch: { name?: string; phone?: string; whatsappNumber?: string | null; address?: string } = {};
         if (parent.name.trim() && parent.name !== parent.orig.name) patch.name = parent.name.trim();
         if (parent.phone.trim() && parent.phone !== parent.orig.phone) patch.phone = parent.phone.trim();
+        // WhatsApp may be cleared (sent as null).
+        if (parent.whatsapp !== parent.orig.whatsapp) patch.whatsappNumber = parent.whatsapp.trim() || null;
         if (parent.address.trim() && parent.address !== parent.orig.address) patch.address = parent.address.trim();
         if (Object.keys(patch).length === 0) continue;
         try {
@@ -1243,10 +1264,10 @@ function SecretaryStudentsPageInner() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input label="Family Name (Nom) *" name="studentNom" value={form.studentNom} onChange={handleFormChange} required />
               <Input label="Given Name(s) (Prénom) *" name="studentPrenom" value={form.studentPrenom} onChange={handleFormChange} required />
-              <Input label="Date of Birth" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleFormChange} />
-              <Input label="Place of Birth" name="placeOfBirth" value={form.placeOfBirth} onChange={handleFormChange} />
+              <Input label="Date of Birth *" name="dateOfBirth" type="date" value={form.dateOfBirth} onChange={handleFormChange} />
+              <Input label="Place of Birth *" name="placeOfBirth" value={form.placeOfBirth} onChange={handleFormChange} />
               <Select
-                label="Gender"
+                label="Gender *"
                 name="gender"
                 value={form.gender}
                 onChange={handleFormChange}
@@ -1270,7 +1291,7 @@ function SecretaryStudentsPageInner() {
                 ]}
               />
               <Select
-                label="Subclass"
+                label="Stream (Subclass)"
                 value={createSubClassId}
                 onChange={(e) => setCreateSubClassId(e.target.value)}
                 disabled={!form.classId}
@@ -1283,7 +1304,7 @@ function SecretaryStudentsPageInner() {
                 ]}
               />
               <Input label="Former School" name="formerSchool" value={form.formerSchool} onChange={handleFormChange} />
-              <Input label="Residence" name="residence" value={form.residence} onChange={handleFormChange} />
+              <Input label="Residence *" name="residence" value={form.residence} onChange={handleFormChange} />
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mt-4">
               <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -1507,6 +1528,12 @@ function SecretaryStudentsPageInner() {
                           onChange={(e) => updateEditParent(index, { phone: e.target.value })}
                         />
                         <Input
+                          label="WhatsApp"
+                          value={parent.whatsapp}
+                          onChange={(e) => updateEditParent(index, { whatsapp: e.target.value })}
+                          placeholder="WhatsApp number (optional)"
+                        />
+                        <Input
                           label="Address"
                           value={parent.address}
                           onChange={(e) => updateEditParent(index, { address: e.target.value })}
@@ -1586,7 +1613,7 @@ function SecretaryStudentsPageInner() {
                     </Button>
                   </div>
                   <p className="text-[11px] text-gray-500">
-                    A new parent account is created with a default password (<code>defaultPassword123</code>) that they can change on first login.
+                    A new parent account is created and linked; the parent will be asked to change the password at first login.
                   </p>
                 </div>
               )}

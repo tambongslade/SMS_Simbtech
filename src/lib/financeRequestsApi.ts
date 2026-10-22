@@ -1,5 +1,6 @@
-import apiService from './apiService';
+import apiService, { ApiError } from './apiService';
 import { searchPersonnel, MAX_PERSONNEL_LIMIT } from './personnelApi';
+import { PAYMENT_METHODS, type PaymentMethodCode } from './paymentMethods';
 
 // ---------------------------------------------------------------------------
 // Finance Requests API client
@@ -65,14 +66,9 @@ export type FinanceRequestPayload =
 
 // ---- Payment / refund method vocabularies (mirror the backend enums) ----
 
-export type PaymentClaimMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
+export type PaymentClaimMethod = PaymentMethodCode;
 
-export const PAYMENT_CLAIM_METHODS: { value: PaymentClaimMethod; label: string }[] = [
-  { value: 'EXPRESS_UNION', label: 'Express Union' },
-  { value: 'CCA', label: 'CCA' },
-  { value: 'F3DC', label: 'F3DC' },
-  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
-];
+export const PAYMENT_CLAIM_METHODS: { value: PaymentClaimMethod; label: string }[] = PAYMENT_METHODS;
 
 export type RefundRequestMethod =
   | 'CASH'
@@ -121,6 +117,17 @@ export interface FinanceRequest {
   updatedAt: string;
   requestedBy?: PersonRef | null;
   actedBy?: PersonRef | null;
+  // Display context resolved server-side from the payload ids.
+  student?: PersonRef | null;
+  enrollment?: EnrollmentRef | null;
+  recipient?: PersonRef | null;
+}
+
+export interface EnrollmentRef {
+  id: number;
+  className: string | null;
+  subClassName: string | null;
+  academicYearName: string | null;
 }
 
 export interface Paginated<T> {
@@ -156,6 +163,19 @@ export interface ListFinanceRequestsParams {
 
 const BASE = '/finance-requests';
 
+// Calls here are made silently (no global toast) so pages decide what to show:
+// list loads fail quietly into an empty state, and user-initiated actions toast
+// the message below. Server 403 texts can contain raw role lists, so a 403 is
+// always replaced by a plain-language message.
+const SILENT = { silent: true } as const;
+
+const friendlyError = (error: unknown): never => {
+  if (error instanceof ApiError && error.status === 403) {
+    throw new ApiError("You don't have permission to do this. Contact the Bursar if you think this is a mistake.", 403);
+  }
+  throw error;
+};
+
 export const listFinanceRequests = async (
   params: ListFinanceRequestsParams = {},
 ): Promise<Paginated<FinanceRequest>> => {
@@ -167,19 +187,25 @@ export const listFinanceRequests = async (
   if (params.studentId) qs.append('studentId', String(params.studentId));
   qs.append('page', String(params.page ?? 1));
   qs.append('limit', String(params.limit ?? 50));
-  const res = await apiService.get<Paginated<FinanceRequest>>(`${BASE}?${qs.toString()}`);
+  const res = await apiService
+    .get<Paginated<FinanceRequest>>(`${BASE}?${qs.toString()}`, SILENT)
+    .catch(friendlyError);
   return { data: res.data || [], meta: res.meta };
 };
 
 export const getFinanceRequest = async (id: number): Promise<FinanceRequest> => {
-  const res = await apiService.get<{ data: FinanceRequest }>(`${BASE}/${id}`);
+  const res = await apiService
+    .get<{ data: FinanceRequest }>(`${BASE}/${id}`, SILENT)
+    .catch(friendlyError);
   return res.data;
 };
 
 export const createFinanceRequest = async (
   body: CreateFinanceRequestBody,
 ): Promise<FinanceRequest> => {
-  const res = await apiService.post<{ data: FinanceRequest }>(BASE, body);
+  const res = await apiService
+    .post<{ data: FinanceRequest }>(BASE, body, SILENT)
+    .catch(friendlyError);
   return res.data;
 };
 
@@ -187,7 +213,9 @@ export const approveFinanceRequest = async (
   id: number,
   body: ActionBody = {},
 ): Promise<FinanceRequest> => {
-  const res = await apiService.post<{ data: FinanceRequest }>(`${BASE}/${id}/approve`, body);
+  const res = await apiService
+    .post<{ data: FinanceRequest }>(`${BASE}/${id}/approve`, body, SILENT)
+    .catch(friendlyError);
   return res.data;
 };
 
@@ -195,7 +223,9 @@ export const rejectFinanceRequest = async (
   id: number,
   body: ActionBody = {},
 ): Promise<FinanceRequest> => {
-  const res = await apiService.post<{ data: FinanceRequest }>(`${BASE}/${id}/reject`, body);
+  const res = await apiService
+    .post<{ data: FinanceRequest }>(`${BASE}/${id}/reject`, body, SILENT)
+    .catch(friendlyError);
   return res.data;
 };
 
@@ -203,7 +233,9 @@ export const completeFinanceRequest = async (
   id: number,
   body: ActionBody = {},
 ): Promise<FinanceRequest> => {
-  const res = await apiService.post<{ data: FinanceRequest }>(`${BASE}/${id}/complete`, body);
+  const res = await apiService
+    .post<{ data: FinanceRequest }>(`${BASE}/${id}/complete`, body, SILENT)
+    .catch(friendlyError);
   return res.data;
 };
 
@@ -314,11 +346,24 @@ export const STATUS_LABELS: Record<FinanceRequestStatus, string> = {
   COMPLETED: 'Completed',
 };
 
-// Roles allowed to create a finance request. Parents can only create payment
-// claims (see CREATABLE_TYPES below).
+// Roles that may create any request type (others: see creatableTypes below —
+// parents file payment claims, other staff request money for themselves).
 export const CREATE_ROLES = ['SUPER_MANAGER', 'MANAGER', 'PRINCIPAL', 'BURSAR', 'PARENT'];
 
-// Roles allowed to list / view finance requests.
+// Oversight roles: see every request and may clear bank verifications. Every
+// other authenticated user can still list/view their own requests (the backend
+// scopes the results).
+export const OVERSIGHT_ROLES = [
+  'SUPER_MANAGER',
+  'MANAGER',
+  'PRINCIPAL',
+  'VICE_PRINCIPAL',
+  'BURSAR',
+  'SECRETARY',
+  'FEE_AUDITOR',
+];
+
+// Roles that have a finance-requests page.
 export const VIEW_ROLES = [
   'SUPER_MANAGER',
   'MANAGER',
@@ -429,7 +474,7 @@ export const availableActions = (
   }
 
   if (req.type === 'BANK_VERIFICATION') {
-    return VIEW_ROLES.includes(role) ? ['complete', 'reject'] : [];
+    return OVERSIGHT_ROLES.includes(role) ? ['complete', 'reject'] : [];
   }
 
   // Bursar validates a parent's proof of payment. Approving creates the real
@@ -466,41 +511,62 @@ export const fmtDateTime = (v?: string | null) => {
   });
 };
 
+// "Jane Doe (MAT123) · Form 1 A" — falls back to the id only when the server
+// could not resolve the reference.
+const studentLabel = (req: FinanceRequest, fallbackStudentId?: number, fallbackEnrollmentId?: number): string => {
+  const parts: string[] = [];
+  if (req.student?.name) {
+    parts.push(req.student.matricule ? `${req.student.name} (${req.student.matricule})` : req.student.name);
+  }
+  const e = req.enrollment;
+  if (e) {
+    const cls = [e.className, e.subClassName].filter(Boolean).join(' ');
+    if (cls) parts.push(cls);
+  }
+  if (parts.length) return parts.join(' · ');
+  if (fallbackStudentId) return `Student #${fallbackStudentId}`;
+  if (fallbackEnrollmentId) return `Enrollment #${fallbackEnrollmentId}`;
+  return '';
+};
+
+/** Display name of the person who raised the request. */
+export const requesterName = (req: FinanceRequest): string =>
+  req.requestedBy?.name || 'Unknown user';
+
 // A short human summary of the type-specific payload for table rows.
 export const payloadSummary = (req: FinanceRequest): string => {
   const p = req.payload || {};
+  const join = (parts: (string | undefined | null | false)[]) => parts.filter(Boolean).join(' · ');
   if (req.type === 'FEE_REDUCTION') {
     const fp = p as FeeReductionPayload;
-    const parts = [`Enrollment #${fp.enrollmentId}`];
-    if (fp.partnerName) parts.push(fp.partnerName);
-    return parts.join(' · ');
+    return join([studentLabel(req, undefined, fp.enrollmentId), fp.partnerName]);
   }
   if (req.type === 'PERSONNEL_DISBURSEMENT') {
     const pp = p as PersonnelDisbursementPayload;
-    return pp.purpose || `Recipient #${pp.recipientUserId}`;
+    const forWhom =
+      req.recipient?.name && req.recipient.id !== req.requestedById ? `For ${req.recipient.name}` : '';
+    return join([pp.purpose, forWhom]) || (req.recipient?.name ?? '');
   }
   if (req.type === 'BANK_VERIFICATION') {
     const bp = p as BankVerificationPayload;
-    const parts = [`Student #${bp.studentId}`];
-    if (bp.estimatedPaymentPeriod) parts.push(bp.estimatedPaymentPeriod);
-    return parts.join(' · ');
+    return join([studentLabel(req, bp.studentId), bp.estimatedPaymentPeriod]);
   }
   if (req.type === 'PAYMENT_CLAIM') {
     const cp = p as PaymentClaimPayload;
-    const parts: string[] = [];
-    if (cp.studentId) parts.push(`Student #${cp.studentId}`);
-    else if (cp.enrollmentId) parts.push(`Enrollment #${cp.enrollmentId}`);
-    if (cp.paymentMethod) parts.push(METHOD_LABEL(cp.paymentMethod));
-    if (cp.paymentDate) parts.push(cp.paymentDate);
-    if (cp.receiptNumber) parts.push(`Receipt ${cp.receiptNumber}`);
-    return parts.join(' · ');
+    return join([
+      studentLabel(req, cp.studentId, cp.enrollmentId),
+      cp.paymentMethod && METHOD_LABEL(cp.paymentMethod),
+      cp.paymentDate,
+      cp.receiptNumber && `Receipt ${cp.receiptNumber}`,
+    ]);
   }
   if (req.type === 'REFUND') {
     const rp = p as RefundRequestPayload;
-    const parts = [`Enrollment #${rp.enrollmentId}`];
-    if (rp.refundMethod) parts.push(METHOD_LABEL(rp.refundMethod));
-    if (rp.refundDate) parts.push(rp.refundDate);
-    return parts.join(' · ');
+    return join([
+      studentLabel(req, undefined, rp.enrollmentId),
+      rp.refundMethod && METHOD_LABEL(rp.refundMethod),
+      rp.refundDate,
+    ]);
   }
   return '';
 };

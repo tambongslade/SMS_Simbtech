@@ -28,6 +28,7 @@ type SubClass = {
 type AcademicYear = {
     id: number;
     name: string;
+    isCurrent?: boolean;
     terms: any[]; // Keep if needed for sequence filtering logic
     examSequences: ExamSequence[];
     // other fields...
@@ -63,6 +64,7 @@ export const useMarksManagementFilters = (selectedYearId: number | '', selectedS
         return yearsResult.data.map((year: any) => ({
             id: year.id,
             name: year.name,
+            isCurrent: !!year.isCurrent,
             // Map other essential fields if needed
             terms: year.terms || [],
             examSequences: (year.examSequences || []).map((seq: any) => ({

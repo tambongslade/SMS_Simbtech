@@ -123,6 +123,16 @@ export function SchemesOfWorkPage({ basePath, readOnly = false }: SchemesOfWorkP
       toast.error('Pick a subject and a class.');
       return;
     }
+    // Both are required columns on the scheme -- sending them empty used to
+    // come back as a generic server error.
+    const missing = [
+      !createForm.periodsPerWeek && 'Periods / week',
+      !createForm.annualTeachingHours && 'Annual teaching hours',
+    ].filter(Boolean);
+    if (missing.length) {
+      toast.error(`Please fill in: ${missing.join(', ')}.`);
+      return;
+    }
     setIsCreating(true);
     try {
       const scheme = await createScheme({
@@ -321,14 +331,14 @@ export function SchemesOfWorkPage({ basePath, readOnly = false }: SchemesOfWorkP
           />
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Periods / week"
+              label="Periods / week *"
               type="number"
               min={0}
               value={createForm.periodsPerWeek}
               onChange={(e) => setCreateForm((f) => ({ ...f, periodsPerWeek: e.target.value }))}
             />
             <Input
-              label="Annual teaching hours"
+              label="Annual teaching hours *"
               type="number"
               min={0}
               value={createForm.annualTeachingHours}

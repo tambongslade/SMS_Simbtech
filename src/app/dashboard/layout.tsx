@@ -44,6 +44,7 @@ import NotificationIndicator from '@/components/messaging/NotificationIndicator'
 import ChatIndicator from '@/components/chat/ChatIndicator';
 import SyncStatusMarquee from '@/components/dashboard/SyncStatusMarquee';
 import { menuItems, type MenuItem } from '@/lib/roleMenus';
+import { useAiAssistantAvailable, isAiAssistantHref } from '@/lib/aiAssistantStatus';
 
 
 // Helper function to format role names
@@ -201,11 +202,15 @@ export default function DashboardLayout({
   }, [pathname, roleFromPath]); // Re-run when pathname changes
 
   // --- Get Menu Items based on Role from Path ---
+  // "Ask (AI)" is only listed when the server reports the assistant as
+  // configured (GET /ai/status); otherwise it only ever answered
+  // "The assistant is not configured".
+  const roleMenu = roleFromPath ? menuItems[roleFromPath as keyof typeof menuItems] : undefined;
+  const aiAvailable = useAiAssistantAvailable(!!roleMenu?.some(item => isAiAssistantHref(item.href)));
   const currentMenuItems = useMemo(() => {
-    return roleFromPath && menuItems[roleFromPath as keyof typeof menuItems]
-      ? menuItems[roleFromPath as keyof typeof menuItems]
-      : [];
-  }, [roleFromPath]);
+    const items = roleMenu ?? [];
+    return aiAvailable ? items : items.filter(item => !isAiAssistantHref(item.href));
+  }, [roleMenu, aiAvailable]);
 
   // Map role keys (like 'discipline-master') to display titles
   const roleTitle: { [key: string]: string } = {

@@ -129,7 +129,8 @@ export interface StaffOverview {
         totalTeachers: number;
         averageTeachingHours: number;
         newStaffThisMonth: number;
-        teachersWithFullSchedule: number;
+        averageWeeklyPeriods?: number;
+        teachersWithTimetable?: number;
     };
     usersByRole: { role: string; count: number }[];
     usersByStatus: { status: string; count: number }[];
@@ -258,6 +259,7 @@ export interface EnrollmentOverview {
         totalEnrollments: number;
         unassignedEnrollments: number;
         newEnrollmentsThisMonth: number;
+        totalStreams?: number;
         averageClassUtilization: number;
         assignmentRate: number;
     };

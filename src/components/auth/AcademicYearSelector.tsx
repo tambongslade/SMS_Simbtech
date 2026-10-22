@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import React, { useState } from 'react';
 import { Button, Card, CardBody, CardHeader } from '@/components/ui';
 import { CalendarIcon, UsersIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
@@ -53,7 +54,7 @@ const AcademicYearSelector: React.FC<AcademicYearSelectorProps> = ({ availableAc
     };
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        return new Date(dateString).toLocaleDateString(appDateLocale(), {
             year: 'numeric',
             month: 'long',
             day: 'numeric',

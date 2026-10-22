@@ -14,7 +14,11 @@ import apiService from '@/lib/apiService';
 
 interface SalaryProfile {
     id: number;
+    // Backend field is salaryType; profileType/type kept as tolerant fallbacks.
+    salaryType?: string | null;
     profileType?: string | null;
+    status?: string | null; // PENDING_APPROVAL | ACTIVE | INACTIVE | REJECTED
+    rejectionReason?: string | null;
     type?: string | null;
     hourlyRate?: number | null;
     baseSalary?: number | null;
@@ -46,7 +50,6 @@ const PROFILE_TYPE_OPTIONS = [
     { value: 'TEACHER_HOURLY', label: 'Hourly rate (teachers)' },
 ];
 
-const fetcher = (url: string) => apiService.get(url);
 
 const formatMoney = (amount?: number | null) =>
     amount == null ? null : `FCFA ${amount.toLocaleString()}`;
@@ -54,14 +57,45 @@ const formatMoney = (amount?: number | null) =>
 const formatLabel = (value: string) =>
     value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 
-const profileType = (p?: SalaryProfile | null) => (p?.profileType ?? p?.type ?? '').toUpperCase();
+const profileType = (p?: SalaryProfile | null) =>
+    (p?.salaryType ?? p?.profileType ?? p?.type ?? '').toUpperCase();
+const isPending = (p?: SalaryProfile | null) => p?.status === 'PENDING_APPROVAL';
+const profileStatusBadge = (p?: SalaryProfile | null): { color: 'yellow' | 'red' | 'gray'; text: string } | null => {
+    switch (p?.status) {
+        case 'PENDING_APPROVAL': return { color: 'yellow', text: 'Pending approval' };
+        case 'REJECTED': return { color: 'red', text: 'Rejected' };
+        case 'INACTIVE': return { color: 'gray', text: 'Inactive' };
+        default: return null;
+    }
+};
 const isHourly = (p?: SalaryProfile | null) => profileType(p).includes('HOURLY');
 const currentPay = (p?: SalaryProfile | null) =>
     p ? (isHourly(p) ? p.hourlyRate : p.baseSalary) : null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const unwrapList = (raw: any): any[] =>
-    Array.isArray(raw) ? raw : (Array.isArray(raw?.data) ? raw.data : []);
+    Array.isArray(raw) ? raw
+        : Array.isArray(raw?.items) ? raw.items
+        : Array.isArray(raw?.data) ? raw.data
+        : [];
+
+// GET /salary/profiles returns { data: { items, page, limit, total, totalPages } }
+// (max 100 per page), so page through all of them — otherwise staff beyond the
+// first page (or everyone, when only data.data was read) showed "No salary set yet".
+const PROFILES_PAGE_SIZE = 100;
+const fetchAllProfiles = async (): Promise<SalaryProfile[]> => {
+    const first = await apiService.get(`/salary/profiles?page=1&limit=${PROFILES_PAGE_SIZE}`);
+    const totalPages = first?.data?.totalPages ?? 1;
+    const rows: SalaryProfile[] = [...unwrapList(first?.data)];
+    if (totalPages > 1) {
+        const rest = await Promise.all(
+            Array.from({ length: totalPages - 1 }, (_, i) =>
+                apiService.get(`/salary/profiles?page=${i + 2}&limit=${PROFILES_PAGE_SIZE}`))
+        );
+        rest.forEach((page) => rows.push(...unwrapList(page?.data)));
+    }
+    return rows;
+};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const extractRoles = (user: any): string[] =>
@@ -109,6 +143,8 @@ export default function StaffSalariesTab({
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [reviewingId, setReviewingId] = useState<number | null>(null);
 
     useEffect(() => {
         const handle = setTimeout(() => setDebouncedSearch(search.trim().toLowerCase()), 300);
@@ -121,8 +157,8 @@ export default function StaffSalariesTab({
         fetchAllPersonnel,
         { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load personnel.'); } }
     );
-    const { data: profilesRes, mutate: mutateProfiles } = useSWR('/salary/profiles', fetcher, {
-        onError: () => { /* profiles are optional — staff simply show "no salary set" */ },
+    const { data: profilesList, mutate: mutateProfiles } = useSWR('/salary/profiles?all=true', fetchAllProfiles, {
+        onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load salary profiles.'); },
     });
 
     // Every distinct staff role present in the loaded personnel, for the Role filter.
@@ -139,7 +175,7 @@ export default function StaffSalariesTab({
 
     const staff = useMemo((): StaffRow[] => {
         const users = personnelList ?? [];
-        const profiles = unwrapList(profilesRes?.data) as SalaryProfile[];
+        const profiles = profilesList ?? [];
         const profileByUser = new Map<number, SalaryProfile>();
         profiles.forEach(p => {
             const uid = p.user?.id ?? p.userId;
@@ -166,7 +202,7 @@ export default function StaffSalariesTab({
                 if (!debouncedSearch) return true;
                 return `${s.name} ${s.matricule ?? ''}`.toLowerCase().includes(debouncedSearch);
             });
-    }, [personnelList, profilesRes, typeFilter, roleFilter, debouncedSearch]);
+    }, [personnelList, profilesList, typeFilter, roleFilter, debouncedSearch]);
 
     const openModal = (row: StaffRow, nextAction: SalaryAction) => {
         setSelectedStaff(row);
@@ -174,6 +210,32 @@ export default function StaffSalariesTab({
         setNewProfileType(row.roles.includes('TEACHER') ? 'TEACHER_HOURLY' : 'ADMIN_FIXED');
         setAmount('');
         setReason('');
+        setFormError(null);
+    };
+
+    // Super Manager approves/rejects a profile a Manager proposed.
+    const reviewProfile = async (row: StaffRow, decision: 'approve' | 'reject') => {
+        if (!row.profile) return;
+        let rejectReason = '';
+        if (decision === 'reject') {
+            rejectReason = window.prompt(`Reason for rejecting ${row.name}'s salary profile:`)?.trim() ?? '';
+            if (!rejectReason) return;
+        }
+        setReviewingId(row.profile.id);
+        try {
+            await apiService.post(
+                `/salary/profiles/${row.profile.id}/${decision}`,
+                decision === 'reject' ? { reason: rejectReason } : {}
+            );
+            toast.success(decision === 'approve'
+                ? `Salary profile approved for ${row.name}.`
+                : `Salary profile rejected for ${row.name}.`);
+            await mutateProfiles();
+        } catch (err) {
+            console.error(`Profile ${decision} failed:`, err);
+        } finally {
+            setReviewingId(null);
+        }
     };
 
     const closeModal = () => {
@@ -185,17 +247,27 @@ export default function StaffSalariesTab({
     const submit = async () => {
         if (!action || !selectedStaff) return;
         const parsedAmount = Number(amount);
+        setFormError(null);
         if (!amount || Number.isNaN(parsedAmount) || parsedAmount < 0) {
-            toast.error('Enter a valid amount.');
+            setFormError('Enter a valid amount.');
+            return;
+        }
+        // Allowances require a reason server-side
+        if (action === 'allowance' && !reason.trim()) {
+            setFormError('Please describe the allowance.');
             return;
         }
         // The backend requires a reason for manager-submitted change requests
-        if (requiresApproval && action === 'set-salary' && !reason.trim()) {
-            toast.error('Please provide a reason for the salary change.');
+        if (requiresApproval && action === 'set-salary' && selectedStaff.profile && !reason.trim()) {
+            setFormError('Please provide a reason for the salary change.');
             return;
         }
 
         setIsSubmitting(true);
+        // Errors are surfaced inline in the modal (and as a toast) — silent stops
+        // apiService from also raising its generic toast.
+        const quiet = { silent: true };
+        let createdNewProfile = false;
         try {
             const profile = selectedStaff.profile;
             if (action === 'set-salary') {
@@ -206,41 +278,54 @@ export default function StaffSalariesTab({
                     if (isHourly(profile)) payload.newHourlyRate = parsedAmount;
                     else payload.newBaseSalary = parsedAmount;
                     if (reason.trim()) payload.reason = reason.trim();
-                    await apiService.post('/salary/change-requests', payload);
+                    await apiService.post('/salary/change-requests', payload, quiet);
                 } else {
                     // First salary for this staff member → create the profile
                     const hourly = newProfileType === 'TEACHER_HOURLY';
+                    // Backend field is salaryType (TEACHER_HOURLY | ADMIN_FIXED); sending
+                    // profileType was the cause of "Invalid salary_type".
                     await apiService.post('/salary/profiles', {
                         userId: selectedStaff.userId,
-                        profileType: newProfileType,
+                        salaryType: newProfileType,
                         ...(hourly ? { hourlyRate: parsedAmount } : { baseSalary: parsedAmount }),
-                    });
+                        ...(reason.trim() ? { notes: reason.trim() } : {}),
+                    }, quiet);
+                    createdNewProfile = true;
                 }
                 toast.success(requiresApproval
-                    ? `Change request submitted for ${selectedStaff.name} — awaiting Super Manager approval.`
+                    ? (profile
+                        ? `Change request submitted for ${selectedStaff.name} — awaiting Super Manager approval.`
+                        : `Salary submitted for ${selectedStaff.name} — awaiting Super Manager approval.`)
                     : `Salary ${profile ? 'updated' : 'set'} for ${selectedStaff.name}.`);
             } else {
                 if (!profile) {
-                    toast.error('Set a salary for this staff member first.');
+                    setFormError('Set a salary for this staff member first.');
                     return;
                 }
                 const base = action === 'allowance' ? '/salary/allowances' : '/salary/withholdings';
                 await apiService.post(base, {
                     salaryProfileId: profile.id,
                     userId: selectedStaff.userId,
+                    ...(action === 'allowance' ? { type: 'ALLOWANCE' } : {}),
                     amount: parsedAmount,
                     description: reason.trim() || undefined,
                     reason: reason.trim() || undefined,
-                });
+                }, quiet);
                 toast.success(`${action === 'allowance' ? 'Allowance' : 'Withholding'} added for ${selectedStaff.name}.`);
             }
             setAction(null);
             setSelectedStaff(null);
-            mutateProfiles();
-            mutateUsers();
-            onCreated?.(action);
+            await Promise.all([mutateProfiles(), mutateUsers()]);
+            // A brand-new (pending) profile shows in this staff list, not under
+            // Change Requests, so don't navigate away for it.
+            if (!createdNewProfile) onCreated?.(action);
         } catch (err) {
             console.error(`${action} submission failed:`, err);
+            const message = err instanceof Error && err.message
+                ? err.message
+                : 'Something went wrong. Please try again.';
+            setFormError(message);
+            if (message !== 'Unauthorized') toast.error(message, { id: 'salary-form-error' });
         } finally {
             setIsSubmitting(false);
         }
@@ -308,15 +393,41 @@ export default function StaffSalariesTab({
                                                 {formatLabel(profileType(row.profile))}
                                             </Badge>
                                         )}
+                                        {profileStatusBadge(row.profile) && (
+                                            <Badge color={profileStatusBadge(row.profile)!.color} size="sm">
+                                                {profileStatusBadge(row.profile)!.text}
+                                            </Badge>
+                                        )}
                                     </div>
                                     <p className="mt-0.5 text-xs text-gray-500">
                                         {row.matricule ? `${row.matricule} · ` : ''}
                                         {currentPay(row.profile) != null
                                             ? `${formatMoney(currentPay(row.profile))}${isHourly(row.profile) ? ' / hour' : ' / month'}`
                                             : 'No salary set yet'}
+                                        {isPending(row.profile) ? ' · awaiting Super Manager approval' : ''}
+                                        {row.profile?.status === 'REJECTED' && row.profile.rejectionReason
+                                            ? ` · rejected: ${row.profile.rejectionReason}` : ''}
                                     </p>
                                 </div>
                                 <div className="grid grid-cols-3 gap-2 sm:flex sm:shrink-0">
+                                    {!requiresApproval && isPending(row.profile) && (
+                                        <>
+                                            <button
+                                                onClick={() => reviewProfile(row, 'approve')}
+                                                disabled={reviewingId === row.profile!.id}
+                                                className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                                            >
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={() => reviewProfile(row, 'reject')}
+                                                disabled={reviewingId === row.profile!.id}
+                                                className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                                            >
+                                                Reject
+                                            </button>
+                                        </>
+                                    )}
                                     <button
                                         onClick={() => openModal(row, 'set-salary')}
                                         className="px-2.5 py-2 sm:py-1.5 text-xs font-medium rounded bg-blue-600 text-white hover:bg-blue-700"
@@ -379,7 +490,9 @@ export default function StaffSalariesTab({
                         />
 
                         <TextArea
-                            label={action === 'set-salary' ? (requiresApproval ? 'Reason' : 'Reason (optional)') : 'Description'}
+                            label={action === 'set-salary'
+                                ? (modalProfile ? (requiresApproval ? 'Reason' : 'Reason (optional)') : 'Notes (optional)')
+                                : 'Description'}
                             rows={2}
                             value={reason}
                             onChange={(e) => setReason(e.target.value)}
@@ -393,6 +506,12 @@ export default function StaffSalariesTab({
                                 {requiresApproval
                                     ? 'Your change will be sent to the Super Manager for approval.'
                                     : 'As Super Manager, this change is applied immediately — no separate approval step.'}
+                            </p>
+                        )}
+
+                        {formError && (
+                            <p role="alert" className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                                {formError}
                             </p>
                         )}
 

@@ -1,5 +1,7 @@
 'use client'
 
+import { enumLabel } from '@/lib/enumLabels';
+import { appDateLocale } from '@/lib/formatDate';
 import { FC, useEffect, useState } from 'react';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { useStudentFees } from '../hooks/useStudentFees';
@@ -193,7 +195,7 @@ const ParentStudentFeesPage: FC<ParentStudentFeesPageProps> = ({ matricule: prop
                         value={formatMoney(outstandingBalance)}
                         tone={outstandingBalance > 0 ? 'rose' : 'emerald'}
                         icon={ExclamationTriangleIcon}
-                        sub={dueDate ? `${t('Due')} ${new Date(dueDate).toLocaleDateString()}` : undefined}
+                        sub={dueDate ? `${t('Due')} ${new Date(dueDate).toLocaleDateString(appDateLocale())}` : undefined}
                     />
                 </div>
 
@@ -256,8 +258,8 @@ const ParentStudentFeesPage: FC<ParentStudentFeesPageProps> = ({ matricule: prop
                                             <div className="min-w-0">
                                                 <p className="text-sm font-medium text-slate-900">{formatMoney(p.amount)}</p>
                                                 <p className="text-xs text-slate-500">
-                                                    {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString() : ''}
-                                                    {p.paymentMethod ? ` · ${p.paymentMethod}` : ''}
+                                                    {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString(appDateLocale()) : ''}
+                                                    {p.paymentMethod ? ` · ${enumLabel(p.paymentMethod)}` : ''}
                                                 </p>
                                             </div>
                                             {p.receiptNumber && (
@@ -289,7 +291,7 @@ const ParentStudentFeesPage: FC<ParentStudentFeesPageProps> = ({ matricule: prop
                                                 <p className="text-sm font-medium text-slate-900">{f.feeType}</p>
                                                 {f.dueDate && (
                                                     <p className="text-xs text-slate-500">
-                                                        {t('Due')} {new Date(f.dueDate).toLocaleDateString()}
+                                                        {t('Due')} {new Date(f.dueDate).toLocaleDateString(appDateLocale())}
                                                     </p>
                                                 )}
                                             </div>

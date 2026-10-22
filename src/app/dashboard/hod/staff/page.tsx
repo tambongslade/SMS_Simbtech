@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -70,7 +71,11 @@ interface Teacher {
 }
 
 export default function HODStaffManagement() {
-    const { user, academicYear } = useAuth();
+    // AuthContext exposes selectedAcademicYear/currentAcademicYear -- there
+    // is no `academicYear` field, so the old guard below never fired and the
+    // page sat on its skeleton forever.
+    const { user, selectedAcademicYear, currentAcademicYear } = useAuth();
+    const academicYear = selectedAcademicYear ?? currentAcademicYear;
     const { t } = useLanguage();
     const [loading, setLoading] = useState(true);
     const [teachers, setTeachers] = useState<TeacherInDepartment[]>([]);
@@ -87,9 +92,8 @@ export default function HODStaffManagement() {
     });
 
     useEffect(() => {
-        if (academicYear?.id) {
-            fetchData();
-        }
+        // The backend defaults to the current academic year when none is sent.
+        fetchData();
     }, [academicYear?.id]);
 
     useEffect(() => {
@@ -105,26 +109,28 @@ export default function HODStaffManagement() {
         try {
             setLoading(true);
 
-            const [teachersResponse, subjectsResponse, allTeachersResponse] = await Promise.all([
-                apiService.get('/hod/teachers-in-department', {
-                    params: {
-                        academicYearId: academicYear?.id,
-                        limit: 100
-                    }
-                }),
-                apiService.get('/hod/my-subjects'),
-                apiService.get('/users', {
-                    params: {
-                        role: 'TEACHER',
-                        academicYearId: academicYear?.id,
-                        limit: 100
-                    }
-                })
+            const yearQs = academicYear?.id ? `&academicYearId=${academicYear.id}` : '';
+            // allSettled: the "assign teacher" pickers are secondary -- a
+            // failure there must not blank the department staff list.
+            // (GET /users is not open to HOD; GET /users/teachers is.)
+            const [teachersResult, subjectsResult, allTeachersResult] = await Promise.allSettled([
+                apiService.get<any>(`/hod/teachers-in-department?limit=100${yearQs}`),
+                apiService.get<any>('/hod/my-subjects'),
+                apiService.get<any>('/users/teachers'),
             ]);
 
-            setTeachers(teachersResponse.data);
-            setSubjects(subjectsResponse.data);
-            setAllTeachers(allTeachersResponse.data);
+            if (teachersResult.status === 'fulfilled') {
+                setTeachers(Array.isArray(teachersResult.value?.data) ? teachersResult.value.data : []);
+            } else {
+                setTeachers([]);
+                toast.error(t('Failed to load staff data'));
+            }
+            setSubjects(subjectsResult.status === 'fulfilled' && Array.isArray(subjectsResult.value?.data) ? subjectsResult.value.data : []);
+            setAllTeachers(
+                allTeachersResult.status === 'fulfilled' && Array.isArray(allTeachersResult.value?.data)
+                    ? allTeachersResult.value.data.map((u: any) => ({ id: u.id, name: u.name, email: u.email ?? '', matricule: u.matricule ?? '' }))
+                    : []
+            );
         } catch (error) {
             console.error('Error fetching data:', error);
             toast.error(t('Failed to load staff data'));
@@ -228,27 +234,27 @@ export default function HODStaffManagement() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatsCard
                     title={t('Total Teachers')}
-                    value={stats.totalTeachers}
+                    value={String(stats.totalTeachers)}
                     icon={UserGroupIcon}
-                    color="blue"
+                    color="primary"
                 />
                 <StatsCard
                     title={t('Avg. Performance')}
                     value={`${stats.averagePerformance.toFixed(1)}`}
                     icon={ChartBarIcon}
-                    color="green"
+                    color="success"
                 />
                 <StatsCard
                     title={t('Students Taught')}
-                    value={stats.totalStudents}
+                    value={String(stats.totalStudents)}
                     icon={UsersIcon}
-                    color="purple"
+                    color="secondary"
                 />
                 <StatsCard
                     title={t('Weekly Hours')}
-                    value={stats.totalHours}
+                    value={String(stats.totalHours)}
                     icon={BookOpenIcon}
-                    color="orange"
+                    color="warning"
                 />
             </div>
 
@@ -560,7 +566,7 @@ export default function HODStaffManagement() {
                             <option value={0}>{t('Select a subject')}</option>
                             {subjects.map((subject) => (
                                 <option key={subject.id} value={subject.id}>
-                                    {subject.name} ({subject.category})
+                                    {subject.name} ({enumLabel(subject.category)})
                                 </option>
                             ))}
                         </select>

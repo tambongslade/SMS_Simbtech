@@ -11,6 +11,7 @@ import {
 } from '@/lib/teacherRollCallApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
 import { useLanguage } from '@/components/context/LanguageContext';
+import { schoolTodayStr, appDateLocale } from '@/lib/formatDate';
 
 interface SubClassOption {
   id: number;
@@ -22,7 +23,7 @@ interface SubClassOption {
 // Principal, Manager, Super-Manager).
 export default function TeacherRollCallsOversightPage() {
   const { t } = useLanguage();
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => schoolTodayStr());
   const [subClassId, setSubClassId] = useState<number | ''>('');
   const [onlyAbsences, setOnlyAbsences] = useState(true);
   const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
@@ -139,7 +140,7 @@ export default function TeacherRollCallsOversightPage() {
                           <p className="text-xs text-gray-500 truncate">
                             {rc.teacherPeriod?.teacher?.name || rc.recordedBy?.name || t('Teacher')}
                             {rc.teacherPeriod?.period?.startTime ? ` · ${rc.teacherPeriod.period.startTime}–${rc.teacherPeriod.period.endTime}` : ''}
-                            {` · ${new Date(rc.date).toLocaleDateString()}`}
+                            {` · ${new Date(rc.date).toLocaleDateString(appDateLocale())}`}
                             {rc.notes ? ` · ${rc.notes}` : ''}
                           </p>
                         </div>
@@ -148,7 +149,7 @@ export default function TeacherRollCallsOversightPage() {
                         {absent > 0 && <span className="px-2 py-0.5 bg-red-50 text-red-700 rounded-full">{absent} {t('absent')}</span>}
                         {late > 0 && <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 rounded-full">{late} {t('late')}</span>}
                         {absent === 0 && late === 0 && <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded-full">{t('all present')}</span>}
-                        <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full">{rc._count?.entries ?? 0} {t('students')}</span>
+                        <span className="px-2 py-0.5 bg-gray-50 text-gray-500 rounded-full">{rc.entryCount ?? rc._count?.entries ?? 0} {t('students')}</span>
                       </div>
                     </div>
                   </button>

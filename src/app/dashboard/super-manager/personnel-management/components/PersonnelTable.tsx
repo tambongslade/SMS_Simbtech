@@ -1,4 +1,5 @@
 'use client'
+import { appDateLocale } from '@/lib/formatDate';
 import React from 'react';
 
 // Define types needed by the table (can be imported from a shared types file or hook)
@@ -253,7 +254,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                     )}
                     {person.dateJoined && (
                       <div className="text-xs text-gray-500 mt-1">
-                        Joined: {new Date(person.dateJoined).toLocaleDateString()}
+                        Joined: {new Date(person.dateJoined).toLocaleDateString(appDateLocale())}
                       </div>
                     )}
                   </div>
@@ -412,7 +413,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                 )}
                 {person.dateJoined && (
                   <div className="text-xs text-gray-500 mt-1">
-                    Joined: {new Date(person.dateJoined).toLocaleDateString()}
+                    Joined: {new Date(person.dateJoined).toLocaleDateString(appDateLocale())}
                   </div>
                 )}
               </div>

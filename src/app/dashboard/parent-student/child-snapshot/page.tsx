@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -183,7 +184,7 @@ function ChildSnapshotInner() {
                         {t('Sequence')} {r.sequenceNumber}{r.termName ? ` — ${r.termName}` : ''}
                       </p>
                       <p className="text-[11px] text-gray-400">
-                        {r.academicYearName || ''}{r.generatedAt ? ` · ${t('generated')} ${new Date(r.generatedAt).toLocaleDateString()}` : ''}
+                        {r.academicYearName || ''}{r.generatedAt ? ` · ${t('generated')} ${new Date(r.generatedAt).toLocaleDateString(appDateLocale())}` : ''}
                       </p>
                     </div>
                     <button
@@ -276,7 +277,7 @@ function ChildSnapshotInner() {
                     <p className="text-sm font-medium text-gray-900">{enumLabel(i.issueType)}</p>
                     {i.description && <p className="text-xs text-gray-500">{i.description}</p>}
                     {i.actionTaken && <p className="text-xs text-green-700">{t('Action')}: {i.actionTaken}</p>}
-                    <p className="text-[11px] text-gray-400">{i.createdAt ? new Date(i.createdAt).toLocaleDateString() : ''}</p>
+                    <p className="text-[11px] text-gray-400">{i.createdAt ? new Date(i.createdAt).toLocaleDateString(appDateLocale()) : ''}</p>
                   </li>
                 ))}
               </ul>
@@ -311,7 +312,7 @@ function ChildSnapshotInner() {
                         {v.sentHome && <span className="ml-2 text-[11px] px-2 py-0.5 bg-red-50 text-red-700 rounded-full">{t('Sent home')}</span>}
                       </p>
                       <p className="text-[11px] text-gray-400">
-                        {new Date(v.visitDate).toLocaleString()}
+                        {new Date(v.visitDate).toLocaleString(appDateLocale())}
                         {v.medicationGiven ? ` · 💊 ${v.medicationGiven}` : ''}
                         {v.loggedBy ? ` · ${v.loggedBy}` : ''}
                       </p>

@@ -124,8 +124,8 @@ export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps
             const status = statuses[s.enrollmentId] ?? 'PRESENT';
             return (
               <div key={s.enrollmentId} className="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-medium text-gray-900">{s.fullName}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-gray-900 break-words">{s.fullName}</div>
                   {s.matricule && <div className="text-xs text-gray-400">{s.matricule}</div>}
                 </div>
                 <div className="inline-flex rounded-md border border-gray-200 overflow-hidden text-xs">
@@ -151,6 +151,15 @@ export function PeriodRollCall({ teacherPeriodId, onSaved }: PeriodRollCallProps
           })
         )}
       </div>
+
+      {/* Second Save at the bottom so teachers don't scroll back up after a long roster (QA U11). */}
+      {data.students.length > 0 && (
+        <div className="flex justify-end">
+          <Button color="primary" isLoading={isSubmitting} onClick={handleSubmit} className="w-full sm:w-auto justify-center">
+            {t('Save Roll Call')}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

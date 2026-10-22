@@ -351,8 +351,8 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
                 return (
                   <div key={s.enrollmentId} className="px-4 py-3">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900 break-words">{s.name}</div>
                         {s.matricule && <div className="text-xs text-gray-400">{s.matricule}</div>}
                       </div>
                       <div className="inline-flex rounded-md border border-gray-200 overflow-hidden text-xs">
@@ -448,6 +448,15 @@ export function RollCall({ punishmentsHref }: RollCallProps) {
               })
             )}
           </div>
+
+          {/* Second Save at the bottom so the DM doesn't scroll back up after a long roster (QA U11). */}
+          {roster.students.length > 0 && (
+            <div className="px-4 py-3 border-t border-gray-200 flex justify-end">
+              <Button color="primary" isLoading={isSubmitting} onClick={handleSubmit} className="w-full sm:w-auto justify-center">
+                Save Roll-Call
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

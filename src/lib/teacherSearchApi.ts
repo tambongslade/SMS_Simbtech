@@ -22,6 +22,7 @@ export const TEACHER_SORT_FIELDS = [
     'dateOfBirth',
     'lastSeenAt',
     'totalHoursPerWeek',
+    'weeklyPeriods',
 ] as const;
 export type TeacherSortField = (typeof TEACHER_SORT_FIELDS)[number];
 
@@ -49,7 +50,10 @@ export interface TeacherSearchItem {
     dateOfBirth?: string;
     address?: string;
     photo?: string | null;
+    /** Clock hours per week, computed by the backend from the timetable. */
     totalHoursPerWeek?: number;
+    /** Distinct timetable slots per week (combined lessons count once). */
+    weeklyPeriods?: number;
     lastSeenAt?: string;
     createdAt?: string;
     updatedAt?: string;
@@ -137,6 +141,7 @@ export const mapTeacher = (t: any): TeacherSearchItem => {
         address: t?.address ?? undefined,
         photo: t?.photo ?? null,
         totalHoursPerWeek: t?.totalHoursPerWeek ?? t?.total_hours_per_week ?? undefined,
+        weeklyPeriods: t?.weeklyPeriods ?? t?.weekly_periods ?? undefined,
         lastSeenAt: t?.lastSeenAt ?? t?.last_seen_at ?? undefined,
         createdAt: t?.createdAt ?? t?.created_at ?? undefined,
         updatedAt: t?.updatedAt ?? t?.updated_at ?? undefined,
@@ -257,4 +262,10 @@ export const searchTeachers = async (
         }
         throw error;
     }
+};
+
+/** "18.3 h · 20 periods" — both figures come from the timetable. */
+export const formatWorkload = (t: Pick<TeacherSearchItem, 'totalHoursPerWeek' | 'weeklyPeriods'>): string => {
+    const hours = `${t.totalHoursPerWeek ?? 0} h`;
+    return t.weeklyPeriods != null ? `${hours} · ${t.weeklyPeriods} periods` : hours;
 };

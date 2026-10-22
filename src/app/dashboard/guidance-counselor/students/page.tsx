@@ -1,4 +1,5 @@
 'use client'
+import { enumLabel } from '@/lib/enumLabels';
 import React, { useState, useEffect } from 'react';
 import {
   MagnifyingGlassIcon,
@@ -725,7 +726,7 @@ export default function GuidanceCounselorStudentsPage() {
                         <div className="flex justify-between items-start">
                           <p className="text-sm">{remark.content}</p>
                           <Badge variant="outline" size="sm">
-                            {remark.type}
+                            {enumLabel(remark.type)}
                           </Badge>
                         </div>
                         <p className="text-xs text-gray-500 mt-1">{formatDate(remark.createdAt)}</p>

@@ -22,10 +22,11 @@ import {
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { saveFile } from '@/lib/download';
+import { PAYMENT_METHODS, type PaymentMethodCode } from '@/lib/paymentMethods';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type PaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
+type PaymentMethod = PaymentMethodCode;
 type ExportFormat = 'csv' | 'pdf' | 'docx' | 'xlsx';
 
 interface ControlPaymentTransaction {
@@ -101,12 +102,9 @@ const formatDate = (dateStr: string) => {
 
 const todayISO = () => new Date().toISOString().split('T')[0];
 
-const paymentMethodLabels: Record<PaymentMethod, string> = {
-  EXPRESS_UNION: 'Express Union',
-  CCA: 'CCA',
-  F3DC: 'F3DC',
-  AFRILAND_FIRST_BANK: 'Afriland First Bank',
-};
+const paymentMethodLabels: Record<PaymentMethod, string> = Object.fromEntries(
+  PAYMENT_METHODS.map(m => [m.value, m.label])
+) as Record<PaymentMethod, string>;
 
 // ─── New Payment Modal (record for any student by search) ────────────────────
 

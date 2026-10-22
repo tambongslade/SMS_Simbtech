@@ -357,11 +357,15 @@ export const contactStaff = async (userId: number): Promise<ChatChannel> => {
 
 // --- User search (channel creation member picker) ---
 
+// User picker search (New Channel members, Add members, ...). Goes through
+// GET /chat/contacts, which every chat user may call and which honours
+// `search`. It used to hit GET /users, which 403s for most roles (teachers,
+// HODs, ...) and ignores `search` anyway -- so the picker found nobody.
 export const searchUsers = async (search: string, limit = 20): Promise<ChatUserLite[]> => {
   const qs = new URLSearchParams({ limit: String(limit) });
   if (search) qs.append('search', search);
-  const res = await apiService.get<{ data: any[] }>(`/users?${qs.toString()}`);
-  return (res.data || []).map((u: any) => normalizeUser(u)!);
+  const res = await apiService.get<{ data: any[] }>(`/chat/contacts?${qs.toString()}`);
+  return (res.data || []).map((u: any) => normalizeUser(u)!).filter(Boolean);
 };
 
 // --- Universal contact search (role-aware, includes presence + dm reuse) ---

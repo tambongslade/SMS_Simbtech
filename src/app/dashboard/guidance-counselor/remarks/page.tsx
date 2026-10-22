@@ -1,4 +1,5 @@
 'use client'
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardDocumentCheckIcon, ExclamationCircleIcon, CheckCircleIcon, TrashIcon, PlusIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -539,7 +540,7 @@ function RemarksPageContent() {
                               remark.type === 'Behavioral' ? 'bg-yellow-100 text-yellow-800' :
                               'bg-gray-100 text-gray-800'
                             }`}>
-                              {remark.type}
+                              {enumLabel(remark.type)}
                             </span>
                             <span className="mx-2"></span>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${

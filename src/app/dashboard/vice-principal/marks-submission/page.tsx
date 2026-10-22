@@ -1,6 +1,8 @@
 'use client';
+/* eslint-disable @typescript-eslint/no-explicit-any -- API payloads are normalized defensively below */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { FILTER_KEYS, useAcademicYearFilter, useRememberedFilter } from '@/hooks/useRememberedFilter';
 import { toast } from 'react-hot-toast';
 import useSWR from 'swr';
 import {
@@ -26,6 +28,7 @@ interface ExamSequence {
 interface AcademicYear {
   id: number;
   name: string;
+  isCurrent?: boolean;
   terms: { id: number; name: string }[];
   examSequences: ExamSequence[];
 }
@@ -99,7 +102,7 @@ const fetcher = async (url: string) => {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || `Request failed (${res.status})`);
+    throw new Error(err.error || err.message || `Request failed (${res.status})`);
   }
   return res.json();
 };
@@ -137,10 +140,105 @@ function StatusLabel({ status }: { status: string }) {
   }
 }
 
+// --- API normalization ---
+// GET /exams/:id/submission-tracking and /exams/:id/pending-teachers return the
+// backend's own shape (marksSubmitted, percentage, assignedTeachers: [{id,name}],
+// pendingSubjects …). Map it onto the view model once, defensively, so a missing
+// array or field can never crash the page or print NaN.
+const num = (v: unknown): number => {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
+const pct = (part: number, whole: number): number => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+const arr = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+const names = (v: unknown): string =>
+  arr<any>(v).map(x => (typeof x === 'string' ? x : x?.name)).filter(Boolean).join(', ');
+
+function normalizeTracking(raw: any, fallbackName: string): SubmissionTrackingData | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const classes: ClassSubmission[] = arr<any>(raw.classes).map(c => {
+    const totalStudents = num(c.totalStudents);
+    const subjects: SubjectSubmission[] = arr<any>(c.subjects).map(sub => {
+      const total = num(sub.totalStudents ?? totalStudents);
+      const submitted = num(sub.marksSubmitted ?? sub.submittedCount);
+      const missing = num(sub.marksMissing ?? sub.missingCount ?? Math.max(0, total - submitted));
+      const status: SubjectSubmission['status'] =
+        sub.status === 'complete' || sub.status === 'partial' || sub.status === 'missing'
+          ? sub.status
+          : submitted >= total && total > 0 ? 'complete' : submitted > 0 ? 'partial' : 'missing';
+      return {
+        subjectId: num(sub.subjectId),
+        subjectName: String(sub.subjectName ?? ''),
+        totalStudents: total,
+        submittedCount: submitted,
+        missingCount: missing,
+        completionPercentage: num(sub.percentage ?? sub.completionPercentage ?? pct(submitted, total)),
+        status,
+        assignedTeacher: (typeof sub.assignedTeacher === 'string' ? sub.assignedTeacher : '') || sub.assignedTeacherNames || names(sub.assignedTeachers),
+        submittedBy: (typeof sub.submittedBy === 'string' ? sub.submittedBy : '') || sub.submittedByNames || names(sub.submittedBy),
+      };
+    });
+    const expected = subjects.reduce((s, x) => s + x.totalStudents, 0);
+    const done = subjects.reduce((s, x) => s + x.submittedCount, 0);
+    return {
+      subClassId: num(c.subClassId),
+      subClassName: String(c.subClassName ?? ''),
+      className: c.className,
+      totalStudents,
+      subjects,
+      overallCompletion: num(c.overallPercentage ?? c.overallCompletion ?? pct(done, expected)),
+    };
+  });
+  const allSubjects = classes.flatMap(c => c.subjects);
+  const sm = raw.summary ?? {};
+  const expected = allSubjects.reduce((s, x) => s + x.totalStudents, 0);
+  const done = allSubjects.reduce((s, x) => s + x.submittedCount, 0);
+  return {
+    examSequenceId: num(raw.examSequence?.id),
+    examSequenceName: raw.examSequence?.name ?? fallbackName,
+    classes,
+    summary: {
+      totalClasses: num(sm.totalClasses ?? classes.length),
+      totalSubjectPairs: num(sm.totalSubjectPairs ?? allSubjects.length),
+      completePairs: num(sm.completePairs ?? allSubjects.filter(x => x.status === 'complete').length),
+      partialPairs: num(sm.partialPairs ?? allSubjects.filter(x => x.status === 'partial').length),
+      missingPairs: num(sm.missingPairs ?? allSubjects.filter(x => x.status === 'missing').length),
+      overallCompletion: num(sm.overallPercentage ?? sm.overallCompletion ?? pct(done, expected)),
+    },
+  };
+}
+
+function normalizePendingTeachers(raw: any): PendingTeacher[] {
+  const list = Array.isArray(raw) ? raw : arr<any>(raw?.teachers ?? raw?.data);
+  return list.map((p: any) => {
+    const teacher = p.teacher ?? {};
+    const subjects: PendingSubject[] = arr<any>(p.pendingSubjects ?? p.subjects).map(sub => {
+      const total = num(sub.totalStudents);
+      const submitted = num(sub.marksSubmitted ?? sub.submittedCount);
+      return {
+        subjectId: num(sub.subjectId),
+        subjectName: String(sub.subjectName ?? ''),
+        subClassId: num(sub.subClassId),
+        subClassName: String(sub.subClassName ?? ''),
+        submittedCount: submitted,
+        missingCount: num(sub.marksMissing ?? sub.missingCount ?? Math.max(0, total - submitted)),
+        totalStudents: total,
+      };
+    });
+    return {
+      teacherId: num(p.teacherId ?? teacher.id),
+      teacherName: String(p.teacherName ?? teacher.name ?? ''),
+      email: p.email ?? teacher.email ?? undefined,
+      phone: p.phone ?? teacher.phone ?? undefined,
+      totalMissing: num(p.totalMissing ?? subjects.reduce((s, x) => s + x.missingCount, 0)),
+      totalSubmitted: num(p.totalSubmitted ?? subjects.reduce((s, x) => s + x.submittedCount, 0)),
+      subjects,
+    };
+  });
+}
+
 export default function MarksSubmissionPage() {
   const { t } = useLanguage();
-  const [selectedYearId, setSelectedYearId] = useState<number | ''>('');
-  const [selectedSequenceId, setSelectedSequenceId] = useState<number | ''>('');
   const [expandedClass, setExpandedClass] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'overview' | 'pending'>('overview');
 
@@ -156,15 +254,21 @@ export default function MarksSubmissionPage() {
     return yearsResult.data.map((year: any) => ({
       id: year.id,
       name: year.name,
+      isCurrent: !!year.isCurrent,
       terms: year.terms || [],
-      examSequences: (year.examSequences || []).map((seq: any) => ({
-        id: seq.id,
-        name: seq.name || `${t('Sequence')} ${seq.sequenceNumber}`,
-        sequenceNumber: seq.sequenceNumber,
-        termId: seq.termId,
-      })),
+      examSequences: [...(year.examSequences || [])]
+        .sort((a: any, b: any) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0))
+        .map((seq: any) => ({
+          id: seq.id,
+          name: seq.name || `${t('Sequence')} ${seq.sequenceNumber}`,
+          sequenceNumber: seq.sequenceNumber,
+          termId: seq.termId,
+        })),
     }));
-  }, [yearsResult]);
+  }, [yearsResult, t]);
+
+  // Year defaults to current; year and sequence are remembered per user.
+  const [selectedYearId, setSelectedYearId] = useAcademicYearFilter(academicYears);
 
   // Derived exam sequences for selected year
   const examSequences = useMemo(() => {
@@ -172,13 +276,15 @@ export default function MarksSubmissionPage() {
     const year = academicYears.find(y => y.id === selectedYearId);
     return year?.examSequences || [];
   }, [selectedYearId, academicYears]);
+  const [selectedSequenceId, setSelectedSequenceId] =
+    useRememberedFilter<number>(FILTER_KEYS.sequence, examSequences.map(s => s.id));
 
   // Fetch submission tracking data
   const {
     data: trackingResult,
     isLoading: isLoadingTracking,
     error: trackingError,
-  } = useSWR<{ data: SubmissionTrackingData }>(
+  } = useSWR<{ data: any }>(
     selectedSequenceId ? `${API_BASE_URL}/exams/${selectedSequenceId}/submission-tracking` : null,
     fetcher
   );
@@ -188,28 +294,20 @@ export default function MarksSubmissionPage() {
     data: pendingResult,
     isLoading: isLoadingPending,
     error: pendingError,
-  } = useSWR<{ data: PendingTeacher[] }>(
+  } = useSWR<{ data: any }>(
     selectedSequenceId ? `${API_BASE_URL}/exams/${selectedSequenceId}/pending-teachers` : null,
     fetcher
   );
 
-  const tracking = trackingResult?.data;
-  // The endpoint may return the list directly, or wrapped as { teachers: [...] } / { data: [...] }
-  const pendingTeachers = useMemo((): PendingTeacher[] => {
-    const raw = pendingResult?.data as unknown;
-    if (Array.isArray(raw)) return raw;
-    if (raw && typeof raw === 'object') {
-      const obj = raw as { teachers?: unknown; data?: unknown };
-      if (Array.isArray(obj.teachers)) return obj.teachers;
-      if (Array.isArray(obj.data)) return obj.data;
-    }
-    return [];
-  }, [pendingResult]);
+  const tracking = useMemo(
+    () => normalizeTracking(trackingResult?.data, ''),
+    [trackingResult]
+  );
+  const pendingTeachers = useMemo(
+    () => normalizePendingTeachers(pendingResult?.data),
+    [pendingResult]
+  );
 
-  // Reset sequence when year changes
-  useEffect(() => {
-    setSelectedSequenceId('');
-  }, [selectedYearId]);
 
   // Sort classes by completion (least complete first when in overview)
   const sortedClasses = useMemo(() => {
@@ -232,7 +330,7 @@ export default function MarksSubmissionPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('Academic Year')}</label>
             <select
               value={selectedYearId}
-              onChange={(e) => setSelectedYearId(Number(e.target.value) || '')}
+              onChange={(e) => { setSelectedYearId(Number(e.target.value) || ''); setSelectedSequenceId(''); }}
               disabled={isLoadingYears}
               className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm disabled:bg-gray-100"
             >

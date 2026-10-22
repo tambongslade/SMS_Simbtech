@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { AcademicYear, Term, ExamSequence } from '@/app/dashboard/super-manager/academic-years/types/academic-year';
 import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
 import useSWR from 'swr';
-import apiService from '../../../../../lib/apiService'; // Import apiService
+import apiService, { ApiError } from '../../../../../lib/apiService'; // Import apiService
 import feeService, { UnifiedPaymentRequest } from '../../../../../lib/feeService';
 import { useAuth } from '@/components/context/AuthContext';
 import { sortClassesByLevel } from '@/lib/classOrdering';
@@ -31,6 +31,19 @@ export interface PaymentRecord {
   /** When the payment was recorded — drives the 24h edit window */
   createdAt: string;
 }
+
+export interface PaymentExtras {
+  /** YYYY-MM-DD, defaults to today; never in the future */
+  paymentDate?: string;
+  /** Optional manual receipt number (pre-printed book); blank -> sequential number from server */
+  receiptNumber?: string;
+  confirmOverpayment?: boolean;
+}
+
+export type PaymentOutcome =
+  | { status: 'ok'; paymentId?: number; receiptNumber?: string }
+  | { status: 'needs_confirmation'; message: string; balance?: number; overpayment?: number }
+  | { status: 'error' };
 
 // SWR fetcher using apiService with error handling
 const fetcher = async (url: string) => {
@@ -354,46 +367,100 @@ export const useFeeManagement = () => {
 
   // --- Mutation Handlers (Update to use mutateFeeRecords) --- 
 
-  const handlePayment = async () => {
+  /**
+   * Record a payment for the selected student.
+   * Returns 'needs_confirmation' when the server reports an overpayment that the
+   * user has not confirmed yet (409 OVERPAYMENT_CONFIRMATION_REQUIRED) — the modal
+   * then asks and calls again with confirmOverpayment: true.
+   */
+  const handlePayment = async (extra: PaymentExtras = {}): Promise<PaymentOutcome> => {
     if (!selectedStudent || !currentAcademicYear) {
       toast.error("No student selected or academic year not determined.");
-      return;
+      return { status: 'error' };
+    }
+    const amount = parseFloat(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter an amount greater than 0.');
+      return { status: 'error' };
+    }
+    if (!paymentMethod) {
+      toast.error('Choose a payment method.');
+      return { status: 'error' };
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const paymentDate = extra.paymentDate || today;
+    if (paymentDate > today) {
+      toast.error('Payment date cannot be in the future.');
+      return { status: 'error' };
     }
 
     setIsMutating(true);
     setMutationError(null);
 
-    // Prepare unified payment data
+    // The receipt number is assigned by the server (sequential per school) unless
+    // the bursar typed the number of a pre-printed receipt book.
     const unifiedPaymentData: UnifiedPaymentRequest = {
-      amount: parseFloat(paymentAmount),
-      paymentDate: new Date().toISOString().split('T')[0], // Current date in YYYY-MM-DD format
+      amount,
+      paymentDate,
       paymentMethod,
-      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
+      ...(extra.receiptNumber?.trim() ? { receiptNumber: extra.receiptNumber.trim() } : {}),
+      ...(paymentDescription?.trim() ? { notes: paymentDescription.trim() } : {}),
       studentId: selectedStudent.id,
       academicYearId: currentAcademicYear.id,
+      ...(extra.confirmOverpayment ? { confirmOverpayment: true } : {}),
     };
 
     try {
-      // Use unified primary payment endpoint (auto-creates fee if needed)
       const response = await feeService.recordUnifiedPrimaryPayment(unifiedPaymentData);
+      const payment = response.data?.payment;
+      const receiptNumber: string | undefined = response.data?.receiptNumber ?? payment?.receiptNumber;
+      const balance: number | undefined = response.data?.balance;
 
-      // Show appropriate success message
-      if (response.data?.feeCreated) {
-        toast.success('Payment recorded and fee created successfully!');
-      } else {
-        toast.success('Payment recorded successfully!');
-      }
+      toast.success(
+        `Payment recorded${receiptNumber ? ` — receipt ${receiptNumber}` : ''}` +
+        (typeof balance === 'number' ? `. Balance left: ${balance.toLocaleString()} FCFA` : ''),
+        { duration: 6000 }
+      );
 
       mutateFeeRecords(); // Revalidate fee records after payment
       mutatePaymentRecords(); // Refresh the payment records ledger
       resetPaymentForm();
       setShowPaymentModal(false);
+
+      // Hand the parent a receipt straight away.
+      if (payment?.id) {
+        printReceipt(payment.id, receiptNumber, false);
+      }
+      return { status: 'ok', paymentId: payment?.id, receiptNumber };
     } catch (error: any) {
+      if (error instanceof ApiError && error.data?.code === 'OVERPAYMENT_CONFIRMATION_REQUIRED') {
+        return {
+          status: 'needs_confirmation',
+          message: error.data?.error || error.message,
+          balance: error.data?.balance,
+          overpayment: error.data?.overpayment,
+        };
+      }
       console.error('Error recording payment:', error);
       setMutationError(error.message || "Failed to record payment.");
       toast.error(error.message || "Failed to record payment.");
+      return { status: 'error' };
     } finally {
       setIsMutating(false);
+    }
+  };
+
+  /** Download / open the printable receipt PDF. Reprints are stamped "DUPLICATE". */
+  const printReceipt = async (paymentId: number | string, receiptNumber?: string, reprint = true) => {
+    try {
+      toast.loading('Preparing receipt...', { id: 'receipt-toast' });
+      const blob = await feeService.getReceiptPdf(paymentId, reprint);
+      const safe = (receiptNumber || String(paymentId)).replace(/[^A-Za-z0-9-]+/g, '_');
+      await saveFile(blob, `receipt-${safe}.pdf`);
+      toast.success('Receipt ready.', { id: 'receipt-toast' });
+    } catch (error: any) {
+      console.error('Receipt download failed:', error);
+      toast.error(error?.message || 'Could not generate the receipt.', { id: 'receipt-toast' });
     }
   };
 
@@ -481,10 +548,10 @@ export const useFeeManagement = () => {
   const handleUpdatePayment = async (
     feeId: number | string,
     paymentId: number | string,
-    data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
+    data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string; reason?: string }
   ): Promise<boolean> => {
     try {
-      await apiService.put(`/fees/${feeId}/payments/${paymentId}`, data);
+      await apiService.put(`/fees/${feeId}/payments/${paymentId}`, data, { silent: true });
       toast.success('Payment updated successfully!');
       await fetchFeeTransactions(feeId); // Refresh the transactions list
       mutateFeeRecords(); // Refresh balances/paid amounts in the main list
@@ -605,6 +672,7 @@ export const useFeeManagement = () => {
     isLoadingTransactions,
     fetchFeeTransactions,
     handleUpdatePayment,
+    printReceipt,
     handleExportEnhanced,
     subclassSummary,
     isLoadingSubclassSummary,

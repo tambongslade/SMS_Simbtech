@@ -1,10 +1,14 @@
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Student, NewStudent } from '../../types';
 import apiService from '../../../../../../lib/apiService';
+import { toast } from 'react-hot-toast';
+import { PAYMENT_METHODS, paymentMethodLabel } from '@/lib/paymentMethods';
+import type { PaymentExtras, PaymentOutcome } from '../../hooks/useFeeManagement';
 
 interface PaymentModalProps {
   student: Student | null;
@@ -18,7 +22,7 @@ interface PaymentModalProps {
   setPaymentMethod: (method: string) => void;
   paymentDescription: string;
   setPaymentDescription: (description: string) => void;
-  handlePayment: () => Promise<void>;
+  handlePayment: (extra?: PaymentExtras) => Promise<PaymentOutcome>;
   handleAddStudentWithPayment?: (newStudent: NewStudent) => Promise<void>;
   isLoading: boolean;
   students: Student[];
@@ -66,6 +70,13 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [classError, setClassError] = useState<string | null>(null);
   const [studentType, setStudentType] = useState<'new' | 'old'>('old');
   const [oldStudentFee, setOldStudentFee] = useState('');
+  // Receipt details: date defaults to today (cannot be in the future); receipt
+  // number is optional — blank means the server assigns the next sequential one.
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [paymentDate, setPaymentDate] = useState(todayStr);
+  const [receiptNumber, setReceiptNumber] = useState('');
+  const [overpaymentPrompt, setOverpaymentPrompt] = useState<{ message: string } | null>(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Fetch classes from the API
   useEffect(() => {
@@ -221,26 +232,59 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       const enrollment = enrollRes.data;
       if (!enrollment || !enrollment.id) throw new Error('Failed to enroll student');
       // 3. Record payment
-      await apiService.post(`/fees/${enrollment.feeId}/payments`, {
+      const payRes = await apiService.post(`/fees/${enrollment.feeId}/payments`, {
         studentId,
         amount: parseFloat(paymentAmount),
-        paymentDate: new Date().toISOString(),
-        paymentMethod: paymentMethod.toUpperCase(),
-      });
-      // Optionally show a success toast here
+        paymentDate,
+        paymentMethod,
+        ...(receiptNumber.trim() ? { receiptNumber: receiptNumber.trim() } : {}),
+        // A brand-new student cannot have paid before; an amount above the
+        // full fee is still recorded but flagged as an overpayment on the receipt.
+        confirmOverpayment: true,
+      }, { silent: true });
+      toast.success(`Student enrolled and payment recorded${payRes?.data?.receiptNumber ? ` — receipt ${payRes.data.receiptNumber}` : ''}.`);
       onClose();
-    } catch (err) {
-      // Optionally show an error toast here
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not complete the registration and payment.');
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const amountNum = parseFloat(paymentAmount);
+  const currentBalance = selectedExistingStudent ? Number(selectedExistingStudent.balance) || 0 : 0;
+  const wouldOverpay = !!selectedExistingStudent && Number.isFinite(amountNum) && amountNum > currentBalance;
+
+  const submitExisting = async (confirmOverpayment: boolean) => {
+    if (!selectedExistingStudent) return;
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast.error('Enter an amount greater than 0.');
+      return;
+    }
+    if (paymentDate > todayStr) {
+      toast.error('Payment date cannot be in the future.');
+      return;
+    }
+    // Ask before sending when we can already see it exceeds the balance.
+    if (wouldOverpay && !confirmOverpayment) {
+      setOverpaymentPrompt({
+        message: `This payment of ${amountNum.toLocaleString()} FCFA is more than the remaining balance of ${currentBalance.toLocaleString()} FCFA. The extra ${(amountNum - currentBalance).toLocaleString()} FCFA will be recorded as an overpayment.`,
+      });
+      return;
+    }
+    setIsSubmittingPayment(true);
+    const result = await handlePayment({ paymentDate, receiptNumber, confirmOverpayment });
+    setIsSubmittingPayment(false);
+    if (result.status === 'needs_confirmation') {
+      setOverpaymentPrompt({ message: result.message });
+    } else if (result.status === 'ok') {
+      setOverpaymentPrompt(null);
+    }
+  };
+
   const handleSubmitExistingPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedExistingStudent) {
-      await handlePayment(selectedExistingStudent);
-    }
+    await submitExisting(false);
   };
 
   // Auto-fill the payment amount based on the selected payment type
@@ -253,7 +297,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
   // Styled student type selector as button group
   const studentTypeSelector = (
@@ -370,11 +413,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select Method</option>
-                    <option value="EXPRESS_UNION">Express Union</option>
-                    <option value="CCA">CCA</option>
-                    <option value="F3DC">F3DC</option>
-                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
+                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                  <input type="date" value={paymentDate} max={todayStr} onChange={e => setPaymentDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Receipt No. <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input type="text" value={receiptNumber} onChange={e => setReceiptNumber(e.target.value)} maxLength={64} placeholder="Auto-numbered if blank" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
               </div>
             </div>
@@ -435,7 +483,30 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-semibold mb-2">Payment Details</h3>
-
+              {selectedExistingStudent && (
+                <p className="text-sm text-gray-600 mb-2">
+                  Remaining balance: <span className="font-semibold">{currentBalance.toLocaleString()} FCFA</span>
+                </p>
+              )}
+              {wouldOverpay && !overpaymentPrompt && (
+                <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-2">
+                  This amount is more than the remaining balance — you will be asked to confirm the overpayment.
+                </p>
+              )}
+              {overpaymentPrompt && (
+                <div role="alertdialog" className="text-sm bg-amber-50 border border-amber-300 rounded-md px-3 py-3 mb-3 space-y-2">
+                  <p className="font-semibold text-amber-900">Confirm overpayment</p>
+                  <p className="text-amber-900">{overpaymentPrompt.message}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" disabled={isSubmittingPayment} onClick={() => submitExisting(true)} className="px-3 py-1.5 bg-amber-600 text-white rounded-md hover:bg-amber-700 disabled:opacity-50">
+                      {isSubmittingPayment ? 'Recording...' : 'Record anyway'}
+                    </button>
+                    <button type="button" disabled={isSubmittingPayment} onClick={() => setOverpaymentPrompt(null)} className="px-3 py-1.5 border border-gray-300 rounded-md bg-white hover:bg-gray-50">
+                      Change amount
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -443,7 +514,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <input
                     type="number"
                     value={paymentAmount}
-                    onChange={e => setPaymentAmount(e.target.value)}
+                    onChange={e => { setPaymentAmount(e.target.value); setOverpaymentPrompt(null); }}
+                    min="1"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Payment Amount"
                     required
@@ -453,11 +525,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select Method</option>
-                    <option value="EXPRESS_UNION">Express Union</option>
-                    <option value="CCA">CCA</option>
-                    <option value="F3DC">F3DC</option>
-                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
+                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                  <input type="date" value={paymentDate} max={todayStr} onChange={e => setPaymentDate(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Receipt No. <span className="text-gray-400 font-normal">(optional)</span></label>
+                  <input type="text" value={receiptNumber} onChange={e => setReceiptNumber(e.target.value)} maxLength={64} placeholder="Auto-numbered if blank" className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
                 </div>
               </div>
             </div>
@@ -465,9 +542,9 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <button
                 type="submit"
                 className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-                disabled={isLoading || !selectedExistingStudent || !paymentAmount}
+                disabled={isLoading || isSubmittingPayment || !selectedExistingStudent || !paymentAmount || !paymentMethod || !!overpaymentPrompt}
               >
-                Record Payment
+                {isSubmittingPayment ? 'Recording...' : 'Record Payment'}
               </button>
             </div>
           </form>
@@ -491,9 +568,9 @@ interface TransactionsModalProps {
     paymentId: number | string,
     data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
   ) => Promise<boolean>;
+  /** Reprint the receipt PDF for one transaction */
+  onPrintReceipt?: (paymentId: number | string, receiptNumber?: string) => void;
 }
-
-const PAYMENT_METHODS = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
 export const TransactionsModal: React.FC<TransactionsModalProps> = ({
   isOpen,
@@ -501,7 +578,8 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
   transactions,
   isLoading,
   studentName,
-  onUpdatePayment
+  onUpdatePayment,
+  onPrintReceipt
 }) => {
   const [editingId, setEditingId] = useState<number | string | null>(null);
   const [editAmount, setEditAmount] = useState('');
@@ -561,7 +639,7 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
-                  {onUpdatePayment && (
+                  {(onUpdatePayment || onPrintReceipt) && (
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                   )}
                 </tr>
@@ -598,7 +676,7 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                         >
                           <option value="">Select Method</option>
                           {PAYMENT_METHODS.map(m => (
-                            <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                            <option key={m.value} value={m.value}>{m.label}</option>
                           ))}
                         </select>
                       </td>
@@ -634,19 +712,30 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                   ) : (
                     <tr key={tx.id}>
                       <td className="px-4 py-2 text-sm text-gray-700">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</td>
-                      <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentMethod || '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString(appDateLocale()) : '-'}</td>
+                      <td className="px-4 py-2 text-sm text-gray-700">{paymentMethodLabel(tx.paymentMethod)}</td>
                       <td className="px-4 py-2 text-sm text-gray-700">{tx.receiptNumber || '-'}</td>
-                      {onUpdatePayment && (
-                        <td className="px-4 py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => startEdit(tx)}
-                            disabled={editingId != null}
-                            className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
-                          >
-                            Edit
-                          </button>
+                      {(onUpdatePayment || onPrintReceipt) && (
+                        <td className="px-4 py-2 text-right whitespace-nowrap">
+                          {onUpdatePayment && (
+                            <button
+                              type="button"
+                              onClick={() => startEdit(tx)}
+                              disabled={editingId != null}
+                              className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          {onPrintReceipt && (
+                            <button
+                              type="button"
+                              onClick={() => onPrintReceipt(tx.id, tx.receiptNumber)}
+                              className="ml-2 px-3 py-1 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                            >
+                              Receipt
+                            </button>
+                          )}
                         </td>
                       )}
                     </tr>
@@ -690,7 +779,7 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                     >
                       <option value="">Select Method</option>
                       {PAYMENT_METHODS.map(m => (
-                        <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                        <option key={m.value} value={m.value}>{m.label}</option>
                       ))}
                     </select>
                   </div>
@@ -729,26 +818,37 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                   <div className="text-sm font-semibold text-gray-900 break-words">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">Date</span>
-                    <span className="text-sm text-gray-900 text-right break-words">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString(appDateLocale()) : '-'}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">Method</span>
-                    <span className="text-sm text-gray-900 text-right break-words">{tx.paymentMethod || '-'}</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{paymentMethodLabel(tx.paymentMethod)}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">Receipt</span>
                     <span className="text-sm text-gray-900 text-right break-words">{tx.receiptNumber || '-'}</span>
                   </div>
-                  {onUpdatePayment && (
+                  {(onUpdatePayment || onPrintReceipt) && (
                     <div className="flex flex-wrap gap-2 pt-1.5">
-                      <button
-                        type="button"
-                        onClick={() => startEdit(tx)}
-                        disabled={editingId != null}
-                        className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
+                      {onUpdatePayment && (
+                        <button
+                          type="button"
+                          onClick={() => startEdit(tx)}
+                          disabled={editingId != null}
+                          className="px-3 py-1 text-sm text-blue-600 border border-blue-200 rounded-md hover:bg-blue-50 disabled:opacity-50"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {onPrintReceipt && (
+                        <button
+                          type="button"
+                          onClick={() => onPrintReceipt(tx.id, tx.receiptNumber)}
+                          className="px-3 py-1 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                          Receipt
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

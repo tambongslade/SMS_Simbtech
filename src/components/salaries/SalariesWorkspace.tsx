@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import useSWR from 'swr';
@@ -100,9 +101,10 @@ export default function SalariesWorkspace() {
     );
     const items = useMemo(() => {
         const raw = listRes?.data;
-        // Some list endpoints nest as data.data
+        // Salary list endpoints return { data: { items, page, limit, total, totalPages } };
+        // some older endpoints nest as data.data.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return Array.isArray(raw) ? raw : ((raw as any)?.data ?? []);
+        return Array.isArray(raw) ? raw : ((raw as any)?.items ?? (raw as any)?.data ?? []);
     }, [listRes]) as SalaryItem[];
 
     const act = async (item: SalaryItem, action: 'approve' | 'reject') => {
@@ -243,8 +245,8 @@ export default function SalariesWorkspace() {
                                     </div>
                                     <p className="mt-0.5 text-xs text-gray-500 break-words">
                                         {item.reason || item.description || 'No reason provided'}
-                                        {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString()}` : ''}
-                                        {item.effectiveDate ? ` · effective ${new Date(item.effectiveDate).toLocaleDateString()}` : ''}
+                                        {item.createdAt ? ` · ${new Date(item.createdAt).toLocaleDateString(appDateLocale())}` : ''}
+                                        {item.effectiveDate ? ` · effective ${new Date(item.effectiveDate).toLocaleDateString(appDateLocale())}` : ''}
                                     </p>
                                 </div>
                                 <div className="flex items-center justify-between gap-3 sm:shrink-0">

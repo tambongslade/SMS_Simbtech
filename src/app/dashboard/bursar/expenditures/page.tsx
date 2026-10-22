@@ -8,9 +8,8 @@ export default function BursarExpendituresPage() {
   return (
     <ExpendituresWorkspace
       heading={t('Expenditures')}
-      subheading={t('Log what the school spends (cash only) and review the monthly sheet. You can edit your own entries within 7 days.')}
+      subheading={t('Log what the school spends and review the monthly sheet. You can edit your own entries within 7 days.')}
       panelDescription={t('Filter by date range and category, attach receipts, and export to Excel.')}
-      onlyCashMethod
     />
   );
 }

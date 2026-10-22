@@ -12,8 +12,12 @@ import {
   type LogbookEntry,
   type LogbookStatus,
 } from '@/lib/subjectSchemeApi';
+import { useLanguage } from '@/components/context/LanguageContext';
+import { schoolTodayStr } from '@/lib/formatDate';
+import { enumLabel } from '@/lib/enumLabels';
 
-const today = () => new Date().toISOString().split('T')[0];
+// School-timezone date: toISOString() is still "yesterday" just after midnight in Cameroon.
+const today = () => schoolTodayStr();
 
 interface LogbookFormProps {
   teacherPeriodId: number;
@@ -36,6 +40,7 @@ const locateLesson = (scheme: SubjectScheme | null, lessonId?: number) => {
 };
 
 export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookFormProps) {
+  const { t } = useLanguage();
   const [scheme, setScheme] = useState<SubjectScheme | null>(null);
   const [noScheme, setNoScheme] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,8 +92,8 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
   );
 
   const handleSubmit = async () => {
-    if (!lessonId) return toast.error('Pick the lesson you taught.');
-    if (!dateTaught) return toast.error('Pick the date.');
+    if (!lessonId) return toast.error(t('Pick the lesson you taught.'));
+    if (!dateTaught) return toast.error(t('Pick the date.'));
     setIsSubmitting(true);
     try {
       if (editingEntry) {
@@ -99,7 +104,7 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
           notes: notes.trim() || undefined,
           homeworkGiven: homeworkGiven.trim() || undefined,
         });
-        toast.success('Logbook entry updated.');
+        toast.success(t('Logbook entry updated.'));
       } else {
         await createLogbookEntry({
           teacherPeriodId,
@@ -109,7 +114,7 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
           notes: notes.trim() || undefined,
           homeworkGiven: homeworkGiven.trim() || undefined,
         });
-        toast.success('Lesson logged.');
+        toast.success(t('Lesson logged.'));
       }
       onSaved?.();
     } catch (error) {
@@ -121,15 +126,15 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
   };
 
   if (isLoading) {
-    return <div className="py-10 text-center text-sm text-gray-500">Loading scheme…</div>;
+    return <div className="py-10 text-center text-sm text-gray-500">{t('Loading scheme…')}</div>;
   }
 
   if (noScheme) {
     return (
       <div className="py-8 text-center">
-        <p className="text-sm text-gray-700 font-medium">No scheme defined for this class/subject yet.</p>
+        <p className="text-sm text-gray-700 font-medium">{t('No scheme defined for this class/subject yet.')}</p>
         <p className="text-sm text-gray-500 mt-1">
-          Ask the Vice-Principal or Dean of Studies to create the scheme of work before logging lessons.
+          {t('Ask the Vice-Principal or Dean of Studies to create the scheme of work before logging lessons.')}
         </p>
       </div>
     );
@@ -139,7 +144,7 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Select
-          label="Module *"
+          label={`${t('Module')} *`}
           value={moduleId}
           onChange={(e) => {
             setModuleId(e.target.value);
@@ -147,12 +152,12 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
             setLessonId('');
           }}
           options={[
-            { value: '', label: 'Select module…' },
+            { value: '', label: t('Select module…') },
             ...modules.map((m) => ({ value: String(m.id), label: m.code ? `${m.code} — ${m.title}` : m.title })),
           ]}
         />
         <Select
-          label="Chapter *"
+          label={`${t('Chapter')} *`}
           value={chapterId}
           disabled={!moduleId}
           onChange={(e) => {
@@ -160,38 +165,38 @@ export function LogbookForm({ teacherPeriodId, editingEntry, onSaved }: LogbookF
             setLessonId('');
           }}
           options={[
-            { value: '', label: moduleId ? 'Select chapter…' : 'Pick a module first' },
+            { value: '', label: moduleId ? t('Select chapter…') : t('Pick a module first') },
             ...chapters.map((c) => ({ value: String(c.id), label: c.code ? `${c.code} — ${c.title}` : c.title })),
           ]}
         />
         <Select
-          label="Lesson *"
+          label={`${t('Lesson')} *`}
           value={lessonId}
           disabled={!chapterId}
           onChange={(e) => setLessonId(e.target.value)}
           options={[
-            { value: '', label: chapterId ? 'Select lesson…' : 'Pick a chapter first' },
+            { value: '', label: chapterId ? t('Select lesson…') : t('Pick a chapter first') },
             ...lessons.map((l) => ({ value: String(l.id), label: `${l.order}. ${l.title}` })),
           ]}
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <Input label="Date taught *" type="date" value={dateTaught} onChange={(e) => setDateTaught(e.target.value)} />
+        <Input label={`${t('Date taught')} *`} type="date" value={dateTaught} onChange={(e) => setDateTaught(e.target.value)} />
         <Select
-          label="Status"
+          label={t('Status')}
           value={status}
           onChange={(e) => setStatus(e.target.value as LogbookStatus)}
-          options={LOGBOOK_STATUSES.map((s) => ({ value: s, label: s.replace('_', ' ') }))}
+          options={LOGBOOK_STATUSES.map((s) => ({ value: s, label: t(enumLabel(s)) }))}
         />
       </div>
 
-      <TextArea label="Notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Covered first 3 objectives" />
-      <Input label="Homework given" value={homeworkGiven} onChange={(e) => setHomeworkGiven(e.target.value)} placeholder="e.g. Exercise 2 p.42" />
+      <TextArea label={t('Notes')} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('e.g. Covered first 3 objectives')} />
+      <Input label={t('Homework given')} value={homeworkGiven} onChange={(e) => setHomeworkGiven(e.target.value)} placeholder={t('e.g. Exercise 2 p.42')} />
 
       <div className="flex justify-end pt-2 border-t border-gray-200">
         <Button color="primary" isLoading={isSubmitting} onClick={handleSubmit}>
-          {editingEntry ? 'Save changes' : 'Log lesson'}
+          {editingEntry ? t('Save changes') : t('Log lesson')}
         </Button>
       </div>
     </div>

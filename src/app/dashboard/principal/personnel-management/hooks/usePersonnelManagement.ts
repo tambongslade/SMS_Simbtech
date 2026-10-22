@@ -232,37 +232,51 @@ export const usePersonnelManagement = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.name || !formData.email || !formData.gender || !formData.date_of_birth || !formData.password) {
-      toast.error("Name, Email, Gender, Date of Birth, and Password are required.");
+    // Name only what is actually missing.
+    const staffRoles = (formData.roles || []).filter(r => r !== 'PARENT');
+    const missing = [
+      !formData.name?.trim() && 'Full Name',
+      !formData.email?.trim() && 'Email',
+      !formData.phone?.trim() && 'Phone',
+      !formData.gender && 'Gender',
+      !formData.date_of_birth && 'Date of Birth',
+      !formData.address?.trim() && 'Address',
+      !formData.password && 'Password',
+      staffRoles.length === 0 && 'Staff Role',
+    ].filter(Boolean);
+    if (missing.length) {
+      toast.error(`Please fill in: ${missing.join(', ')}.`);
       return;
     }
     setIsMutating(true);
 
+    // Staff are created with their staff role(s) up front via
+    // POST /users/create-with-role. The old path (public /auth/register)
+    // pre-assigned PARENT, so the new account dropped out of Personnel and
+    // got a parent (SO) matricule; ticking Teacher afterwards kept PARENT too.
     const userData = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone || undefined,
-      matricule: formData.matricule || undefined,
+      name: formData.name!.trim(),
+      email: formData.email!.trim(),
+      phone: formData.phone!.trim(),
       gender: formData.gender,
-      date_of_birth: formData.date_of_birth,
-      address: formData.address || undefined,
+      dateOfBirth: formData.date_of_birth,
+      address: formData.address!.trim(),
       password: formData.password,
+      role: staffRoles[0],
+      roles: staffRoles,
+      status: (formData.status || 'active').toUpperCase(),
+      ...(selectedAcademicYear ? { academicYearId: Number(selectedAcademicYear) } : {}),
     };
 
-    console.log("Creating user via /auth/register:", userData);
-
     try {
-      const result = await apiService.post<any>(`/auth/register`, userData);
+      const result = await apiService.post<any>(`/users/create-with-role`, userData);
       const newUser = result.data;
-      console.log("User created via register endpoint:", newUser);
-      toast.success("User created successfully! Now assign roles.");
+      toast.success(`${newUser?.name ?? 'Staff member'} created${newUser?.matricule ? ` (${newUser.matricule})` : ''}.`);
       mutate();
       setIsAddEditModalOpen(false);
-      setUserForRoleAssignment({ id: newUser.id, name: newUser.name });
-      setSelectedRoles(newUser.userRoles?.map((r: any) => r.role) || []);
-      setIsRoleModalOpen(true);
+      setFormData({});
     } catch (error: any) {
-      console.error("User creation via /auth/register failed:", error);
+      console.error("Staff creation failed:", error);
     } finally {
       setIsMutating(false);
     }

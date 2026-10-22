@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import React, { useState, useEffect, useMemo } from 'react';
 import { CalendarDaysIcon, ClockIcon, AcademicCapIcon, BuildingLibraryIcon, ViewColumnsIcon, CalendarIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import { Card, CardBody, CardHeader, CardTitle, Badge, Button } from "@/components/ui";
@@ -287,7 +288,7 @@ export default function TeacherTimetablePage() {
                             {t("Today's Schedule")} - {dayName}
                         </h2>
                         <div className="text-sm text-gray-500">
-                            {new Date().toLocaleDateString('en-US', {
+                            {new Date().toLocaleDateString(appDateLocale(), {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',

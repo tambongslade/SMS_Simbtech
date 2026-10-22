@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -18,7 +19,7 @@ import {
 import apiService, { ApiError } from '@/lib/apiService';
 import { useAuth } from '@/components/context/AuthContext';
 import { downloadTeacherTimetablePdf } from '@/lib/timetablePdf';
-import { mapTeacher, searchTeachers, type TeacherSearchItem } from '@/lib/teacherSearchApi';
+import { formatWorkload, mapTeacher, searchTeachers, type TeacherSearchItem } from '@/lib/teacherSearchApi';
 import { Modal, Input, Button } from '@/components/ui';
 
 // Mirrors the backend's authorize() list on POST /users/:id/reset-password
@@ -40,7 +41,7 @@ const formatDate = (iso?: string): string => {
     if (!iso) return '—';
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return '—';
-    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    return date.toLocaleDateString(appDateLocale(), { year: 'numeric', month: 'long', day: 'numeric' });
 };
 
 const Field: React.FC<{ icon: React.ComponentType<{ className?: string }>; label: string; children: React.ReactNode }> = ({
@@ -256,7 +257,7 @@ export const TeacherProfileView: React.FC<TeacherProfileViewProps> = ({ teacherI
                     <Field icon={UserIcon} label="Gender">{teacher.gender || '—'}</Field>
                     <Field icon={CalendarIcon} label="Date of Birth">{formatDate(teacher.dateOfBirth)}</Field>
                     <Field icon={MapPinIcon} label="Address">{teacher.address || '—'}</Field>
-                    <Field icon={ClockIcon} label="Weekly Hours">{`${teacher.totalHoursPerWeek ?? 0} h`}</Field>
+                    <Field icon={ClockIcon} label="Weekly Hours">{formatWorkload(teacher)}</Field>
                 </div>
             </div>
 

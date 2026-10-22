@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { FILTER_KEYS, pickDefaultYearId, useRememberedFilter } from '@/hooks/useRememberedFilter';
 import { toast } from 'react-hot-toast';
 import { TrashIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { useMarksManagementFilters } from './hooks/useMarksManagementFilters';
@@ -114,7 +115,8 @@ const getUserId = (): number | null => {
 // --- Main Page Component ---
 export default function MarksManagementPage() {
     // --- Selection State (Remains in Page Component) ---
-    const [selectedYearId, setSelectedYearId] = useState<number | ''>( '');
+    // Year is remembered per user and defaults to the current year (effect below).
+    const [selectedYearId, setSelectedYearId, yearFilterLoaded] = useRememberedFilter<number>(FILTER_KEYS.academicYear);
     const [selectedExamSequenceId, setSelectedExamSequenceId] = useState<number | ''>( '');
     const [selectedSubClassId, setSelectedSubClassId] = useState<number | ''>( '');
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>( '');
@@ -128,6 +130,13 @@ export default function MarksManagementPage() {
         isLoadingFilters,       // Loading state from hook
         filterError,            // Error state from hook
     } = useMarksManagementFilters(selectedYearId, selectedSubClassId); // Pass selected IDs
+
+    useEffect(() => {
+        if (!yearFilterLoaded || academicYears.length === 0) return;
+        if (selectedYearId === '' || !academicYears.some(y => y.id === selectedYearId)) {
+            setSelectedYearId(pickDefaultYearId(academicYears));
+        }
+    }, [yearFilterLoaded, academicYears, selectedYearId, setSelectedYearId]);
 
     // --- Removed States Managed by Hook ---
     // const [academicYearsData, setAcademicYearsData] = useState<AcademicYear[]>([]);

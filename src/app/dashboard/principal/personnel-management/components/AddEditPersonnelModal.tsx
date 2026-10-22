@@ -111,13 +111,14 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                 />
                             </div>
                             <div>
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">{t('Phone')}</label>
+                                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">{t('Phone')} *</label>
                                 <input
                                     type="tel"
                                     name="phone"
                                     id="phone"
                                     value={formData.phone || ''}
                                     onChange={handleChange}
+                                    required={!initialData}
                                     className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                     disabled={isLoading}
                                     placeholder={t('Enter phone number')}
@@ -137,7 +138,6 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                                     <option value="" disabled>{t('Select Gender')}</option>
                                     <option value="Male">{t('Male')}</option>
                                     <option value="Female">{t('Female')}</option>
-                                    <option value="Other">{t('Other')}</option>
                                 </select>
                             </div>
                             <div>
@@ -155,12 +155,13 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                             </div>
                         </div>
                         <div className="mt-4">
-                            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">{t('Address')}</label>
+                            <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">{t('Address')} *</label>
                             <textarea
                                 name="address"
                                 id="address"
                                 value={formData.address || ''}
                                 onChange={handleChange}
+                                required={!initialData}
                                 rows={3}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
                                 disabled={isLoading}
@@ -219,6 +220,37 @@ export const AddEditPersonnelModal: React.FC<AddEditPersonnelModalProps> = ({
                             </div>
                         </div>
                     </div>
+                    {/* Staff role(s) -- required when creating. Sent to
+                        POST /users/create-with-role so the account is created
+                        as staff (never PARENT) and its matricule reflects the
+                        staff role. Existing users' roles are edited through
+                        "Manage Roles". */}
+                    {!initialData && (
+                        <div className="bg-green-50 p-4 rounded-lg">
+                            <h4 className="text-md font-semibold text-gray-700 mb-1">{t('Staff Role')} *</h4>
+                            <p className="text-xs text-gray-500 mb-3">{t('Select the role(s) this staff member will hold this academic year.')}</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                {allRoles.filter(r => r.value !== 'PARENT').map(r => {
+                                    const checked = (formData.roles || []).includes(r.value);
+                                    return (
+                                        <label key={r.value} className="flex items-center gap-2 text-sm text-gray-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={checked}
+                                                disabled={isLoading}
+                                                onChange={() => setFormData(prev => {
+                                                    const cur = (prev.roles || []).filter(x => x !== 'PARENT');
+                                                    return { ...prev, roles: checked ? cur.filter(x => x !== r.value) : [...cur, r.value] };
+                                                })}
+                                                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                            />
+                                            {t(r.label)}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                     {/* Role assignment is typically handled in a separate modal or step, 
               but if initial role can be suggested, `allRoles` could be used here.
               For this example, direct role editing is not part of this form. */}

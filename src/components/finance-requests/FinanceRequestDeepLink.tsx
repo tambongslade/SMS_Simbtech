@@ -11,6 +11,7 @@ import {
   fmtMoney,
   fmtDateTime,
   payloadSummary,
+  requesterName,
   TYPE_LABELS,
   type FinanceAction,
   type FinanceRequest,
@@ -123,7 +124,7 @@ function DeepLinkInner({ onActed }: { onActed?: () => void }) {
               <div className="flex justify-between gap-3">
                 <dt className="text-gray-500">Requested by</dt>
                 <dd className="text-gray-900 text-right">
-                  {request.requestedBy?.name || `User #${request.requestedById}`}
+                  {requesterName(request)}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">

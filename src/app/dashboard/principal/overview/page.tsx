@@ -11,9 +11,7 @@ import {
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
   UserGroupIcon,
-  ClockIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -25,21 +23,21 @@ interface PrincipalDashboardData {
   schoolAnalytics: {
     totalStudents: number;
     totalTeachers: number;
-    totalClasses: number;
+    totalClasses: number; // streams (sub-classes)
+    totalClassLevels?: number;
     totalSubjects: number;
     activeExamSequences: number;
     averageAttendanceRate: number;
-    overallAcademicPerformance: number;
+    overallAcademicPerformance: number | null; // /20
     financialCollectionRate: number;
     disciplineIssuesThisMonth: number;
     newEnrollmentsThisMonth: number;
-    teacherUtilizationRate: number;
     classCapacityUtilization: number;
   };
   performanceMetrics: {
     academicPerformance: {
-      overallPassRate: number;
-      averageGrade: number;
+      overallPassRate: number | null; // percent
+      averageGrade: number | null; // /20
       subjectPerformance: Array<{
         subjectName: string;
         averageScore: number;
@@ -68,7 +66,6 @@ interface PrincipalDashboardData {
         subjectsTeaching: number;
         averageStudentPerformance: number;
         classesManaged: number;
-        attendanceRate: number;
       }>;
     };
   };
@@ -92,23 +89,21 @@ interface PrincipalDashboardData {
   };
   disciplineOverview?: { // Made optional
     totalIssues: number;
+    issuesThisMonth?: number;
     resolvedIssues: number;
     pendingIssues: number;
-    averageResolutionTime: number;
     issuesByType: Array<{
       issueType: string;
       count: number;
-      trend: "INCREASING" | "DECREASING" | "STABLE";
     }>;
   };
   staffOverview: {
     totalStaff: number;
     teacherCount: number;
     administrativeStaff: number;
-    staffUtilization: Array<{
+    staffByRole: Array<{
       role: string;
       count: number;
-      utilizationRate: number;
     }>;
   };
   quickActions: Array<string>;
@@ -161,16 +156,11 @@ export default function PrincipalDashboard() {
     }).format(amount).replace('XAF', 'FCFA');
   };
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'INCREASING':
-        return <ArrowTrendingUpIcon className="w-4 h-4 text-red-500" />;
-      case 'DECREASING':
-        return <ArrowTrendingDownIcon className="w-4 h-4 text-green-500" />;
-      default:
-        return <ChartBarIcon className="w-4 h-4 text-gray-500" />;
-    }
-  };
+  // Marks are out of 20; show them as such (not as a percentage).
+  const formatOn20 = (value: number | null | undefined) =>
+    value == null ? '—' : `${Number(value).toFixed(2)}/20`;
+  const formatLabel = (value: string) =>
+    value.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -224,9 +214,9 @@ export default function PrincipalDashboard() {
         />
         <StatsCard
           title={t('Academic Performance')}
-          value={`${dashboardData?.schoolAnalytics.overallAcademicPerformance || 0}%`}
+          value={formatOn20(dashboardData?.schoolAnalytics.overallAcademicPerformance)}
           icon={ChartBarIcon}
-          color={dashboardData?.schoolAnalytics.overallAcademicPerformance && dashboardData.schoolAnalytics.overallAcademicPerformance > 70 ? "primary" : "secondary"}
+          color={(dashboardData?.schoolAnalytics.overallAcademicPerformance ?? 0) >= 10 ? "primary" : "secondary"}
           className="bg-teal-50 border-teal-200"
         />
         <StatsCard
@@ -237,7 +227,7 @@ export default function PrincipalDashboard() {
           className="bg-yellow-50 border-yellow-200"
         />
         <StatsCard
-          title={t('Discipline Issues')}
+          title={t('Discipline Issues (this month)')}
           value={dashboardData?.schoolAnalytics.disciplineIssuesThisMonth?.toString() || '0'}
           icon={ExclamationTriangleIcon}
           color={dashboardData?.schoolAnalytics.disciplineIssuesThisMonth && dashboardData.schoolAnalytics.disciplineIssuesThisMonth > 10 ? "secondary" : "primary"}
@@ -261,19 +251,22 @@ export default function PrincipalDashboard() {
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span>{t('Overall Pass Rate')}:</span>
-                <span className="font-semibold">{dashboardData?.performanceMetrics.academicPerformance.overallPassRate || 0}%</span>
+                <span className="font-semibold">{dashboardData?.performanceMetrics?.academicPerformance.overallPassRate == null ? '—' : `${dashboardData.performanceMetrics.academicPerformance.overallPassRate}%`}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span>{t('Average Grade')}:</span>
-                <span className="font-semibold">{dashboardData?.performanceMetrics.academicPerformance.averageGrade || 0}%</span>
+                <span className="font-semibold">{formatOn20(dashboardData?.performanceMetrics?.academicPerformance.averageGrade)}</span>
               </div>
               <div>
                 <h4 className="font-medium text-gray-700 mb-2">{t('Subject Performance')}:</h4>
                 <ul className="space-y-1">
-                  {dashboardData?.performanceMetrics.academicPerformance.subjectPerformance.map((subject, index) => (
-                    <li key={index} className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{subject.subjectName}</span>
-                      <span className="font-semibold">{subject.averageScore}%</span>
+                  {(dashboardData?.performanceMetrics?.academicPerformance.subjectPerformance ?? []).length === 0 && (
+                    <li className="text-xs text-gray-500 italic">{t('No marks recorded yet')}</li>
+                  )}
+                  {(dashboardData?.performanceMetrics?.academicPerformance.subjectPerformance ?? []).map((subject, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                      <span className="min-w-0 truncate">{subject.subjectName}</span>
+                      <span className="font-semibold shrink-0">{formatOn20(subject.averageScore)}</span>
                     </li>
                   ))}
                 </ul>
@@ -281,10 +274,10 @@ export default function PrincipalDashboard() {
               <div>
                 <h4 className="font-medium text-gray-700 mb-2">{t('Class Performance')}:</h4>
                 <ul className="space-y-1">
-                  {dashboardData?.performanceMetrics.academicPerformance.classPerformance.map((cls, index) => (
-                    <li key={index} className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{cls.className} - {cls.subClassName}</span>
-                      <span className="font-semibold">{cls.averageScore}%</span>
+                  {(dashboardData?.performanceMetrics?.academicPerformance.classPerformance ?? []).map((cls, index) => (
+                    <li key={index} className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                      <span className="min-w-0 truncate">{cls.subClassName}</span>
+                      <span className="font-semibold shrink-0">{formatOn20(cls.averageScore)}</span>
                     </li>
                   ))}
                 </ul>
@@ -346,23 +339,23 @@ export default function PrincipalDashboard() {
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.totalIssues || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
-                <span>{t('Resolved This Month')}:</span>
+                <span>{t('This Month')}:</span>
+                <span className="font-semibold">{dashboardData?.disciplineOverview?.issuesThisMonth ?? 0}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span>{t('Resolved')}:</span>
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.resolvedIssues || 0}</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span>{t('Pending Resolution')}:</span>
                 <span className="font-semibold">{dashboardData?.disciplineOverview?.pendingIssues || 0}</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>{t('Average Resolution Time')}:</span>
-                <span className="font-semibold">{dashboardData?.disciplineOverview?.averageResolutionTime || 0} {t('days')}</span>
-              </div>
               <div>
                 <h4 className="font-medium text-gray-700 mb-2">{t('Issues by Type')}:</h4>
                 <ul className="space-y-1">
                   {(dashboardData?.disciplineOverview?.issuesByType || []).map((issue, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{issue.issueType}</span>
+                      <span>{formatLabel(issue.issueType)}</span>
                       <span className="font-semibold">{issue.count}</span>
                     </li>
                   ))}
@@ -392,12 +385,12 @@ export default function PrincipalDashboard() {
                 <span className="font-semibold">{dashboardData?.staffOverview.administrativeStaff || 0}</span>
               </div>
               <div>
-                <h4 className="font-medium text-gray-700 mb-2">{t('Staff Utilization')}:</h4>
+                <h4 className="font-medium text-gray-700 mb-2">{t('Staff by Role')}:</h4>
                 <ul className="space-y-1">
-                  {dashboardData?.staffOverview.staffUtilization.map((staff, index) => (
+                  {(dashboardData?.staffOverview?.staffByRole ?? []).map((staff, index) => (
                     <li key={index} className="flex items-center justify-between text-xs text-gray-600">
-                      <span>{staff.role}</span>
-                      <span className="font-semibold">{staff.utilizationRate || 0}%</span>
+                      <span>{formatLabel(staff.role)}</span>
+                      <span className="font-semibold">{staff.count}</span>
                     </li>
                   ))}
                 </ul>

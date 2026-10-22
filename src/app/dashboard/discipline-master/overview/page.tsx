@@ -1,5 +1,7 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -567,7 +569,7 @@ export default function DisciplineMasterDashboard() {
 
   const formatDate = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleDateString();
+      return new Date(dateString).toLocaleDateString(appDateLocale());
     } catch {
       return 'Invalid Date';
     }
@@ -575,7 +577,7 @@ export default function DisciplineMasterDashboard() {
 
   const formatTime = (dateString: string) => {
     try {
-      return new Date(dateString).toLocaleTimeString();
+      return new Date(dateString).toLocaleTimeString(appDateLocale());
     } catch {
       return 'Invalid Time';
     }
@@ -734,7 +736,7 @@ export default function DisciplineMasterDashboard() {
                   {dashboardData?.issuesByType?.map((issue, index) => (
                     <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
                       <div>
-                        <p className="font-medium text-gray-900">{issue.type}</p>
+                        <p className="font-medium text-gray-900">{enumLabel(issue.type)}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {getTrendIcon(issue.trend)}
                           <span className="text-sm text-gray-600">{issue.trend}</span>
@@ -771,7 +773,7 @@ export default function DisciplineMasterDashboard() {
                       </div>
                       <p className="text-sm text-gray-700 mb-2">{student.recommendedAction}</p>
                       <p className="text-xs text-gray-500">
-                        Last incident: {new Date(student.lastIncident).toLocaleDateString()}
+                        Last incident: {new Date(student.lastIncident).toLocaleDateString(appDateLocale())}
                       </p>
                     </div>
                   ))}
@@ -1194,7 +1196,7 @@ export default function DisciplineMasterDashboard() {
                   {earlyWarningData?.preventiveRecommendations?.map((rec, index) => (
                     <div key={index} className="p-3 border border-gray-200 rounded">
                       <div className="flex justify-between items-start mb-2">
-                        <p className="font-medium text-gray-900">{rec.category}</p>
+                        <p className="font-medium text-gray-900">{enumLabel(rec.category)}</p>
                         <span className={`px-2 py-1 text-xs rounded-full ${rec.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
                           rec.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
                             'bg-green-100 text-green-800'

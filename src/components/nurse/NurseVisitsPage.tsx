@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -32,7 +33,7 @@ const CONDITION_LABELS: Record<string, string> = HEALTH_CONDITIONS.reduce(
   {} as Record<string, string>
 );
 
-const dt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
+const dt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(appDateLocale()) : '—');
 
 interface SearchStudent {
   id: number;
@@ -241,7 +242,7 @@ export default function NurseVisitsPage() {
                   {profile.student.matricule || ''}
                   {profile.enrollment?.subClass ? ` · ${profile.enrollment.class?.name || ''} ${profile.enrollment.subClass.name}` : ''}
                   {profile.student.gender ? ` · ${profile.student.gender}` : ''}
-                  {profile.student.dateOfBirth ? ` · born ${new Date(profile.student.dateOfBirth).toLocaleDateString()}` : ''}
+                  {profile.student.dateOfBirth ? ` · born ${new Date(profile.student.dateOfBirth).toLocaleDateString(appDateLocale())}` : ''}
                 </p>
               </div>
               <div>

@@ -329,6 +329,9 @@ export interface LogbookEntry {
   reviewedById?: number | null;
   reviewedAt?: string | null;
   reviewerNotes?: string | null;
+  taughtById?: number;
+  taughtBy?: { id: number; name: string } | null;
+  reviewedBy?: { id: number; name: string } | null;
   lesson?: SchemeLesson & {
     chapter?: { id: number; title: string; module?: { id: number; title: string } };
   };
@@ -374,7 +377,10 @@ export const createLogbookEntry = async (body: CreateLogbookBody): Promise<Logbo
 export const listLogbook = async (params: {
   teacherId?: number;
   subClassId?: number;
+  classId?: number;
   subjectId?: number;
+  /** 'mine' = restrict to the caller's HOD department. */
+  department?: 'mine';
   teacherPeriodId?: number;
   lessonId?: number;
   from?: string;
@@ -389,6 +395,25 @@ export const listLogbook = async (params: {
   const q = qs.toString();
   const res = await apiService.get<{ data: LogbookEntry[] }>(`/logbook${q ? `?${q}` : ''}`);
   return res.data || [];
+};
+
+export interface LogbookFilterOptions {
+  teachers: { id: number; name: string; matricule: string | null }[];
+  subjects: { id: number; name: string }[];
+  classes: { id: number; name: string }[];
+  subClasses: { id: number; name: string; classId: number; className: string }[];
+  departmentScoped: boolean;
+}
+
+// GET /logbook/filter-options — options for the Logbook Review filters
+// (department-scoped for HODs).
+export const getLogbookFilterOptions = async (params: { department?: 'mine'; academicYearId?: number } = {}): Promise<LogbookFilterOptions> => {
+  const qs = new URLSearchParams();
+  if (params.department) qs.set('department', params.department);
+  if (params.academicYearId) qs.set('academicYearId', String(params.academicYearId));
+  const q = qs.toString();
+  const res = await apiService.get<{ data: LogbookFilterOptions }>(`/logbook/filter-options${q ? `?${q}` : ''}`);
+  return res.data ?? { teachers: [], subjects: [], classes: [], subClasses: [], departmentScoped: false };
 };
 
 export const getLogbookEntry = async (id: number): Promise<LogbookEntry> => {

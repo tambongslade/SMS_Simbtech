@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
@@ -149,7 +150,7 @@ export default function PrincipalReportCardManagementPage() {
             setIsLoadingStudents(true);
 
             try {
-                const response = await apiService.get(`/students?subclassId=${selectedSubClassId}&academicYearId=${selectedAcademicYear.id}&status=ENROLLED`);
+                const response = await apiService.get(`/students?subClassId=${selectedSubClassId}&limit=200&sortBy=name&academicYearId=${selectedAcademicYear.id}&status=ENROLLED`);
                 const fetchedStudents = response.data || [];
                 setAllStudents(fetchedStudents);
                 setStudents(fetchedStudents);
@@ -474,7 +475,7 @@ export default function PrincipalReportCardManagementPage() {
         selectedSequenceId !== null &&
         selectedStudentId !== null &&
         selectedStudentId !== 'all'
-    ) || isGenerating;
+    ) || isGenerating || studentReportAvailability?.status === 'NO_MARKS';
 
     const isSubclassDownloadDisabled = !(
         selectedAcademicYear !== null &&
@@ -487,7 +488,7 @@ export default function PrincipalReportCardManagementPage() {
         selectedAcademicYear !== null &&
         selectedSequenceId !== null &&
         selectedSubClassId !== null
-    ) || isGenerating;
+    ) || isGenerating || subclassReportAvailability?.status === 'NO_MARKS';
 
     // --- JSX --- 
     const renderFilterDropdown = (
@@ -648,7 +649,7 @@ export default function PrincipalReportCardManagementPage() {
                                 <p className="text-sm text-gray-600 mt-1">{studentReportAvailability.message}</p>
                                 {studentReportAvailability.reportData?.generatedAt && (
                                     <p className="text-xs text-gray-500 mt-1">
-                                        Generated: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString()}
+                                        Generated: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                                     </p>
                                 )}
                             </div>
@@ -671,7 +672,7 @@ export default function PrincipalReportCardManagementPage() {
                                 <p className="text-sm text-gray-600 mt-1">{subclassReportAvailability.message}</p>
                                 {subclassReportAvailability.reportData?.generatedAt && (
                                     <p className="text-xs text-gray-500 mt-1">
-                                        Generated: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString()}
+                                        Generated: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                                     </p>
                                 )}
                             </div>

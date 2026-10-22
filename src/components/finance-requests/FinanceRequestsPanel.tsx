@@ -15,6 +15,7 @@ import {
   fmtMoney,
   fmtDateTime,
   payloadSummary,
+  requesterName,
   TYPE_LABELS,
   STATUS_LABELS,
   type FinanceRequest,
@@ -212,7 +213,7 @@ export function FinanceRequestsPanel({
                   {followUpHint && followUpHint(req)}
                 </div>
                 <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                  <span>{req.requestedBy?.name || `User #${req.requestedById}`}</span>
+                  <span>{requesterName(req)}</span>
                   <span className="text-sm font-semibold text-gray-800">
                     {req.amount != null ? fmtMoney(req.amount) : '—'}
                   </span>
@@ -315,7 +316,7 @@ export function FinanceRequestsPanel({
                         {req.amount != null ? fmtMoney(req.amount) : '—'}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600">
-                        <div>{req.requestedBy?.name || `User #${req.requestedById}`}</div>
+                        <div>{requesterName(req)}</div>
                         <div className="text-xs text-gray-400">{fmtDateTime(req.createdAt)}</div>
                       </td>
                       <td className="px-4 py-3">

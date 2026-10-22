@@ -1,5 +1,6 @@
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { Student } from '../../types';
 import { StudentPhoto } from '@/components/ui/StudentPhoto';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -102,7 +103,7 @@ export const CardView: React.FC<CardViewProps> = ({
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">{t('Last Payment')}:</span>
               <span>
-                {student.lastPaymentDate ? new Date(student.lastPaymentDate).toLocaleDateString() : '—'}
+                {student.lastPaymentDate ? new Date(student.lastPaymentDate).toLocaleDateString(appDateLocale()) : '—'}
               </span>
             </div>
           </div>

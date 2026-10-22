@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, FunnelIcon, CheckCircleIcon, ClockIcon, XCircleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
@@ -170,7 +171,7 @@ export default function FeesPaymentManagement() {
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return 'Invalid Date';
-            return date.toLocaleDateString(); // Adjust format if needed
+            return date.toLocaleDateString(appDateLocale()); // Adjust format if needed
         } catch (e) {
             return 'Error';
         }

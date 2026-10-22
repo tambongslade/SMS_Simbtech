@@ -1,4 +1,5 @@
 'use client'
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useEffect } from 'react';
 import { PlusIcon, DocumentIcon, ClockIcon, PencilIcon, EyeIcon, TrashIcon, QuestionMarkCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
@@ -18,6 +19,7 @@ interface ExamPaper {
         category: string;
     };
     questions?: Question[];
+    _count?: { questions: number };
     createdAt: string;
 }
 
@@ -150,14 +152,22 @@ export default function Exams() {
         expectedLength: 200
     });
 
+    const [isCreating, setIsCreating] = useState(false);
+
+    // Teachers can delete papers only for subjects they teach (enforced by the API too).
+    const canDeletePaper = (paper: ExamPaper) => subjects.some((s: any) => s.id === paper.subjectId);
+    const questionCount = (paper: ExamPaper) => paper.questions?.length ?? paper._count?.questions ?? 0;
+
     const handleCreateExamPaper = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isCreating) return; // a double click must not create two papers
 
         if (!newExamPaper.name || !newExamPaper.subjectId || !newExamPaper.examDate) {
             toast.error('Please fill in all required fields');
             return;
         }
 
+        setIsCreating(true);
         try {
             await apiService.post('/exams/papers', newExamPaper);
             toast.success('Exam paper created successfully');
@@ -179,6 +189,8 @@ export default function Exams() {
             } else {
                 toast.error('Failed to create exam paper: ' + (error?.message || 'Unknown error'));
             }
+        } finally {
+            setIsCreating(false);
         }
     };
 
@@ -415,7 +427,7 @@ export default function Exams() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
-                                                {paper.questions ? paper.questions.length : 'Not loaded'}
+                                                {questionCount(paper)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -436,6 +448,7 @@ export default function Exams() {
                                                 >
                                                     <PencilIcon className="h-4 w-4" />
                                                 </button>
+                                                {canDeletePaper(paper) && (
                                                 <button
                                                     onClick={() => handleDeleteExamPaper(paper.id)}
                                                     className="text-red-600 hover:text-red-900"
@@ -443,6 +456,7 @@ export default function Exams() {
                                                 >
                                                     <TrashIcon className="h-4 w-4" />
                                                 </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -472,7 +486,7 @@ export default function Exams() {
                                 <div className="flex items-start justify-between gap-3">
                                     <span className="text-xs text-gray-500">Questions</span>
                                     <span className="text-sm text-gray-900 text-right break-words">
-                                        {paper.questions ? paper.questions.length : 'Not loaded'}
+                                        {questionCount(paper)}
                                     </span>
                                 </div>
                                 <div className="flex items-start justify-between gap-3">
@@ -493,6 +507,7 @@ export default function Exams() {
                                     >
                                         <PencilIcon className="h-4 w-4" />
                                     </button>
+                                    {canDeletePaper(paper) && (
                                     <button
                                         onClick={() => handleDeleteExamPaper(paper.id)}
                                         className="text-red-600 hover:text-red-900"
@@ -500,6 +515,7 @@ export default function Exams() {
                                     >
                                         <TrashIcon className="h-4 w-4" />
                                     </button>
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -551,7 +567,7 @@ export default function Exams() {
                                         <option value={0}>Select Subject</option>
                                         {subjects.map(subject => (
                                             <option key={subject.id} value={subject.id}>
-                                                {subject.name} ({subject.category})
+                                                {subject.name} ({enumLabel(subject.category)})
                                             </option>
                                         ))}
                                     </select>
@@ -596,9 +612,10 @@ export default function Exams() {
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                                    disabled={isCreating}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                    Create Exam Paper
+                                    {isCreating ? 'Creating...' : 'Create Exam Paper'}
                                 </button>
                             </div>
                         </form>

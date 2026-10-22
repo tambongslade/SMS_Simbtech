@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -82,7 +83,11 @@ interface TeacherInDepartment {
 }
 
 export default function HODDashboard() {
-  const { user, academicYear } = useAuth();
+  // AuthContext has no `academicYear` field (it is selectedAcademicYear /
+  // currentAcademicYear), so the old `if (academicYear?.id)` guard never let
+  // the fetch run and the page stayed on its skeleton forever.
+  const { user, selectedAcademicYear, currentAcademicYear } = useAuth();
+  const academicYear = selectedAcademicYear ?? currentAcademicYear;
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
@@ -91,16 +96,15 @@ export default function HODDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'teachers' | 'subjects'>('overview');
 
   useEffect(() => {
-    if (academicYear?.id) {
-      fetchDashboardData();
-    }
+    // The backend falls back to the current academic year when none is sent.
+    fetchDashboardData();
   }, [academicYear?.id]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
 
-      const [dashboardResponse, overviewResponse, teachersResponse] = await Promise.all([
+      const [dashboardResult, overviewResult, teachersResult] = await Promise.allSettled([
         apiService.get('/hod/dashboard', {
           params: { academicYearId: academicYear?.id }
         }),
@@ -115,9 +119,17 @@ export default function HODDashboard() {
         })
       ]);
 
-      setDashboardData(dashboardResponse.data);
-      setDepartmentOverview(overviewResponse.data);
-      setTeachers(teachersResponse.data);
+      // allSettled: one slow/failed block must not blank the whole page.
+      setDashboardData(dashboardResult.status === 'fulfilled' ? (dashboardResult.value as any)?.data ?? null : null);
+      setDepartmentOverview(
+        overviewResult.status === 'fulfilled' && Array.isArray((overviewResult.value as any)?.data) ? (overviewResult.value as any).data : []
+      );
+      setTeachers(
+        teachersResult.status === 'fulfilled' && Array.isArray((teachersResult.value as any)?.data) ? (teachersResult.value as any).data : []
+      );
+      if ([dashboardResult, overviewResult, teachersResult].some((r) => r.status === 'rejected')) {
+        toast.error(t('Some dashboard data could not be loaded'));
+      }
     } catch (error) {
       console.error('Error fetching HOD dashboard data:', error);
       toast.error(t('Failed to load dashboard data'));
@@ -161,27 +173,27 @@ export default function HODDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title={t('Subjects Managed')}
-          value={dashboardData?.totalSubjects || 0}
+          value={String(dashboardData?.totalSubjects || 0)}
           icon={BookOpenIcon}
-          color="blue"
+          color="primary"
         />
         <StatsCard
           title={t('Department Teachers')}
-          value={dashboardData?.totalTeachers || 0}
+          value={String(dashboardData?.totalTeachers || 0)}
           icon={UserGroupIcon}
-          color="green"
+          color="success"
         />
         <StatsCard
           title={t('Students Taught')}
-          value={dashboardData?.totalStudents || 0}
+          value={String(dashboardData?.totalStudents || 0)}
           icon={UsersIcon}
-          color="purple"
+          color="secondary"
         />
         <StatsCard
           title={t('Classes Covered')}
-          value={dashboardData?.totalClasses || 0}
+          value={String(dashboardData?.totalClasses || 0)}
           icon={AcademicCapIcon}
-          color="orange"
+          color="warning"
         />
       </div>
 
@@ -264,7 +276,7 @@ export default function HODDashboard() {
                     className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
                   >
                     <h4 className="font-medium text-gray-900">{subject.name}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{subject.category}</p>
+                    <p className="text-sm text-gray-600 mt-1">{enumLabel(subject.category)}</p>
                   </div>
                 )) || (
                     <p className="text-gray-500 col-span-full">{t('No subjects assigned yet')}</p>

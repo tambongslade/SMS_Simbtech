@@ -20,6 +20,7 @@ import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { StudentPhoto, BulkPhotoUploadModal } from '../../../../components/ui';
 import { saveFile } from '@/lib/download';
 import { formatDOB } from '@/lib/formatDate';
+import TransferOutModal, { TransferRegisterModal, type TransferOutStudent } from '@/components/students/TransferOutModal';
 
 // --- Types ---
 type ParentLink = {
@@ -50,6 +51,7 @@ type Student = {
     photo?: string | null;
     photoUrl?: string | null;
     hasPhoto?: boolean;
+    photoResolved?: boolean; // backend already resolved the photo (null = none) -> no per-row fetch
 };
 
 type SubClassInfo = {
@@ -261,7 +263,7 @@ export default function StudentManagement() {
     const [studentsPerPage, setStudentsPerPage] = useState(
         STUDENTS_PER_PAGE_OPTIONS.includes(persistedListState.studentsPerPage as number)
             ? (persistedListState.studentsPerPage as number)
-            : 100
+            : 20 // was 100: a 100-row page (x2 views) made the desktop list take ~35 s to settle
     );
 
     // --- State for Manage Parents Modal ---
@@ -289,6 +291,20 @@ export default function StudentManagement() {
     const [isDeleting, setIsDeleting] = useState(false);
     // When unenroll is blocked (409), we carry the reason into the delete modal as the escalation path.
     const [deleteEscalationReason, setDeleteEscalationReason] = useState<string | null>(null);
+
+    // --- Transfer out (U13): keeps marks/fees, issues a leaving certificate ---
+    const [transferTarget, setTransferTarget] = useState<TransferOutStudent | null>(null);
+    const [transferNotice, setTransferNotice] = useState<string | null>(null);
+    const [isTransferRegisterOpen, setIsTransferRegisterOpen] = useState(false);
+    const openTransferModal = (student: Student, notice: string | null = null) => {
+        setTransferNotice(notice);
+        setTransferTarget({
+            id: student.id,
+            name: student.name,
+            matricule: student.matricule,
+            academicYearId: student.academicYearId ?? (academicYearFilter ? Number(academicYearFilter) : undefined),
+        });
+    };
 
     // --- Data Fetching ---
     // Function to fetch individual parent details
@@ -385,23 +401,24 @@ export default function StudentManagement() {
 
             console.log("Students API response count:", rawList.length);
             const fetchedStudents = await Promise.all(rawList.map(async (s: any) => {
-                console.log(`Raw data for student ID ${s.id}:`, JSON.stringify(s, null, 2));
 
                 // Map basic parent data
+                // GET /students returns ParentStudent link rows: { id: <link id>, parentId, parent: { id, name, ... } }.
+                // Read the nested `parent` first -- otherwise `name` is missing and enrichParentData
+                // fires one GET /users/:id per row (with the link id, not the user id).
                 const basicParents = s.parents?.map((p: any) => {
-                    console.log(`Raw parent data for student ${s.id}:`, JSON.stringify(p, null, 2));
+                    const u = p.parent || p.user || p.parentUser || {};
                     return {
-                        id: p.id || p.parent_id || p.parentId || p.user_id,
-                        name: p.name || p.parent_name || p.parentName || p.user?.name || p.parentUser?.name || null,
-                        phone: p.phone || p.parent_phone || p.parentPhone || p.user?.phone || p.parentUser?.phone || null,
-                        email: p.email || p.parent_email || p.parentEmail || p.user?.email || p.parentUser?.email || null,
-                        matricule: p.matricule || p.parent_matricule || p.parentMatricule || p.user?.matricule || p.parentUser?.matricule || null
+                        id: u.id || p.parentId || p.parent_id || p.user_id || p.id,
+                        name: u.name || p.name || p.parent_name || p.parentName || null,
+                        phone: u.phone || p.phone || p.parent_phone || p.parentPhone || null,
+                        email: u.email || p.email || p.parent_email || p.parentEmail || null,
+                        matricule: u.matricule || p.matricule || p.parent_matricule || p.parentMatricule || null
                     };
                 }) || [];
 
                 // Enrich parent data with missing details
                 const enrichedParents = await enrichParentData(basicParents);
-                console.log(`Enriched parents for student ${s.id}:`, JSON.stringify(enrichedParents, null, 2));
 
                 const enrollmentsList: any[] = s.enrollments || [];
                 // Prefer the enrollment for the selected academic year; otherwise fall
@@ -434,7 +451,8 @@ export default function StudentManagement() {
                     parents: enrichedParents,
                     photo: s.photo || currentEnrollment?.photo,
                     photoUrl: s.photoUrl || currentEnrollment?.photoUrl,
-                    hasPhoto: s.hasPhoto || currentEnrollment?.hasPhoto
+                    hasPhoto: s.hasPhoto || currentEnrollment?.hasPhoto,
+                    photoResolved: s.photoResolved === true
                 };
             }));
 
@@ -1174,11 +1192,11 @@ export default function StudentManagement() {
         } catch (error: any) {
             toast.dismiss('unenroll-toast'); // apiService already surfaced its own error toast
             const message: string = error?.message || '';
-            // 409: history exists. Offer the permanent-delete escalation path (SUPER_MANAGER only).
+            // 409: history exists. Offer transfer-out (keeps the records) rather than
+            // pushing straight to deletion; Delete remains available from the row.
             if (message.toLowerCase().includes('cannot unenroll')) {
                 closeUnenrollModal();
-                setDeleteEscalationReason(message);
-                openDeleteModal(student);
+                openTransferModal(student, 'This student cannot be unenrolled because records exist for this year. If the student is leaving the school, record a transfer out instead: all records are kept.');
             }
             console.error('Student unenroll failed:', error);
         } finally {
@@ -1380,6 +1398,16 @@ export default function StudentManagement() {
                             </select>
                         </div>
 
+                        {/* Transfer register (U13) */}
+                        <div>
+                            <button
+                                onClick={() => setIsTransferRegisterOpen(true)}
+                                className="w-full bg-white border border-indigo-300 text-indigo-700 px-4 py-2 rounded-md hover:bg-indigo-50 transition-colors text-sm"
+                            >
+                                Transferred students
+                            </button>
+                        </div>
+
                         {/* Export Button */}
                         <div>
                             <button
@@ -1484,7 +1512,7 @@ export default function StudentManagement() {
                                                     showUploadButton={true}
                                                     canUpload={true}
                                                     studentName={student.name}
-                                                    fetchPhoto={!student.photo}
+                                                    fetchPhoto={!student.photo && !student.photoResolved}
                                                     onPhotoUpdate={(filename) => {
                                                         // Update the student in the list
                                                         setStudents(prev => prev.map(s =>
@@ -1621,6 +1649,15 @@ export default function StudentManagement() {
                                                     )}
 
                                                     <button
+                                                        onClick={() => openTransferModal(student)}
+                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                        disabled={isLoading}
+                                                        title="Student is leaving the school: record transfer and issue leaving certificate"
+                                                    >
+                                                        <span>Transfer out</span>
+                                                    </button>
+
+                                                    <button
                                                         onClick={() => openDeleteModal(student)}
                                                         className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-red-600 rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
                                                         disabled={isLoading}
@@ -1695,7 +1732,7 @@ export default function StudentManagement() {
                                                 showUploadButton={false}
                                                 canUpload={false}
                                                 studentName={student.name}
-                                                fetchPhoto={!student.photo}
+                                                fetchPhoto={!student.photo && !student.photoResolved}
                                             />
                                             <button
                                                 onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
@@ -1811,6 +1848,15 @@ export default function StudentManagement() {
                                                             <span>Unenroll</span>
                                                         </button>
                                                     )}
+
+                                                    <button
+                                                        onClick={() => openTransferModal(student)}
+                                                        className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                                                        disabled={isLoading}
+                                                        title="Student is leaving the school: record transfer and issue leaving certificate"
+                                                    >
+                                                        <span>Transfer out</span>
+                                                    </button>
 
                                                     <button
                                                         onClick={() => openDeleteModal(student)}
@@ -2949,6 +2995,19 @@ export default function StudentManagement() {
                     </div>
                 </div>
             )}
+
+            {/* Transfer out (U13) */}
+            <TransferOutModal
+                student={transferTarget}
+                notice={transferNotice}
+                onClose={() => { setTransferTarget(null); setTransferNotice(null); }}
+                onTransferred={() => fetchStudents()}
+            />
+            <TransferRegisterModal
+                open={isTransferRegisterOpen}
+                onClose={() => setIsTransferRegisterOpen(false)}
+                academicYearId={academicYearFilter ? Number(academicYearFilter) : undefined}
+            />
 
             {/* Delete Student Confirmation Modal (typed confirmation) */}
             {deleteTarget && (

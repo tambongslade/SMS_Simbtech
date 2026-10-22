@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import {
     Announcement,
@@ -110,7 +111,7 @@ export default function AnnouncementList({
     }, []);
 
     const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleDateString('en-US', {
+        return new Date(dateString).toLocaleDateString(appDateLocale(), {
             year: 'numeric',
             month: 'short',
             day: 'numeric',

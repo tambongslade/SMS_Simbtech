@@ -1,4 +1,5 @@
 import apiService from './apiService';
+import type { PaymentMethodCode } from './paymentMethods';
 
 // Types for normal fees
 export interface FeeRequest {
@@ -54,11 +55,16 @@ export interface PaymentRequest {
 // NEW: Unified payment request for the new endpoints
 export interface UnifiedPaymentRequest {
     amount: number;
+    /** YYYY-MM-DD; must not be in the future */
     paymentDate: string;
-    paymentMethod: 'EXPRESS_UNION' | 'CCA' | 'F3DC' | string;
+    paymentMethod: PaymentMethodCode | string;
+    /** Optional manual receipt number; omitted -> server assigns the next sequential one */
     receiptNumber?: string;
     studentId: number;
     academicYearId?: number;
+    notes?: string;
+    /** Send true after the user confirms an overpayment warning (409 OVERPAYMENT_CONFIRMATION_REQUIRED) */
+    confirmOverpayment?: boolean;
 }
 
 export interface ApiResponse<T> {
@@ -108,8 +114,13 @@ export const feeService = {
         apiService.post(`/fees/${feeId}/payments`, paymentData),
 
     // NEW: Unified primary payment endpoint (auto-creates fee if needed)
+    // silent: the caller shows its own message (and handles the overpayment confirmation code)
     recordUnifiedPrimaryPayment: (paymentData: UnifiedPaymentRequest): Promise<ApiResponse<any>> =>
-        apiService.post('/payments/primary', paymentData),
+        apiService.post('/payments/primary', paymentData, { silent: true }),
+
+    /** Printable receipt PDF for one payment (reprint=true stamps "DUPLICATE"). */
+    getReceiptPdf: (paymentId: number | string, reprint = false): Promise<Blob> =>
+        apiService.get(`/fees/payments/${paymentId}/receipt/pdf${reprint ? '?reprint=true' : ''}`, {}, 'blob'),
 
     // Fee Export
     exportFees: (params?: any): Promise<Blob> =>

@@ -2,6 +2,7 @@
 
 // Super-manager approval queue for staff loans and leave.
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
@@ -11,6 +12,7 @@ import {
 import {
     loansApi, leaveApi, LOAN_REPAYMENT_METHODS,
     type StaffLoan, type LeaveRequest, type LoanRepaymentMethod,
+    LEAVE_TYPES,
 } from '@/lib/staffRequestsApi';
 import { formatDOB } from '@/lib/formatDate';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -226,7 +228,7 @@ export default function SuperManagerLeaveAndLoansPage() {
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-gray-900">
                                             {item.requester?.name ?? t('Staff')}
-                                            <span className="text-gray-500 font-normal"> · {item.leaveType.replace('_', ' ')}</span>
+                                            <span className="text-gray-500 font-normal"> · {enumLabel(item.leaveType, '—', LEAVE_TYPES)}</span>
                                         </p>
                                         <p className="text-xs text-gray-500">
                                             {formatDOB(item.startDate)} → {formatDOB(item.endDate)} · {t('requested')} {formatDOB(item.createdAt)}
@@ -276,7 +278,7 @@ export default function SuperManagerLeaveAndLoansPage() {
                                 {otherLeave.slice(0, 10).map(item => (
                                     <li key={item.id} className="py-2 flex items-center justify-between gap-2 text-sm">
                                         <span className="truncate">
-                                            {item.requester?.name} · {item.leaveType.replace('_', ' ')} · {formatDOB(item.startDate)} → {formatDOB(item.endDate)}
+                                            {item.requester?.name} · {enumLabel(item.leaveType, '—', LEAVE_TYPES)} · {formatDOB(item.startDate)} → {formatDOB(item.endDate)}
                                         </span>
                                         <Badge color={item.status === 'APPROVED' ? 'green' : item.status === 'REJECTED' ? 'red' : 'gray'} size="sm">
                                             {item.status}

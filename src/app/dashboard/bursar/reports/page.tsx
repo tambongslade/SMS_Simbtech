@@ -2,6 +2,7 @@
 
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useMemo } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { ArrowDownTrayIcon, DocumentTextIcon, TableCellsIcon } from '@heroicons/react/24/outline';
@@ -521,7 +522,7 @@ const FinancialReportsPage = () => {
                         <td className="py-3 px-4 text-sm">
                           {student?.lastPaymentDate ?
                             <div>
-                              <div>{new Date(student.lastPaymentDate).toLocaleDateString()}</div>
+                              <div>{new Date(student.lastPaymentDate).toLocaleDateString(appDateLocale())}</div>
                               {student?.lastPaymentAmount &&
                                 <div className="text-xs text-gray-500">{formatCurrency(student.lastPaymentAmount)}</div>
                               }
@@ -581,7 +582,7 @@ const FinancialReportsPage = () => {
                         <div className="text-sm text-gray-900 text-right break-words">
                           {student?.lastPaymentDate ?
                             <div>
-                              <div>{new Date(student.lastPaymentDate).toLocaleDateString()}</div>
+                              <div>{new Date(student.lastPaymentDate).toLocaleDateString(appDateLocale())}</div>
                               {student?.lastPaymentAmount &&
                                 <div className="text-xs text-gray-500">{formatCurrency(student.lastPaymentAmount)}</div>
                               }

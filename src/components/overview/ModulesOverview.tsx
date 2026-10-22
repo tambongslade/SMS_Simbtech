@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { ChevronDownIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
@@ -479,9 +480,9 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                     <StatGrid>
                         <StatTile label="Total Staff" value={formatNumber(d.summary?.totalUsers)} />
                         <StatTile label="Teachers" value={formatNumber(d.summary?.totalTeachers)} />
-                        <StatTile label="Avg. Teaching Hours" value={formatNumber(d.summary?.averageTeachingHours)} />
+                        <StatTile label="Avg. Teaching Hours / Week" value={formatNumber(d.summary?.averageTeachingHours)} sub={d.summary?.averageWeeklyPeriods != null ? `${formatNumber(d.summary.averageWeeklyPeriods)} periods / week` : undefined} />
                         <StatTile label="New Staff This Month" value={formatNumber(d.summary?.newStaffThisMonth)} />
-                        <StatTile label="Teachers · Full Schedule" value={formatNumber(d.summary?.teachersWithFullSchedule)} />
+                        <StatTile label="Teachers on Timetable" value={formatNumber(d.summary?.teachersWithTimetable)} />
                     </StatGrid>
                     <TwoCol>
                         <Section title="Users by Role">
@@ -561,7 +562,7 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                         <StatTile
                             label="Latest Pay Period"
                             value={p ? `${MONTHS[(p.month ?? 1) - 1]} ${p.year}` : '—'}
-                            sub={p ? `${formatLabel(p.status)} · pays ${new Date(p.payDate).toLocaleDateString()}` : undefined}
+                            sub={p ? `${formatLabel(p.status)} · pays ${new Date(p.payDate).toLocaleDateString(appDateLocale())}` : undefined}
                         />
                         <StatTile label="Active Profiles" value={formatNumber(d.summary?.activeProfiles)} />
                         <StatTile label="Payments Recorded" value={formatNumber(d.summary?.totalPaymentsRecorded)} />
@@ -658,7 +659,7 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
             return (
                 <div className="space-y-5">
                     <StatGrid>
-                        <StatTile label="Total Enrollments" value={formatNumber(d.summary?.totalEnrollments)} />
+                        <StatTile label="Total Enrollments" value={formatNumber(d.summary?.totalEnrollments)} sub={d.summary?.totalStreams != null ? `${formatNumber(d.summary.totalStreams)} streams` : undefined} />
                         <StatTile label="Unassigned" value={formatNumber(d.summary?.unassignedEnrollments)} tone={(d.summary?.unassignedEnrollments ?? 0) > 0 ? 'alert' : 'default'} sub="need a subclass" />
                         <StatTile label="New This Month" value={formatNumber(d.summary?.newEnrollmentsThisMonth)} />
                         <StatTile label="Assignment Rate" value={formatPercent(d.summary?.assignmentRate)} />

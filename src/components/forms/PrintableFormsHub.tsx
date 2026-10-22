@@ -4,7 +4,7 @@
 // is a plain radio list rather than a hardcoded page specifically so a new
 // form type is a small addition later, not a redesign.
 //
-// Four form types:
+// Five form types:
 // - Attendance Form: pick one or more classes -> one register PDF per class
 //   (each class gets its own download, not one combined PDF, so a class
 //   teacher only ever has to print their own sheet), Monday-Saturday across
@@ -20,6 +20,10 @@
 //   teacher's actual period count this week (GET /users/teachers/roster),
 //   the same period-count logic used on the Teacher Timetable/Overview
 //   pages (a count, not summed hours -- see that fix's commit message).
+// - Mark Sheet: pick classes plus one subject -> one sheet per subclass with
+//   Name of Student | Sex | 1st..6th Seq columns left empty for the teacher.
+//   Unlike the others this PDF is rendered server-side
+//   (GET /exams/marksheet/pdf) so it carries the school letterhead.
 //
 // All of these are paper forms/reports, not digital records -- nothing here
 // is saved back to the server.
@@ -95,6 +99,11 @@ const FORM_TYPES = [
         label: 'Teacher Weekly Periods',
         description: 'Every teacher with the number of periods they actually have this week.',
     },
+    {
+        key: 'marksheet',
+        label: 'Mark Sheet',
+        description: 'One subject per class: student name, sex and empty columns for the 1st–6th sequence marks.',
+    },
     // Future form types go here.
 ] as const;
 type FormTypeKey = typeof FORM_TYPES[number]['key'];
@@ -106,6 +115,7 @@ const NEEDS_CLASS_SELECTION: Record<FormTypeKey, boolean> = {
     'student-blank': true,
     'teacher-blank': false,
     'teacher-periods': false,
+    'marksheet': true,
 };
 
 const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -391,6 +401,8 @@ export default function PrintableFormsHub() {
     const [isLoadingClasses, setIsLoadingClasses] = useState(true);
     const [selectedSubclassIds, setSelectedSubclassIds] = useState<number[]>([]);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
+    const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
 
     useEffect(() => {
         let cancelled = false;
@@ -420,6 +432,15 @@ export default function PrintableFormsHub() {
         return () => { cancelled = true; };
     }, []);
 
+    // Only needed for the Mark Sheet, so fetched lazily the first time it's picked.
+    useEffect(() => {
+        if (formType !== 'marksheet' || subjects.length > 0) return;
+        apiService
+            .get<{ success: boolean; data: { id: number; name: string }[] }>('/subjects?limit=200')
+            .then((res) => setSubjects((res?.data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))))
+            .catch((err: unknown) => toast.error(err instanceof Error ? err.message : 'Failed to load subjects.'));
+    }, [formType, subjects.length]);
+
     const handleClassCheckboxChange = (cls: ClassBrief, isChecked: boolean) => {
         const subIds = cls.subClasses.map(s => s.id);
         setSelectedSubclassIds(prev => {
@@ -442,6 +463,10 @@ export default function PrintableFormsHub() {
             toast.error('Select at least one class first.');
             return;
         }
+        if (formType === 'marksheet' && !selectedSubjectId) {
+            toast.error('Select a subject first.');
+            return;
+        }
 
         // Selection order follows academic class order, not click order, so
         // multiple downloads come out Form 1 -> Form 5 regardless of how they
@@ -462,6 +487,19 @@ export default function PrintableFormsHub() {
 
         for (const target of targets) {
             try {
+                if (formType === 'marksheet') {
+                    const qs = new URLSearchParams({
+                        subClassId: String(target.subClassId),
+                        subjectId: String(selectedSubjectId),
+                        blank: 'true',
+                    });
+                    if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
+                    const blob = await apiService.get<Blob>(`/exams/marksheet/pdf?${qs.toString()}`, undefined, 'blob');
+                    const subjectName = subjects.find(s => s.id === selectedSubjectId)?.name ?? 'subject';
+                    await saveFile(blob, `mark-sheet-${slug(subjectName)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
+                    succeeded++;
+                    continue;
+                }
                 const params = selectedAcademicYear?.id
                     ? `?academic_year_id=${selectedAcademicYear.id}`
                     : '';
@@ -583,6 +621,28 @@ export default function PrintableFormsHub() {
                 </CardBody>
             </Card>
 
+            {formType === 'marksheet' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Subject</CardTitle>
+                    </CardHeader>
+                    <CardBody>
+                        <select
+                            value={selectedSubjectId}
+                            onChange={(e) => setSelectedSubjectId(e.target.value ? Number(e.target.value) : '')}
+                            disabled={isGenerating}
+                            className="w-full md:w-96 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                            <option value="">Select a subject…</option>
+                            {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <p className="text-xs text-gray-500 mt-2">
+                            Classes that don&apos;t take this subject are skipped and listed as failed.
+                        </p>
+                    </CardBody>
+                </Card>
+            )}
+
             {needsClassSelection ? (
             <Card>
                 <CardHeader>
@@ -663,7 +723,11 @@ export default function PrintableFormsHub() {
                     color="primary"
                     leftIcon={PrinterIcon}
                     isLoading={isGenerating}
-                    disabled={isGenerating || (needsClassSelection && selectedSubclassIds.length === 0)}
+                    disabled={
+                        isGenerating
+                        || (needsClassSelection && selectedSubclassIds.length === 0)
+                        || (formType === 'marksheet' && !selectedSubjectId)
+                    }
                     onClick={handleGenerate}
                 >
                     {isGenerating

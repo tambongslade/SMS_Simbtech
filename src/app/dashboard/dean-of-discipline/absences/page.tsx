@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { Fragment, useEffect, useMemo, useState, Suspense } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
@@ -535,7 +536,7 @@ function ClassAbsencesPageInner() {
                                         {s.rows.map((r) => (
                                           <tr key={r.id} className="border-t border-gray-200">
                                             <td className="py-1 pr-3 text-gray-700">
-                                              {new Date(r.createdAt).toLocaleDateString()}
+                                              {new Date(r.createdAt).toLocaleDateString(appDateLocale())}
                                             </td>
                                             <td className="py-1 pr-3 text-gray-600">
                                               {r.teacherPeriod?.subject?.name ?? (r.slot ? SLOT_LABEL[r.slot] : '—')}

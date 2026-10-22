@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -30,7 +31,7 @@ import {
   normalizeSeizedItem,
 } from '@/lib/seizedItemsApi';
 
-const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
+const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(appDateLocale()) : '—');
 
 function statusBadge(status: SeizedItemStatus) {
   const styles: Record<SeizedItemStatus, string> = {

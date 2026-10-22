@@ -1,5 +1,6 @@
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, ChangeEvent } from 'react';
 import {
   CheckIcon,
@@ -23,7 +24,9 @@ interface Interview {
   studentName: string;
   studentMatricule: string;
   className: string; // The name of the main class (e.g., "Form 1")
-  subclassName?: string; // The name of the subclass (e.g., "Form 1A")
+  classId?: number;
+  subClassId?: number | null; // null/undefined = not yet placed in a subclass
+  subclassName?: string | null; // The name of the subclass (e.g., "Form 1A")
   interviewStatus: 'PENDING' | 'COMPLETED' | 'OVERDUE';
   completedDate?: string; // "YYYY-MM-DD"
   score?: number;
@@ -32,18 +35,27 @@ interface Interview {
   registrationDate: string; // "YYYY-MM-DD"
 }
 
+// Shape returned by GET /classes/sub-classes.
 interface SubClass {
   id: number;
-  name: string;
+  name: string; // e.g. "Form 1 A"
   classId: number;
-  className: string; // Name of the parent class
+  class?: { id: number; name: string }; // parent class
   classMasterId?: number;
-  currentEnrollment: number; // From subclass-optimization
-  maxCapacity: number;       // From subclass-optimization
-  utilizationRate: number;   // From subclass-optimization
-  availableSpots: number;    // From subclass-optimization
-  status: 'OPTIMAL' | 'UNDERUTILIZED' | 'OVERLOADED' | 'FULL'; // From subclass-optimization
+  studentCount?: number; // active enrolments this academic year
 }
+
+type AssignmentFilter = 'UNASSIGNED' | 'ASSIGNED' | 'ALL';
+
+const isAssigned = (interview: Interview) => interview.subClassId != null || !!interview.subclassName;
+
+// "Form 1 A (34 students)". Subclass names usually already contain the class
+// name; only append it when they don't.
+const subClassLabel = (sc: SubClass) => {
+  const parent = sc.class?.name;
+  const base = parent && !sc.name.toLowerCase().startsWith(parent.toLowerCase()) ? `${parent} ${sc.name}` : sc.name;
+  return `${base} (${sc.studentCount ?? 0} students)`;
+};
 
 // Define API Response types for useSWR
 interface GetInterviewsResponse {
@@ -78,6 +90,7 @@ export default function InterviewsPage() {
   const [sortField, setSortField] = useState<keyof Interview>('registrationDate'); // Changed default sort field
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<AssignmentFilter>('UNASSIGNED');
   const [showRecordScoreModal, setShowRecordScoreModal] = useState<boolean>(false);
   const [currentStudentForScore, setCurrentStudentForScore] = useState<Interview | null>(null);
   const [score, setScore] = useState<number>(0);
@@ -88,7 +101,7 @@ export default function InterviewsPage() {
 
   // Fetch interviews data
   const { data: interviewsData, error: interviewsError, isLoading: interviewsLoading, mutate: mutateInterviews } = useSWR<GetInterviewsResponse>(
-    currentAcademicYear ? `/vice-principal/interviews?academicYearId=${currentAcademicYear.id}` : null,
+    currentAcademicYear ? `/vice-principal/interviews?academicYearId=${currentAcademicYear.id}&assignment=${assignmentFilter}` : null,
     apiService.get
   );
 
@@ -210,7 +223,7 @@ export default function InterviewsPage() {
     if (selectAll) {
       setSelectedStudents([]);
     } else {
-      setSelectedStudents(filteredInterviews.filter(s => !s.subclassName).map(s => s.studentId));
+      setSelectedStudents(filteredInterviews.filter(s => !isAssigned(s)).map(s => s.studentId));
     }
     setSelectAll(!selectAll);
   };
@@ -310,8 +323,7 @@ export default function InterviewsPage() {
   const handleDragStart = (studentId: number, index: number) => {
     // Only allow drag selection on students who can be assigned (not yet assigned a subclass)
     const interview = interviews.find(s => s.studentId === studentId);
-    // Use `=== undefined` for clarity as `null` is a valid assigned value
-    if (interview?.subclassName !== undefined) {
+    if (!interview || isAssigned(interview)) {
       return;
     }
     setIsDragging(true);
@@ -331,9 +343,7 @@ export default function InterviewsPage() {
 
     // Update selected students based on drag range
     if (dragStartIndex !== null && dragCurrentIndex !== null) {
-      const selectableInterviews = filteredInterviews.filter(s =>
-        s.subclassName === undefined
-      );
+      const selectableInterviews = filteredInterviews.filter(s => !isAssigned(s));
 
       const start = Math.min(dragStartIndex, index);
       const end = Math.max(dragStartIndex, index);
@@ -391,11 +401,28 @@ export default function InterviewsPage() {
               className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
             >
               <option value="all">{t('All Classes')}</option>
-              {Array.from(new Set(subClasses.map(cls => cls.className))).map((className) => (
+              {Array.from(new Set(subClasses.map(cls => cls.class?.name).filter((n): n is string => !!n))).map((className) => (
                 <option key={className} value={className}>
                   {className}
                 </option>
               ))}
+            </select>
+          </div>
+
+          <div className="relative">
+            <select
+              id="assignment-filter"
+              value={assignmentFilter}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                setAssignmentFilter(e.target.value as AssignmentFilter);
+                setSelectedStudents([]);
+                setSelectAll(false);
+              }}
+              className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+            >
+              <option value="UNASSIGNED">{t('Not Assigned')}</option>
+              <option value="ASSIGNED">{t('Assigned')}</option>
+              <option value="ALL">{t('All Students')}</option>
             </select>
           </div>
 
@@ -495,7 +522,7 @@ export default function InterviewsPage() {
               </tr>
             ) : (
               filteredInterviews.map((interview, index) => {
-                const isSelectable = interview.subclassName === undefined; // Only students not yet assigned a subclass can be selected
+                const isSelectable = !isAssigned(interview); // Only students not yet assigned a subclass can be selected
                 const isSelected = selectedStudents.includes(interview.studentId);
 
                 return (
@@ -519,7 +546,7 @@ export default function InterviewsPage() {
                         type="checkbox"
                         checked={selectedStudents.includes(interview.studentId)}
                         onChange={() => toggleStudentSelection(interview.studentId)}
-                        disabled={interview.subclassName !== undefined}
+                        disabled={!isSelectable}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
                       />
                     </td>
@@ -544,7 +571,7 @@ export default function InterviewsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <span style={nonSelectableStyle}>{interview.registrationDate ? new Date(interview.registrationDate).toLocaleDateString() : 'N/A'}</span>
+                      <span style={nonSelectableStyle}>{interview.registrationDate ? new Date(interview.registrationDate).toLocaleDateString(appDateLocale()) : 'N/A'}</span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {interview.subclassName ? (
@@ -609,7 +636,7 @@ export default function InterviewsPage() {
                 <option value="">{t('Select a class')}</option>
                 {subClasses.map((cls) => (
                   <option key={cls.id} value={cls.id}> {/* Use subclass ID as value */}
-                    {cls.name} ({cls.currentEnrollment}/{cls.maxCapacity}) - {cls.className}
+                    {subClassLabel(cls)}
                   </option>
                 ))}
               </select>

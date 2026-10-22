@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -221,7 +222,7 @@ export default function ReportsPage() {
                 <h4 className="font-semibold text-gray-900">{intervention.studentName}</h4>
                 <p className="text-sm text-gray-600">{t('Student ID')}: {intervention.studentId}</p>
                 <p className="text-sm text-gray-600">{t('Issue Count')}: {intervention.issueCount}</p>
-                <p className="text-sm text-gray-600">{t('Last Incident')}: {new Date(intervention.lastIncident).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-600">{t('Last Incident')}: {new Date(intervention.lastIncident).toLocaleDateString(appDateLocale())}</p>
               </div>
               <span className={`px-2 py-1 text-xs rounded-full ${intervention.riskLevel === 'HIGH' ? 'bg-red-100 text-red-800' :
                   intervention.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
@@ -444,7 +445,7 @@ export default function ReportsPage() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Generated:</span>
-                    <span className="ml-2">{new Date().toLocaleString()}</span>
+                    <span className="ml-2">{new Date().toLocaleString(appDateLocale())}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Academic Year:</span>

@@ -21,6 +21,7 @@ import {
 } from '@/lib/disciplineExtApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
 import { useLanguage } from '@/components/context/LanguageContext';
+import { schoolTodayStr } from '@/lib/formatDate';
 
 interface SubClassOption {
   id: number;
@@ -43,7 +44,7 @@ export default function DmRollCallPage() {
 
   const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
   const [subClassId, setSubClassId] = useState<number | ''>('');
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => schoolTodayStr());
 
   const [slotStatus, setSlotStatus] = useState<DmRollCallStatusData | null>(null);
   const [currentSlot, setCurrentSlot] = useState<RollCallSlot | null>(null);

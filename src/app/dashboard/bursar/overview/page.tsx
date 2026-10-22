@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardBody, CardHeader, StatsCard } from '@/components/ui';
@@ -18,6 +19,7 @@ import apiService from '@/lib/apiService';
 import TasksNotificationsSection from '@/components/dashboard/TasksNotificationsSection';
 import { listOverpaid } from '@/lib/refundsApi';
 import { toast } from 'react-hot-toast';
+import { paymentMethodLabel } from '@/lib/paymentMethods';
 
 interface BursarDashboardData {
   studentsOwingCount: number;
@@ -28,9 +30,14 @@ interface BursarDashboardData {
   studentsWithoutParents: number;
   paymentMethods: Array<{
     method: string;
+    label?: string;
     count: number;
     totalAmount: number;
   }>;
+  totalExpected?: number;
+  totalCollected?: number;
+  totalOverpayments?: number;
+  reconciliation?: { expected: number; collected: number; overpayments: number; outstanding: number; formula: string };
   recentRegistrations: Array<{
     studentName: string;
     parentName: string;
@@ -130,6 +137,11 @@ export default function BursarOverviewPage() {
           />
         </Link>
       </div>
+      {dashboardData?.reconciliation && (
+        <p className="text-xs text-gray-500 -mt-2 sm:-mt-4">
+          {formatCurrency(dashboardData.reconciliation.expected)} {t('expected')} − {formatCurrency(dashboardData.reconciliation.collected)} {t('collected')} + {formatCurrency(dashboardData.reconciliation.overpayments)} {t('overpayments')} = {formatCurrency(dashboardData.reconciliation.outstanding)} {t('outstanding')}
+        </p>
+      )}
 
       {/* Student Management Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
@@ -159,7 +171,7 @@ export default function BursarOverviewPage() {
         </Link>
         <Link href="/dashboard/bursar/reports" className="block min-w-0 rounded-lg transition-all duration-150 hover:shadow-md hover:-translate-y-0.5">
           <StatsCard
-            title={t('Recent Transactions')}
+            title={t('Transactions This Month')}
             value={dashboardData?.recentTransactions?.toString() || '0'}
             icon={ChartBarIcon}
             color="primary"
@@ -182,7 +194,7 @@ export default function BursarOverviewPage() {
                 {dashboardData.paymentMethods.map((method, index) => (
                   <div key={index} className="flex items-center justify-between gap-2 p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0">
-                      <p className="font-medium text-gray-900 truncate">{method.method}</p>
+                      <p className="font-medium text-gray-900 truncate">{method.label || paymentMethodLabel(method.method)}</p>
                       <p className="text-sm text-gray-600">{method.count} {t('transactions')}</p>
                     </div>
                     <div className="text-right">
@@ -215,7 +227,7 @@ export default function BursarOverviewPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-gray-600">
-                        {new Date(registration.registrationDate).toLocaleDateString()}
+                        {new Date(registration.registrationDate).toLocaleDateString(appDateLocale())}
                       </p>
                     </div>
                   </div>

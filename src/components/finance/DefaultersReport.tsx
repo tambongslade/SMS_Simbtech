@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import { saveFile } from '@/lib/download';
-import jsPDF from 'jspdf';
 import {
     ExclamationTriangleIcon,
     PhoneIcon,
@@ -17,14 +16,6 @@ import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge, Input, Select,
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel } from '@/lib/classOrdering';
-
-// Not pdf.save(): that builds a blob: anchor, which the mobile app's web view
-// refuses to download. saveFile routes it natively there.
-const savePdf = (pdf: jsPDF, filename: string) => {
-    saveFile(pdf.output('blob'), filename).catch((err: unknown) => {
-        toast.error(err instanceof Error ? err.message : 'Failed to download PDF');
-    });
-};
 
 
 // GET /bursar/defaulters-report — the whole year's defaulters, fetched once
@@ -65,6 +56,15 @@ interface DefaulterStudent {
 interface DefaultersReportData {
     totalDefaulters: number;
     totalOutstanding: number;
+    // Whole-year totals with the shared outstanding rule (same as Overview / Fee Statistics / Reports)
+    summary?: {
+        studentCount: number;
+        totalExpected: number;
+        totalCollected: number;
+        totalOverpayments: number;
+        totalOutstanding: number;
+        reconciliation?: { formula: string };
+    };
     students: DefaulterStudent[];
 }
 
@@ -157,100 +157,31 @@ function CountList({ rows, onSelect, emptyText }: {
     );
 }
 
-// Simple manual table -- no autotable plugin in this project, and a
-// defaulters list is a plain enough grid that hand-drawn rows are fine.
-function exportStudentsPdf(opts: {
-    students: DefaulterStudent[];
-    className: string;
-    subClassName: string;
-    installmentLabel: string;
-    installmentFilter: 'all' | InstallmentKey;
+// Backend-rendered PDF: one subclass per page, five columns
+// (Name, Status, Total Paid, Expected 1st Installment, Remaining).
+// See GET /bursar/defaulters-report/pdf.
+async function downloadDefaultersPdf(opts: {
+    academicYearId?: number;
     academicYearName?: string;
+    installmentFilter: 'all' | InstallmentKey;
 }) {
-    const { students, className, subClassName, installmentLabel, installmentFilter, academicYearName } = opts;
-    if (students.length === 0) {
-        toast.error('Nothing to export.');
-        return;
-    }
+    const { academicYearId, academicYearName, installmentFilter } = opts;
+    const params = new URLSearchParams();
+    if (academicYearId) params.set('academicYearId', String(academicYearId));
+    if (installmentFilter !== 'all') params.set('installment', installmentFilter);
+
     const toastId = toast.loading('Preparing PDF...');
     try {
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pageWidth = 210;
-        const marginX = 12;
-        const usableWidth = pageWidth - marginX * 2;
-        let y = 16;
-
-        pdf.setFontSize(14);
-        pdf.setFont('helvetica', 'bold');
-        pdf.text('Fee Defaulters', marginX, y);
-        y += 6;
-        pdf.setFontSize(10);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(
-            `${className} · ${subClassName}${academicYearName ? ` · ${academicYearName}` : ''} · ${installmentLabel}`,
-            marginX, y,
+        const blob = await apiService.get<Blob>(
+            `/bursar/defaulters-report/pdf?${params.toString()}`,
+            undefined,
+            'blob',
         );
-        y += 4;
-        pdf.text(`${students.length} student${students.length === 1 ? '' : 's'} owing`, marginX, y);
-        y += 6;
-
-        // Columns: # | Student | Matricule | 1st | 2nd | 3rd | Total/Filtered | Overdue
-        const cols = [
-            { label: '#', width: 8 },
-            { label: 'Student', width: 52 },
-            { label: 'Matricule', width: 24 },
-            { label: '1st', width: 24 },
-            { label: '2nd', width: 24 },
-            { label: '3rd', width: 24 },
-            { label: installmentFilter === 'all' ? 'Total' : `${INSTALLMENT_SHORT_LABEL[installmentFilter]} Owing`, width: 26 },
-            { label: 'Overdue', width: usableWidth - (8 + 52 + 24 + 24 + 24 + 26) },
-        ];
-        const colX: number[] = [];
-        let cursorX = marginX;
-        for (const c of cols) { colX.push(cursorX); cursorX += c.width; }
-
-        const rowHeight = 7;
-        const pageHeight = 297;
-        const bottomMargin = 16;
-
-        const drawHeader = () => {
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(8);
-            cols.forEach((c, i) => pdf.text(c.label, colX[i], y));
-            y += 2;
-            pdf.setDrawColor(180);
-            pdf.line(marginX, y, marginX + usableWidth, y);
-            y += 5;
-            pdf.setFont('helvetica', 'normal');
-        };
-
-        drawHeader();
-
-        students.forEach((s, i) => {
-            if (y > pageHeight - bottomMargin) {
-                pdf.addPage();
-                y = 16;
-                drawHeader();
-            }
-            const cells = [
-                String(i + 1),
-                s.studentName.length > 32 ? `${s.studentName.slice(0, 30)}…` : s.studentName,
-                s.matricule,
-                s.installments.first.outstanding > 0 ? formatMoney(s.installments.first.outstanding) : '—',
-                s.installments.second.outstanding > 0 ? formatMoney(s.installments.second.outstanding) : '—',
-                s.installments.third.outstanding > 0 ? formatMoney(s.installments.third.outstanding) : '—',
-                formatMoney(displayOutstanding(s, installmentFilter)),
-                `${s.daysOverdue}d`,
-            ];
-            cells.forEach((cell, ci) => pdf.text(cell, colX[ci], y));
-            y += rowHeight;
-        });
-
-        const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        savePdf(pdf, `fee-defaulters-${slug(className)}-${slug(subClassName)}.pdf`);
+        const slug = (v?: string) => (v || 'current').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'current';
+        await saveFile(blob, `fee-defaulters-${slug(academicYearName)}.pdf`, 'application/pdf');
         toast.success('PDF downloaded.', { id: toastId });
     } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'PDF generation failed', { id: toastId });
+        toast.error(err instanceof Error ? err.message : 'PDF download failed', { id: toastId });
     }
 }
 
@@ -385,7 +316,9 @@ export default function DefaultersReport() {
             )}
 
             {/* Summary + installment filter -- the filter lives here, above the
-                drill-down, since it changes the counts at every level below it. */}
+                drill-down, since it changes the counts at every level below it.
+                The "Download All Classes" button always sits here too so the
+                bursar can print the full-school PDF from any view. */}
             <div className="flex flex-col sm:flex-row sm:items-end gap-3 sm:justify-between">
                 <div className="grid grid-cols-2 gap-3 sm:gap-6 flex-1">
                     <StatsCard
@@ -400,13 +333,32 @@ export default function DefaultersReport() {
                         icon={ExclamationTriangleIcon}
                         color="danger"
                     />
+                    {installmentFilter === 'all' && reportRes?.data?.summary?.reconciliation?.formula && (
+                        <p className="col-span-2 text-xs text-gray-500">
+                            {reportRes.data.summary.reconciliation.formula} (FCFA)
+                        </p>
+                    )}
                 </div>
-                <div className="sm:w-52">
-                    <Select
-                        value={installmentFilter}
-                        onChange={(e) => setInstallmentFilter(e.target.value as 'all' | InstallmentKey)}
-                        options={INSTALLMENT_OPTIONS}
-                    />
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                    <div className="sm:w-52">
+                        <Select
+                            value={installmentFilter}
+                            onChange={(e) => setInstallmentFilter(e.target.value as 'all' | InstallmentKey)}
+                            options={INSTALLMENT_OPTIONS}
+                        />
+                    </div>
+                    <Button
+                        variant="outline"
+                        leftIcon={ArrowDownTrayIcon}
+                        onClick={() => downloadDefaultersPdf({
+                            academicYearId: selectedAcademicYear?.id,
+                            academicYearName: selectedAcademicYear?.name,
+                            installmentFilter,
+                        })}
+                        disabled={isLoading || totalDefaultersUnderFilter === 0}
+                    >
+                        Download All Classes
+                    </Button>
                 </div>
             </div>
 
@@ -469,41 +421,24 @@ export default function DefaultersReport() {
             {/* Level 3: Student list for the selected class + sub-class */}
             {view === 'students' && (
                 <>
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:items-end sm:justify-between">
-                        <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                            <div className="flex-1 min-w-[200px]">
-                                <Input
-                                    placeholder="Search by name or matricule..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    leftIcon={<MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />}
-                                />
-                            </div>
-                            <label className="flex items-center gap-2 text-sm text-gray-600 select-none pb-2 sm:pb-0 sm:self-center">
-                                <input
-                                    type="checkbox"
-                                    checked={showContacts}
-                                    onChange={(e) => setShowContacts(e.target.checked)}
-                                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                />
-                                Parent contacts
-                            </label>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1 min-w-[200px]">
+                            <Input
+                                placeholder="Search by name or matricule..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                leftIcon={<MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />}
+                            />
                         </div>
-                        <Button
-                            variant="outline"
-                            leftIcon={ArrowDownTrayIcon}
-                            onClick={() => exportStudentsPdf({
-                                students: studentRows,
-                                className: selectedClassLabel,
-                                subClassName: selectedSubClassLabel,
-                                installmentLabel,
-                                installmentFilter,
-                                academicYearName: selectedAcademicYear?.name,
-                            })}
-                            disabled={studentRows.length === 0}
-                        >
-                            Export PDF
-                        </Button>
+                        <label className="flex items-center gap-2 text-sm text-gray-600 select-none pb-2 sm:pb-0 sm:self-center">
+                            <input
+                                type="checkbox"
+                                checked={showContacts}
+                                onChange={(e) => setShowContacts(e.target.checked)}
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            Parent contacts
+                        </label>
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">

@@ -69,6 +69,7 @@ export default function FeeManagementPage() {
     isLoadingTransactions,
     fetchFeeTransactions,
     handleUpdatePayment,
+    printReceipt,
     handleExportEnhanced,
     subclassSummary,
     isLoadingSubclassSummary,
@@ -191,6 +192,7 @@ export default function FeeManagementPage() {
           records={paymentRecords}
           isLoading={isLoadingPaymentRecords}
           onUpdatePayment={handleUpdatePayment}
+          onPrintReceipt={(id, receiptNumber) => printReceipt(id, receiptNumber, true)}
         />
       )}
 
@@ -300,6 +302,7 @@ export default function FeeManagementPage() {
         transactions={transactions}
         isLoading={isLoadingTransactions}
         studentName={selectedTransactionsStudent?.name}
+        onPrintReceipt={(id, receiptNumber) => printReceipt(id, receiptNumber, true)}
         onUpdatePayment={
           selectedTransactionsStudent?.feeId
             ? (paymentId, data) => handleUpdatePayment(selectedTransactionsStudent.feeId!, paymentId, data)

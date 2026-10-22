@@ -116,7 +116,8 @@ export const useClassManagement = () => {
 
     const teachers = useMemo((): Teacher[] => {
         if (!teachersApiResult?.data) return [];
-        return teachersApiResult.data.map((t: any) => ({ id: t.id, name: t.name }));
+        // Matricule disambiguates same/similar-name teachers in the pickers (QA U8).
+        return teachersApiResult.data.map((t: any) => ({ id: t.id, name: t.matricule ? `${t.name} (${t.matricule})` : t.name }));
     }, [teachersApiResult]);
 
     // --- Consolidated Loading & Error --- 

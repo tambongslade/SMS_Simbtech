@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import type { TeacherSearchItem } from '@/lib/teacherSearchApi';
+import { formatWorkload, type TeacherSearchItem } from '@/lib/teacherSearchApi';
 import { useLanguage } from '@/components/context/LanguageContext';
 
 interface TeacherTableProps {
@@ -131,7 +131,7 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
                     <SubjectList subjects={teacher.subjects} />
                 </td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {teacher.totalHoursPerWeek ?? 0} h
+                    {formatWorkload(teacher)}
                 </td>
                 {renderActions && (
                     <td className="px-4 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -190,7 +190,7 @@ export const TeacherTable: React.FC<TeacherTableProps> = ({
                                 ['Matricule', teacher.matricule || '—'],
                                 ['Email', teacher.email || '—'],
                                 ['Phone', teacher.phone || '—'],
-                                ['Hours/Week', `${teacher.totalHoursPerWeek ?? 0} h`],
+                                ['Hours/Week', formatWorkload(teacher)],
                             ].map(([label, value]) => (
                                 <div key={label} className="flex items-start justify-between gap-3">
                                     <span className="text-xs text-gray-500">{label}</span>

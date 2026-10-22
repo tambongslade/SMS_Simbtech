@@ -1,5 +1,7 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { StatsCard } from '@/components/ui/StatsCard';
@@ -382,7 +384,7 @@ export default function GuidanceCounselorDashboard() {
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                 {dashboardStats?.interventionEffectiveness?.map((intervention, index) => (
                   <div key={index} className="p-4 border border-gray-200 rounded-lg">
-                    <h4 className="font-medium text-gray-900 mb-2">{intervention.type}</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">{enumLabel(intervention.type)}</h4>
                     <div className="space-y-2">
                       <div>
                         <p className="text-sm text-gray-600">{t('Success Rate')}</p>
@@ -429,7 +431,7 @@ export default function GuidanceCounselorDashboard() {
                       <p className="text-sm text-gray-600">{t('Sessions:')} {student.totalSessions}</p>
                       {student.lastSessionDate && (
                         <p className="text-xs text-gray-500">
-                          {t('Last:')} {new Date(student.lastSessionDate).toLocaleDateString()}
+                          {t('Last:')} {new Date(student.lastSessionDate).toLocaleDateString(appDateLocale())}
                         </p>
                       )}
                     </div>
@@ -446,7 +448,7 @@ export default function GuidanceCounselorDashboard() {
                       </Button>
                       {student.nextAppointment && (
                         <span className="text-xs text-blue-600">
-                          {t('Next:')} {new Date(student.nextAppointment).toLocaleDateString()}
+                          {t('Next:')} {new Date(student.nextAppointment).toLocaleDateString(appDateLocale())}
                         </span>
                       )}
                     </div>
@@ -503,10 +505,10 @@ export default function GuidanceCounselorDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm font-medium text-gray-900">
-                        {new Date(appointment.scheduledTime).toLocaleDateString()}
+                        {new Date(appointment.scheduledTime).toLocaleDateString(appDateLocale())}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {new Date(appointment.scheduledTime).toLocaleTimeString()}
+                        {new Date(appointment.scheduledTime).toLocaleTimeString(appDateLocale())}
                       </p>
                       <div className="flex gap-2 mt-2">
                         <Button size="sm" variant="outline">
@@ -553,7 +555,7 @@ export default function GuidanceCounselorDashboard() {
                 <p className="text-sm text-gray-600">{t('Last Session')}</p>
                 <p className="text-sm text-gray-900">
                   {selectedStudent.lastSessionDate
-                    ? new Date(selectedStudent.lastSessionDate).toLocaleDateString()
+                    ? new Date(selectedStudent.lastSessionDate).toLocaleDateString(appDateLocale())
                     : t('Never')
                   }
                 </p>
@@ -586,8 +588,8 @@ export default function GuidanceCounselorDashboard() {
               <div>
                 <h4 className="font-medium text-gray-900 mb-2">{t('Next Appointment')}</h4>
                 <p className="text-sm text-gray-700">
-                  {new Date(selectedStudent.nextAppointment).toLocaleDateString()} {t('at')}{' '}
-                  {new Date(selectedStudent.nextAppointment).toLocaleTimeString()}
+                  {new Date(selectedStudent.nextAppointment).toLocaleDateString(appDateLocale())} {t('at')}{' '}
+                  {new Date(selectedStudent.nextAppointment).toLocaleTimeString(appDateLocale())}
                 </p>
               </div>
             )}

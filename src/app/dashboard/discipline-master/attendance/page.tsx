@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/components/context/AuthContext';
 import { excuseAbsence, markMakeup, MAKEUP_STATUSES, enumLabel, type MakeupStatus } from '@/lib/disciplineExtApi';
+import { schoolTodayStr, appDateLocale } from '@/lib/formatDate';
 
 // Define types for general attendance management
 interface ClassInfo {
@@ -337,8 +338,8 @@ const AttendanceDashboardPage: React.FC = () => {
   const [latenessLimit] = useState(10);
 
   // Filter state
-  const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState<string>(schoolTodayStr());
+  const [endDate, setEndDate] = useState<string>(schoolTodayStr());
   const [selectedClassId, setSelectedClassId] = useState<number>(0);
   const [selectedSubClassId, setSelectedSubClassId] = useState<number>(0);
   const [attendanceFilter, setAttendanceFilter] = useState<'all' | 'present' | 'absent' | 'late'>('all');
@@ -1103,7 +1104,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {activeTab === 'students' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold">Student Attendance - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}</h3>
+            <h3 className="text-lg font-semibold">Student Attendance - {new Date(startDate).toLocaleDateString(appDateLocale())} to {new Date(endDate).toLocaleDateString(appDateLocale())}</h3>
             <p className="text-sm text-gray-600">
               Showing {filteredStudentAttendance.length} records
               {selectedClassId && ` from ${classes.find(c => c.id === selectedClassId)?.name}`}
@@ -1270,7 +1271,7 @@ const AttendanceDashboardPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-1">Excuse Absence</h3>
             <p className="text-sm text-gray-500 mb-4">
-              {excuseTarget.student.name} — {new Date(excuseTarget.date).toLocaleDateString()}.
+              {excuseTarget.student.name} — {new Date(excuseTarget.date).toLocaleDateString(appDateLocale())}.
               Excusing reverses any warnings/summons that no longer meet their threshold.
             </p>
             <div className="space-y-3">
@@ -1321,7 +1322,7 @@ const AttendanceDashboardPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-semibold mb-1">Makeup Work</h3>
             <p className="text-sm text-gray-500 mb-4">
-              {makeupTarget.student.name} — {new Date(makeupTarget.date).toLocaleDateString()}.
+              {makeupTarget.student.name} — {new Date(makeupTarget.date).toLocaleDateString(appDateLocale())}.
               Makeup is independent of the excuse flag and does not affect warnings or summons.
             </p>
             <div className="space-y-3">
@@ -1369,7 +1370,7 @@ const AttendanceDashboardPage: React.FC = () => {
       {activeTab === 'teachers' && (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-semibold">Teacher Attendance - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}</h3>
+            <h3 className="text-lg font-semibold">Teacher Attendance - {new Date(startDate).toLocaleDateString(appDateLocale())} to {new Date(endDate).toLocaleDateString(appDateLocale())}</h3>
             <p className="text-sm text-gray-600">
               {teacherAttendance.length} teacher absence records found
             </p>
@@ -1405,7 +1406,7 @@ const AttendanceDashboardPage: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(record.date).toLocaleDateString()}
+                        {new Date(record.date).toLocaleDateString(appDateLocale())}
                       </td>
                     </tr>
                   ))}
@@ -1429,7 +1430,7 @@ const AttendanceDashboardPage: React.FC = () => {
                   </div>
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">Date</span>
-                    <span className="text-sm text-gray-900 text-right break-words">{new Date(record.date).toLocaleDateString()}</span>
+                    <span className="text-sm text-gray-900 text-right break-words">{new Date(record.date).toLocaleDateString(appDateLocale())}</span>
                   </div>
                 </div>
               ))}
@@ -1696,7 +1697,7 @@ const AttendanceDashboardPage: React.FC = () => {
             <div className="p-4 sm:p-6">
               <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
                 <h4 className="text-md font-semibold text-gray-900">
-                  Daily Lateness Report - {new Date(startDate).toLocaleDateString()} to {new Date(endDate).toLocaleDateString()}
+                  Daily Lateness Report - {new Date(startDate).toLocaleDateString(appDateLocale())} to {new Date(endDate).toLocaleDateString(appDateLocale())}
                 </h4>
               </div>
 
@@ -1747,7 +1748,7 @@ const AttendanceDashboardPage: React.FC = () => {
                             {record.enrollment?.sub_class?.class?.name} - {record.enrollment?.sub_class?.name}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {new Date(record.created_at).toLocaleTimeString()}
+                            {new Date(record.created_at).toLocaleTimeString(appDateLocale())}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {record.assigned_by?.name}
@@ -1778,7 +1779,7 @@ const AttendanceDashboardPage: React.FC = () => {
                       <div className="flex items-start justify-between gap-3">
                         <span className="text-xs text-gray-500">Time Recorded</span>
                         <span className="text-sm text-gray-900 text-right break-words">
-                          {new Date(record.created_at).toLocaleTimeString()}
+                          {new Date(record.created_at).toLocaleTimeString(appDateLocale())}
                         </span>
                       </div>
                       <div className="flex items-start justify-between gap-3">

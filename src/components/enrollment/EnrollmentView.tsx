@@ -74,10 +74,11 @@ const fetchSubClassStudents = async (
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="mt-1 text-2xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+    // min-w-0 + smaller phone padding/type keep the 3-column grid inside a 390px screen (QA U11).
+    <div className="min-w-0 bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4">
+      <p className="text-[10px] sm:text-xs font-medium text-gray-500 uppercase sm:tracking-wide truncate" title={label}>{label}</p>
+      <p className="mt-1 text-lg sm:text-2xl font-bold text-gray-900 truncate">{value}</p>
+      {sub && <p className="text-xs text-gray-500 mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }
@@ -198,10 +199,10 @@ function ClassCard({
                 onClick={() =>
                   onOpenRoster({ subClassId: sc.id, title: `${cls.name} · ${sc.name}` })
                 }
-                className="w-full flex items-center justify-between px-4 py-2 pl-10 text-left active:bg-gray-100"
+                className="w-full flex items-center justify-between gap-3 px-4 py-2 pl-10 text-left active:bg-gray-100"
               >
-                <span className="text-sm text-blue-700 truncate">{sc.name}</span>
-                <span className="text-sm text-gray-700 tabular-nums">{sc.studentCount ?? 0}</span>
+                <span className="min-w-0 text-sm text-blue-700 truncate">{sc.name}</span>
+                <span className="shrink-0 text-sm text-gray-700 tabular-nums">{sc.studentCount ?? 0}</span>
               </button>
             ))
           )}
@@ -266,8 +267,8 @@ function RosterModal({
               : `${students.length} student${students.length === 1 ? '' : 's'}`}
             {academicYearName ? ` · ${academicYearName}` : ''}
           </p>
-          <div className="flex items-center gap-2">
-            <div className="relative">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 min-w-0">
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -296,7 +297,7 @@ function RosterModal({
             {data?.length ? 'No student matches that search.' : 'No students enrolled here.'}
           </p>
         ) : (
-          <div className="max-h-[55vh] overflow-y-auto border border-gray-200 rounded-lg">
+          <div className="max-h-[55vh] overflow-y-auto overflow-x-auto border border-gray-200 rounded-lg">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -318,8 +319,8 @@ function RosterModal({
                 {students.map((s, i) => (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="px-3 py-2 text-sm text-gray-500 tabular-nums">{i + 1}</td>
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{s.name ?? '—'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-600">{s.matricule ?? '—'}</td>
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900 break-words">{s.name ?? '—'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-600 whitespace-nowrap">{s.matricule ?? '—'}</td>
                     <td className="px-3 py-2 text-sm text-gray-600 capitalize">
                       {s.gender ? s.gender.toLowerCase() : '—'}
                     </td>
@@ -393,7 +394,7 @@ export default function EnrollmentView() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-5">
+    <div className="max-w-7xl mx-auto space-y-5 min-w-0 overflow-x-hidden">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 flex flex-wrap items-start justify-between gap-4">
         <div>

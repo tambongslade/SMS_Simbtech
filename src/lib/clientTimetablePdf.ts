@@ -1,3 +1,4 @@
+import { appDateLocale } from '@/lib/formatDate';
 import jsPDF from 'jspdf';
 import { toast } from 'react-hot-toast';
 import { saveFile } from '@/lib/download';
@@ -256,7 +257,7 @@ const renderPage = (
     pdf.setFontSize(7);
     pdf.setTextColor(148, 163, 184);
     pdf.text(
-        `Generated ${new Date().toLocaleDateString()}`,
+        `Generated ${new Date().toLocaleDateString(appDateLocale())}`,
         pageW - margin,
         pageH - margin,
         { align: 'right' },

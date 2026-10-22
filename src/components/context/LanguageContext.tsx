@@ -12,6 +12,7 @@ interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 const STORAGE_KEY = 'app-language';
+const HTML_LANG: Record<Language, string> = { en: 'en-GB', fr: 'fr-FR' };
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
@@ -19,18 +20,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'en' || stored === 'fr') {
-        setLanguageState(stored);
-        document.documentElement.lang = stored;
-      }
+      if (stored === 'en' || stored === 'fr') setLanguageState(stored);
     } catch { /* ignore */ }
   }, []);
+
+  // Region-qualified lang so dates read day/month/year in both languages
+  // (en-GB, fr-FR). formatDate.appDateLocale() reads this. Native
+  // <input type="date"> pickers mostly follow the browser/OS locale, not this.
+  useEffect(() => {
+    try {
+      document.documentElement.lang = HTML_LANG[language];
+    } catch { /* ignore */ }
+  }, [language]);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     try {
       localStorage.setItem(STORAGE_KEY, lang);
-      document.documentElement.lang = lang;
     } catch { /* ignore */ }
   }, []);
 

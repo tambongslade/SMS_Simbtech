@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -47,7 +48,7 @@ const formatRelativeTime = (iso?: string) => {
     if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.round(minutes / 60);
     if (hours < 24) return `${hours} h ago`;
-    return new Date(iso).toLocaleDateString();
+    return new Date(iso).toLocaleDateString(appDateLocale());
 };
 
 export default function NotificationIndicator({
@@ -179,7 +180,9 @@ export default function NotificationIndicator({
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-80 sm:w-96 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                <div className="fixed inset-x-2 top-[calc(var(--safe-top,0px)+4rem)] z-50 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-96 bg-white border border-gray-200 rounded-lg shadow-xl overflow-hidden">
+                    {/* Phones: pinned to the viewport (8px gutters, under the 4rem header) so it is
+                        never cut off on the left; sm+: dropdown anchored to the bell. */}
                     <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-gray-900">{t('Notifications')}</h3>
                         {unreadCount > 0 && (
