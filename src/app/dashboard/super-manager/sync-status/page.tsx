@@ -38,6 +38,9 @@ const SYNC_POLL_MS = 4_000;
 
 type SyncRunStatus = { syncInFlight: boolean; remotePeerConfigured: boolean };
 
+type TableRepair = { table: string; pulled: number; pullFailed: number; pushed: number; pushFailed: number; errors: string[] };
+type RepairResult = { running: boolean; startedAt: string; finishedAt: string | null; error: string | null; tables: TableRepair[] };
+
 const CATEGORY_BADGE: Record<CategoryComparison['status'], { label: string; className: string }> = {
     in_sync: { label: 'Synchronized', className: 'bg-green-100 text-green-800' },
     out_of_sync: { label: 'Not synchronized', className: 'bg-amber-100 text-amber-800' },
@@ -63,6 +66,7 @@ export default function SyncStatusPage() {
     const [expanded, setExpanded] = useState<Set<string>>(new Set());
     const [syncing, setSyncing] = useState(false);
     const [starting, setStarting] = useState(false);
+    const [repair, setRepair] = useState<RepairResult | null>(null);
 
     const load = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
@@ -105,6 +109,43 @@ export default function SyncStatusPage() {
             setStarting(false);
         }
     };
+
+    const loadRepair = useCallback(async () => {
+        try {
+            const res = await apiService.get<{ success: boolean; data: RepairResult | null }>('/system/sync/reconcile');
+            setRepair(res.data ?? null);
+            return !!res.data?.running;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const handleRepair = async () => {
+        if (repair?.running || syncing) return;
+        try {
+            const res = await apiService.post<{ success: boolean; message?: string; error?: string }, Record<string, never>>('/system/sync/reconcile', {});
+            if (!res.success) throw new Error(res.error || 'Could not start the repair');
+            toast.success('Repair started');
+            setRepair({ running: true, startedAt: new Date().toISOString(), finishedAt: null, error: null, tables: [] });
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Could not start the repair');
+        }
+    };
+
+    useEffect(() => {
+        loadRepair();
+    }, [loadRepair]);
+
+    useEffect(() => {
+        if (!repair?.running) return;
+        const timer = setInterval(async () => {
+            if (!(await loadRepair())) {
+                toast.success('Repair finished');
+                load(true);
+            }
+        }, SYNC_POLL_MS);
+        return () => clearInterval(timer);
+    }, [repair?.running, loadRepair, load]);
 
     // While a sync runs, poll its state; when it ends, reload the comparison.
     useEffect(() => {
@@ -162,6 +203,14 @@ export default function SyncStatusPage() {
                         <ArrowPathIcon className={`h-4 w-4 ${syncing || starting ? 'animate-spin' : ''}`} />
                         {syncing ? 'Syncing...' : 'Sync now'}
                     </button>
+                    <button
+                        onClick={handleRepair}
+                        disabled={syncing || !!repair?.running || (data !== null && !data.online.reachable)}
+                        title="Re-reads and re-sends the areas whose counts differ. Adds and updates only, never deletes."
+                        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {repair?.running ? 'Repairing...' : 'Repair differences'}
+                    </button>
                 </div>
             </div>
 
@@ -194,6 +243,23 @@ export default function SyncStatusPage() {
                             <div className="text-xl font-semibold text-gray-600">{data.summary.unknown}</div>
                         </div>
                     </div>
+
+                    {repair && !repair.running && repair.tables.length > 0 && (
+                        <div className="mb-4 p-3 rounded bg-white shadow text-sm">
+                            <div className="font-medium mb-1">Last repair ({formatTime(repair.finishedAt)})</div>
+                            {repair.error && <div className="text-red-600 mb-1">{repair.error}</div>}
+                            <ul className="space-y-0.5 text-gray-700">
+                                {repair.tables.map(t => (
+                                    <li key={t.table}>
+                                        {tableLabel(t.table)}: pulled {t.pulled}, sent {t.pushed}
+                                        {(t.pullFailed + t.pushFailed > 0) && (
+                                            <span className="text-amber-700"> · {t.pullFailed + t.pushFailed} could not be applied</span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="bg-white rounded shadow overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
