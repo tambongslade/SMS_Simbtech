@@ -1,10 +1,12 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
+import { useAcademicYearFilter } from '@/hooks/useRememberedFilter';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 // --- Types --- (Using refined types)
 
@@ -86,7 +88,10 @@ export default function ReportCardGenerationPage() {
     const [allStudents, setAllStudents] = useState<Student[]>([]);
 
     // Filter States
-    const [selectedYearId, setSelectedYearId] = useState<number | null>(null);
+    // Year defaults to the current one and is remembered per user across pages.
+    const [rememberedYearId, setRememberedYearId] = useAcademicYearFilter(academicYearsData);
+    const selectedYearId: number | null = rememberedYearId === '' ? null : rememberedYearId;
+    const setSelectedYearId = (v: number | null) => setRememberedYearId(v ?? '');
     const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
     const [selectedSequenceId, setSelectedSequenceId] = useState<number | null>(null);
     const [selectedSubClassId, setSelectedSubClassId] = useState<number | null>(null);
@@ -177,7 +182,7 @@ export default function ReportCardGenerationPage() {
             const token = getAuthToken();
             if (!token) { toast.error("Auth error"); setIsLoadingStudents(false); return; }
             try {
-                const url = `${API_BASE_URL}/students?subclassId=${selectedSubClassId}&academicYearId=${selectedYearId}&status=ENROLLED`;
+                const url = `${API_BASE_URL}/students?subClassId=${selectedSubClassId}&limit=200&sortBy=name&academicYearId=${selectedYearId}&status=ENROLLED`;
                 const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!res.ok) throw new Error('Failed to fetch students for subclass');
                 const data = await res.json();
@@ -364,7 +369,7 @@ export default function ReportCardGenerationPage() {
             }
 
             const blob = await response.blob();
-            saveBlob(blob, filename);
+            await saveFile(blob, filename);
 
             toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report downloaded successfully!`, { id: toastId });
 
@@ -443,7 +448,7 @@ export default function ReportCardGenerationPage() {
             }
 
             const blob = await response.blob();
-            saveBlob(blob, filename);
+            await saveFile(blob, filename);
 
             toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report generated and downloaded successfully!`, { id: toastId });
 
@@ -519,7 +524,7 @@ export default function ReportCardGenerationPage() {
         selectedSequenceId !== null &&
         selectedStudentId !== null &&
         selectedStudentId !== 'all'
-    ) || isGenerating;
+    ) || isGenerating || studentReportAvailability?.status === 'NO_MARKS';
 
     const isSubclassDownloadDisabled = !(
         selectedYearId !== null &&
@@ -532,7 +537,7 @@ export default function ReportCardGenerationPage() {
         selectedYearId !== null &&
         selectedSequenceId !== null &&
         selectedSubClassId !== null
-    ) || isGenerating;
+    ) || isGenerating || subclassReportAvailability?.status === 'NO_MARKS';
 
     // --- JSX --- 
     const renderFilterDropdown = (
@@ -690,7 +695,7 @@ export default function ReportCardGenerationPage() {
                                 <p className="text-sm text-gray-600 mt-1">{studentReportAvailability.message}</p>
                                 {studentReportAvailability.reportData?.generatedAt && (
                                     <p className="text-xs text-gray-500 mt-1">
-                                        Generated: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString()}
+                                        Generated: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                                     </p>
                                 )}
                             </div>
@@ -713,7 +718,7 @@ export default function ReportCardGenerationPage() {
                                 <p className="text-sm text-gray-600 mt-1">{subclassReportAvailability.message}</p>
                                 {subclassReportAvailability.reportData?.generatedAt && (
                                     <p className="text-xs text-gray-500 mt-1">
-                                        Generated: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString()}
+                                        Generated: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                                     </p>
                                 )}
                             </div>

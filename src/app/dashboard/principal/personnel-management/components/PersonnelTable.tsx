@@ -1,4 +1,5 @@
 'use client'
+import { appDateLocale } from '@/lib/formatDate';
 import React from 'react';
 import { useLanguage } from '@/components/context/LanguageContext';
 
@@ -256,7 +257,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
                     )}
                     {person.dateJoined && (
                       <div className="text-xs text-gray-500 mt-1">
-                        {t('Joined')}: {new Date(person.dateJoined).toLocaleDateString()}
+                        {t('Joined')}: {new Date(person.dateJoined).toLocaleDateString(appDateLocale())}
                       </div>
                     )}
                   </div>
@@ -405,7 +406,7 @@ export const PersonnelTable: React.FC<PersonnelTableProps> = ({
               <div className="flex items-start justify-between gap-3">
                 <span className="text-xs text-gray-500">{t('Joined')}</span>
                 <span className="text-sm text-gray-900 text-right break-words">
-                  {new Date(person.dateJoined).toLocaleDateString()}
+                  {new Date(person.dateJoined).toLocaleDateString(appDateLocale())}
                 </span>
               </div>
             )}

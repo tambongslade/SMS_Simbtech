@@ -42,6 +42,10 @@ export const principal: Record<string, string> = {
   'Administrative Staff': 'Personnel administratif',
   'Staff Overview': 'Aperçu du personnel',
   'Staff Utilization': 'Utilisation du personnel',
+  'Staff by Role': 'Personnel par fonction',
+  'No marks recorded yet': 'Aucune note enregistrée pour le moment',
+  'This Month': 'Ce mois-ci',
+  'Discipline Issues (this month)': 'Incidents disciplinaires (ce mois-ci)',
   'Total Teachers': 'Enseignants total',
 
   // Filters / status

@@ -2,6 +2,7 @@
 // camelCase on the wire.
 
 import apiService from './apiService';
+import { schoolTodayStr } from '@/lib/formatDate';
 
 export type TeacherRollCallStatus = 'PRESENT' | 'LATE' | 'ABSENT';
 
@@ -57,6 +58,8 @@ export interface TeacherRollCallSummary {
     period?: { name?: string; dayOfWeek?: string; startTime?: string; endTime?: string };
   };
   recordedBy?: { id: number; name: string };
+  /** Students in the roll call. Prefer this: `_count` arrives as `Count` after case conversion. */
+  entryCount?: number;
   _count?: { entries: number };
   entries?: Array<{
     id: number;
@@ -195,7 +198,7 @@ export interface TodayPeriod {
 
 export const getMyPeriodsForToday = async (): Promise<TodayPeriod[]> => {
   const today = new Date().toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
-  const isoDate = new Date().toISOString().split('T')[0];
+  const isoDate = schoolTodayStr();
 
   const [timetable, rolls] = await Promise.all([
     apiService.get<{ data: any }>('/teachers/me/timetable'),
@@ -228,7 +231,7 @@ export const getMyPeriodsForToday = async (): Promise<TodayPeriod[]> => {
         rollCallId: rc?.id ?? null,
         absent: entries.filter(e => e.status === 'ABSENT').length,
         late: entries.filter(e => e.status === 'LATE').length,
-        entryCount: rc?._count?.entries ?? entries.length,
+        entryCount: rc?.entryCount ?? rc?._count?.entries ?? entries.length,
       };
     })
     .sort((a: TodayPeriod, b: TodayPeriod) => (a.startTime || '').localeCompare(b.startTime || ''));

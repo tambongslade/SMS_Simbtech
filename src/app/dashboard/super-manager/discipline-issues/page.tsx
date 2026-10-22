@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -218,7 +219,7 @@ function DisciplineIssuesPageInner() {
                   return (
                     <tr key={issue.id} className="border-b last:border-none hover:bg-gray-50">
                       <td className="py-2 px-3 text-gray-700 whitespace-nowrap">
-                        {new Date(issue.createdAt).toLocaleDateString()}
+                        {new Date(issue.createdAt).toLocaleDateString(appDateLocale())}
                       </td>
                       <td className="py-2 px-3">
                         {student ? (

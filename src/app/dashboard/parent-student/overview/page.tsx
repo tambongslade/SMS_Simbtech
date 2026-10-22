@@ -1,5 +1,6 @@
 'use client'
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { useParentDashboard } from '../hooks/useParentDashboard';
@@ -162,7 +163,7 @@ export default function ParentStudentDashboard() {
               {t('Welcome back')} <span aria-hidden>👋</span>
             </h1>
             <p className="text-slate-500 mt-2 text-sm">
-              {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              {new Date().toLocaleDateString(appDateLocale(), { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
           <Button onClick={refetch} variant="outline" className="rounded-full inline-flex items-center">

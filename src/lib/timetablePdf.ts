@@ -1,6 +1,6 @@
 import { toast } from 'react-hot-toast';
 import apiService from '@/lib/apiService';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 // Server-rendered timetable PDFs (landscape A4 grids). The backend owns the
 // layout; the frontend only asks for the right endpoint and saves the blob.
@@ -16,6 +16,9 @@ const fileNamePart = (value: string | undefined | null, fallback: string): strin
     const cleaned = (value ?? '').trim().replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
     return cleaned || fallback;
 };
+
+const saveBlob = (blob: Blob, filename: string): Promise<void> =>
+    saveFile(blob, filename);
 
 const downloadPdf = async (
     endpoint: string,
@@ -33,7 +36,7 @@ const downloadPdf = async (
     if (!(blob instanceof Blob) || blob.size === 0) {
         throw new Error('The server returned an empty file.');
     }
-    saveBlob(blob, filename);
+    await saveBlob(blob, filename);
 };
 
 /** Wraps a download in a single loading/success/error toast. Never throws. */

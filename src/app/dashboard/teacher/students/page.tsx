@@ -10,20 +10,27 @@ import { sortSubClassesByLevel } from '@/lib/classOrdering';
 import { useLanguage } from '@/components/context/LanguageContext';
 
 // Types
+// Every figure below comes from GET /teachers/me/students — nothing is
+// invented client-side (the page used to fill gaps with Math.random()).
+type RollCallStatus = 'PRESENT' | 'LATE' | 'ABSENT';
 interface Student {
   id: number;
   name: string;
   matricule?: string;
-  performance?: number;
-  attendance?: number;
-  lastAttendance?: string;
+  /** Mean /20 of marks in your subjects this year; null when no marks yet. */
+  average?: number | null;
+  marksCount?: number;
+  /** % of period roll calls this year marked present/late; null when never called. */
+  attendanceRate?: number | null;
+  /** Status in your roll call today; null when not taken yet. */
+  todayStatus?: RollCallStatus | null;
   photo?: string | null;
   photoUrl?: string | null;
   hasPhoto?: boolean;
   teacherSubjects?: {
     subjectId: number;
     subjectName: string;
-    coefficient: number;
+    coefficient: number | null;
   }[];
   subClass: {
     id: number;
@@ -51,7 +58,7 @@ interface SubClass {
   subjects: {
     id: number;
     name: string;
-    coefficient: number;
+    coefficient: number | null;
     periodsPerWeek: number;
   }[];
   studentCount: number;
@@ -85,6 +92,12 @@ export default function TeacherStudents() {
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'ascending' });
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
+  // Search runs on the server across all your students, not just this page.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350);
+    return () => clearTimeout(handle);
+  }, [searchTerm]);
 
   // Fetch students that the teacher has access to (students in subclasses where teacher teaches)
   const {
@@ -92,7 +105,7 @@ export default function TeacherStudents() {
     error: studentsError,
     isLoading: studentsLoading
   } = useSWR<StudentsApiResponse>(
-    `/teachers/me/students?page=${currentPage}&limit=${pageSize}${selectedSubClass !== 'all' ? `&subClassId=${selectedSubClass}` : ''}${selectedSubject !== 'all' ? `&subjectId=${selectedSubject}` : ''}`,
+    `/teachers/me/students?page=${currentPage}&limit=${pageSize}${selectedSubClass !== 'all' ? `&subClassId=${selectedSubClass}` : ''}${selectedSubject !== 'all' ? `&subjectId=${selectedSubject}` : ''}${debouncedSearch ? `&search=${encodeURIComponent(debouncedSearch)}` : ''}`,
     (url: string) => apiService.get(url)
   );
 
@@ -145,28 +158,13 @@ export default function TeacherStudents() {
     }
   }, [studentsError, subClassesError]);
 
-  // Transform students data to match expected format and add search filtering
-  const processedStudents = useMemo(() => {
-    let filtered: ProcessedStudent[] = students.map(student => ({
-      ...student,
-      class: student.subClass?.class?.name || 'Not Assigned',
-      subClassName: student.subClass?.name || 'Not Assigned',
-      subClassId: student.subClass?.id || 0,
-      performance: student.performance || Math.floor(Math.random() * 40) + 60, // Temporary until API provides
-      attendance: student.attendance || Math.floor(Math.random() * 30) + 70, // Temporary until API provides
-      lastAttendance: student.lastAttendance || ['Present', 'Absent', 'Late'][Math.floor(Math.random() * 3)] // Temporary
-    }));
-
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(student =>
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (student.matricule && student.matricule.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    return filtered;
-  }, [students, searchTerm]);
+  // Transform students data to the table's shape (search is done server-side).
+  const processedStudents = useMemo((): ProcessedStudent[] => students.map(student => ({
+    ...student,
+    class: student.subClass?.class?.name || 'Not Assigned',
+    subClassName: student.subClass?.name || 'Not Assigned',
+    subClassId: student.subClass?.id || 0,
+  })), [students]);
 
   // Sort function for table columns
   const requestSort = (key: keyof ProcessedStudent) => {
@@ -196,25 +194,39 @@ export default function TeacherStudents() {
     });
   };
 
-  // Helper function to render performance indicator
-  const renderPerformanceIndicator = (performance: number) => {
-    if (performance >= 85) return <span className="text-green-600 font-medium">{t('Excellent')}</span>;
-    if (performance >= 70) return <span className="text-blue-600 font-medium">{t('Good')}</span>;
-    if (performance >= 50) return <span className="text-yellow-600 font-medium">{t('Average')}</span>;
-    return <span className="text-red-600 font-medium">{t('Needs Improvement')}</span>;
+  // Average is on the /20 scale used for all marks.
+  const renderAverage = (average?: number | null) => {
+    if (average == null) return <span className="text-gray-400">{t('No marks yet')}</span>;
+    const band = average >= 16
+      ? <span className="text-green-600 font-medium">{t('Excellent')}</span>
+      : average >= 12
+        ? <span className="text-blue-600 font-medium">{t('Good')}</span>
+        : average >= 10
+          ? <span className="text-yellow-600 font-medium">{t('Average')}</span>
+          : <span className="text-red-600 font-medium">{t('Needs Improvement')}</span>;
+    return (
+      <>
+        <span className="font-medium">{average.toFixed(2)}/20</span>
+        <span className="ml-2 sm:ml-0 sm:block sm:mt-1">{band}</span>
+      </>
+    );
   };
 
-  // Helper function to render attendance status
-  const renderAttendanceStatus = (status: string) => {
+  const renderAttendanceRate = (rate?: number | null) =>
+    rate == null ? <span className="text-gray-400">—</span> : <span>{rate}%</span>;
+
+  // Today's status from your own roll call; nothing is shown as "Late" unless
+  // you marked it so.
+  const renderAttendanceStatus = (status?: RollCallStatus | null) => {
     switch (status) {
-      case 'Present':
+      case 'PRESENT':
         return <span className="inline-flex items-center text-green-600"><CheckCircleIcon className="w-4 h-4 mr-1" /> {t('Present')}</span>;
-      case 'Absent':
+      case 'ABSENT':
         return <span className="inline-flex items-center text-red-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> {t('Absent')}</span>;
-      case 'Late':
+      case 'LATE':
         return <span className="inline-flex items-center text-yellow-600"><ExclamationCircleIcon className="w-4 h-4 mr-1" /> {t('Late')}</span>;
       default:
-        return <span>{status}</span>;
+        return <span className="text-gray-400">{t('Not taken today')}</span>;
     }
   };
 
@@ -237,10 +249,10 @@ export default function TeacherStudents() {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSubClass, selectedSubject, searchTerm]);
+  }, [selectedSubClass, selectedSubject, debouncedSearch]);
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6 max-w-full overflow-x-hidden">
       <h1 className="text-2xl font-bold mb-2">{t('My Students')}</h1>
       <p className="text-gray-600 mb-6">{t('Students in classes where you teach at least one subject')}</p>
 
@@ -264,9 +276,10 @@ export default function TeacherStudents() {
           <MagnifyingGlassIcon className="w-5 h-5 absolute left-3 top-3 text-gray-400" />
         </div>
 
-        <div className="flex gap-2">
+        {/* Stacked on phones: long sub-class labels made the selects push the page to ~515px. */}
+        <div className="flex flex-col sm:flex-row gap-2 min-w-0">
           <select
-            className="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto min-w-0 max-w-full p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={selectedSubClass}
             onChange={(e) => setSelectedSubClass(e.target.value)}
             disabled={isLoading}
@@ -280,7 +293,7 @@ export default function TeacherStudents() {
           </select>
 
           <select
-            className="p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto min-w-0 max-w-full p-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={selectedSubject}
             onChange={(e) => setSelectedSubject(e.target.value)}
             disabled={isLoading}
@@ -296,7 +309,7 @@ export default function TeacherStudents() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">{t('Total Students')}</h3>
           <p className="text-2xl font-bold">{isLoading ? '...' : totalStudents}</p>
@@ -305,14 +318,16 @@ export default function TeacherStudents() {
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">{t('Present Today')}</h3>
           <p className="text-2xl font-bold text-green-600">
-            {isLoading ? '...' : sortedStudents.filter(s => s.lastAttendance === 'Present').length}
+            {isLoading ? '...' : sortedStudents.filter(s => s.todayStatus === 'PRESENT' || s.todayStatus === 'LATE').length}
           </p>
+          <p className="text-xs text-gray-400 mt-1">{t('This page, from your roll calls')}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">{t('Absent Today')}</h3>
           <p className="text-2xl font-bold text-red-600">
-            {isLoading ? '...' : sortedStudents.filter(s => s.lastAttendance === 'Absent').length}
+            {isLoading ? '...' : sortedStudents.filter(s => s.todayStatus === 'ABSENT').length}
           </p>
+          <p className="text-xs text-gray-400 mt-1">{t('This page, from your roll calls')}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow">
           <h3 className="text-sm font-medium text-gray-500">{t('Classes Teaching')}</h3>
@@ -385,20 +400,20 @@ export default function TeacherStudents() {
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('performance')}
+                    onClick={() => requestSort('average')}
                   >
                     <div className="flex items-center space-x-1">
-                      <span>{t('Performance')}</span>
-                      {renderSortIcon('performance')}
+                      <span>{t('Average')}</span>
+                      {renderSortIcon('average')}
                     </div>
                   </th>
                   <th
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                    onClick={() => requestSort('attendance')}
+                    onClick={() => requestSort('attendanceRate')}
                   >
                     <div className="flex items-center space-x-1">
                       <span>{t('Attendance')}</span>
-                      {renderSortIcon('attendance')}
+                      {renderSortIcon('attendanceRate')}
                     </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -446,16 +461,13 @@ export default function TeacherStudents() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <span className="font-medium">{student.performance}%</span>
-                        <div className="mt-1">{renderPerformanceIndicator(student.performance || 0)}</div>
-                      </div>
+                      <div className="text-sm">{renderAverage(student.average)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{student.attendance}%</div>
+                      <div className="text-sm font-medium text-gray-900">{renderAttendanceRate(student.attendanceRate)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">{renderAttendanceStatus(student.lastAttendance || 'Unknown')}</div>
+                      <div className="text-sm">{renderAttendanceStatus(student.todayStatus)}</div>
                     </td>
                   </tr>
                 ))}
@@ -465,7 +477,7 @@ export default function TeacherStudents() {
           <div className="md:hidden divide-y divide-gray-100">
             {sortedStudents.map((student) => (
               <div key={student.id} className="p-4 space-y-1.5">
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 min-w-0">
                   <StudentPhoto
                     studentId={student.id}
                     photo={student.photo}
@@ -506,19 +518,16 @@ export default function TeacherStudents() {
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">{t('Performance')}</span>
-                  <span className="text-sm text-gray-900 text-right break-words">
-                    <span className="font-medium">{student.performance}%</span>
-                    <span className="ml-2">{renderPerformanceIndicator(student.performance || 0)}</span>
-                  </span>
+                  <span className="text-xs text-gray-500">{t('Average')}</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{renderAverage(student.average)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">{t('Attendance')}</span>
-                  <span className="text-sm font-medium text-gray-900 text-right break-words">{student.attendance}%</span>
+                  <span className="text-sm font-medium text-gray-900 text-right break-words">{renderAttendanceRate(student.attendanceRate)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs text-gray-500">{t('Status')}</span>
-                  <span className="text-sm text-gray-900 text-right break-words">{renderAttendanceStatus(student.lastAttendance || 'Unknown')}</span>
+                  <span className="text-xs text-gray-500">{t('Today')}</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{renderAttendanceStatus(student.todayStatus)}</span>
                 </div>
               </div>
             ))}
@@ -529,7 +538,7 @@ export default function TeacherStudents() {
 
       {/* Pagination */}
       {studentsData?.meta && studentsData.meta.total > pageSize && (
-        <div className="mt-6 flex justify-between items-center">
+        <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center">
           <div className="text-sm text-gray-700">
             {t('Showing')} {((currentPage - 1) * pageSize) + 1} {t('to')} {Math.min(currentPage * pageSize, studentsData.meta.total)} {t('of')} {studentsData.meta.total} {t('students')}
           </div>
@@ -568,7 +577,10 @@ export default function TeacherStudents() {
                   {subClass.subjects?.map(subject => (
                     <div key={subject.id} className="flex justify-between text-xs">
                       <span className="text-gray-700">{subject.name}</span>
-                      <span className="text-gray-500">{subject.periodsPerWeek}p/{t('week')}</span>
+                      <span className="text-gray-500 whitespace-nowrap">
+                        {subject.periodsPerWeek}p/{t('week')}
+                        {subject.coefficient != null && <> · {t('Coeff')} {subject.coefficient}</>}
+                      </span>
                     </div>
                   ))}
                 </div>

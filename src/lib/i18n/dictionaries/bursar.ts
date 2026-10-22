@@ -182,6 +182,9 @@ export const bursar: Record<string, string> = {
   'Register': 'S\'inscrire',
   'Recent Registrations': 'Inscriptions récentes',
   'Recent Transactions': 'Transactions récentes',
+  'Transactions This Month': 'Transactions du mois',
+  'collected': 'encaissé',
+  'overpayments': 'trop-perçus',
   'No recent registrations': 'Aucune inscription récente',
   'New Students This Month': 'Nouveaux élèves ce mois-ci',
   'Students with Parents': 'Élèves avec parents',
@@ -329,8 +332,8 @@ export const bursar: Record<string, string> = {
   'Enrollment': 'Inscription',
   'Expenditures': 'Dépenses',
   'Expense Requisition': 'Demande de dépense',
-  'Log what the school spends (cash only) and review the monthly sheet. You can edit your own entries within 7 days.':
-    'Consignez ce que l\'école dépense (en espèces uniquement) et consultez la feuille mensuelle. Vous pouvez modifier vos propres entrées pendant 7 jours.',
+  'Log what the school spends and review the monthly sheet. You can edit your own entries within 7 days.':
+    'Consignez ce que l\'école dépense et consultez la feuille mensuelle. Vous pouvez modifier vos propres entrées pendant 7 jours.',
   'Validate parent payment claims, raise refunds for Super Manager approval, and track staff money requests, fee reductions and bank verifications.':
     'Validez les réclamations de paiement des parents, initiez des remboursements pour approbation par le Super Manager, et suivez les demandes d\'argent du personnel, les réductions de frais et les vérifications bancaires.',
   'Counts cover students who have a fee record for the year. A student with no fee record yet is in neither column.':

@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -167,8 +168,8 @@ export default function SettingsPage() {
                                     {academicYears.map((year) => (
                                         <tr key={year.id} className={year.isCurrent ? 'bg-blue-50' : ''}>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{year.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(year.startDate).toLocaleDateString()}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(year.endDate).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(year.startDate).toLocaleDateString(appDateLocale())}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(year.endDate).toLocaleDateString(appDateLocale())}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${year.isCurrent ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                                                     }`}>
@@ -199,11 +200,11 @@ export default function SettingsPage() {
                                     <div className="text-sm font-semibold text-gray-900 break-words">{year.name}</div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">{t('Start Date')}</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.startDate).toLocaleDateString()}</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.startDate).toLocaleDateString(appDateLocale())}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">{t('End Date')}</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.endDate).toLocaleDateString()}</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{new Date(year.endDate).toLocaleDateString(appDateLocale())}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">{t('Status')}</span>

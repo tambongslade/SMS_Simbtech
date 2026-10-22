@@ -63,6 +63,16 @@ export const AutoSaveNote: React.FC<{
 const nonTeachingLabel = (period: PeriodDefinition) =>
   period.type === 'PREP' ? 'Preps' : 'Break';
 
+// Short row label shared by phone and desktop. `sequence` counts breaks too
+// (Short Break is sequence 3 on the first cycle), so "P{sequence}" put Period 3
+// at "P4" on phones while desktop said "Period 3". Use the period's own name.
+const shortPeriodLabel = (period?: PeriodDefinition): string => {
+  if (!period) return '';
+  if (!isAssignablePeriod(period.type)) return nonTeachingLabel(period);
+  const match = /period\s*(\d+)/i.exec(period.name || '');
+  return match ? `P${match[1]}` : (period.name || '');
+};
+
 // Offered when a class has no bell schedule — nothing can be scheduled until
 // one is attached, so the grid is replaced by the choice.
 export const AssignPeriodSetPrompt: React.FC<{ classId: string | null; className?: string }> = ({
@@ -135,6 +145,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     removeSlotAssignment,
     getTeachersBySubject,
     isTeacherAssignedElsewhere,
+    getBusyTeachers,
     getClashWarning,
     autoSaveStatus,
     retryAutoSave
@@ -155,7 +166,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   // State for the "add new assignment" form within the modal
   const [newSubject, setNewSubject] = useState('');
   const [newTeacher, setNewTeacher] = useState('');
-  const [newTeacherOptions, setNewTeacherOptions] = useState<{ id: string; name: string }[]>([]);
+  const [newTeacherOptions, setNewTeacherOptions] = useState<{ id: string; label: string }[]>([]);
 
   const currentTimetable = timetables[selectedSubClassId];
   const subClass = subClasses.find(sc => sc.id === selectedSubClassId);
@@ -201,19 +212,37 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
     setManageModalOpen(true);
   };
 
-  // Handle subject change in the add form
+  // Teachers already teaching another class at this slot's time → that class.
+  const busyTeachers = useMemo(() => {
+    if (!editingPeriod) return new Map<string, string>();
+    return getBusyTeachers(
+      editingPeriod.dayOfWeek,
+      editingPeriod.startTime,
+      editingPeriod.endTime,
+      selectedSubClassId,
+    );
+  }, [editingPeriod, getBusyTeachers, selectedSubClassId]);
+
+  // Handle subject change in the add form. Free teachers are listed first;
+  // busy ones stay selectable (clashes are allowed) but say where they are.
   const handleNewSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const subjectId = e.target.value;
     setNewSubject(subjectId);
     setNewTeacher('');
     const teachersForSubject = subjectId ? getTeachersBySubject(subjectId) : [];
-    setNewTeacherOptions(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
+    const options = teachersForSubject.map(t => {
+      const busyIn = busyTeachers.get(t.id);
+      return { id: t.id, label: busyIn ? `${t.label} — busy in ${busyIn}` : t.label, busy: !!busyIn };
+    });
+    options.sort((a, b) => Number(a.busy) - Number(b.busy));
+    setNewTeacherOptions(options.map(({ id, label }) => ({ id, label })));
   };
 
   // Add a new assignment to the current slot. Teacher is optional — a slot
   // can hold a subject without a teacher yet. A teacher already booked in
-  // another class at this time is allowed too; the server will save the slot
-  // and return a warning that the grid surfaces afterwards.
+  // another class at this time is still allowed, but only after the
+  // scheduler confirms — auto-save would otherwise persist the clash first
+  // and only warn afterwards.
   const handleAddAssignment = () => {
     if (!newSubject || !editingPeriod) return;
 
@@ -226,7 +255,12 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
         selectedSubClassId
       );
       if (conflictClass) {
-        toast(`Teacher is also booked in ${conflictClass} during this time — saved with a warning`, { icon: '⚠️' });
+        const ok = window.confirm(
+          `This teacher is already teaching ${conflictClass} at this time ` +
+          `(${editingPeriod.dayOfWeek} ${formatTimeRange(editingPeriod.startTime, editingPeriod.endTime)}).\n\n` +
+          `Assign anyway and create a clash?`
+        );
+        if (!ok) return;
       }
     }
 
@@ -318,10 +352,10 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
   };
 
   // Mobile row: one period of the active day as a tappable list item
-  const renderMobileRow = (period: PeriodDefinition | undefined, sequence: number) => {
+  const renderMobileRow = (period: PeriodDefinition | undefined, sequence: number, fallback?: PeriodDefinition) => {
     const timeCol = (
       <div className="w-20 shrink-0 text-center">
-        <div className="text-xs font-semibold text-gray-800">P{sequence}</div>
+        <div className="text-xs font-semibold text-gray-800">{shortPeriodLabel(period ?? fallback)}</div>
         <div className="text-[10px] text-gray-500">
           {period ? formatTimeRange(period.startTime, period.endTime) : ''}
         </div>
@@ -438,7 +472,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
           ))}
         </div>
         <ul className="divide-y divide-gray-100 border rounded-lg overflow-hidden">
-          {periodRows.map(row => renderMobileRow(row.byDay[activeDay], row.sequence))}
+          {periodRows.map(row => renderMobileRow(row.byDay[activeDay], row.sequence, row.label))}
         </ul>
       </div>
 
@@ -572,7 +606,7 @@ export const TimetableGrid: React.FC<TimetableGridProps> = ({ selectedSubClassId
                     id="newTeacherSelect"
                     value={newTeacher}
                     onChange={(e) => setNewTeacher(e.target.value)}
-                    options={[{ value: '', label: '-- No teacher yet --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.name }))]}
+                    options={[{ value: '', label: '-- No teacher yet --' }, ...newTeacherOptions.map(t => ({ value: t.id, label: t.label }))]}
                     disabled={!newSubject}
                   />
                   <p className="text-xs text-gray-500 mt-1">

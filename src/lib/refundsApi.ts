@@ -1,5 +1,5 @@
 import apiService from './apiService';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 export type RefundMethod =
   | 'CASH'
@@ -148,6 +148,5 @@ export const fmtMoney = (v: any) => {
   return `XAF ${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 };
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  saveBlob(blob, filename);
-};
+export const downloadBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);

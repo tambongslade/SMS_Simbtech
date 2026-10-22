@@ -46,4 +46,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Saving a download into the shared Downloads folder. Android 10 and up
+         go through MediaStore, which needs no permission, so this is capped at
+         28 to keep it off the permission list on modern devices. -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
 </manifest>

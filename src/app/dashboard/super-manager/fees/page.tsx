@@ -1,11 +1,12 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { MagnifyingGlassIcon, FunnelIcon, CheckCircleIcon, ClockIcon, XCircleIcon, DocumentArrowDownIcon } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService'; // Import apiService
 import { sortClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 // --- Type Definitions (move to types.ts later) ---
 type PaymentStatus = 'Paid' | 'Partially Paid' | 'Unpaid';
@@ -170,7 +171,7 @@ export default function FeesPaymentManagement() {
         try {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) return 'Invalid Date';
-            return date.toLocaleDateString(); // Adjust format if needed
+            return date.toLocaleDateString(appDateLocale()); // Adjust format if needed
         } catch (e) {
             return 'Error';
         }
@@ -201,7 +202,7 @@ export default function FeesPaymentManagement() {
             }, undefined, 'blob'); // Pass undefined for options, then 'blob' for expectedResponseType
 
             const filename = `fee_ defaulters_${new Date().toISOString().split('T')[0]}.${format}`;
-            saveBlob(response as Blob, filename);
+            await saveFile(response, filename);
             toast.success(`Export downloaded successfully.`, { id: 'export-toast' });
         } catch (error: any) {
             console.error("Export failed:", error);

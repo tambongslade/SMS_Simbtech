@@ -59,7 +59,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en-GB">
       <body className={inter.className} suppressHydrationWarning>
         <ServiceWorkerRegister />
         <ChunkErrorReload />

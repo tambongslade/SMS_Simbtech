@@ -115,7 +115,7 @@ const ParentStudentResultsPage: FC<ParentStudentResultsPageProps> = ({ matricule
       const res: ChildDetailsPayload = await fetchChildDetails(m);
       setDetails(res);
     } catch (e: any) {
-      setError(e?.message || 'Failed to load results.');
+      setError(e?.message || t('Failed to load results.'));
       setDetails(null);
     } finally {
       setLoading(false);

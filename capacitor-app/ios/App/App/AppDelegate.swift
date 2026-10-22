@@ -13,9 +13,121 @@ import Capacitor
 /// project.pbxproj by hand — and `cap sync` never touches app sources.
 /// Main.storyboard points its view controller at this class.
 class MainViewController: CAPBridgeViewController {
+    /// The name the web app posts download requests to. Kept in step with
+    /// `src/lib/download.ts`.
+    private static let downloadMessageName = "smsDownload"
+
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
         webView?.allowsBackForwardNavigationGestures = true
+        enableDownloads()
+    }
+
+    /// Gives the web app somewhere to send files it wants saved.
+    ///
+    /// WKWebView will not save an `<a download>` pointing at a `blob:` URL —
+    /// which is how every PDF, CSV and report card export in the app is
+    /// produced — so the page base64-encodes the blob and posts it here
+    /// instead. The file is written into the app's Documents folder (visible in
+    /// the Files app, see `UIFileSharingEnabled`) and then offered through a
+    /// share sheet, which is where an iOS user expects to choose "Save to
+    /// Files", AirDrop, or another app.
+    private func enableDownloads() {
+        webView?.configuration.userContentController.add(
+            DownloadMessageHandler(controller: self),
+            name: Self.downloadMessageName)
+    }
+
+    fileprivate func handleDownload(_ body: [String: Any]) {
+        guard let requestId = body["requestId"] as? String else { return }
+
+        guard let base64 = body["base64"] as? String,
+              let data = Data(base64Encoded: base64) else {
+            report(requestId: requestId, ok: false, message: "The file could not be read.")
+            return
+        }
+
+        let filename = Self.sanitise(body["filename"] as? String ?? "download")
+
+        do {
+            let url = try write(data, named: filename)
+            report(requestId: requestId, ok: true, message: "Saved to Files")
+            presentShareSheet(for: url)
+        } catch {
+            report(requestId: requestId, ok: false, message: error.localizedDescription)
+        }
+    }
+
+    /// Writes into Documents, stepping the name aside rather than overwriting.
+    private func write(_ data: Data, named filename: String) throws -> URL {
+        let documents = try FileManager.default.url(
+            for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+
+        var target = documents.appendingPathComponent(filename)
+        if FileManager.default.fileExists(atPath: target.path) {
+            let stem = (filename as NSString).deletingPathExtension
+            let ext = (filename as NSString).pathExtension
+            for index in 1..<1000 {
+                let candidate = ext.isEmpty ? "\(stem) (\(index))" : "\(stem) (\(index)).\(ext)"
+                target = documents.appendingPathComponent(candidate)
+                if !FileManager.default.fileExists(atPath: target.path) { break }
+            }
+        }
+
+        try data.write(to: target, options: .atomic)
+        return target
+    }
+
+    private func presentShareSheet(for url: URL) {
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        // Required on iPad, where a share sheet is a popover and iOS traps if
+        // it has nothing to point at.
+        sheet.popoverPresentationController?.sourceView = view
+        sheet.popoverPresentationController?.sourceRect = CGRect(
+            x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+        sheet.popoverPresentationController?.permittedArrowDirections = []
+        present(sheet, animated: true)
+    }
+
+    /// Settles the promise the web app is waiting on.
+    private func report(requestId: String, ok: Bool, message: String) {
+        let script = "window.__smsNativeDownloadResult && window.__smsNativeDownloadResult("
+            + "\(Self.quote(requestId)), \(ok), \(Self.quote(message)))"
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript(script, completionHandler: nil)
+        }
+    }
+
+    private static func quote(_ value: String) -> String {
+        let data = try? JSONSerialization.data(withJSONObject: [value], options: [])
+        guard let data = data, var json = String(data: data, encoding: .utf8) else { return "\"\"" }
+        json.removeFirst()  // [
+        json.removeLast()   // ]
+        return json
+    }
+
+    private static func sanitise(_ filename: String) -> String {
+        let cleaned = filename
+            .components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>|"))
+            .joined(separator: "_")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "download" : cleaned
+    }
+}
+
+/// Held separately because `WKUserContentController` retains its handlers, and
+/// the view controller must not be kept alive by its own web view.
+private final class DownloadMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var controller: MainViewController?
+
+    init(controller: MainViewController) {
+        self.controller = controller
+    }
+
+    func userContentController(_ userContentController: WKUserContentController,
+                               didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any] else { return }
+        controller?.handleDownload(body)
     }
 }
 

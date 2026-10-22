@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader, StatsCard } from '@/components/ui';
 import {
@@ -25,23 +26,39 @@ interface TeacherDashboardData {
   totalClasses: number;
   upcomingPeriods: number;
   weeklyPeriods: number;
-  attendanceRate?: number;
+  /** Teacher's own attendance (DM per-period records); null when nothing recorded yet. */
+  attendanceRate?: number | null;
   totalHoursPerWeek?: number;
+  marksExpected?: number;
+  marksEntered?: number;
 }
 
+// Shape of GET /teachers/me/subjects. Coefficients live per sub-class (the
+// same subject can weigh differently in Form 1 and Upper Sixth), so there is
+// no subject-level coefficient — reading one rendered an empty "Coeff:".
 interface Subject {
   id: number;
   name: string;
-  code: string;
   category: string;
-  coefficient: number;
-  subclasses: Array<{
+  totalStudents?: number;
+  totalPeriods?: number;
+  subClasses: Array<{
     id: number;
     name: string;
     className: string;
+    coefficient: number | null;
+    periodsPerWeek: number;
     studentCount: number;
   }>;
 }
+
+const coefficientLabel = (subject: Subject): string => {
+  const values = Array.from(new Set(
+    (subject.subClasses || []).map(sc => sc.coefficient).filter((c): c is number => c != null)
+  )).sort((a, b) => a - b);
+  if (values.length === 0) return '—';
+  return values.length === 1 ? String(values[0]) : `${values[0]}–${values[values.length - 1]}`;
+};
 
 interface CurrentAndNext {
   current: {
@@ -211,9 +228,9 @@ export default function TeacherDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
           title={t('Attendance Rate')}
-          value={`${dashboardData?.attendanceRate || 0}%`}
+          value={dashboardData?.attendanceRate != null ? `${dashboardData.attendanceRate}%` : '—'}
           icon={CheckCircleIcon}
-          color={dashboardData?.attendanceRate && dashboardData.attendanceRate > 85 ? "success" : "danger"}
+          color={dashboardData?.attendanceRate == null ? "primary" : dashboardData.attendanceRate > 85 ? "success" : "danger"}
           className="bg-indigo-50 border-indigo-200"
         />
         <StatsCard
@@ -319,18 +336,18 @@ export default function TeacherDashboard() {
                   <div key={subject.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="min-w-0">
                       <p className="font-medium text-gray-900">{subject.name}</p>
-                      <p className="text-sm text-gray-600">{subject.category}</p>
+                      <p className="text-sm text-gray-600">{enumLabel(subject.category)}</p>
                       <div className="mt-2 text-sm text-gray-600">
-                        {(subject.subclasses || []).map((sc, index) => (
+                        {(subject.subClasses || []).map((sc, index) => (
                           <span key={sc.id}>
-                            {sc.className} - {sc.name} ({sc.studentCount} {t('students')})
-                            {index < (subject.subclasses || []).length - 1 && ', '}
+                            {sc.name} ({sc.studentCount} {t('students')})
+                            {index < (subject.subClasses || []).length - 1 && ', '}
                           </span>
                         ))}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-blue-600">{t('Coeff')}: {subject.coefficient}</span>
+                      <span className="text-sm font-medium text-blue-600 whitespace-nowrap">{t('Coeff')}: {coefficientLabel(subject)}</span>
                     </div>
                   </div>
                 ))}

@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import {
     Message,
@@ -101,9 +102,9 @@ export default function MessageList({
         } else if (diffDays === 1) {
             return 'Yesterday';
         } else if (diffDays < 7) {
-            return date.toLocaleDateString('en-US', { weekday: 'short' });
+            return date.toLocaleDateString(appDateLocale(), { weekday: 'short' });
         } else {
-            return date.toLocaleDateString('en-US', {
+            return date.toLocaleDateString(appDateLocale(), {
                 month: 'short',
                 day: 'numeric'
             });

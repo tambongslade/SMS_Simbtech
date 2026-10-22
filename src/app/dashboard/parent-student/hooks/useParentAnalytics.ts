@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getAuthToken } from '@/lib/auth';
 import { toast } from 'react-hot-toast';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
@@ -472,7 +472,7 @@ export function useParentAnalytics() {
 
       // Handle file download
       const blob = await response.blob();
-      saveBlob(blob, `student_analytics_${studentId}_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`);
+      await saveFile(blob, `student_analytics_${studentId}_${new Date().toISOString().split('T')[0]}.${format.toLowerCase()}`);
 
       toast.success('Analytics exported successfully');
       return true;

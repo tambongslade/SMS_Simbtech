@@ -122,9 +122,22 @@ export function ReportRequestsOutbox() {
     setPage(1);
   }, [statusFilter, overdueOnly]);
 
-  useEffect(() => {
-    listReportRecipients().then(setRecipients).catch(() => setRecipients([]));
+  const [recipientsState, setRecipientsState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const loadRecipients = useCallback(() => {
+    setRecipientsState('loading');
+    listReportRecipients()
+      .then((list) => {
+        setRecipients(list);
+        setRecipientsState('ready');
+      })
+      .catch(() => {
+        setRecipients([]);
+        setRecipientsState('error');
+      });
   }, []);
+  useEffect(() => {
+    loadRecipients();
+  }, [loadRecipients]);
 
   const overdueCount = rows.filter((r) => r.isOverdue).length;
   const totalPages = Math.max(1, Math.ceil(total / LIMIT));
@@ -387,7 +400,17 @@ export function ReportRequestsOutbox() {
               value={recipientId}
               onChange={(e) => setRecipientId(e.target.value)}
               options={[
-                { value: '', label: recipients.length ? 'Select a discipline master…' : 'Loading…' },
+                {
+                  value: '',
+                  label:
+                    recipientsState === 'loading'
+                      ? 'Loading…'
+                      : recipientsState === 'error'
+                        ? 'Could not load discipline masters'
+                        : recipients.length
+                          ? 'Select a discipline master…'
+                          : 'No discipline masters available',
+                },
                 ...recipients.map((u) => ({
                   value: String(u.id),
                   label: `${u.name}${u.matricule ? ` (${u.matricule})` : ''} — ${
@@ -396,6 +419,11 @@ export function ReportRequestsOutbox() {
                 })),
               ]}
             />
+          )}
+          {!editing && recipientsState === 'error' && (
+            <button type="button" className="text-xs text-blue-600 hover:underline -mt-2" onClick={loadRecipients}>
+              Retry loading discipline masters
+            </button>
           )}
           <Input
             label="Subject *"

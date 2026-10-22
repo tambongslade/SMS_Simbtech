@@ -12,6 +12,7 @@ import {
   saveTeacherAttendanceDay,
 } from '@/lib/teacherAttendanceApi';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
+import { schoolTodayStr } from '@/lib/formatDate';
 import { useLanguage } from '@/components/context/LanguageContext';
 
 interface SubClassOption {
@@ -85,7 +86,7 @@ export default function TeacherAttendancePage() {
     { key: 'punctuality', label: t('Punctuality') },
     { key: 'assiduity', label: t('Assiduity') },
   ];
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => schoolTodayStr());
   const [subClassId, setSubClassId] = useState<number | ''>('');
   const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
 
@@ -96,7 +97,7 @@ export default function TeacherAttendancePage() {
   const [teacherSearch, setTeacherSearch] = useState('');
   const [showAllPeriods, setShowAllPeriods] = useState(false);
 
-  const isToday = date === new Date().toISOString().split('T')[0];
+  const isToday = date === schoolTodayStr();
 
   useEffect(() => {
     (async () => {

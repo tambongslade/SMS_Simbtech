@@ -33,7 +33,12 @@ const STATUS_STYLES: Record<PunishmentStatus, string> = {
   SKIPPED: 'bg-gray-200 text-gray-700',
 };
 
-export function PunishmentRegister() {
+interface PunishmentRegisterProps {
+  // Bump to force a reload, e.g. after a punishment is scheduled from LatenessAlerts (QA U14).
+  refreshToken?: number;
+}
+
+export function PunishmentRegister({ refreshToken = 0 }: PunishmentRegisterProps = {}) {
   const { selectedAcademicYear, selectedRole } = useAuth();
 
   const [rows, setRows] = useState<SaturdayPunishment[]>([]);
@@ -75,7 +80,7 @@ export function PunishmentRegister() {
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshToken]);
 
   useEffect(() => {
     setPage(1);

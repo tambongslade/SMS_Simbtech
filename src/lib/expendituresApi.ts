@@ -1,5 +1,7 @@
+import { appDateLocale } from '@/lib/formatDate';
 import apiService from './apiService';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
+import { PAYMENT_METHODS, type PaymentMethodCode } from './paymentMethods';
 
 // ---------------------------------------------------------------------------
 // Expenditures API client
@@ -18,7 +20,7 @@ export type ExpenditureCategory =
   | 'TRANSPORT'
   | 'OTHER';
 
-export type ExpenditurePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK' | 'CASH';
+export type ExpenditurePaymentMethod = PaymentMethodCode;
 
 export const EXPENDITURE_CATEGORIES: { value: ExpenditureCategory; label: string }[] = [
   { value: 'SALARY', label: 'Salary' },
@@ -35,13 +37,7 @@ export const CATEGORY_LABELS: Record<ExpenditureCategory, string> = EXPENDITURE_
   {} as Record<ExpenditureCategory, string>,
 );
 
-export const EXPENDITURE_PAYMENT_METHODS: { value: ExpenditurePaymentMethod; label: string }[] = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'EXPRESS_UNION', label: 'Express Union' },
-  { value: 'CCA', label: 'CCA' },
-  { value: 'F3DC', label: 'F3DC' },
-  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
-];
+export const EXPENDITURE_PAYMENT_METHODS: { value: ExpenditurePaymentMethod; label: string }[] = PAYMENT_METHODS;
 
 export interface PersonRef {
   id: number;
@@ -246,7 +242,7 @@ export const fmtDate = (v?: string | null) => {
   if (!v) return '—';
   const d = new Date(v);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(appDateLocale(), { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
 export const currentMonth = (): string => {
@@ -263,6 +259,5 @@ export const monthBounds = (month: string): { from: string; to: string } => {
   return { from: first, to: last };
 };
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  saveBlob(blob, filename);
-};
+export const downloadBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);

@@ -1,4 +1,5 @@
 'use client'
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useEffect } from 'react';
 import { AcademicCapIcon, ChartBarIcon, UserGroupIcon, ClipboardDocumentListIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
@@ -232,7 +233,7 @@ export default function TeacherSubjects() {
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{subject.name}</h3>
-                    <p className="text-sm text-gray-600">{subject.category}</p>
+                    <p className="text-sm text-gray-600">{enumLabel(subject.category)}</p>
                   </div>
                   <button
                     onClick={(e) => {
@@ -315,7 +316,7 @@ export default function TeacherSubjects() {
             <div className="flex justify-between items-center mb-6">
               <div>
                 <h2 className="text-2xl font-bold">{selectedSubject.name}</h2>
-                <p className="text-gray-600">{selectedSubject.category}</p>
+                <p className="text-gray-600">{enumLabel(selectedSubject.category)}</p>
               </div>
               <button
                 onClick={() => setShowDetailModal(false)}

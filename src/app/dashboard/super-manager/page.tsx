@@ -5,11 +5,17 @@ import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
 import { getQuickActionsForRole } from '@/lib/roleMenus';
+import { useAiAssistantAvailable, isAiAssistantHref } from '@/lib/aiAssistantStatus';
 
 export default function SuperManagerMenu() {
   const { selectedAcademicYear, user } = useAuth();
   const { t } = useLanguage();
-  const quickActions = useMemo(() => getQuickActionsForRole('super-manager', t), [t]);
+  // Hide the "Ask (AI)" tile unless the assistant is configured on this server.
+  const aiAvailable = useAiAssistantAvailable();
+  const quickActions = useMemo(
+    () => getQuickActionsForRole('super-manager', t).filter((a) => aiAvailable || !isAiAssistantHref(a.href)),
+    [t, aiAvailable],
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">

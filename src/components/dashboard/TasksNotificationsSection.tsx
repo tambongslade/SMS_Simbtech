@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import useSWR from 'swr';
 import { Card, CardBody, CardHeader, Badge } from '@/components/ui';
 import { BellIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
@@ -110,7 +111,7 @@ export function TasksNotificationsSection() {
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate">{task.title}</p>
                                         <p className="text-xs text-gray-500 truncate">
-                                            {task.deadline ? `${t('Due')} ${new Date(task.deadline).toLocaleDateString()}` : t('No deadline')}
+                                            {task.deadline ? `${t('Due')} ${new Date(task.deadline).toLocaleDateString(appDateLocale())}` : t('No deadline')}
                                             {typeof task.progress === 'number' ? ` · ${task.progress}% ${t('done')}` : ''}
                                         </p>
                                     </div>

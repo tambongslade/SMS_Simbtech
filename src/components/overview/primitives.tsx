@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import React from 'react';
 import Link from 'next/link';
 
@@ -56,7 +57,7 @@ export const formatRelativeTime = (iso?: string) => {
     if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.round(minutes / 60);
     if (hours < 24) return `${hours} h ago`;
-    return new Date(iso).toLocaleString();
+    return new Date(iso).toLocaleString(appDateLocale());
 };
 
 // ── Stat tiles (KPI numbers are tiles, not charts) ──

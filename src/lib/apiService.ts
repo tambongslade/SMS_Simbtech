@@ -5,6 +5,8 @@ import {
     maybeServeFromCache,
     rememberRead,
 } from '@/lib/offline/interceptor';
+import { translate } from '@/lib/i18n/translations';
+import { humanizeCodesInText } from '@/lib/enumLabels';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1'; // Fallback for safety
 
@@ -31,7 +33,7 @@ const clearAuthData = () => {
 // the user; everything else falls back to a friendly status-based message.
 const FRIENDLY_BY_STATUS: Record<number, string> = {
     400: 'Some of the information sent was not valid. Please check and try again.',
-    403: "You don't have permission to perform this action.",
+    403: "You don't have permission to do this.",
     404: 'The requested information could not be found.',
     408: 'The request took too long. Please try again.',
     409: 'This conflicts with information that already exists.',
@@ -39,10 +41,35 @@ const FRIENDLY_BY_STATUS: Record<number, string> = {
     429: 'Too many requests at once. Please wait a moment and try again.',
 };
 
+// Shown when the server has no such route (older backend, feature not deployed).
+const FEATURE_UNAVAILABLE = "This feature isn't available yet.";
+
+// Error toasts are raised outside React, so read the app language directly
+// (LanguageContext stores it under 'app-language').
+const tr = (message: string): string => {
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage.getItem('app-language') === 'fr') {
+            return translate(message, 'fr');
+        }
+    } catch { /* storage unavailable */ }
+    return message;
+};
+
 const friendlyStatusMessage = (status: number): string =>
     FRIENDLY_BY_STATUS[status] ?? (status >= 500
         ? 'Something went wrong on the server. Please try again in a moment.'
         : 'The request could not be completed. Please try again.');
+
+// Generic authorization wording ("Forbidden: Insufficient permissions.
+// Required: SUPER_MANAGER or ...") must never reach the user — it leaks role
+// codes and says nothing useful. Specific business rules ("Only the Bursar can
+// ...") are kept.
+const isGenericForbidden = (message: string): boolean =>
+    /forbidden|insufficient|not authori[sz]ed|access denied|required:|requires one of|you have:/i.test(message);
+
+// Express' catch-all ("Route not found") or its default "Cannot GET /x" page.
+const isMissingRoute = (message: string): boolean =>
+    /route not found|cannot (get|post|put|patch|delete)\b|endpoint not found|not implemented/i.test(message);
 
 // Heuristics for messages that should never reach a user's screen.
 const looksTechnical = (message: string): boolean =>
@@ -56,8 +83,14 @@ const humanizeServerMessage = (raw: unknown, status: number): string => {
     const message = Array.isArray(raw)
         ? raw.filter((m): m is string => typeof m === 'string').slice(0, 3).join('. ')
         : typeof raw === 'string' ? raw.trim() : '';
-    if (!message || looksTechnical(message)) return friendlyStatusMessage(status);
-    return message.charAt(0).toUpperCase() + message.slice(1);
+    if (status === 404 && (!message || isMissingRoute(message))) return tr(FEATURE_UNAVAILABLE);
+    if (status === 403 && (!message || isGenericForbidden(message))) return tr(friendlyStatusMessage(403));
+    if (!message || looksTechnical(message)) return tr(friendlyStatusMessage(status));
+    if (isMissingRoute(message)) return tr(FEATURE_UNAVAILABLE);
+    // Any enum code left in an otherwise readable message (EXPRESS_UNION,
+    // SUPER_MANAGER ...) is turned into words.
+    const readable = humanizeCodesInText(message);
+    return tr(readable.charAt(0).toUpperCase() + readable.slice(1));
 };
 
 interface RequestOptions extends RequestInit {
@@ -74,10 +107,16 @@ interface RequestOptions extends RequestInit {
 // it (404 -> endpoint not deployed) instead of matching on message text.
 export class ApiError extends Error {
     status: number;
-    constructor(message: string, status: number) {
+    // Parsed JSON error body when the server sent one (e.g. { code, balance, ... }),
+    // so callers can branch on machine-readable codes like OVERPAYMENT_CONFIRMATION_REQUIRED.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data?: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(message: string, status: number, data?: any) {
         super(message);
         this.name = 'ApiError';
         this.status = status;
+        this.data = data;
     }
 }
 
@@ -161,7 +200,7 @@ async function request<T = any>(
             // Unauthorized — server details ("jwt expired", "invalid token"…) are
             // never useful to the user mid-session.
             clearAuthData();
-            toast.error('Your session has expired. Please log in again.', { id: 'api-error' });
+            toast.error(tr('Your session has expired. Please log in again.'), { id: 'api-error' });
             if (typeof window !== 'undefined') {
                 // Ensure this only runs client-side
                 window.location.href = '/'; // Redirect to login
@@ -173,8 +212,11 @@ async function request<T = any>(
         if (!response.ok) {
             // Handle other errors (4xx, 5xx)
             let serverMessage: unknown;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let errorBody: any;
             try {
                 const errorData = await response.json();
+                errorBody = errorData;
                 serverMessage = errorData?.message ?? errorData?.error;
             } catch {
                 // Non-JSON body (e.g. an HTML error page) — never show it to the user.
@@ -184,7 +226,7 @@ async function request<T = any>(
                 // A shared toast id keeps repeated/parallel failures from stacking.
                 toast.error(errorMessage, { id: 'api-error' });
             }
-            throw new ApiError(errorMessage, response.status);
+            throw new ApiError(errorMessage, response.status, errorBody);
         }
 
         // For 204 No Content or similar, where response.json() would fail
@@ -225,7 +267,7 @@ async function request<T = any>(
                 const cached = await maybeServeFromCache<T>(offlineEndpoint, expectedResponseType);
                 if (cached) return cached;
             }
-            const friendly = 'Could not reach the server. Please check your internet connection and try again.';
+            const friendly = tr('Could not reach the server. Please check your internet connection and try again.');
             toast.error(friendly, { id: 'api-error' });
             throw new Error(friendly);
         }

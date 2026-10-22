@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { PlusIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -345,7 +346,7 @@ export default function WarningsSummonsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                        {w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '—'}
+                        {w.createdAt ? new Date(w.createdAt).toLocaleDateString(appDateLocale()) : '—'}
                         {w.issuedBy?.name && <div className="text-xs">{w.issuedBy.name}</div>}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -393,7 +394,7 @@ export default function WarningsSummonsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">{t('Issued')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
-                      {w.createdAt ? new Date(w.createdAt).toLocaleDateString() : '—'}
+                      {w.createdAt ? new Date(w.createdAt).toLocaleDateString(appDateLocale()) : '—'}
                       {w.issuedBy?.name && <div className="text-xs">{w.issuedBy.name}</div>}
                     </span>
                   </div>
@@ -452,7 +453,7 @@ export default function WarningsSummonsPage() {
                       </td>
                       <td className="px-4 py-3">{summonsStatusBadge(s.status)}</td>
                       <td className="px-4 py-3 text-sm text-gray-500 whitespace-nowrap">
-                        {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString() : '—'}
+                        {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString(appDateLocale()) : '—'}
                         {s.attended != null && (
                           <div className="text-xs">{s.attended ? t('Parent attended') : t('Parent did not attend')}</div>
                         )}
@@ -499,7 +500,7 @@ export default function WarningsSummonsPage() {
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-xs text-gray-500">{t('Scheduled')}</span>
                     <span className="text-sm text-gray-900 text-right break-words">
-                      {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString() : '—'}
+                      {s.scheduledDate ? new Date(s.scheduledDate).toLocaleString(appDateLocale()) : '—'}
                       {s.attended != null && (
                         <div className="text-xs">{s.attended ? t('Parent attended') : t('Parent did not attend')}</div>
                       )}

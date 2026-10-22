@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -37,7 +38,7 @@ import {
   normalizeTransfer,
 } from '@/lib/inventoryApi';
 
-const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleString() : '—');
+const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(appDateLocale()) : '—');
 
 function statusBadge(status: string) {
   const styles: Record<string, string> = {

@@ -33,6 +33,7 @@ import {
 } from '@/lib/expendituresApi';
 import { CategoryBadge } from './CategoryBadge';
 import { ExpenditureFormModal } from './ExpenditureFormModal';
+import { paymentMethodLabel } from '@/lib/paymentMethods';
 
 const LIMIT = 25;
 
@@ -121,7 +122,7 @@ export function ExpendituresPanel({
         to: to || undefined,
         category: category || undefined,
       });
-      downloadBlob(blob, `expenditures_${from || 'all'}_${to || 'all'}.xlsx`);
+      await downloadBlob(blob, `expenditures_${from || 'all'}_${to || 'all'}.xlsx`);
       toast.success('Export downloaded.', { id: 'exp-export' });
     } catch (error: any) {
       if (error?.message !== 'Unauthorized') {
@@ -241,7 +242,7 @@ export function ExpendituresPanel({
                 <div className="mt-2 text-sm font-medium text-gray-900">{exp.description}</div>
                 {exp.notes && <div className="text-xs text-gray-500">{exp.notes}</div>}
                 {exp.paymentMethod && (
-                  <div className="text-xs text-gray-400">via {exp.paymentMethod}</div>
+                  <div className="text-xs text-gray-400">via {paymentMethodLabel(exp.paymentMethod)}</div>
                 )}
                 <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                   <span>{fmtDate(exp.date)}</span>
@@ -358,7 +359,7 @@ export function ExpendituresPanel({
                         <div className="text-sm font-medium text-gray-900">{exp.description}</div>
                         {exp.notes && <div className="text-xs text-gray-500">{exp.notes}</div>}
                         {exp.paymentMethod && (
-                          <div className="text-xs text-gray-400">via {exp.paymentMethod}</div>
+                          <div className="text-xs text-gray-400">via {paymentMethodLabel(exp.paymentMethod)}</div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right whitespace-nowrap">

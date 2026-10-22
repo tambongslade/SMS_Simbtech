@@ -1,12 +1,13 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { sortSubClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 // --- Types --- (Using refined types)
 
@@ -182,7 +183,7 @@ export default function ReportCardGenerationPage() {
       const token = getAuthToken();
       if (!token) { toast.error("Auth error"); setIsLoadingStudents(false); return; }
       try {
-        const url = `${API_BASE_URL}/students?subclassId=${selectedSubClassId}&academicYearId=${selectedAcademicYear?.id}&status=ENROLLED`;
+        const url = `${API_BASE_URL}/students?subClassId=${selectedSubClassId}&limit=200&sortBy=name&academicYearId=${selectedAcademicYear?.id}&status=ENROLLED`;
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error('Failed to fetch students for subclass');
         const data = await res.json();
@@ -340,7 +341,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      saveBlob(blob, filename);
+      await saveFile(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report downloaded successfully!`, { id: toastId });
 
@@ -419,7 +420,7 @@ export default function ReportCardGenerationPage() {
       }
 
       const blob = await response.blob();
-      saveBlob(blob, filename);
+      await saveFile(blob, filename);
 
       toast.success(`${type === 'student' ? 'Student' : 'Subclass'} report generated and downloaded successfully!`, { id: toastId });
 
@@ -465,7 +466,7 @@ export default function ReportCardGenerationPage() {
     selectedSequenceId !== null &&
     selectedStudentId !== null &&
     selectedStudentId !== 'all'
-  ) || isGenerating;
+  ) || isGenerating || studentReportAvailability?.status === 'NO_MARKS';
 
   const isSubclassDownloadDisabled = !(
     selectedAcademicYear?.id !== null &&
@@ -478,7 +479,7 @@ export default function ReportCardGenerationPage() {
     selectedAcademicYear?.id !== null &&
     selectedSequenceId !== null &&
     selectedSubClassId !== null
-  ) || isGenerating;
+  ) || isGenerating || subclassReportAvailability?.status === 'NO_MARKS';
 
   // --- JSX --- 
   const renderFilterDropdown = (
@@ -564,7 +565,7 @@ export default function ReportCardGenerationPage() {
                 <p className="text-sm text-gray-600 mt-1">{studentReportAvailability.message}</p>
                 {studentReportAvailability.reportData?.generatedAt && (
                   <p className="text-xs text-gray-500 mt-1">
-                    {t('Generated')}: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString()}
+                    {t('Generated')}: {new Date(studentReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                   </p>
                 )}
               </div>
@@ -587,7 +588,7 @@ export default function ReportCardGenerationPage() {
                 <p className="text-sm text-gray-600 mt-1">{subclassReportAvailability.message}</p>
                 {subclassReportAvailability.reportData?.generatedAt && (
                   <p className="text-xs text-gray-500 mt-1">
-                    {t('Generated')}: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString()}
+                    {t('Generated')}: {new Date(subclassReportAvailability.reportData.generatedAt).toLocaleString(appDateLocale())}
                   </p>
                 )}
               </div>

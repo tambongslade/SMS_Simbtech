@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import useSWR, { mutate } from 'swr'; // Import mutate
+import { saveFile } from '@/lib/download';
 
 // --- Types --- (Assume these are defined or imported)
 type Student = {
@@ -448,20 +449,32 @@ export function useStudentManagement() {
     };
 
     // --- Export Handler ---
-    const handleExport = (format: 'pdf' | 'excel' = 'pdf') => {
-        console.log(`Triggering export for format: ${format}, Filters:`, { enrollmentFilter, subClassFilter, searchTerm });
+    const handleExport = async (format: 'pdf' | 'excel' = 'pdf') => {
         const params = new URLSearchParams({
             format: format,
             enrollmentStatus: enrollmentFilter === 'all' ? '' : (enrollmentFilter === 'enrolled' ? 'enrolled' : 'not_enrolled'),
             subClassId: subClassFilter === 'all' ? '' : subClassFilter,
             search: searchTerm,
-            // limit: '10000' // Include all results for export?
         });
-        // Ensure token is included if backend requires auth for export
-        const exportUrl = `${API_BASE_URL}/students/export?${params.toString()}`;
-        console.log("Export URL:", exportUrl);
-        window.open(exportUrl, '_blank'); // Consider adding token if needed
-        toast.info(`Exporting students as ${format}...`);
+
+        const toastId = toast.loading(`Exporting students as ${format}...`);
+        try {
+            // Opening the export URL in a new tab dropped the auth header, and
+            // inside the mobile app a new tab pointed at a file saves nothing
+            // at all — fetch it and hand the blob to the saver.
+            const response = await fetch(`${API_BASE_URL}/students/export?${params.toString()}`, {
+                headers: { 'Authorization': `Bearer ${getAuthToken()}` },
+            });
+            if (!response.ok) throw new Error(`Export failed (${response.status})`);
+
+            const extension = format === 'excel' ? 'xlsx' : 'pdf';
+            const date = new Date().toISOString().split('T')[0];
+            await saveFile(await response.blob(), `students_export_${date}.${extension}`);
+            toast.success('Export downloaded.', { id: toastId });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Export failed.';
+            toast.error(message, { id: toastId });
+        }
     };
 
 

@@ -4,6 +4,7 @@
 // request a loan, request leave, and see the status of everything they've asked
 // for. Cancel/modify only works while a request is still PENDING.
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
@@ -349,7 +350,7 @@ export default function StaffRequestsView() {
                                 <li key={item.id} className="py-3 flex flex-col md:flex-row md:items-start md:justify-between gap-2">
                                     <div className="min-w-0">
                                         <p className="text-sm font-semibold text-gray-900">
-                                            {item.leaveType.replace('_', ' ')} · {formatDOB(item.startDate)} → {formatDOB(item.endDate)}
+                                            {enumLabel(item.leaveType, '—', LEAVE_TYPES)} · {formatDOB(item.startDate)} → {formatDOB(item.endDate)}
                                         </p>
                                         <p className="text-xs text-gray-500">
                                             Requested {formatDOB(item.createdAt)}

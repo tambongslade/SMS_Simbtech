@@ -70,7 +70,7 @@ export function ExpenditureFormModal({ isOpen, onClose, onSaved, editing, onlyCa
       setRecipientMode('text');
       setRecipient('');
       setRecipientUserId('');
-      setPaymentMethod(onlyCashMethod ? 'CASH' : '');
+      setPaymentMethod('CASH'); // most school expenses are paid in cash; still changeable
       setNotes('');
     }
     setRecipientQuery('');

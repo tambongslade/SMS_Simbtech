@@ -19,6 +19,32 @@ interface StudentPhotoProps {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 const DEFAULT_PHOTO_URL = `${API_BASE_URL}/uploads/defaults/default-student.jpg`;
 
+// De-duplicate photo lookups. A list page renders each student twice (desktop table +
+// phone cards, one hidden by CSS) and both used to call /students/:id/enrollment-photo,
+// so a 100-row page fired 200-300 requests. Share one in-flight/recent lookup per student.
+const PHOTO_CACHE_TTL_MS = 60_000;
+const photoLookupCache = new Map<number, { at: number; promise: Promise<string> }>();
+
+const lookupStudentPhotoUrl = (studentId: number): Promise<string> => {
+    const hit = photoLookupCache.get(studentId);
+    if (hit && Date.now() - hit.at < PHOTO_CACHE_TTL_MS) return hit.promise;
+    const promise = getStudentPhoto(studentId)
+        // The endpoint returns `photo` (stored path/filename) and an absolute `photoUrl`;
+        // it has no `hasPhoto` flag, so key off `photo` and build the URL the same way as
+        // list rows do (the old `hasPhoto && API_BASE_URL + photoUrl` check never matched).
+        .then((response) =>
+            response.success && response.data?.photo
+                ? getPhotoUrl(response.data.photo)
+                : DEFAULT_PHOTO_URL
+        )
+        .catch((error) => {
+            photoLookupCache.delete(studentId);
+            throw error;
+        });
+    photoLookupCache.set(studentId, { at: Date.now(), promise });
+    return promise;
+};
+
 const sizeClasses = {
     xs: 'w-8 h-8',
     sm: 'w-12 h-12',
@@ -59,12 +85,7 @@ export const StudentPhoto: React.FC<StudentPhotoProps> = ({
 
         setIsLoading(true);
         try {
-            const response = await getStudentPhoto(studentId);
-            if (response.success && response.data.hasPhoto && response.data.photoUrl) {
-                setPhotoUrl(`${API_BASE_URL}${response.data.photoUrl}`);
-            } else {
-                setPhotoUrl(DEFAULT_PHOTO_URL);
-            }
+            setPhotoUrl(await lookupStudentPhotoUrl(studentId));
         } catch (error) {
             console.error('Failed to fetch student photo:', error);
             setPhotoUrl(DEFAULT_PHOTO_URL);
@@ -84,6 +105,7 @@ export const StudentPhoto: React.FC<StudentPhotoProps> = ({
     };
 
     const handlePhotoUploaded = (filename: string) => {
+        photoLookupCache.delete(studentId);
         const newPhotoUrl = getPhotoUrl(`/uploads/students/${filename}`);
         setPhotoUrl(newPhotoUrl);
         if (onPhotoUpdate) {

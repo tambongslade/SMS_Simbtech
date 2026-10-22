@@ -146,23 +146,13 @@ export interface ReportRecipient extends PersonRef {
   role: string;
 }
 
+// GET /report-requests/recipients — server-side list of the people the caller
+// may request a report from (SDM + DM for the current year, already filtered
+// to those the caller outranks). Throws on failure so the form can show an
+// error instead of an endless "Loading…".
 export const listReportRecipients = async (): Promise<ReportRecipient[]> => {
-  const roles = ['SENIOR_DISCIPLINE_MASTER', 'DISCIPLINE_MASTER'];
-  const results = await Promise.all(
-    roles.map((role) =>
-      apiService
-        .get<{ data: any[] }>(`/users?role=${role}&limit=100`)
-        .then((r) => (r.data || []).map((u: any) => ({ id: u.id, name: u.name, matricule: u.matricule, role })))
-        .catch(() => [] as ReportRecipient[]),
-    ),
-  );
-  // De-duplicate users holding both roles.
-  const seen = new Set<number>();
-  return results.flat().filter((u) => {
-    if (seen.has(u.id)) return false;
-    seen.add(u.id);
-    return true;
-  });
+  const res = await apiService.get<{ data: ReportRecipient[] }>('/report-requests/recipients');
+  return (res.data || []).map((u: any) => ({ id: u.id, name: u.name, matricule: u.matricule, role: u.role }));
 };
 
 // ---------------------------------------------------------------------------

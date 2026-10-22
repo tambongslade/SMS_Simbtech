@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useEffect, useState, useCallback } from 'react';
 import { sortClassesByLevel } from '@/lib/classOrdering';
 import { useRouter } from 'next/navigation';
@@ -26,7 +27,7 @@ import { Button, Select, Modal, StudentPhoto } from '@/components/ui';
 import apiService from '@/lib/apiService';
 import { getStudentFeeStatus, type StudentFeeStatus } from '@/lib/feeStatusApi';
 import { listRefunds, type Refund } from '@/lib/refundsApi';
-import { formatDOB } from '@/lib/formatDate';
+import { formatDOB, appDateLocale } from '@/lib/formatDate';
 
 type ClassInfo = { id: number; name: string };
 type SubClassInfo = { id: number; name: string; classId?: number };
@@ -96,7 +97,8 @@ const txMethod = (t: any) => t?.payment_method ?? t?.paymentMethod ?? t?.method;
 const txRef = (t: any) => t?.receipt_number ?? t?.receiptNumber ?? t?.reference ?? t?.id;
 const personLabel = (p: any) =>
   p ? `${p.name ?? 'Unknown'}${p.matricule ? ` (${p.matricule})` : ''}` : '—';
-const humanize = (k: string) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+// camelCase / SNAKE_CASE keys → "Total days" (was "TotalDays", shown as TOTALDAYS under CSS uppercase).
+const humanize = (k: string) => enumLabel(k, '');
 
 export default function StudentProfile({
   studentId,
@@ -1011,7 +1013,7 @@ function DisciplineDetailModal({
                   {by && <div className="text-xs text-gray-500 mt-0.5">Recorded by {by}</div>}
                 </div>
                 <div className="text-xs text-gray-500 flex-shrink-0 whitespace-nowrap">
-                  {date ? new Date(date).toLocaleDateString() : '—'}
+                  {date ? new Date(date).toLocaleDateString(appDateLocale()) : '—'}
                 </div>
               </div>
             );

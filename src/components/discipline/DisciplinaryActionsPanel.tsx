@@ -551,7 +551,7 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
             />
           </div>
           <p className="text-xs text-gray-400 -mt-2">
-            End date is computed automatically from start date + days.
+            End date is computed automatically: the start date counts as day 1 (e.g. 2 days from 23 Nov ends 24 Nov).
           </p>
 
           <TextArea
@@ -589,8 +589,9 @@ export function DisciplinaryActionsPanel({ readOnly = false }: DisciplinaryActio
                 onChange={(e) => setEditStatus(e.target.value as DisciplinaryActionStatus)}
                 options={ACTION_STATUSES.map((s) => ({ value: s, label: s.charAt(0) + s.slice(1).toLowerCase() }))}
               />
-              <Input label="Days" type="number" min={1} value={editDays} onChange={(e) => setEditDays(e.target.value)} />
-              <Input label="Start date" type="date" className="appearance-none min-w-0 w-full" value={editStart} onChange={(e) => setEditStart(e.target.value)} />
+              {/* Changing days/start clears the end date so the backend recomputes it (start + days - 1). */}
+              <Input label="Days" type="number" min={1} value={editDays} onChange={(e) => { setEditDays(e.target.value); setEditEnd(''); }} />
+              <Input label="Start date" type="date" className="appearance-none min-w-0 w-full" value={editStart} onChange={(e) => { setEditStart(e.target.value); setEditEnd(''); }} />
               <Input
                 label="End date"
                 type="date"

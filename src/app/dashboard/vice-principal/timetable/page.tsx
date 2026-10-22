@@ -10,8 +10,8 @@ import { ArrowDownTrayIcon, DocumentArrowDownIcon, PrinterIcon } from '@heroicon
 import { toast } from 'react-hot-toast';
 import { downloadFullSchoolTimetablePdf } from '@/lib/timetablePdf';
 import { downloadTimetablesPdf, PdfSubclassTimetable } from '@/lib/clientTimetablePdf';
-import { saveBlob } from '@/lib/downloadFile';
 import { BatchPrintModal } from '@/components/timetable/BatchPrintModal';
+import { saveFile } from '@/lib/download';
 import { useLanguage } from '@/components/context/LanguageContext';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://192.168.1.103:4000/api/v1';
@@ -150,7 +150,7 @@ const TimetableContent = () => {
       }
 
       const blob = await response.blob();
-      saveBlob(blob, filename);
+      await saveFile(blob, filename);
       toast.success(t('Timetable exported successfully!'));
     } catch (err: any) {
       const message = err instanceof Error ? err.message : t('Export failed');

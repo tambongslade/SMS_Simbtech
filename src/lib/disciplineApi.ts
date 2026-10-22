@@ -1,5 +1,6 @@
 import apiService from './apiService';
 import { compareSubClasses, sortSubClassesByLevel } from '@/lib/classOrdering';
+import { schoolTodayStr, appDateLocale } from '@/lib/formatDate';
 
 // ---------------------------------------------------------------------------
 // Discipline Master API client
@@ -578,10 +579,11 @@ export const fmtDate = (v?: string | null) => {
   if (!v) return '—';
   const d = new Date(v);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  return d.toLocaleDateString(appDateLocale(), { year: 'numeric', month: 'short', day: 'numeric' });
 };
 
-export const todayStr = () => new Date().toISOString().split('T')[0];
+// School-timezone (Africa/Douala) date, not UTC -- see schoolTodayStr.
+export const todayStr = () => schoolTodayStr();
 
 // The next Saturday (or today if it is Saturday) — default for scheduling.
 export const nextSaturdayStr = (): string => {
@@ -589,7 +591,7 @@ export const nextSaturdayStr = (): string => {
   const day = d.getDay(); // 0=Sun … 6=Sat
   const diff = (6 - day + 7) % 7;
   d.setDate(d.getDate() + diff);
-  return d.toISOString().split('T')[0];
+  return schoolTodayStr(d);
 };
 
 // Student name/class out of an embedded enrollment.

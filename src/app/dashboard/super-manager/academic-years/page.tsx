@@ -1,4 +1,5 @@
 'use client';
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect, useMemo } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { AcademicYear, Term } from './types/academic-year';
@@ -23,7 +24,7 @@ const formatDateDisplay = (dateString: string | undefined | null): string => {
       return 'Invalid Date'; // Return specific string for invalid dates
     }
     // Return formatted date (e.g., MM/DD/YYYY or local equivalent)
-    return date.toLocaleDateString();
+    return date.toLocaleDateString(appDateLocale());
   } catch (error) {
     console.error(`Error parsing date string: ${dateString}`, error);
     return 'Error'; // Return specific string on parsing errors

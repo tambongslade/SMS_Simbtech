@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,7 +9,6 @@ import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import toast from 'react-hot-toast';
-import { saveBlob } from '@/lib/downloadFile';
 import {
   DocumentTextIcon,
   ChartBarIcon,
@@ -21,6 +21,7 @@ import {
   UserGroupIcon,
   AcademicCapIcon
 } from '@heroicons/react/24/outline';
+import { saveFile } from '@/lib/download';
 
 interface ReportTemplate {
   id: string;
@@ -115,7 +116,7 @@ export default function ReportsPage() {
     }
   };
 
-  const handleDownloadReport = () => {
+  const handleDownloadReport = async () => {
     if (!reportData) {
       toast.error(t('No report data available to download'));
       return;
@@ -123,7 +124,7 @@ export default function ReportsPage() {
 
     const reportText = JSON.stringify(reportData, null, 2);
     const blob = new Blob([reportText], { type: 'application/json' });
-    saveBlob(blob, `discipline-report-${new Date().toISOString().split('T')[0]}.json`);
+    await saveFile(blob, `discipline-report-${new Date().toISOString().split('T')[0]}.json`);
 
     toast.success(t('Report downloaded'));
   };
@@ -221,7 +222,7 @@ export default function ReportsPage() {
                 <h4 className="font-semibold text-gray-900">{intervention.studentName}</h4>
                 <p className="text-sm text-gray-600">{t('Student ID')}: {intervention.studentId}</p>
                 <p className="text-sm text-gray-600">{t('Issue Count')}: {intervention.issueCount}</p>
-                <p className="text-sm text-gray-600">{t('Last Incident')}: {new Date(intervention.lastIncident).toLocaleDateString()}</p>
+                <p className="text-sm text-gray-600">{t('Last Incident')}: {new Date(intervention.lastIncident).toLocaleDateString(appDateLocale())}</p>
               </div>
               <span className={`px-2 py-1 text-xs rounded-full ${intervention.riskLevel === 'HIGH' ? 'bg-red-100 text-red-800' :
                   intervention.riskLevel === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
@@ -444,7 +445,7 @@ export default function ReportsPage() {
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Generated:</span>
-                    <span className="ml-2">{new Date().toLocaleString()}</span>
+                    <span className="ml-2">{new Date().toLocaleString(appDateLocale())}</span>
                   </div>
                   <div>
                     <span className="font-medium text-gray-700">Academic Year:</span>

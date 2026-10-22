@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -563,7 +564,7 @@ export function BrokenPropertyPanel({ readOnly = false }: BrokenPropertyPanelPro
                             <span className="text-gray-600">
                               {fmtDate(p.paymentDate)}
                               {p.receiptNumber ? ` · ${p.receiptNumber}` : ''}
-                              {p.paymentMethod ? ` · ${p.paymentMethod}` : ''}
+                              {p.paymentMethod ? ` · ${enumLabel(p.paymentMethod)}` : ''}
                             </span>
                             <span className="font-medium text-gray-900">{fmtMoney(p.amount)}</span>
                           </div>

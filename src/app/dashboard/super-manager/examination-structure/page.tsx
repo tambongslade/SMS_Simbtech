@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { SequenceForm } from './components/SequenceForm';
@@ -671,9 +672,9 @@ export default function ExaminationStructurePage() {
                                                             </div>
                                                             {(seq.start_date || seq.end_date) && (
                                                                 <div className="text-sm text-gray-500">
-                                                                    {seq.start_date && `${t('Start')}: ${new Date(seq.start_date).toLocaleDateString()}`}
+                                                                    {seq.start_date && `${t('Start')}: ${new Date(seq.start_date).toLocaleDateString(appDateLocale())}`}
                                                                     {seq.start_date && seq.end_date && ' | '}
-                                                                    {seq.end_date && `${t('End')}: ${new Date(seq.end_date).toLocaleDateString()}`}
+                                                                    {seq.end_date && `${t('End')}: ${new Date(seq.end_date).toLocaleDateString(appDateLocale())}`}
                                                                 </div>
                                                             )}
                                                         </div>

@@ -17,7 +17,7 @@ import { Button, Tabs } from '@/components/ui';
 import { useLanguage } from '@/components/context/LanguageContext';
 import ParentStudentFeesPage from '../fees/page';
 import ParentStudentResultsPage from '../results/page';
-import { formatDOB } from '@/lib/formatDate';
+import { formatDOB, appDateLocale } from '@/lib/formatDate';
 import Link from 'next/link';
 import {
     fetchChildDetails,
@@ -181,7 +181,7 @@ const QuizzesTab: FC<{ matricule: string }> = ({ matricule }) => {
                             <div className="min-w-0">
                                 <p className="text-sm font-medium text-slate-900 truncate">{q.quizTitle}</p>
                                 <p className="text-xs text-slate-500 truncate">
-                                    {q.subject}{q.submittedAt ? ` · ${new Date(q.submittedAt).toLocaleDateString()}` : ''}
+                                    {q.subject}{q.submittedAt ? ` · ${new Date(q.submittedAt).toLocaleDateString(appDateLocale())}` : ''}
                                 </p>
                             </div>
                             <div className="text-right">
@@ -269,7 +269,7 @@ const DisciplineTab: FC<{ matricule: string; disciplineFromDetails?: any }> = ({
                                     </p>
                                     <p className="text-sm text-slate-600 line-clamp-2">{issue.description}</p>
                                     <p className="text-xs text-slate-400 mt-0.5">
-                                        {issue.dateOccurred ? new Date(issue.dateOccurred).toLocaleDateString() : ''}
+                                        {issue.dateOccurred ? new Date(issue.dateOccurred).toLocaleDateString(appDateLocale()) : ''}
                                     </p>
                                 </div>
                                 <span className={`shrink-0 inline-flex px-2.5 py-1 text-xs font-medium rounded-full ${
@@ -296,7 +296,7 @@ const DisciplineTab: FC<{ matricule: string; disciplineFromDetails?: any }> = ({
                                 <p className="text-sm font-medium text-slate-900">{a.actionType || a.type || t('Action')}</p>
                                 {a.reason && <p className="text-sm text-slate-600 mt-0.5">{a.reason}</p>}
                                 <p className="text-xs text-slate-400 mt-0.5">
-                                    {a.createdAt ? new Date(a.createdAt).toLocaleDateString() : ''}
+                                    {a.createdAt ? new Date(a.createdAt).toLocaleDateString(appDateLocale()) : ''}
                                 </p>
                             </li>
                         ))}

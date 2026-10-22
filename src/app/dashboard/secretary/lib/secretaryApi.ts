@@ -1,6 +1,6 @@
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 
 // ---- Shared types for the Secretary dashboard ----
 
@@ -69,6 +69,8 @@ export interface CreateStudentPayload {
   residence: string;
   formerSchool: string;
   classId: number;
+  // Optional stream; the backend enrolls the student into it in the same request.
+  subClassId?: number;
   academicYearId: number;
   isNewStudent: boolean;
   // Only meaningful for new students; the server forces false for old students.
@@ -193,7 +195,13 @@ export const fetchTeachers = async (params: {
 // ---- Create helpers ----
 
 export const createStudentWithParent = (payload: CreateStudentPayload) =>
-  apiService.post<{ data: { student?: { id: number }; enrollment?: { id: number } } }>(
+  apiService.post<{
+    data: {
+      student?: { id: number };
+      enrollment?: { id: number; subClassId?: number | null };
+      subClassWarning?: string;
+    };
+  }>(
     '/bursar/create-parent-with-student',
     payload,
   );
@@ -269,7 +277,7 @@ export const updateStudent = (id: number, payload: UpdateStudentPayload) =>
 // through the user update endpoint. Only send the fields that changed.
 export const updateParentContact = (
   parentId: number,
-  patch: { name?: string; phone?: string; address?: string },
+  patch: { name?: string; phone?: string; whatsappNumber?: string | null; address?: string },
 ) => apiService.put(`/users/${parentId}`, patch);
 
 // ---- Linking additional parents ----
@@ -376,9 +384,8 @@ export const createTeacher = async (payload: CreateTeacherPayload, academicYearI
 
 // ---- Export / download helpers ----
 
-export const downloadBlob = (blob: Blob, filename: string) => {
-  saveBlob(blob, filename);
-};
+export const downloadBlob = (blob: Blob, filename: string): Promise<void> =>
+  saveFile(blob, filename);
 
 const buildExportQuery = (format: string, academicYearId?: number) => {
   const qs = new URLSearchParams();

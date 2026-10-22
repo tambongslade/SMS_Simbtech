@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import {
     Notification,
@@ -180,7 +181,7 @@ export default function NotificationsList({ onNotificationUpdate }: Notification
         } else if (diffDays < 7) {
             return `${diffDays}d ago`;
         } else {
-            return date.toLocaleDateString('en-US', {
+            return date.toLocaleDateString(appDateLocale(), {
                 month: 'short',
                 day: 'numeric'
             });

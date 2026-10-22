@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { saveFile } from '@/lib/download';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
@@ -252,14 +253,7 @@ export default function StatisticsPage() {
         {},
         'blob'
       );
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `statistics-report-${from}-to-${to}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+      await saveFile(blob, `statistics-report-${from}-to-${to}.pdf`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to download PDF');
     } finally {

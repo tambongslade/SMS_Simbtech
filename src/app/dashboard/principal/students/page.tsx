@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   MagnifyingGlassIcon,
@@ -12,11 +12,13 @@ import {
 } from '@heroicons/react/24/outline';
 import apiService from '../../../../lib/apiService';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
 import { useAuth } from '../../../../components/context/AuthContext'; // Add useAuth import
 import { StudentPhoto } from '../../../../components/ui';
 import StudentExtrasModal from '@/components/students/StudentExtrasModal';
+import TransferOutModal, { TransferRegisterModal, type TransferOutStudent } from '@/components/students/TransferOutModal';
+import { ApiError } from '@/lib/apiService';
 import { HEALTH_CONDITIONS, type HealthCondition } from '@/lib/disciplineExtApi';
+import { saveFile } from '@/lib/download';
 import { formatDOB } from '@/lib/formatDate';
 
 // --- Types ---
@@ -232,6 +234,9 @@ export default function StudentManagement() {
 
   // --- State for Filters & Pagination ---
   const [searchTerm, setSearchTerm] = useState('');
+  // Debounced copy sent to the server (?search=) so the search covers ALL students,
+  // not only the 10 rows of the current page.
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>('all');
   const [subClassFilter, setSubClassFilter] = useState<string>('all'); // Store subclass ID as string or 'all'
   const [currentPage, setCurrentPage] = useState(1);
@@ -244,6 +249,20 @@ export default function StudentManagement() {
   // --- State for Unenroll (dismiss) Student ---
   const [unenrollTarget, setUnenrollTarget] = useState<Student | null>(null);
   const [isUnenrolling, setIsUnenrolling] = useState(false);
+
+  // --- State for Transfer out (U13): keeps marks/fees, issues a leaving certificate ---
+  const [transferTarget, setTransferTarget] = useState<TransferOutStudent | null>(null);
+  const [transferNotice, setTransferNotice] = useState<string | null>(null);
+  const [isTransferRegisterOpen, setIsTransferRegisterOpen] = useState(false);
+  const openTransferModal = (student: Student, notice: string | null = null) => {
+    setTransferNotice(notice);
+    setTransferTarget({
+      id: student.id,
+      name: student.name,
+      matricule: student.matricule,
+      academicYearId: student.academicYearId ?? (selectedAcademicYear ? Number(selectedAcademicYear.id) : undefined),
+    });
+  };
 
   // --- Data Fetching ---
   const fetchStudents = async () => {
@@ -263,6 +282,9 @@ export default function StudentManagement() {
       if (subClassFilter !== 'all') {
         params.append('subClassId', subClassFilter);
       }
+      if (debouncedSearch) {
+        params.append('search', debouncedSearch);
+      }
       // Add academic year filter from AuthContext
       if (selectedAcademicYear) {
         params.append('academicYearId', String(selectedAcademicYear.id));
@@ -276,7 +298,6 @@ export default function StudentManagement() {
 
       console.log("Students API response:", result);
       const fetchedStudents = result.data?.map((s: any) => {
-        console.log(`Raw data for student ID ${s.id}:`, JSON.stringify(s, null, 2));
         return {
           id: s.id,
           name: s.name,
@@ -291,10 +312,12 @@ export default function StudentManagement() {
           gender: s.gender,
           residence: s.residence,
           former_school: s.formerSchool,
+          // GET /students returns ParentStudent link rows ({ id: <link id>, parentId, parent: {...} });
+          // use the parent USER id/name (link id broke unlinking and showed blank names).
           parents: s.parents?.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            phone: p.phone
+            id: p.parent?.id ?? p.parentId ?? p.id,
+            name: p.parent?.name ?? p.name,
+            phone: p.parent?.phone ?? p.phone
           })) || []
         };
       }) || [];
@@ -384,9 +407,16 @@ export default function StudentManagement() {
     }
   };
 
+  // Debounce typing: previously every keystroke re-fetched page 1 and the filter only
+  // looked at the rows already on screen.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchStudents();
-  }, [enrollmentFilter, currentPage, subClassFilter, searchTerm, selectedAcademicYear]); // Add selectedAcademicYear dependency
+  }, [enrollmentFilter, currentPage, subClassFilter, debouncedSearch, selectedAcademicYear]); // Add selectedAcademicYear dependency
 
   useEffect(() => {
     fetchSubClasses();
@@ -395,16 +425,8 @@ export default function StudentManagement() {
     fetchClasses();
   }, []);
 
-  const filteredStudents = useMemo(() => {
-    return students.filter(student => {
-      const term = searchTerm.toLowerCase();
-      const matchesSearch = term === '' ||
-        student.name.toLowerCase().includes(term) ||
-        (student.matricule && student.matricule.toLowerCase().includes(term));
-      const matchesSubClass = subClassFilter === 'all' || String(student.subClassId) === subClassFilter;
-      return matchesSearch && matchesSubClass;
-    });
-  }, [students, searchTerm, subClassFilter]);
+  // Search and subclass filtering are done server-side; the current page is shown as returned.
+  const filteredStudents = students;
 
   const totalPages = Math.ceil(totalStudents / STUDENTS_PER_PAGE);
 
@@ -769,7 +791,7 @@ export default function StudentManagement() {
 
       const blob = await response.blob();
       const filename = `${subClassName.replace(/s+/g, '_')}_students_${new Date().toISOString().split('T')[0]}.${format}`;
-      saveBlob(blob, filename);
+      await saveFile(blob, filename);
       toast.success(`Export for ${subClassName} downloaded successfully.`, { id: 'export-toast' });
 
     } catch (error: any) {
@@ -883,6 +905,12 @@ export default function StudentManagement() {
       fetchStudents();
     } catch (error: any) {
       toast.dismiss('unenroll-toast'); // apiService already surfaced its own error toast
+      // 409 = the student already has marks/attendance/payments this year. Offer the
+      // transfer-out flow instead, which keeps those records.
+      if (error instanceof ApiError && error.status === 409) {
+        closeUnenrollModal();
+        openTransferModal(student, 'This student cannot be unenrolled because records exist for this year. If the student is leaving the school, record a transfer out instead: all records are kept.');
+      }
       // 409 (history exists) is surfaced by apiService. A principal cannot delete, so we keep the
       // modal closed and rely on that toast; permanent deletion is a SUPER_MANAGER escalation.
       console.error('Student unenroll failed:', error);
@@ -914,6 +942,12 @@ export default function StudentManagement() {
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
+              <button
+                onClick={() => setIsTransferRegisterOpen(true)}
+                className="bg-white border border-indigo-300 text-indigo-700 px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors flex items-center justify-center"
+              >
+                Transferred students
+              </button>
               <button
                 onClick={openAddEnrollModal}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
@@ -1207,6 +1241,15 @@ export default function StudentManagement() {
                               <span>Unenroll</span>
                             </button>
                           )}
+
+                          <button
+                            onClick={() => openTransferModal(student)}
+                            className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                            disabled={isLoading}
+                            title="Student is leaving the school: record transfer and issue leaving certificate"
+                          >
+                            <span>Transfer out</span>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -1342,6 +1385,15 @@ export default function StudentManagement() {
                         <span>Unenroll</span>
                       </button>
                     )}
+
+                    <button
+                      onClick={() => openTransferModal(student)}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-white bg-indigo-600 rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 transition-colors"
+                      disabled={isLoading}
+                      title="Student is leaving the school: record transfer and issue leaving certificate"
+                    >
+                      <span>Transfer out</span>
+                    </button>
                   </div>
                 </div>
               ))}
@@ -2291,6 +2343,19 @@ export default function StudentManagement() {
           </div>
         </div>
       )}
+
+      {/* Transfer out (U13) */}
+      <TransferOutModal
+        student={transferTarget}
+        notice={transferNotice}
+        onClose={() => { setTransferTarget(null); setTransferNotice(null); }}
+        onTransferred={() => fetchStudents()}
+      />
+      <TransferRegisterModal
+        open={isTransferRegisterOpen}
+        onClose={() => setIsTransferRegisterOpen(false)}
+        academicYearId={selectedAcademicYear ? Number(selectedAcademicYear.id) : undefined}
+      />
 
       {/* Unenroll (dismiss) Confirmation Modal */}
       {unenrollTarget && (

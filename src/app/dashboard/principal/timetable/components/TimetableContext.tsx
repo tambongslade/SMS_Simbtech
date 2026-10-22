@@ -9,6 +9,9 @@ import { useAuth } from '@/components/context/AuthContext';
 interface Teacher {
   id: string;
   name: string;
+  matricule?: string | null;
+  /// Name plus matricule — tells apart teachers with the same/similar names.
+  label: string;
   subjects: string[]; // Array of subject IDs the teacher can teach
 }
 
@@ -169,6 +172,14 @@ interface TimetableContextType {
     endTime: string,
     excludeSubClassId: string
   ) => string | null;
+  /// Every teacher already booked at an overlapping time on `day` in another
+  /// subclass → that subclass's name. Used to mark busy teachers in pickers.
+  getBusyTeachers: (
+    day: string,
+    startTime: string,
+    endTime: string,
+    excludeSubClassId: string
+  ) => Map<string, string>;
   /// Teacher clashes reported by the last save, keyed by subclass id.
   clashWarnings: Record<string, ClashWarning[]>;
   getClashWarning: (subClassId: string, periodId?: number | string | null) => ClashWarning | null;
@@ -399,7 +410,20 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
         setSubjects(fetchedSubjects);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fetchedTeachers = teacherResult.data?.map((t: any) => ({ id: String(t.id), name: t.name, subjects: t.subjects?.map((s: any) => String(s.id)) || [] })) || [];
+        const fetchedTeachers: Teacher[] = (teacherResult.data || [])
+          // Inactive (soft-deleted) teachers can't be scheduled.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((t: any) => !t.status || t.status === 'ACTIVE')
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((t: any) => ({
+            id: String(t.id),
+            name: t.name,
+            matricule: t.matricule ?? null,
+            label: t.matricule ? `${t.name} (${t.matricule})` : t.name,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            subjects: t.subjects?.map((s: any) => String(s.id)) || [],
+          }))
+          .sort((a: Teacher, b: Teacher) => a.name.localeCompare(b.name));
         setTeachers(fetchedTeachers);
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -992,6 +1016,26 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
     return null;
   }, [timetables, subClasses]);
 
+  const getBusyTeachers = useCallback((
+    day: string,
+    startTime: string,
+    endTime: string,
+    excludeSubClassId: string
+  ): Map<string, string> => {
+    const busy = new Map<string, string>();
+    for (const subClassId in timetables) {
+      if (subClassId === excludeSubClassId) continue;
+      const className = subClasses.find(c => c.id === subClassId)?.name ?? subClassId;
+      timetables[subClassId].slots.forEach(slot => {
+        if (slot.day !== day || !periodsOverlap(startTime, endTime, slot.startTime, slot.endTime)) return;
+        slot.assignments.forEach(a => {
+          if (a.teacherId && !busy.has(a.teacherId)) busy.set(a.teacherId, className);
+        });
+      });
+    }
+    return busy;
+  }, [timetables, subClasses]);
+
   return (
     <TimetableContext.Provider value={{
       classes,
@@ -1015,6 +1059,7 @@ export const TimetableProvider: React.FC<{ children: ReactNode }> = ({ children 
       retryAutoSave,
       getTeachersBySubject,
       isTeacherAssignedElsewhere,
+      getBusyTeachers,
       clashWarnings,
       getClashWarning,
       error,

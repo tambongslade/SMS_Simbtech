@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
@@ -182,7 +183,7 @@ export default function VicePrincipalDashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-900">{activity.description}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(activity.timestamp).toLocaleString()}
+                      {new Date(activity.timestamp).toLocaleString(appDateLocale())}
                     </p>
                   </div>
                   <Badge color={priorityColor(activity.priority)} size="sm">{activity.priority}</Badge>

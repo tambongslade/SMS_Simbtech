@@ -46,7 +46,8 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     removeSlotAssignment,
     saveChanges,
     getTeachersBySubject,
-    isTeacherAssignedElsewhere
+    isTeacherAssignedElsewhere,
+    getBusyTeachers
   } = useTimetable();
 
   const [showConflictsOnly, setShowConflictsOnly] = useState<boolean>(false);
@@ -264,11 +265,20 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
     setNewSubject(subjectId);
     setNewTeacher('');
     const teachersForSubject = subjectId ? getTeachersBySubject(subjectId) : [];
-    setNewTeacherOptions(teachersForSubject.map(t => ({ id: t.id, name: t.name })));
+    // Mark teachers already teaching elsewhere at this time; list free ones first.
+    const busy = editingPeriod
+      ? getBusyTeachers(editingPeriod.dayOfWeek, editingPeriod.startTime, editingPeriod.endTime, editingSubClassId)
+      : new Map<string, string>();
+    const options = teachersForSubject.map(t => {
+      const busyIn = busy.get(t.id);
+      return { id: t.id, name: busyIn ? `${t.label} — busy in ${busyIn}` : t.label, busy: !!busyIn };
+    });
+    options.sort((a, b) => Number(a.busy) - Number(b.busy));
+    setNewTeacherOptions(options.map(({ id, name }) => ({ id, name })));
   };
 
-  // Add a new assignment to the current slot. Teacher is optional; clashes
-  // are allowed and surfaced as warnings after the save.
+  // Add a new assignment to the current slot. Teacher is optional; a clash
+  // is allowed but only after the scheduler confirms it.
   const handleAddAssignment = () => {
     if (!newSubject || !editingPeriod) return;
 
@@ -281,7 +291,12 @@ const SchoolTimetableView: React.FC<SchoolTimetableViewProps> = ({ onClassSelect
         editingSubClassId
       );
       if (conflictClass) {
-        toast(`Teacher is also booked in ${conflictClass} during this time — saved with a warning`, { icon: '⚠️' });
+        const ok = window.confirm(
+          `This teacher is already teaching ${conflictClass} at this time ` +
+          `(${editingPeriod.dayOfWeek} ${formatTimeRange(editingPeriod.startTime, editingPeriod.endTime)}).\n\n` +
+          `Assign anyway and create a clash?`
+        );
+        if (!ok) return;
       }
     }
 

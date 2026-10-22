@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -20,8 +21,10 @@ import {
   ArrowUturnLeftIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
+import ImageLightbox, { type LightboxImage } from '@/components/chat/ImageLightbox';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { getChatSocket } from '@/lib/chatSocket';
+import { isNativeApp, saveFileFromUrl } from '@/lib/download';
 import {
   type ChatChannel,
   type ChatMessage,
@@ -62,7 +65,7 @@ const timeLabel = (iso?: string | null) => {
   const today = new Date();
   return d.toDateString() === today.toDateString()
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : d.toLocaleDateString([], { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    : d.toLocaleDateString(appDateLocale(), { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const lastSeenLabel = (iso?: string | null) => {
@@ -79,6 +82,24 @@ const formatDuration = (secs?: number | null) => {
   const m = Math.floor(secs / 60);
   const s = Math.round(secs % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
+};
+
+/**
+ * Saves a file attachment.
+ *
+ * On the web a plain link is enough. Inside the mobile app it is not: the web
+ * view cannot download from a link any more than it can from an <a download>,
+ * so the file is fetched and handed to the native saver.
+ */
+const downloadAttachment = async (url: string, fileName?: string | null) => {
+  const toastId = toast.loading('Saving attachment...');
+  try {
+    await saveFileFromUrl(url, fileName || 'attachment');
+    toast.success('Attachment saved.', { id: toastId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Could not save the attachment.';
+    toast.error(message, { id: toastId });
+  }
 };
 
 const PresenceDot = ({ online }: { online?: boolean }) => (
@@ -117,7 +138,7 @@ function UserPicker({
         <div className="flex flex-wrap gap-1.5 mb-2">
           {selected.map(u => (
             <span key={u.id} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
-              {u.name}
+              {u.name}{u.matricule ? ` (${u.matricule})` : ''}
               <button type="button" onClick={() => onChange(selected.filter(s => s.id !== u.id))}>
                 <XMarkIcon className="w-3 h-3" />
               </button>
@@ -141,7 +162,10 @@ function UserPicker({
               onClick={() => { onChange([...selected, u]); setTerm(''); setResults([]); }}
               className="w-full text-left p-2 text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
             >
-              {u.name} <span className="text-gray-400 text-xs">{(u.roles || []).join(', ')}</span>
+              {u.name}
+              {/* Matricule tells apart staff with the same/similar names. */}
+              {u.matricule && <span className="text-gray-500 text-xs"> ({u.matricule})</span>}
+              {' '}<span className="text-gray-400 text-xs">{(u.roles || []).join(', ')}</span>
             </button>
           ))}
         </div>
@@ -174,6 +198,9 @@ export default function ChatPage() {
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Full-screen image viewer (fit-to-screen; a new tab would open photos at 1:1)
+  const [lightbox, setLightbox] = useState<{ images: LightboxImage[]; index: number } | null>(null);
 
   // Reply + mentions
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -867,7 +894,7 @@ export default function ChatPage() {
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
     if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-    return d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    return d.toLocaleDateString(appDateLocale(), { day: 'numeric', month: 'short' });
   };
 
   const AVATAR_COLORS = [
@@ -984,8 +1011,19 @@ export default function ChatPage() {
               {m.attachments.map((a, i) => {
                 const key = a.id ?? i;
                 if (a.kind === 'IMAGE') {
+                  const gallery = m.attachments.filter(x => x.kind === 'IMAGE');
                   return (
-                    <a key={key} href={a.fileUrl} target="_blank" rel="noreferrer" className="block mt-1">
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() =>
+                        setLightbox({
+                          images: gallery.map(x => ({ url: x.fileUrl, name: x.fileName })),
+                          index: gallery.findIndex(x => x === a),
+                        })
+                      }
+                      className="block mt-1 w-full"
+                    >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={a.fileUrl}
@@ -993,7 +1031,7 @@ export default function ChatPage() {
                         className="rounded-md max-h-64 max-w-full object-contain"
                         style={a.width && a.height ? { aspectRatio: `${a.width} / ${a.height}` } : undefined}
                       />
-                    </a>
+                    </button>
                   );
                 }
                 if (a.kind === 'AUDIO') {
@@ -1025,6 +1063,11 @@ export default function ChatPage() {
                     href={a.fileUrl}
                     target="_blank"
                     rel="noreferrer"
+                    onClick={(e) => {
+                      if (!isNativeApp()) return;
+                      e.preventDefault();
+                      void downloadAttachment(a.fileUrl, a.fileName);
+                    }}
                     className={`block text-xs underline mt-1 ${mine ? 'text-blue-100' : 'text-blue-600'}`}
                   >
                     📎 {a.fileName}
@@ -1454,6 +1497,15 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Image viewer — opens fit-to-screen, zoom is opt-in */}
+      {lightbox && (
+        <ImageLightbox
+          images={lightbox.images}
+          startIndex={lightbox.index}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1505,6 +1557,7 @@ function DmUserSearch({ onPick }: { onPick: (u: ChatContact) => void }) {
                 {c.name} <PresenceDot online={c.presence.online} />
               </p>
               <p className="text-xs text-gray-500 truncate">
+                {c.matricule ? `${c.matricule} · ` : ''}
                 {(c.roles || []).join(', ')}
                 {c.presence.online ? ` · ${t('Online')}` : c.presence.lastSeenAt ? ` · ${lastSeenLabel(c.presence.lastSeenAt)}` : ''}
               </p>

@@ -101,7 +101,7 @@ export interface ComparisonSummary {
     };
 }
 
-export type AuditStatus = 'MATCHED' | 'PAYMENT_MISMATCH' | 'MISSING_PRIMARY' | 'MISSING_CONTROL' | 'NO_RECORDS';
+export type AuditStatus = 'MATCHED' | 'NOT_PAID' | 'PAYMENT_MISMATCH' | 'MISSING_PRIMARY' | 'MISSING_CONTROL' | 'NO_RECORDS';
 
 export interface AuditRosterRow {
     studentId: number;

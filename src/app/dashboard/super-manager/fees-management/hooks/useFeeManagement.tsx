@@ -6,12 +6,12 @@ import { toast } from 'react-hot-toast';
 import { AcademicYear, Term, ExamSequence } from '@/app/dashboard/super-manager/academic-years/types/academic-year';
 import { Class, SubClass } from '@/app/dashboard/super-manager/classes/types/class';
 import useSWR from 'swr';
-import apiService from '../../../../../lib/apiService'; // Import apiService
+import apiService, { ApiError } from '../../../../../lib/apiService'; // Import apiService
 
 // API Configuration - REMOVED
 // const getAuthToken = () => typeof window !== 'undefined' ? localStorage.getItem('token') : null;
 import { sortClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 // const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
 // One recorded payment transaction, flattened with its student/class context
@@ -335,7 +335,7 @@ export const useFeeManagement = () => {
       const response = await apiService.get(exportUrl, {}, 'blob');
 
       const filename = `fees_export_${new Date().toISOString().split('T')[0]}.${format}`;
-      saveBlob(response as Blob, filename);
+      await saveFile(response, filename);
       toast.success(`${format.toUpperCase()} export downloaded.`, { id: 'export-toast' });
 
     } catch (error: any) {
@@ -363,18 +363,29 @@ export const useFeeManagement = () => {
       return;
     }
 
-    const paymentPayload = {
+    // No receiptNumber: the server assigns the next sequential one (M4).
+    const paymentPayload: Record<string, unknown> = {
       amount: amount,
       paymentDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
-      receiptNumber: `RCP${Date.now()}`, // Generate receipt number
-      paymentMethod: paymentMethod.toUpperCase(),
+      paymentMethod,
       studentId: selectedStudent.id,
       academicYearId: currentAcademicYear?.id,
     };
 
     try {
-      await apiService.post(`/fees/${feeId}/payments`, paymentPayload);
-      toast.success("Payment recorded successfully!");
+      let res: any;
+      try {
+        res = await apiService.post(`/fees/${feeId}/payments`, paymentPayload, { silent: true });
+      } catch (err: any) {
+        if (err instanceof ApiError && err.data?.code === 'OVERPAYMENT_CONFIRMATION_REQUIRED'
+          && typeof window !== 'undefined' && window.confirm(err.data?.error || err.message)) {
+          res = await apiService.post(`/fees/${feeId}/payments`, { ...paymentPayload, confirmOverpayment: true }, { silent: true });
+        } else {
+          throw err;
+        }
+      }
+      const receiptNo = res?.data?.receiptNumber;
+      toast.success(`Payment recorded successfully${receiptNo ? ` — receipt ${receiptNo}` : ''}!`);
       resetPaymentForm();
       setShowPaymentModal(false);
       mutateFeeRecords(); // Revalidate/refetch the fee records
@@ -514,8 +525,10 @@ export const useFeeManagement = () => {
 
       const response = await apiService.get(exportUrl, {}, 'blob');
 
+
       const filename = `fees_${reportType}_${new Date().toISOString().split('T')[0]}.${format}`;
-      saveBlob(response as Blob, filename);
+
+      await saveFile(response, filename);
 
       toast.success(`${format.toUpperCase()} export downloaded successfully.`, { id: 'export-toast' });
     } catch (error: any) {

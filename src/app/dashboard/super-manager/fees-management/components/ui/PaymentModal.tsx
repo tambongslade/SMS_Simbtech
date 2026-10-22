@@ -1,10 +1,12 @@
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useState, useEffect } from 'react';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { Student, NewStudent } from '../../types';
 import apiService from '../../../../../../lib/apiService';
+import { PAYMENT_METHODS, paymentMethodLabel } from '@/lib/paymentMethods';
 
 interface PaymentModalProps {
   student: Student | null;
@@ -248,7 +250,6 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  const banks = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
   // Styled student type selector as button group
   const studentTypeSelector = (
@@ -359,10 +360,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select Method</option>
-                    <option value="EXPRESS_UNION">Express Union</option>
-                    <option value="CCA">CCA</option>
-                    <option value="F3DC">F3DC</option>
-                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
+                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -440,10 +438,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
                   <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required>
                     <option value="">Select Method</option>
-                    <option value="EXPRESS_UNION">Express Union</option>
-                    <option value="CCA">CCA</option>
-                    <option value="F3DC">F3DC</option>
-                    <option value="AFRILAND_FIRST_BANK">Afriland First Bank</option>
+                    {PAYMENT_METHODS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
                 </div>
               </div>
@@ -510,8 +505,8 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                 {transactions.map((tx) => (
                   <tr key={tx.id}>
                     <td className="px-4 py-2 text-sm text-gray-700">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</td>
-                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentMethod || '-'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString(appDateLocale()) : '-'}</td>
+                    <td className="px-4 py-2 text-sm text-gray-700">{paymentMethodLabel(tx.paymentMethod)}</td>
                     <td className="px-4 py-2 text-sm text-gray-700">{tx.receiptNumber || '-'}</td>
                   </tr>
                 ))}
@@ -524,11 +519,11 @@ export const TransactionsModal: React.FC<TransactionsModalProps> = ({
                 <div className="text-sm font-semibold text-gray-900 break-words">{tx.amount?.toLocaleString(undefined, { style: 'currency', currency: 'XAF' })}</div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">Date</span>
-                  <span className="text-sm text-gray-900 text-right break-words">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString() : '-'}</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{tx.paymentDate ? new Date(tx.paymentDate).toLocaleDateString(appDateLocale()) : '-'}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">Method</span>
-                  <span className="text-sm text-gray-900 text-right break-words">{tx.paymentMethod || '-'}</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{paymentMethodLabel(tx.paymentMethod)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">Receipt</span>

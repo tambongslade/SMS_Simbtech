@@ -1,4 +1,5 @@
 'use client'
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -419,7 +420,7 @@ export default function ManagerOverviewPage() {
                                             <div className="min-w-0">
                                                 <p className="text-sm text-gray-900 truncate">{task.title}</p>
                                                 <p className="text-xs text-gray-500 truncate">
-                                                    {task.assignedTo} · {t('due')} {new Date(task.deadline).toLocaleDateString()}
+                                                    {task.assignedTo} · {t('due')} {new Date(task.deadline).toLocaleDateString(appDateLocale())}
                                                 </p>
                                             </div>
                                             <Badge color={priorityColor(task.priority)} size="sm">{formatLabel(task.priority)}</Badge>

@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
@@ -47,7 +48,7 @@ const ISSUE_LABELS: Record<string, string> = ISSUE_TYPES.reduce(
   {} as Record<string, string>
 );
 
-const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString() : '—');
+const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(appDateLocale()) : '—');
 
 function StatChip({ label, value, tone }: { label: string; value: number; tone: 'red' | 'amber' | 'blue' | 'purple' | 'gray' }) {
   const tones = {
@@ -292,7 +293,7 @@ export default function StudentDisciplineProfilesPage() {
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">{s.reason}</p>
                         <p className="text-[11px] text-gray-400 mt-0.5">
-                          {s.scheduledDate ? `${t('Scheduled')} ${new Date(s.scheduledDate).toLocaleString()}` : dateLabel(s.createdAt)}
+                          {s.scheduledDate ? `${t('Scheduled')} ${new Date(s.scheduledDate).toLocaleString(appDateLocale())}` : dateLabel(s.createdAt)}
                         </p>
                       </li>
                     ))}

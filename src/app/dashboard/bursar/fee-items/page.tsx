@@ -1,5 +1,6 @@
 'use client';
 
+import { enumLabel } from '@/lib/enumLabels';
 import { useEffect, useState, useCallback } from 'react';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
 import { toast } from 'react-hot-toast';
@@ -689,7 +690,7 @@ export default function BursarFeeItemsPage() {
                       )}
                     </td>
                     <td className="py-2 pr-4 text-gray-800">{fmtMoney(p.amount)}</td>
-                    <td className="py-2 pr-4 text-gray-600">{p.paymentMethod}</td>
+                    <td className="py-2 pr-4 text-gray-600">{enumLabel(p.paymentMethod)}</td>
                     <td className="py-2 pr-4 text-gray-600">{p.receiptNumber || '—'}</td>
                     <td className="py-2 pr-4 text-gray-600">{p.recordedBy?.name || '—'}</td>
                     <td className="py-2 pr-4">
@@ -725,7 +726,7 @@ export default function BursarFeeItemsPage() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">{t('Method')}</span>
-                  <span className="text-sm text-gray-900 text-right break-words">{p.paymentMethod}</span>
+                  <span className="text-sm text-gray-900 text-right break-words">{enumLabel(p.paymentMethod)}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-xs text-gray-500">{t('Receipt')}</span>

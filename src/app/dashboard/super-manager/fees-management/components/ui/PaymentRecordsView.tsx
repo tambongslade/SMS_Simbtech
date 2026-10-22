@@ -1,9 +1,11 @@
 "use client";
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { FunnelIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { PaymentRecord } from '../../hooks/useFeeManagement';
+import { PAYMENT_METHODS, paymentMethodLabel } from '@/lib/paymentMethods';
 
 interface PaymentRecordsViewProps {
     records: PaymentRecord[];
@@ -18,7 +20,6 @@ interface PaymentRecordsViewProps {
 const PAGE_SIZE = 25;
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000; // records are editable for 24h after recording
 
-const PAYMENT_METHODS = ['EXPRESS_UNION', 'CCA', 'F3DC', 'AFRILAND_FIRST_BANK'];
 
 // Plain numbers keep the columns narrow — the header notes amounts are FCFA
 const formatMoney = (amount: number) => amount.toLocaleString();
@@ -168,7 +169,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                                 >
                                                     <option value="">Select Method</option>
                                                     {PAYMENT_METHODS.map(m => (
-                                                        <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                                                        <option key={m.value} value={m.value}>{m.label}</option>
                                                     ))}
                                                 </select>
                                             </td>
@@ -201,7 +202,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                     ) : (
                                     <tr key={`${record.feeId}-${record.id}`} className="hover:bg-gray-50">
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">
-                                            {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : '—'}
+                                            {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString(appDateLocale()) : '—'}
                                         </td>
                                         <td className="px-3 py-2.5 text-sm font-medium whitespace-nowrap">
                                             {record.studentId ? (
@@ -219,7 +220,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.matricule}</td>
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.className}</td>
                                         <td className="px-3 py-2.5 text-sm font-semibold text-green-700 text-right whitespace-nowrap">{formatMoney(record.amount)}</td>
-                                        <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.paymentMethod ? record.paymentMethod.replace(/_/g, ' ') : '—'}</td>
+                                        <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{paymentMethodLabel(record.paymentMethod)}</td>
                                         <td className="px-3 py-2.5 text-sm text-gray-600 whitespace-nowrap">{record.receiptNumber || '—'}</td>
                                         <td className="px-3 py-2.5 whitespace-nowrap">
                                             {onUpdatePayment && isEditable(record) ? (
@@ -290,7 +291,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                         >
                                             <option value="">Select Method</option>
                                             {PAYMENT_METHODS.map(m => (
-                                                <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>
+                                                <option key={m.value} value={m.value}>{m.label}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -339,7 +340,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">Date</span>
                                         <span className="text-sm text-gray-900 text-right break-words">
-                                            {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString() : '—'}
+                                            {record.paymentDate ? new Date(record.paymentDate).toLocaleDateString(appDateLocale()) : '—'}
                                         </span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
@@ -356,7 +357,7 @@ export const PaymentRecordsView: React.FC<PaymentRecordsViewProps> = ({ records,
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">Method</span>
-                                        <span className="text-sm text-gray-900 text-right break-words">{record.paymentMethod ? record.paymentMethod.replace(/_/g, ' ') : '—'}</span>
+                                        <span className="text-sm text-gray-900 text-right break-words">{paymentMethodLabel(record.paymentMethod)}</span>
                                     </div>
                                     <div className="flex items-start justify-between gap-3">
                                         <span className="text-xs text-gray-500">Receipt #</span>

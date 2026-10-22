@@ -1,5 +1,6 @@
 'use client';
 
+import { appDateLocale } from '@/lib/formatDate';
 import { useEffect, useState, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -85,7 +86,7 @@ function StatusBadge({ status }: { status: SyncStatus }) {
 function formatDateTime(iso: string | null | undefined): string {
     if (!iso) return '—';
     try {
-        return new Date(iso).toLocaleString();
+        return new Date(iso).toLocaleString(appDateLocale());
     } catch {
         return iso;
     }

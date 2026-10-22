@@ -20,7 +20,7 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { sortClassesByLevel, sortSubClassesByLevel } from '@/lib/classOrdering';
-import { saveBlob } from '@/lib/downloadFile';
+import { saveFile } from '@/lib/download';
 import StudentAuditDetail from './StudentAuditDetail';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -48,6 +48,7 @@ function StudentStatusBadge({ status }: { status: StudentStatus }) {
 const STATUS_CHIPS: { value: AuditStatus | ''; label: string }[] = [
   { value: '', label: 'All' },
   { value: 'MATCHED', label: 'Matched' },
+  { value: 'NOT_PAID', label: 'Nothing Paid' },
   { value: 'PAYMENT_MISMATCH', label: 'Payment Mismatch' },
   { value: 'MISSING_CONTROL', label: 'Missing Control' },
   { value: 'MISSING_PRIMARY', label: 'Missing Primary' },
@@ -56,6 +57,7 @@ const STATUS_CHIPS: { value: AuditStatus | ''; label: string }[] = [
 
 const STATUS_BADGE: Record<AuditStatus, { bg: string; label: string }> = {
   MATCHED:          { bg: 'bg-green-100 text-green-800',  label: 'Matched' },
+  NOT_PAID:         { bg: 'bg-orange-100 text-orange-800', label: 'Nothing Paid' },
   PAYMENT_MISMATCH: { bg: 'bg-amber-100 text-amber-800',  label: 'Mismatch' },
   MISSING_CONTROL:  { bg: 'bg-blue-100 text-blue-800',    label: 'Missing Control' },
   MISSING_PRIMARY:  { bg: 'bg-red-100 text-red-800',      label: 'Missing Primary' },
@@ -205,7 +207,7 @@ export default function FeeAuditRoster() {
         ...(subClassId ? { subClassId } : {}),
         ...(debouncedSearch ? { search: debouncedSearch } : {}),
       });
-      saveBlob(blob, `fee-audit-${selectedAcademicYear.name}.xlsx`);
+      await saveFile(blob, `fee-audit-${selectedAcademicYear.name}.xlsx`);
       toast.success('Export downloaded');
     } catch {
       toast.error('Export failed');

@@ -168,7 +168,8 @@ export default function ClassDetailPage() {
     const { data: teachersResult } = useSWR<any>('/users?role=TEACHER', fetcher);
     const teachers = useMemo<Teacher[]>(() =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (teachersResult?.data || []).map((t: any) => ({ id: t.id, name: t.name })),
+        // Matricule disambiguates same/similar-name teachers in the pickers (QA U8).
+        (teachersResult?.data || []).map((t: any) => ({ id: t.id, name: t.matricule ? `${t.name} (${t.matricule})` : t.name })),
         [teachersResult]
     );
 

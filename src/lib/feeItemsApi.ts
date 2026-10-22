@@ -1,7 +1,8 @@
 import apiService from './apiService';
+import { PAYMENT_METHODS as SHARED_PAYMENT_METHODS, type PaymentMethodCode } from './paymentMethods';
 
 export type FeeScope = 'ALL' | 'CLASS' | 'SUBCLASS';
-export type FeePaymentMethod = 'EXPRESS_UNION' | 'CCA' | 'F3DC' | 'AFRILAND_FIRST_BANK';
+export type FeePaymentMethod = PaymentMethodCode;
 
 export interface FeeItem {
   id: number;
@@ -77,12 +78,7 @@ export interface RecordPaymentResult {
   message: string;
 }
 
-export const PAYMENT_METHODS: { value: FeePaymentMethod; label: string }[] = [
-  { value: 'EXPRESS_UNION', label: 'Express Union' },
-  { value: 'CCA', label: 'CCA' },
-  { value: 'F3DC', label: 'F3DC' },
-  { value: 'AFRILAND_FIRST_BANK', label: 'Afriland First Bank' },
-];
+export const PAYMENT_METHODS: { value: FeePaymentMethod; label: string }[] = SHARED_PAYMENT_METHODS;
 
 export const listFeeItems = async (
   params: {
