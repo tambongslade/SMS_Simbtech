@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { clearCachedReads } from '@/lib/offline/cache';
@@ -171,6 +171,20 @@ const clearAuthData = () => {
     }
 };
 
+// A failed request that still carries the HTTP status, so callers can tell a
+// rejected login (401) from a network or server hiccup.
+class HttpError extends Error {
+    status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.name = 'HttpError';
+        this.status = status;
+    }
+}
+
+// Server messages that mean the token itself is no good (auth.middleware.ts).
+const TOKEN_REJECTED = /invalid token|token expired|invalidated|not active|no token provided/i;
+
 // API functions
 const apiCall = async <T,>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const token = getAuthToken();
@@ -191,13 +205,16 @@ const apiCall = async <T,>(endpoint: string, options: RequestInit = {}): Promise
 
     // A wrong login is not an expired session: /auth/login falls through so its reason is shown.
     if (response.status === 401 && endpoint !== '/auth/login') {
-        clearAuthData();
-        throw new Error('Authentication failed or session expired. Please log in again.');
+        // Only a rejected token ends the session; a 401 from a role-restricted
+        // endpoint must not wipe a good login.
+        const body = await response.clone().json().catch(() => ({}));
+        if (endpoint === '/auth/me' || TOKEN_REJECTED.test(String(body?.error ?? ''))) clearAuthData();
+        throw new HttpError('Authentication failed or session expired. Please log in again.', 401);
     }
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || `Request failed with status ${response.status}`);
+        throw new HttpError(errorData.error || errorData.message || `Request failed with status ${response.status}`, response.status);
     }
 
     return response.json();
@@ -213,6 +230,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
     const [isSelectingAcademicYear, setIsSelectingAcademicYear] = useState(false); // Initialize new loading state
     const router = useRouter();
+    const refreshRetries = useRef(0);
 
     // Initialize auth state on mount
     useEffect(() => {
@@ -586,9 +604,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         } catch (error) {
             console.error('Error refreshing user session:', error);
-            toast.error(error instanceof Error ? error.message : 'Failed to refresh session.');
-            clearAuthData();
-            router.push('/');
+            if (error instanceof HttpError && error.status === 401) {
+                // The server rejected the saved login: this is a real sign-out.
+                toast.error(error.message);
+                clearAuthData();
+                router.push('/');
+            } else {
+                // No signal, a timeout, or the server restarting (an update): the login
+                // is still good. Keep it, run on the saved profile, and try again shortly.
+                try {
+                    const saved = JSON.parse(localStorage.getItem('userData') || 'null') as User | null;
+                    if (saved?.userRoles?.length) {
+                        setUser(saved);
+                        setAvailableRoles([...new Set(saved.userRoles.map(ur => ur.role))]);
+                    }
+                } catch { /* corrupted cache — stay as is */ }
+                if (refreshRetries.current < 3) {
+                    refreshRetries.current += 1;
+                    setTimeout(() => { refreshUser().catch(() => { /* handled inside */ }); }, 10000);
+                }
+            }
         } finally {
             setIsLoading(false);
         }
