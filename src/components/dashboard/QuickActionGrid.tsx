@@ -100,7 +100,7 @@ export function QuickActionGrid({ actions }: { actions: QuickAction[] }) {
               key={action.href + action.label}
               href={action.href}
               style={{ '--tile-soft': styles.soft, '--tile-strong': styles.strong } as React.CSSProperties}
-              className={`group relative flex flex-col overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 min-h-[112px] active:scale-[0.98] hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.06] hover:z-10 transition-all duration-200 ${styles.ring} hover:animate-[tile-blink_0.4s_ease-in-out_infinite]`}
+              className={`group relative flex flex-col overflow-hidden bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-5 min-h-[112px] active:scale-[0.98] hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.06] hover:z-10 transition-all duration-200 ${styles.ring} hover:animate-[tile-blink_0.4s_ease-in-out_1]`}
             >
               {/* Doodle: the action's own icon, oversized and faint, tucked in the corner.
                   Reinforces what the button does rather than being generic decoration. */}
