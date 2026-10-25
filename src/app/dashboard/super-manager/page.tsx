@@ -13,7 +13,7 @@ export default function SuperManagerMenu() {
   // Hide the "Ask (AI)" tile unless the assistant is configured on this server.
   const aiAvailable = useAiAssistantAvailable();
   const quickActions = useMemo(
-    () => getQuickActionsForRole('super-manager', t).filter((a) => aiAvailable || !isAiAssistantHref(a.href)),
+    () => getQuickActionsForRole('super-manager', t, { includeSubItems: false }).filter((a) => aiAvailable || !isAiAssistantHref(a.href)),
     [t, aiAvailable],
   );
 
