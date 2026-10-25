@@ -2,6 +2,12 @@
 // generic labels. Anything cross-cutting belongs here; role-specific
 // strings go in the per-role dictionary.
 export const common: Record<string, string> = {
+  // Push prompt (mobile app)
+  'Turn on notifications': 'Activer les notifications',
+  'Tap here to get alerts about your school, even when the app is closed.': "Touchez ici pour recevoir les alertes de l'école, même lorsque l'application est fermée.",
+  'Tap here to open your phone settings and allow notifications.': 'Touchez ici pour ouvrir les paramètres du téléphone et autoriser les notifications.',
+  'Notifications on': 'Notifications activées',
+  'Notifications are turned off for this app on your device. Allow them in your phone settings.': "Les notifications sont désactivées pour cette application sur votre téléphone. Autorisez-les dans les paramètres.",
   // Login errors
   'This username is not registered.': "Ce nom d'utilisateur n'est pas enregistré.",
   'Wrong password. Please try again.': 'Mot de passe incorrect. Veuillez réessayer.',
