@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
     UserIcon,
@@ -211,6 +211,33 @@ export default function SettingsPage() {
         return () => document.removeEventListener('visibilitychange', onVisible);
     }, [refreshPush]);
 
+    // The "turn on notifications" banner (PushPrompt) sends people here: open the
+    // Notifications tab and switch them on. If the phone itself blocks them, go to
+    // the phone's settings and finish the job when the user comes back.
+    const pendingEnable = useRef(false);
+    const enableFromPrompt = useCallback(async () => {
+        setActiveTab('notifications');
+        const state = await getPushState();
+        if (!state.supported || state.optedIn) { setPush(state); return; }
+        if (state.canAsk) {
+            pendingEnable.current = false;
+            await togglePushRef.current(true);
+        } else {
+            pendingEnable.current = true;
+            setPush(await openNotificationSettings());
+        }
+    }, []);
+    useEffect(() => {
+        try {
+            if (sessionStorage.getItem('pushEnableRequest')) {
+                sessionStorage.removeItem('pushEnableRequest');
+                enableFromPrompt();
+            }
+        } catch { /* storage unavailable */ }
+        window.addEventListener('push-enable-request', enableFromPrompt);
+        return () => window.removeEventListener('push-enable-request', enableFromPrompt);
+    }, [enableFromPrompt]);
+
     const togglePush = async (enabled: boolean) => {
         setPushBusy(true);
         try {
@@ -230,6 +257,24 @@ export default function SettingsPage() {
             setPushBusy(false);
         }
     };
+
+    const togglePushRef = useRef(togglePush);
+    togglePushRef.current = togglePush;
+
+    // Back from the phone's settings screen after the banner sent us there:
+    // if notifications are now allowed, finish turning them on.
+    useEffect(() => {
+        const onVisible = async () => {
+            if (document.hidden || !pendingEnable.current) return;
+            const state = await getPushState();
+            if (state.permission === 'granted') {
+                pendingEnable.current = false;
+                if (!state.optedIn) await togglePushRef.current(true); else setPush(state);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => document.removeEventListener('visibilitychange', onVisible);
+    }, []);
 
     const openDeviceSettings = async () => {
         setPushBusy(true);

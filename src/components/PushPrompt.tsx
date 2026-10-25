@@ -1,20 +1,22 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { BellAlertIcon, XMarkIcon } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
 import { useLanguage } from '@/components/context/LanguageContext';
-import { getPushState, openNotificationSettings, setPushEnabled } from '@/lib/push';
+import { getPushState } from '@/lib/push';
 
 // Banner shown inside the mobile app, every time it is opened, while the signed-in
-// user has not got notifications on. Tapping it turns them on (OS permission
-// dialog first; if the OS will no longer ask, it opens the device settings).
+// user has not got notifications on. Tapping it opens Settings → Notifications
+// and turns them on there (OS permission dialog; if the OS will no longer ask,
+// the phone's settings open).
 // The ✕ hides it until the app is brought back to the foreground.
 // On the plain website, or when signed out, it renders nothing.
 export default function PushPrompt() {
     const { t } = useLanguage();
     const [visible, setVisible] = useState(false);
-    const [busy, setBusy] = useState(false);
+    const router = useRouter();
+    const pathname = usePathname();
     const [canAsk, setCanAsk] = useState(true);
     const dismissed = useRef(false);
 
@@ -51,21 +53,15 @@ export default function PushPrompt() {
 
     if (!visible) return null;
 
-    const activate = async () => {
-        if (busy) return;
-        setBusy(true);
-        try {
-            const state = canAsk ? await setPushEnabled(true) : await openNotificationSettings();
-            setCanAsk(state.canAsk);
-            if (state.optedIn) {
-                setVisible(false);
-                toast.success(t('Notifications on'));
-            } else if (!state.canAsk) {
-                toast.error(t('Notifications are turned off for this app on your device. Allow them in your phone settings.'));
-            }
-        } finally {
-            setBusy(false);
+    const activate = () => {
+        dismissed.current = true;
+        setVisible(false);
+        if (pathname === '/dashboard/settings') {
+            window.dispatchEvent(new Event('push-enable-request'));
+            return;
         }
+        try { sessionStorage.setItem('pushEnableRequest', '1'); } catch { /* storage unavailable */ }
+        router.push('/dashboard/settings');
     };
 
     return (
@@ -77,7 +73,6 @@ export default function PushPrompt() {
                 <button
                     type="button"
                     onClick={activate}
-                    disabled={busy}
                     className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-blue-800"
                 >
                     <BellAlertIcon className="h-7 w-7 shrink-0" />
