@@ -27,6 +27,7 @@ import {
   ShieldExclamationIcon,
   DocumentTextIcon,
   FolderOpenIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -166,6 +167,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Fees Management', href: '/dashboard/super-manager/fees-management', icon: CurrencyDollarIcon },
     { label: 'Fee Audit & Control', href: '/dashboard/super-manager/fee-comparison', icon: ClipboardDocumentCheckIcon },
     { label: 'Fee Defaulters', href: '/dashboard/super-manager/defaulters', icon: CurrencyDollarIcon },
+    { label: 'Text Messages (SMS)', href: '/dashboard/super-manager/sms', icon: ChatBubbleLeftRightIcon },
     { label: 'Expense Requisition', href: '/dashboard/super-manager/finance-requests', icon: BanknotesIcon },
     { label: 'Salary Management', href: '/dashboard/super-manager/salaries', icon: BanknotesIcon },
     { label: 'Expenditures', href: '/dashboard/super-manager/expenditures', icon: ReceiptRefundIcon },
@@ -256,6 +258,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/manager/report-requests' },
     { icon: ClipboardDocumentCheckIcon, label: 'Fee Audit', href: '/dashboard/manager/fee-comparison' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/manager/defaulters' },
+    { icon: ChatBubbleLeftRightIcon, label: 'Text Messages (SMS)', href: '/dashboard/manager/sms' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
     { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/manager/teachers-attendance-overview' },

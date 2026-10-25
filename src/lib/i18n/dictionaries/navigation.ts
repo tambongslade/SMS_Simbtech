@@ -98,6 +98,7 @@ export const navigation: Record<string, string> = {
   'Fee Items': 'Éléments de frais',
   'Fee Statistics': 'Statistiques des frais',
   'Fee Defaulters': 'Débiteurs de frais',
+  'Text Messages (SMS)': 'Messages texte (SMS)',
   'Fee Audit': 'Audit des frais',
   'Fee Audit & Control': 'Audit et contrôle des frais',
   'Control Fee Management': 'Contrôle des frais',
