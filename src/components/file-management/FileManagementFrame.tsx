@@ -48,6 +48,20 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
 
     useEffect(() => { open(); }, [open]);
 
+    // The one-minute link made when the page loaded may be stale by the time the button is pressed, so ask for a fresh one.
+    const openInTab = async () => {
+        const w = window.open('', '_blank');
+        try {
+            const res = await apiService.post<{ success: boolean; data?: { url: string }; error?: string }>(`/file-management/session${page === 'archives' ? '?page=archives' : ''}`, {});
+            if (!res?.data?.url || !w) throw new Error(res?.error || 'This page could not be opened.');
+            w.opener = null;
+            w.location.href = apiOrigin() + res.data.url;
+        } catch (e) {
+            w?.close();
+            setState({ kind: 'error', message: (e as Error)?.message || 'File Management could not be opened.' });
+        }
+    };
+
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -66,7 +80,7 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
             {state.kind === 'ready' && crossOrigin && (
                 <div className="rounded-lg border border-gray-200 bg-white p-8 text-center space-y-4">
                     <p className="text-sm text-gray-600">{title} opens in its own tab.</p>
-                    <Button onClick={() => window.open(state.src, '_blank', 'noopener')}>Open {title}</Button>
+                    <Button onClick={openInTab}>Open {title}</Button>
                 </div>
             )}
 
