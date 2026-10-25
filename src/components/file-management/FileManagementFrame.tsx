@@ -23,6 +23,9 @@ const apiOrigin = (): string => {
 export default function FileManagementFrame({ page = 'files' }: { page?: 'files' | 'archives' }) {
     const title = page === 'archives' ? 'Archives' : 'File Management';
     const [state, setState] = useState<State>({ kind: 'loading' });
+    // When the API lives on another origin (the online site: ssiccmr.com page, api.ssiccmr.com API) the browser refuses to
+    // frame it, so File Management opens in its own tab instead.
+    const crossOrigin = typeof window !== 'undefined' && !!apiOrigin() && apiOrigin() !== window.location.origin;
 
     const open = useCallback(async () => {
         setState({ kind: 'loading' });
@@ -60,7 +63,14 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
                 <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{state.message}</div>
             )}
 
-            {state.kind === 'ready' && (
+            {state.kind === 'ready' && crossOrigin && (
+                <div className="rounded-lg border border-gray-200 bg-white p-8 text-center space-y-4">
+                    <p className="text-sm text-gray-600">{title} opens in its own tab.</p>
+                    <Button onClick={() => window.open(state.src, '_blank', 'noopener')}>Open {title}</Button>
+                </div>
+            )}
+
+            {state.kind === 'ready' && !crossOrigin && (
                 <iframe
                     key={state.src}
                     src={state.src}
