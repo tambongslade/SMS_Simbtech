@@ -2781,7 +2781,7 @@ export default function StudentManagement() {
                                             value={parentSearchTerm}
                                             onChange={(e) => setParentSearchTerm(e.target.value)}
                                             placeholder="Type parent's name to search..."
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
                                         />
                                     </div>
                                     <p className="text-sm text-gray-600 mt-2">
