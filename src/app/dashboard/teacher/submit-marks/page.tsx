@@ -46,6 +46,7 @@ interface EntrySheetStudent {
   markId: number | null;
   score: number | null;
   updatedAt: string | null;
+  locked: boolean;
 }
 
 interface EntrySheet {
@@ -57,6 +58,7 @@ interface EntrySheet {
     submissionDeadline: string | null;
     isOpen: boolean;
     closedReason: string | null;
+    canEditSubmitted: boolean;
   };
   minScore: number;
   maxScore: number;
@@ -71,12 +73,13 @@ interface Row {
   matricule: string | null;
   savedScore: number | null; // what the server has
   input: string; // what is in the box
+  locked: boolean; // already submitted; the teacher can no longer change it
 }
 
 const MIN_SCORE = 0;
 const MAX_SCORE = 20;
 
-type RowState = 'invalid' | 'unsaved' | 'saved' | 'pending';
+type RowState = 'invalid' | 'unsaved' | 'saved' | 'pending' | 'locked';
 
 // Returns an error message for the typed value, or null when it is acceptable.
 function validateInput(value: string): string | null {
@@ -94,6 +97,7 @@ function parseInput(value: string): number | null {
 }
 
 function rowState(row: Row): RowState {
+  if (row.locked) return 'locked';
   if (validateInput(row.input)) return 'invalid';
   if (parseInput(row.input) !== row.savedScore) return 'unsaved';
   return row.savedScore !== null ? 'saved' : 'pending';
@@ -106,6 +110,7 @@ function sheetToRows(sheet: EntrySheet): Row[] {
     matricule: s.matricule,
     savedScore: s.score ?? null,
     input: s.score === null || s.score === undefined ? '' : String(s.score),
+    locked: !!s.locked,
   }));
 }
 
@@ -315,6 +320,12 @@ export default function SubmitMarks() {
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{t('Not saved')}</span>;
       case 'saved':
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">{t('Saved')}</span>;
+      case 'locked':
+        return (
+          <span className="px-2 inline-flex items-center gap-1 text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-600">
+            <LockClosedIcon className="h-3 w-3" />{t('Submitted')}
+          </span>
+        );
       default:
         return <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">{t('Pending')}</span>;
     }
@@ -337,8 +348,9 @@ export default function SubmitMarks() {
               ? 'border-blue-500 ring-1 ring-blue-300 bg-blue-50'
               : 'border-gray-300'
             } focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed`}
-          disabled={isSaving || !isOpen}
+          disabled={isSaving || !isOpen || row.locked}
           placeholder={`${MIN_SCORE}-${MAX_SCORE}`}
+          title={row.locked ? t('This mark has already been submitted and can no longer be changed.') : undefined}
         />
         {error && <p className="mt-1 text-xs text-red-600">{t(error)}</p>}
       </div>
@@ -370,6 +382,15 @@ export default function SubmitMarks() {
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4 flex">
           <ExclamationCircleIcon className="h-5 w-5 text-red-400 flex-shrink-0" />
           <p className="ml-3 text-sm text-red-700">{loadError}</p>
+        </div>
+      )}
+
+      {sheet && isOpen && rows.some(r => r.locked) && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 flex">
+          <LockClosedIcon className="h-5 w-5 text-blue-500 flex-shrink-0" />
+          <p className="ml-3 text-sm text-blue-800">
+            {t('A mark is locked once you save it and cannot be changed afterwards. Ask an administrator to correct a submitted mark.')}
+          </p>
         </div>
       )}
 
