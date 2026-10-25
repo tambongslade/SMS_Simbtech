@@ -1,16 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { BellAlertIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { BellAlertIcon } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { getPushState } from '@/lib/push';
 
-// Banner shown inside the mobile app, every time it is opened, while the signed-in
+// Banner shown inside the mobile app, on every screen, for as long as the signed-in
 // user has not got notifications on. Tapping it opens Settings → Notifications
 // and turns them on there (OS permission dialog; if the OS will no longer ask,
 // the phone's settings open).
-// The ✕ hides it until the app is brought back to the foreground.
+// It has no dismiss button: it goes away only once notifications are on, and
+// returns if they are later turned off (the state is re-read every few seconds).
 // On the plain website, or when signed out, it renders nothing.
 export default function PushPrompt() {
     const { t } = useLanguage();
@@ -18,7 +19,6 @@ export default function PushPrompt() {
     const router = useRouter();
     const pathname = usePathname();
     const [canAsk, setCanAsk] = useState(true);
-    const dismissed = useRef(false);
 
     useEffect(() => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,7 +28,7 @@ export default function PushPrompt() {
         const check = async () => {
             let signedIn = false;
             try { signedIn = !!localStorage.getItem('token'); } catch { /* unreadable storage */ }
-            if (!signedIn || dismissed.current) { setVisible(false); return; }
+            if (!signedIn) { setVisible(false); return; }
             const state = await getPushState();
             if (cancelled) return;
             setCanAsk(state.canAsk);
@@ -40,7 +40,6 @@ export default function PushPrompt() {
         const interval = setInterval(check, 4000);
         const onVisible = () => {
             if (document.hidden) return;
-            dismissed.current = false; // coming back to the app counts as opening it
             check();
         };
         document.addEventListener('visibilitychange', onVisible);
@@ -51,15 +50,10 @@ export default function PushPrompt() {
         };
     }, []);
 
-    if (!visible) return null;
+    // The Settings page is where it gets turned on, so don't cover that page.
+    if (!visible || pathname === '/dashboard/settings') return null;
 
     const activate = () => {
-        dismissed.current = true;
-        setVisible(false);
-        if (pathname === '/dashboard/settings') {
-            window.dispatchEvent(new Event('push-enable-request'));
-            return;
-        }
         try { sessionStorage.setItem('pushEnableRequest', '1'); } catch { /* storage unavailable */ }
         router.push('/dashboard/settings');
     };
@@ -101,14 +95,6 @@ export default function PushPrompt() {
                                 : t('Tap here to open your phone settings and allow notifications.')}
                         </span>
                     </span>
-                </button>
-                <button
-                    type="button"
-                    onClick={() => { dismissed.current = true; setVisible(false); }}
-                    aria-label={t('Dismiss')}
-                    className="px-3 text-blue-200 active:bg-blue-800"
-                >
-                    <XMarkIcon className="h-5 w-5" />
                 </button>
             </div>
         </div>
