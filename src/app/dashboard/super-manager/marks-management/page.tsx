@@ -246,6 +246,11 @@ export default function MarksManagementPage() {
         setStudentsWithMarks([]);
     }, [selectedSubClassId]);
 
+    // Only one subject taught in this subclass: no point making the user pick it.
+    useEffect(() => {
+        if (selectedSubjectId === '' && derivedSubjects.length === 1) setSelectedSubjectId(derivedSubjects[0].id);
+    }, [derivedSubjects, selectedSubjectId]);
+
     // Reset marks table when Sequence or Subject changes
     useEffect(() => {
         setStudentsWithMarks([]);

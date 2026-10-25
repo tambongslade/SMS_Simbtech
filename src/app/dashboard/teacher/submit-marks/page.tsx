@@ -187,6 +187,11 @@ export default function SubmitMarks() {
   const [selectedSubject, setSelectedSubject] =
     useRememberedFilter<number>('subjectId', subjects.map(sj => sj.id));
 
+  // Only one subject taught in this subclass: no point making the teacher pick it.
+  useEffect(() => {
+    if (selectedSubject === '' && subjects.length === 1) setSelectedSubject(subjects[0].id);
+  }, [subjects, selectedSubject, setSelectedSubject]);
+
   const unsavedCount = rows.filter(r => rowState(r) === 'unsaved').length;
   const invalidCount = rows.filter(r => rowState(r) === 'invalid').length;
   const hasPendingEdits = unsavedCount + invalidCount > 0;
