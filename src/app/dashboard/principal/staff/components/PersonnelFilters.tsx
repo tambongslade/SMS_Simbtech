@@ -36,8 +36,7 @@ export const PersonnelFilters: React.FC<PersonnelFiltersProps> = ({
             placeholder={t('Search by name, email, username...')}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            disabled={isLoading}
+            className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
         <div>
