@@ -14,6 +14,7 @@ import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
 import ChunkErrorReload from '@/components/pwa/ChunkErrorReload';
 import CapacitorBackButton from '@/components/CapacitorBackButton';
 import OneSignalInit from '@/components/OneSignalInit';
+import PushPrompt from '@/components/PushPrompt';
 import OfflineProvider from '@/components/offline/OfflineProvider';
 import OfflineBanner from '@/components/offline/OfflineBanner';
 
@@ -70,6 +71,7 @@ export default function RootLayout({
             <LanguageProvider>
               <OfflineProvider>
                 <OfflineBanner />
+                <PushPrompt />
                 {children}
               </OfflineProvider>
             </LanguageProvider>
