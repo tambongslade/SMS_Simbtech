@@ -23,10 +23,6 @@ const apiOrigin = (): string => {
 export default function FileManagementFrame({ page = 'files' }: { page?: 'files' | 'archives' }) {
     const title = page === 'archives' ? 'Archives' : 'File Management';
     const [state, setState] = useState<State>({ kind: 'loading' });
-    // When the API lives on another origin (the online site: ssiccmr.com page, api.ssiccmr.com API) the browser refuses to
-    // frame it, so File Management opens in its own tab instead.
-    const crossOrigin = typeof window !== 'undefined' && !!apiOrigin() && apiOrigin() !== window.location.origin;
-
     const open = useCallback(async () => {
         setState({ kind: 'loading' });
         try {
@@ -48,20 +44,6 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
 
     useEffect(() => { open(); }, [open]);
 
-    // The one-minute link made when the page loaded may be stale by the time the button is pressed, so ask for a fresh one.
-    const openInTab = async () => {
-        const w = window.open('', '_blank');
-        try {
-            const res = await apiService.post<{ success: boolean; data?: { url: string }; error?: string }>(`/file-management/session${page === 'archives' ? '?page=archives' : ''}`, {});
-            if (!res?.data?.url || !w) throw new Error(res?.error || 'This page could not be opened.');
-            w.opener = null;
-            w.location.href = apiOrigin() + res.data.url;
-        } catch (e) {
-            w?.close();
-            setState({ kind: 'error', message: (e as Error)?.message || 'File Management could not be opened.' });
-        }
-    };
-
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -77,14 +59,7 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
                 <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-sm text-red-700">{state.message}</div>
             )}
 
-            {state.kind === 'ready' && crossOrigin && (
-                <div className="rounded-lg border border-gray-200 bg-white p-8 text-center space-y-4">
-                    <p className="text-sm text-gray-600">{title} opens in its own tab.</p>
-                    <Button onClick={openInTab}>Open {title}</Button>
-                </div>
-            )}
-
-            {state.kind === 'ready' && !crossOrigin && (
+            {state.kind === 'ready' && (
                 <iframe
                     key={state.src}
                     src={state.src}
