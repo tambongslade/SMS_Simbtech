@@ -38,6 +38,13 @@
   80% { transform: rotate(4deg) scale(1.1); }
 }
 
+/* QuickActionGrid: a quick, repeating color pulse on the tile border/shadow
+   while hovered. Stays under 3 cycles/sec (2.5Hz here) to avoid a true strobe. */
+@keyframes tile-blink {
+  0%, 100% { border-color: var(--tile-soft); box-shadow: 0 4px 10px -2px var(--tile-soft); }
+  50% { border-color: var(--tile-strong); box-shadow: 0 6px 16px -2px var(--tile-strong); }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);
