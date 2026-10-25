@@ -28,6 +28,16 @@
   animation: marquee 18s linear infinite;
 }
 
+/* QuickActionGrid: the oversized icon doodle on each launcher tile gives a
+   little "ring" on hover, like it's reacting to the cursor. */
+@keyframes doodle-wiggle {
+  0%, 100% { transform: rotate(-6deg) scale(1.1); }
+  20% { transform: rotate(-16deg) scale(1.16); }
+  40% { transform: rotate(10deg) scale(1.16); }
+  60% { transform: rotate(-9deg) scale(1.12); }
+  80% { transform: rotate(4deg) scale(1.1); }
+}
+
 @layer base {
   html {
     font-family: var(--font-sans);
