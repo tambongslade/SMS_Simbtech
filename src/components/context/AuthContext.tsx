@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { clearCachedReads } from '@/lib/offline/cache';
+import { translate } from '@/lib/i18n/translations';
 
 // Types
 interface User {
@@ -85,6 +86,21 @@ interface AuthContextType {
     requiresAcademicYear: (role: string) => boolean;
     getToken: () => string | null;
 }
+
+// Login failures: say which part was wrong. The backend answers 'User not found'
+// for an unknown email/phone/matricule and 'Invalid credentials' for a wrong password.
+const loginErrorMessage = (error: unknown): string => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = String((error as any)?.data?.error ?? (error instanceof Error ? error.message : ''));
+    let message: string;
+    if (/user not found/i.test(raw)) message = 'This username is not registered.';
+    else if (/invalid credentials/i.test(raw)) message = 'Wrong password. Please try again.';
+    else message = error instanceof Error && error.message ? error.message : 'Login failed. Please try again.';
+    try {
+        if (localStorage.getItem('app-language') === 'fr') return translate(message, 'fr');
+    } catch { /* storage unavailable */ }
+    return message;
+};
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -173,7 +189,8 @@ const apiCall = async <T,>(endpoint: string, options: RequestInit = {}): Promise
         headers,
     });
 
-    if (response.status === 401) {
+    // A wrong login is not an expired session: /auth/login falls through so its reason is shown.
+    if (response.status === 401 && endpoint !== '/auth/login') {
         clearAuthData();
         throw new Error('Authentication failed or session expired. Please log in again.');
     }
@@ -316,7 +333,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         } catch (error) {
             console.error('Login error:', error);
-            toast.error(error instanceof Error ? error.message : 'Login failed. Please try again.');
+            toast.error(loginErrorMessage(error));
             throw error;
         } finally {
             setIsLoading(false);

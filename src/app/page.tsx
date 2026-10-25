@@ -4,7 +4,7 @@ import { useState, Fragment, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardBody, Input, Button } from '@/components/ui';
-import { UserIcon, LockClosedIcon, CheckCircleIcon, AtSymbolIcon, IdentificationIcon } from '@heroicons/react/24/outline';
+import { UserIcon, LockClosedIcon, CheckCircleIcon, AtSymbolIcon, IdentificationIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import AcademicYearSelector from '@/components/auth/AcademicYearSelector';
@@ -160,6 +160,7 @@ export default function LoginPage() {
   });
   const [loginType, setLoginType] = useState<'email' | 'matricule'>('email');
   const [rememberMe, setRememberMe] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   // Remembered parent → one-tap sign-in (matricule only, no password needed)
@@ -515,11 +516,22 @@ export default function LoginPage() {
                   <Input
                     label={t('Password')}
                     name="password"
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     placeholder={t('Enter your password')}
                     value={formData.password}
                     onChange={handleInputChange}
                     leftIcon={<LockClosedIcon className="h-5 w-5 text-gray-400" />}
+                    rightIcon={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        aria-label={showPassword ? t('Hide password') : t('Show password')}
+                        aria-pressed={showPassword}
+                        className="pointer-events-auto -mr-2 p-2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      >
+                        {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                      </button>
+                    }
                     required
                     disabled={isLoading}
                   />

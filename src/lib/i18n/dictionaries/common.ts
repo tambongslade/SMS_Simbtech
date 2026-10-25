@@ -2,6 +2,11 @@
 // generic labels. Anything cross-cutting belongs here; role-specific
 // strings go in the per-role dictionary.
 export const common: Record<string, string> = {
+  // Login errors
+  'This username is not registered.': "Ce nom d'utilisateur n'est pas enregistré.",
+  'Wrong password. Please try again.': 'Mot de passe incorrect. Veuillez réessayer.',
+  'Show password': 'Afficher le mot de passe',
+  'Hide password': 'Masquer le mot de passe',
   // Actions
   'Save': 'Enregistrer',
   'Save Changes': 'Enregistrer les modifications',
