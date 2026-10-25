@@ -69,13 +69,28 @@ export default function PushPrompt() {
             className="fixed inset-x-0 top-0 z-[9000] px-3 pointer-events-none"
             style={{ paddingTop: 'max(env(safe-area-inset-top), 0.5rem)' }}
         >
+            <style>{`
+                @keyframes push-bell-ring {
+                    0%, 40%, 100% { transform: rotate(0deg); }
+                    4% { transform: rotate(16deg); }
+                    8% { transform: rotate(-14deg); }
+                    12% { transform: rotate(12deg); }
+                    16% { transform: rotate(-10deg); }
+                    20% { transform: rotate(7deg); }
+                    24% { transform: rotate(-5deg); }
+                    28% { transform: rotate(3deg); }
+                    32% { transform: rotate(-1deg); }
+                }
+                .push-bell { transform-origin: 50% 12%; animation: push-bell-ring 3s ease-in-out infinite; }
+                @media (prefers-reduced-motion: reduce) { .push-bell { animation: none; } }
+            `}</style>
             <div className="pointer-events-auto mx-auto flex max-w-md items-stretch overflow-hidden rounded-xl bg-blue-700 text-white shadow-lg">
                 <button
                     type="button"
                     onClick={activate}
                     className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left active:bg-blue-800"
                 >
-                    <BellAlertIcon className="h-7 w-7 shrink-0" />
+                    <BellAlertIcon className="push-bell h-7 w-7 shrink-0" />
                     <span className="min-w-0">
                         <span className="block text-sm font-semibold leading-tight">
                             {t('Turn on notifications')}
