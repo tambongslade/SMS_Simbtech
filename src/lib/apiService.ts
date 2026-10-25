@@ -27,6 +27,44 @@ const clearAuthData = () => {
     }
 };
 
+// Server messages that mean the token itself is no good (auth.middleware.ts).
+const TOKEN_REJECTED = /invalid token|token expired|invalidated|not active|no token provided/i;
+
+// Ask the server whether the saved login still works (GET /auth/me only needs a valid token).
+const sessionStillValid = async (): Promise<boolean> => {
+    try {
+        const r = await fetch(`${API_BASE_URL}/auth/me`, {
+            headers: { Authorization: `Bearer ${getAuthToken()}` },
+        });
+        return r.status !== 401; // a network/5xx hiccup keeps the session
+    } catch {
+        return true;
+    }
+};
+
+// Tell the server why a 401 ended (or did not end) the session; shows up in its log.
+const reportSessionNote = (action: 'logout' | 'kept', endpoint: string, message: string) => {
+    try {
+        if (typeof window === 'undefined') return;
+        const token = getAuthToken();
+        fetch(`${API_BASE_URL}/auth/session-note`, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+                action,
+                endpoint,
+                message,
+                page: window.location.pathname,
+                app: /Capacitor|; wv\)/i.test(navigator.userAgent) ? 'mobile' : 'web',
+            }),
+        }).catch(() => { /* best effort */ });
+    } catch { /* best effort */ }
+};
+
 // ── User-friendly error messages ──
 // Backend error bodies range from clean sentences to Prisma dumps, validation
 // arrays and whole HTML pages. Only clean, short server messages are shown to
@@ -196,6 +234,19 @@ async function request<T = any>(
             // a staff-only endpoint must not log the parent out or redirect.
             if (typeof window !== 'undefined' && !getAuthToken() && localStorage.getItem('parentPortal')) {
                 throw new Error('Unauthorized');
+            }
+            // Only end the session when the login itself is bad. Any other 401
+            // (a role-restricted endpoint, a freshly deployed route) must not
+            // wipe a good login.
+            let serverMsg = '';
+            try { serverMsg = String((await response.clone().json())?.error ?? ''); } catch { /* non-JSON */ }
+            const noToken = !getAuthToken();
+            const tokenBad = noToken || TOKEN_REJECTED.test(serverMsg) || !(await sessionStillValid());
+            reportSessionNote(tokenBad ? 'logout' : 'kept', endpoint, serverMsg);
+            if (!tokenBad) {
+                const msg = tr("You don't have access to this, or it is not available right now.");
+                if (!options.silent) toast.error(msg, { id: 'api-error' });
+                throw new ApiError(msg, 401, { error: serverMsg });
             }
             // Unauthorized — server details ("jwt expired", "invalid token"…) are
             // never useful to the user mid-session.
