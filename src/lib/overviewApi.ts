@@ -269,6 +269,37 @@ export interface EnrollmentOverview {
     lastUpdated: string;
 }
 
+export interface GceExamLevelBreakdown {
+    examLevel: 'O_LEVEL' | 'A_LEVEL';
+    registeredCount: number;
+    studentsPaid: number;
+    totalExpected: number;
+    totalCollected: number;
+}
+
+export interface GceRegistrationOverview {
+    summary: {
+        eligibleStudents: number;
+        registeredStudents: number;
+        studentsPaid: number;
+        fullyPaidCount: number;
+        totalExpected: number;
+        totalCollected: number;
+        outstanding: number;
+        collectionRate: number;
+        expectedStamps: number;
+        collectedStamps: number;
+        expectedHandling: number;
+        collectedHandling: number;
+        expectedRegistrationFee: number;
+        collectedRegistrationFee: number;
+        expectedSubjectFees: number;
+        collectedSubjectFees: number;
+    };
+    byExamLevel: GceExamLevelBreakdown[];
+    lastUpdated: string;
+}
+
 // GET /snapshot — one call for the whole KPI strip
 export interface OverviewSnapshot {
     academicYearId: number;
@@ -285,6 +316,7 @@ export interface OverviewSnapshot {
     inventory: InventoryOverview['summary'];
     audit?: AuditOverview['summary'];
     enrollment: EnrollmentOverview['summary'];
+    gceRegistration: GceRegistrationOverview['summary'];
     lastUpdated: string;
 }
 
@@ -301,7 +333,8 @@ export type OverviewModuleKey =
     | 'tasks'
     | 'inventory'
     | 'audit'
-    | 'enrollment';
+    | 'enrollment'
+    | 'gce-registration';
 
 // Endpoints that ignore the academicYearId query param
 const YEARLESS: OverviewModuleKey[] = ['ream-stock', 'tasks', 'inventory', 'audit'];

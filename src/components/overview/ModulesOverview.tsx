@@ -9,6 +9,7 @@ import {
     AcademicCapIcon,
     ArchiveBoxIcon,
     BanknotesIcon,
+    BookOpenIcon,
     ChartBarIcon,
     CheckCircleIcon,
     ClipboardDocumentCheckIcon,
@@ -36,6 +37,7 @@ import {
     type EnrollmentOverview,
     type FeeClassBreakdown,
     type FinancialOverview,
+    type GceRegistrationOverview,
     type InstallmentBreakdown,
     type HealthOverview,
     type InventoryOverview,
@@ -105,6 +107,13 @@ const MODULES: ModuleDef[] = [
         headline: s => formatNumber(s.enrollment?.totalEnrollments),
         caption: s => `${formatPercent(s.enrollment?.averageClassUtilization)} class utilization`,
         alerts: s => s.enrollment?.unassignedEnrollments ?? 0,
+    },
+    {
+        key: 'gce-registration',
+        title: 'GCE Registration',
+        icon: BookOpenIcon,
+        headline: s => formatMoney(s.gceRegistration?.totalCollected),
+        caption: s => `${formatNumber(s.gceRegistration?.studentsPaid)} of ${formatNumber(s.gceRegistration?.registeredStudents)} registered student(s) paid`,
     },
     {
         key: 'discipline',
@@ -671,6 +680,49 @@ function ModulePanel({ module, data }: { module: OverviewModuleKey; data: unknow
                         <DonutChart title="Gender Split" centerSub="students" segments={toCategoricalSegments((d.genderSplit ?? []).map(x => ({ label: x.gender, value: x.count })))} />
                         <DonutChart title="Students by Status" centerSub="students" segments={toStatusSegments(d.studentsByStatus ?? [])} />
                     </TwoCol>
+                </div>
+            );
+        }
+        case 'gce-registration': {
+            const d = data as GceRegistrationOverview;
+            return (
+                <div className="space-y-5">
+                    <Meter label="GCE Fee Collection" rate={d.summary?.collectionRate ?? 0} />
+                    <StatGrid>
+                        <StatTile
+                            label="Registered Students"
+                            value={formatNumber(d.summary?.registeredStudents)}
+                            sub={d.summary?.eligibleStudents != null ? `of ${formatNumber(d.summary.eligibleStudents)} eligible` : undefined}
+                        />
+                        <StatTile label="Students Paid" value={formatNumber(d.summary?.studentsPaid)} sub={`${formatNumber(d.summary?.fullyPaidCount)} fully paid`} />
+                        <StatTile label="Total Collected" value={formatMoney(d.summary?.totalCollected)} />
+                        <StatTile label="Total Expected" value={formatMoney(d.summary?.totalExpected)} />
+                        <StatTile
+                            label="Outstanding"
+                            value={formatMoney(d.summary?.outstanding)}
+                            tone={(d.summary?.outstanding ?? 0) > 0 ? 'alert' : 'default'}
+                        />
+                    </StatGrid>
+                    <Section title="Collected by Fee Component">
+                        <p className="text-xs text-gray-400 mb-2">
+                            Stamps, handling and registration charges are fixed per student; since each payment is a lump sum, amounts below are prorated by how much of each student&apos;s total fee has been paid.
+                        </p>
+                        <StatGrid>
+                            <StatTile label="Stamps" value={formatMoney(d.summary?.collectedStamps)} sub={`of ${formatMoney(d.summary?.expectedStamps)} expected`} />
+                            <StatTile label="Handling" value={formatMoney(d.summary?.collectedHandling)} sub={`of ${formatMoney(d.summary?.expectedHandling)} expected`} />
+                            <StatTile label="Registration Fee" value={formatMoney(d.summary?.collectedRegistrationFee)} sub={`of ${formatMoney(d.summary?.expectedRegistrationFee)} expected`} />
+                            <StatTile label="Subject & Practical Fees" value={formatMoney(d.summary?.collectedSubjectFees)} sub={`of ${formatMoney(d.summary?.expectedSubjectFees)} expected`} />
+                        </StatGrid>
+                    </Section>
+                    <Section title="By Exam Level">
+                        <BarList
+                            rows={(d.byExamLevel ?? []).map(x => ({
+                                label: x.examLevel === 'O_LEVEL' ? 'FORM 5 (O Level)' : 'UPPER SIXTH (A Level)',
+                                value: x.totalCollected,
+                                display: `${formatMoney(x.totalCollected)} · ${formatNumber(x.studentsPaid)}/${formatNumber(x.registeredCount)} paid`,
+                            }))}
+                        />
+                    </Section>
                 </div>
             );
         }
