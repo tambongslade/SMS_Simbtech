@@ -96,6 +96,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/bursar' },
     { icon: CurrencyDollarIcon, label: 'Fee Management', href: '/dashboard/bursar/fee-management' },
     { icon: BanknotesIcon, label: 'Fee Items', href: '/dashboard/bursar/fee-items' },
+    { icon: ClipboardDocumentCheckIcon, label: 'GCE Registration', href: '/dashboard/bursar/gce-registration' },
     { icon: ReceiptRefundIcon, label: 'Overpayments & Refunds', href: '/dashboard/bursar/overpayments' },
     { icon: BanknotesIcon, label: 'Expense Requisition', href: '/dashboard/bursar/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/bursar/expenditures' },
