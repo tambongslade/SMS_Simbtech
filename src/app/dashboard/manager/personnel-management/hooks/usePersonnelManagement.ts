@@ -1,0 +1,428 @@
+'use client'
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'react-hot-toast';
+import useSWR, { useSWRConfig } from 'swr';
+import apiService from '../../../../../lib/apiService';
+import { personnelSearchPath, searchPersonnel, type SearchPersonnelParams } from '@/lib/personnelApi';
+
+// Manager is not allowed to create or promote accounts into MANAGER or
+// SUPER_MANAGER (the backend also enforces this on /users/create-with-role).
+const roles = [
+  { value: 'PRINCIPAL', label: 'Principal' },
+  { value: 'VICE_PRINCIPAL', label: 'Vice Principal' },
+  { value: 'BURSAR', label: 'Bursar' },
+  { value: 'DEAN_OF_STUDIES', label: 'Dean of Studies' },
+  { value: 'DEAN_OF_DISCIPLINE', label: 'Dean of Discipline' },
+  { value: 'SENIOR_DISCIPLINE_MASTER', label: 'Senior Discipline Master' },
+  { value: 'DISCIPLINE_MASTER', label: 'Discipline Master' },
+  { value: 'FEE_AUDITOR', label: 'Fee Auditor' },
+  { value: 'SECRETARY', label: 'Secretary' },
+  { value: 'TEACHER', label: 'Teacher' },
+  { value: 'HOD', label: 'Head of Department' },
+  { value: 'GUIDANCE_COUNSELOR', label: 'Guidance Counselor' },
+  { value: 'NURSE', label: 'Nurse' },
+  { value: 'PARENT', label: 'Parent' },
+  { value: 'CONTROLLER', label: 'Controller' },
+];
+
+export type Personnel = {
+  id: number;
+  name: string;
+  roles: string[];
+  email: string;
+  phone?: string;
+  matricule?: string;
+  status: 'active' | 'inactive';
+  avatar?: string;
+  department?: string;
+  dateJoined?: string;
+  gender: string;
+  date_of_birth: string;
+  address: string;
+};
+
+// Define form data type explicitly
+export type PersonnelFormData = Partial<Personnel & { gender: string; date_of_birth: string; address: string; password?: string }>;
+
+// Define StudentLinkInfo type for fetching students list
+export type StudentLinkInfo = {
+  id: number;
+  name: string;
+  matricule?: string;
+};
+
+export type AcademicYear = {
+  id: number;
+  name: string;
+  isCurrent?: boolean;
+  is_active?: boolean;
+};
+
+export const usePersonnelManagement = () => {
+  const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
+  const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [editingPersonnel, setEditingPersonnel] = useState<Personnel | null>(null);
+  const [userForRoleAssignment, setUserForRoleAssignment] = useState<{ id: number; name: string } | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
+  const [personnelToDelete, setPersonnelToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
+  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [formData, setFormData] = useState<PersonnelFormData>({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    status: 'active',
+    department: '',
+    dateJoined: '',
+    gender: '',
+    date_of_birth: '',
+    address: '',
+  });
+
+  const [isMutating, setIsMutating] = useState(false);
+
+  // Fetch academic years like in the examination structure page
+  const { data: academicYearsData } = useSWR('/academic-years', (url) => apiService.get(url));
+
+  useEffect(() => {
+    if (academicYearsData?.data) {
+      const allYears = academicYearsData.data;
+      setAcademicYears(allYears);
+      const activeYear = allYears.find((y: AcademicYear) => y.is_active || y.isCurrent);
+      if (activeYear) {
+        setSelectedAcademicYear(String(activeYear.id));
+      }
+    }
+  }, [academicYearsData]);
+
+  // Debounced so typing in the search box doesn't fire a request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(searchTerm), 300);
+    return () => clearTimeout(handle);
+  }, [searchTerm]);
+
+  const searchParams: SearchPersonnelParams = useMemo(() => ({
+    q: debouncedSearch,
+    role: selectedRoleFilter === 'all' ? undefined : selectedRoleFilter,
+    academicYearId: selectedAcademicYear ? Number(selectedAcademicYear) : undefined,
+    // Parents are excluded by default; only look them up if asked for.
+    includeParents: selectedRoleFilter === 'PARENT',
+    page: currentPage,
+    limit: itemsPerPage,
+    sortBy: 'name',
+    sortOrder: 'asc',
+  }), [debouncedSearch, selectedRoleFilter, selectedAcademicYear, currentPage, itemsPerPage]);
+
+  // The path doubles as the SWR cache key; searchPersonnel falls back to the
+  // older /users endpoint if this API hasn't deployed the search route.
+  const API_ENDPOINT = personnelSearchPath(searchParams);
+
+  const {
+    data: apiResult,
+    error: fetchError,
+    isLoading: isSWRLoading,
+    mutate
+  } = useSWR(API_ENDPOINT, () => searchPersonnel(searchParams));
+
+  const { personnel, totalPages, totalItems } = useMemo(() => {
+    if (!apiResult?.data) {
+      return { personnel: [], totalPages: 0, totalItems: 0 };
+    }
+    const personnelList = apiResult.data.map((user: any): Personnel => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      roles: user.userRoles?.map((roleObj: any) => roleObj.role) || [],
+      phone: user.phone,
+      matricule: user.matricule,
+      status: typeof user.status === 'string' && user.status.toLowerCase() === 'active' ? 'active' : 'inactive',
+      department: user.department,
+      dateJoined: typeof user.date_joined === 'string' ? user.date_joined :
+        user.createdAt ? (
+          typeof user.createdAt === 'string' ?
+            user.createdAt.split('T')[0] :
+            (() => {
+              try {
+                const date = new Date(user.createdAt);
+                return !isNaN(date.getTime()) ? date.toISOString().split('T')[0] : undefined;
+              } catch (e) {
+                return undefined;
+              }
+            })()
+        ) : undefined,
+      gender: user.gender,
+      date_of_birth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+      address: user.address,
+    }));
+
+    const total = apiResult.meta?.total || 0;
+    const calculatedTotalPages = Math.ceil(total / itemsPerPage);
+
+    return { personnel: personnelList, totalPages: calculatedTotalPages, totalItems: total };
+  }, [apiResult, itemsPerPage]);
+
+  useEffect(() => {
+    if (fetchError) {
+      console.error("SWR Fetch Error:", fetchError);
+      toast.error(`Failed to load personnel: ${fetchError.message}`);
+    }
+  }, [fetchError]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedRoleFilter, debouncedSearch, selectedAcademicYear]);
+
+  const openAddModal = () => {
+    setEditingPersonnel(null);
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      status: 'active',
+      department: '',
+      dateJoined: '',
+      gender: '',
+      date_of_birth: '',
+      address: '',
+    });
+    setIsAddEditModalOpen(true);
+  };
+
+  const openEditModal = (person: Personnel) => {
+    setEditingPersonnel(person);
+    setFormData({
+      ...person,
+      gender: (person as any).gender || '',
+      date_of_birth: (person as any).date_of_birth || '',
+      address: (person as any).address || '',
+    });
+    setIsAddEditModalOpen(true);
+  };
+
+  const openRoleAssignmentModal = (person: { id: number; name: string; roles: string[] }) => {
+    setUserForRoleAssignment({ id: person.id, name: person.name });
+    setSelectedRoles(person.roles || []);
+    setIsRoleModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsAddEditModalOpen(false);
+    setIsRoleModalOpen(false);
+    setIsConfirmDeleteModalOpen(false);
+    setEditingPersonnel(null);
+    setUserForRoleAssignment(null);
+    setSelectedRoles([]);
+    setFormData({});
+    setPersonnelToDelete(null);
+  };
+
+  const openDeleteConfirmationModal = (person: { id: number; name: string }) => {
+    setPersonnelToDelete(person);
+    setIsConfirmDeleteModalOpen(true);
+  };
+
+  const handleCreateUser = async () => {
+    // Name only what is actually missing.
+    const staffRoles = (formData.roles || []).filter(r => r !== 'PARENT');
+    const missing = [
+      !formData.name?.trim() && 'Full Name',
+      !formData.email?.trim() && 'Email',
+      !formData.phone?.trim() && 'Phone',
+      !formData.gender && 'Gender',
+      !formData.date_of_birth && 'Date of Birth',
+      !formData.address?.trim() && 'Address',
+      !formData.password && 'Password',
+      staffRoles.length === 0 && 'Staff Role',
+    ].filter(Boolean);
+    if (missing.length) {
+      toast.error(`Please fill in: ${missing.join(', ')}.`);
+      return;
+    }
+    setIsMutating(true);
+
+    // Staff are created with their staff role(s) up front via
+    // POST /users/create-with-role. The old path (public /auth/register)
+    // pre-assigned PARENT, so the new account dropped out of Personnel and
+    // got a parent (SO) matricule; ticking Teacher afterwards kept PARENT too.
+    const userData = {
+      name: formData.name!.trim(),
+      email: formData.email!.trim(),
+      phone: formData.phone!.trim(),
+      gender: formData.gender,
+      dateOfBirth: formData.date_of_birth,
+      address: formData.address!.trim(),
+      password: formData.password,
+      role: staffRoles[0],
+      roles: staffRoles,
+      status: (formData.status || 'active').toUpperCase(),
+      ...(selectedAcademicYear ? { academicYearId: Number(selectedAcademicYear) } : {}),
+    };
+
+    try {
+      const result = await apiService.post<any>(`/users/create-with-role`, userData);
+      const newUser = result.data;
+      toast.success(`${newUser?.name ?? 'Staff member'} created${newUser?.matricule ? ` (${newUser.matricule})` : ''}.`);
+      mutate();
+      setIsAddEditModalOpen(false);
+      setFormData({});
+    } catch (error: any) {
+      console.error("Staff creation failed:", error);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleAssignRoles = async () => {
+    if (!userForRoleAssignment || selectedRoles.length === 0) {
+      toast.error("Please select at least one role.");
+      return;
+    }
+    setIsMutating(true);
+    const userId = userForRoleAssignment.id;
+    const rolesToAssign = selectedRoles;
+
+    console.log(`Setting roles [${rolesToAssign.join(', ')}] for user ID ${userId} for the current academic year`);
+
+    try {
+      await apiService.put(`/users/${userId}/roles/academic-year`, { roles: rolesToAssign });
+      toast.success(`Roles updated successfully for ${userForRoleAssignment.name}!`);
+      closeModal();
+      mutate();
+    } catch (error: any) {
+      console.error("Role assignment failed:", error);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleUpdatePersonnel = async () => {
+    if (!editingPersonnel) return;
+
+    // Validate before touching the server at all. This used to run after the
+    // profile PUT had already gone through, so a too-short password saved
+    // the name/email/phone changes silently while showing only a password
+    // error -- an admin re-reading that as "nothing saved, try again" is
+    // exactly how a retry can land on the same no-password outcome twice.
+    const newPassword = formData.password?.trim();
+    if (newPassword && newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsMutating(true);
+
+    const userId = editingPersonnel.id;
+    const updateData: Partial<PersonnelFormData> = {
+      name: formData.name,
+      email: formData.email,
+      phone: formData.phone || undefined,
+      matricule: formData.matricule || undefined,
+      status: formData.status,
+    };
+
+    console.log(`Updating personnel ID ${userId}:`, updateData);
+
+    try {
+      await apiService.put(`/users/${userId}`, updateData);
+
+      // The PUT /users/:id endpoint does not accept a password field from the personnel modal.
+      // If the admin typed a new password, persist it through the dedicated reset endpoint,
+      // which enforces min length and writes an audited PASSWORD_RESET row.
+      if (newPassword) {
+        await apiService.post(`/users/${userId}/reset-password`, { newPassword });
+        toast.success("Personnel updated and password reset.");
+      } else {
+        toast.success("Personnel updated successfully!");
+      }
+      closeModal();
+      mutate();
+    } catch (error: any) {
+      console.error("Update failed:", error);
+      toast.error(error?.message || "Update failed. Please try again.");
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const confirmAndDeletePersonnel = async () => {
+    if (!personnelToDelete) return;
+    setIsMutating(true);
+    const { id, name } = personnelToDelete;
+    console.log("Attempting to delete personnel with ID:", id);
+
+    try {
+      await apiService.delete(`/users/${id}`);
+      toast.success(`Personnel '${name}' deleted successfully!`);
+      closeModal();
+      mutate();
+    } catch (error: any) {
+      console.error("Failed to delete personnel:", error);
+    } finally {
+      setIsMutating(false);
+    }
+  };
+
+  const handleRoleSelectionChange = (roleValue: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(roleValue)
+        ? prev.filter(r => r !== roleValue)
+        : [...prev, roleValue]
+    );
+  };
+
+  const filteredPersonnel = personnel; // No longer needed, but keep for compatibility if used elsewhere
+
+  // Ensure all state and functions used by the page are returned here
+  return {
+    personnel,
+    isLoading: isSWRLoading, // Use SWR's loading state for main data
+    isMutating, // For create/update/delete operations
+    fetchError,
+    searchTerm,
+    setSearchTerm,
+    selectedRoleFilter,
+    setSelectedRoleFilter,
+    roles, // The hardcoded roles array for filter/modal options
+    isAddEditModalOpen,
+    editingPersonnel,
+    formData,
+    setFormData,
+    openAddModal,
+    openEditModal,
+    handleCreateUser,
+    handleUpdatePersonnel,
+    isRoleModalOpen,
+    userForRoleAssignment,
+    selectedRoles,
+    setSelectedRoles, // Make sure this is returned
+    openRoleAssignmentModal,
+    handleAssignRoles,
+    handleRoleSelectionChange, // Make sure this is returned if used by ManageUserRolesModal
+    isConfirmDeleteModalOpen,
+    personnelToDelete,
+    openDeleteConfirmationModal,
+    confirmAndDeletePersonnel,
+    // General
+    closeModal,
+    mutate, // SWR mutate function if needed by the page directly
+    // Pagination
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    totalItems,
+    itemsPerPage,
+    setItemsPerPage,
+    academicYears,
+    selectedAcademicYear,
+    setSelectedAcademicYear,
+  };
+};

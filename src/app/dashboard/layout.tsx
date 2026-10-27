@@ -70,6 +70,7 @@ const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'mark
 // every time they open one of these items.
 const ROLE_PATH_ALIASES: Record<string, string[]> = {
   'DISCIPLINE_COORDINATOR': ['dean-of-discipline', 'principal'],
+  'MANAGER': ['super-manager'],
 };
 
 const formatRoleForURL = (role: string | undefined | null): string => {
