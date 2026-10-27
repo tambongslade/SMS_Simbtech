@@ -28,6 +28,7 @@ import {
   DocumentTextIcon,
   FolderOpenIcon,
   ChatBubbleLeftRightIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -285,8 +286,10 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },
     { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/dean-of-discipline/teachers-attendance-overview' },
+    { icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/dean-of-discipline/students' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
+    { icon: ScaleIcon, label: 'Disciplinary Council', href: '/dashboard/dean-of-discipline/disciplinary-council' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },

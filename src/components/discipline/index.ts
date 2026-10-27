@@ -5,4 +5,5 @@ export { PunishmentRegister } from './PunishmentRegister';
 export { BrokenPropertyPanel } from './BrokenPropertyPanel';
 export { RollCall } from './RollCall';
 export { DisciplinaryActionsPanel } from './DisciplinaryActionsPanel';
+export { DisciplinaryCouncilPanel } from './DisciplinaryCouncilPanel';
 export { ReportRequestsOutbox, ReportRequestsInbox } from './ReportRequests';
