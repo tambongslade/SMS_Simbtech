@@ -99,6 +99,7 @@ export const navigation: Record<string, string> = {
   'Fee Statistics': 'Statistiques des frais',
   'Fee Defaulters': 'Débiteurs de frais',
   'Text Messages (SMS)': 'Messages texte (SMS)',
+  'Mark Sheet': 'Fiche de notes',
   'Fee Audit': 'Audit des frais',
   'Fee Audit & Control': 'Audit et contrôle des frais',
   'Control Fee Management': 'Contrôle des frais',
