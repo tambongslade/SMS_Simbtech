@@ -10,9 +10,11 @@ export default function MarksManagementTabs() {
     const base = pathname.includes('/super-manager/') ? '/dashboard/super-manager/marks-management' : '/dashboard/marks-management';
     const onStatus = pathname.replace(/\/$/, '').endsWith('/submission-status');
     const onEntry = pathname.replace(/\/$/, '').endsWith('/entry');
+    const onMissing = pathname.replace(/\/$/, '').endsWith('/missing');
     const tabs = [
-        { href: base, label: 'Marks', active: !onStatus && !onEntry },
+        { href: base, label: 'Marks', active: !onStatus && !onEntry && !onMissing },
         { href: `${base}/entry`, label: 'Enter / edit marks', active: onEntry },
+        { href: `${base}/missing`, label: 'Missing marks', active: onMissing },
         { href: `${base}/submission-status`, label: 'Submission status', active: onStatus },
     ];
     return (
