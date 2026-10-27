@@ -62,6 +62,16 @@ const formatRoleName = (role: string | undefined | null): string => {
 // first path segment is a page name and not a role.
 const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'marks-management'];
 
+// Scaffold roles whose menu (see roleMenus.tsx) intentionally links into another
+// role's URL prefix instead of duplicating that role's pages under their own.
+// Without this, roleFromPath would flip to the linked-to role on navigation,
+// which both swaps the sidebar to that role's menu and trips the role-mismatch
+// redirect below — bouncing the user straight back to their own dashboard home
+// every time they open one of these items.
+const ROLE_PATH_ALIASES: Record<string, string[]> = {
+  'DISCIPLINE_COORDINATOR': ['dean-of-discipline', 'principal'],
+};
+
 const formatRoleForURL = (role: string | undefined | null): string => {
   if (!role) return '';
 
@@ -138,6 +148,12 @@ export default function DashboardLayout({
     if (segment && SHARED_SECTIONS.includes(segment)) {
       // Keep the signed-in role's menu and skip the role-mismatch redirect.
       return selectedRole ? formatRoleForURL(selectedRole) : null;
+    }
+    if (segment && selectedRole) {
+      const formattedSelectedRole = formatRoleForURL(selectedRole);
+      if (formattedSelectedRole !== segment && ROLE_PATH_ALIASES[selectedRole]?.includes(segment)) {
+        return formattedSelectedRole;
+      }
     }
     return segment;
   }, [pathname, selectedRole]);
