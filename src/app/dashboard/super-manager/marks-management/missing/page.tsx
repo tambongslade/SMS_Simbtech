@@ -10,6 +10,7 @@ type MissingStudent = {
     studentId: number;
     name: string;
     matricule: string | null;
+    noMarksAtAll: boolean;
     missingSubjects: { subjectId: number; subjectName: string }[];
 };
 
@@ -133,7 +134,7 @@ export default function MissingMarksPage() {
                     <p className="text-sm text-gray-700 mb-3">
                         <strong>{shownCount}</strong> student{shownCount === 1 ? '' : 's'} with missing marks
                         {(subClassId !== '' || needle) ? ` (of ${data.data.totalStudentsMissing} in the school)` : ''}.
-                        Only subjects on the class timetable are counted; withdrawn students are left out.
+                        Only subjects on the class timetable are counted; withdrawn students are left out. From Form 4 upwards a subject without a mark means the student does not take it, so only students with no marks at all are listed.
                     </p>
                     {shown.length === 0 && (
                         <div className="text-center py-10 px-4 text-gray-500 bg-gray-50 rounded-md shadow-sm">
@@ -156,7 +157,10 @@ export default function MissingMarksPage() {
                                             <span className="text-xs text-gray-500">{s.matricule || 'N/A'}</span>
                                         </div>
                                         <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                            {s.missingSubjects.map(m => (
+                                            {s.noMarksAtAll && (
+                                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-800 text-white">No marks in any subject</span>
+                                            )}
+                                            {!s.noMarksAtAll && s.missingSubjects.map(m => (
                                                 <span key={m.subjectId} className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                                     {m.subjectName}
                                                 </span>
