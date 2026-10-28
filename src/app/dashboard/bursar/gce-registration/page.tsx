@@ -9,6 +9,7 @@ import {
   ExclamationTriangleIcon,
   LockClosedIcon,
   ListBulletIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -48,6 +49,15 @@ const resolveExamLevel = (className: string): GceExamLevel | null => {
   return null;
 };
 
+type PayStatus = 'PAID' | 'PARTIAL' | 'UNPAID';
+// Paid = registered and nothing left to pay. Partial = some money received. Unpaid = nothing received
+// (including students who have not registered yet).
+const payStatusOf = (row: GceRosterRow): PayStatus => {
+  if (row.registrationId && row.amountExpected > 0 && row.balance <= 0) return 'PAID';
+  if (row.amountPaid > 0) return 'PARTIAL';
+  return 'UNPAID';
+};
+
 function statusBadge(row: GceRosterRow, t: (k: string) => string) {
   if (!row.registrationId) {
     return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">{t('Not registered')}</span>;
@@ -77,6 +87,9 @@ export default function GceRegistrationPage() {
   const [filterExamLevel, setFilterExamLevel] = useState<string>('all');
   const [filterClassId, setFilterClassId] = useState<string>('');
   const [filterSubClassId, setFilterSubClassId] = useState<string>('');
+  const [tab, setTab] = useState<'registration' | 'payments'>('registration');
+  const [search, setSearch] = useState('');
+  const [payFilter, setPayFilter] = useState<'ALL' | PayStatus>('ALL');
 
   // Subject picker modal
   const [subjectsRow, setSubjectsRow] = useState<GceRosterRow | null>(null);
@@ -105,6 +118,48 @@ export default function GceRegistrationPage() {
   const visibleSubClasses = useMemo(
     () => subClasses.filter((sc) => !filterClassId || String(sc.classId) === filterClassId),
     [subClasses, filterClassId],
+  );
+
+  const filteredRoster = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return roster;
+    return roster.filter((r) => r.student.name.toLowerCase().includes(q) || r.student.matricule.toLowerCase().includes(q));
+  }, [roster, search]);
+  const paymentRows = useMemo(
+    () => filteredRoster.filter((r) => payFilter === 'ALL' || payStatusOf(r) === payFilter),
+    [filteredRoster, payFilter],
+  );
+  // Per-class analytics cover the whole roster (class/level filters apply), ignoring search and paid filter.
+  const classAnalytics = useMemo(() => {
+    const map = new Map<string, { name: string; total: number; paid: number; partial: number; unpaid: number; expected: number; collected: number }>();
+    for (const r of roster) {
+      const name = r.subClass?.name ?? r.class.name;
+      const e = map.get(name) ?? { name, total: 0, paid: 0, partial: 0, unpaid: 0, expected: 0, collected: 0 };
+      const s = payStatusOf(r);
+      e.total += 1;
+      if (s === 'PAID') e.paid += 1;
+      else if (s === 'PARTIAL') e.partial += 1;
+      else e.unpaid += 1;
+      e.expected += r.amountExpected || 0;
+      e.collected += r.amountPaid || 0;
+      map.set(name, e);
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  }, [roster]);
+  const totals = useMemo(
+    () =>
+      classAnalytics.reduce(
+        (a, c) => ({
+          total: a.total + c.total,
+          paid: a.paid + c.paid,
+          partial: a.partial + c.partial,
+          unpaid: a.unpaid + c.unpaid,
+          expected: a.expected + c.expected,
+          collected: a.collected + c.collected,
+        }),
+        { total: 0, paid: 0, partial: 0, unpaid: 0, expected: 0, collected: 0 },
+      ),
+    [classAnalytics],
   );
 
   const loadRoster = useCallback(async () => {
@@ -263,30 +318,29 @@ export default function GceRegistrationPage() {
         </div>
       </div>
 
-      {/* Fee structure reference */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">{t('FORM 5 · O Level')}</h2>
-          <p className="text-xs text-gray-500 mb-2">{t('Exactly 11 subjects required.')}</p>
-          <ul className="text-sm text-gray-700 space-y-0.5">
-            <li>{t('11 subjects × 1,000')} = {fmtMoney(11000)}</li>
-            <li>{t('Registration')}: {fmtMoney(8000)}</li>
-            <li>{t('Stamps')}: {fmtMoney(1500)}</li>
-            <li>{t('Handling')}: {fmtMoney(4000)}</li>
-            <li>{t('ICT practicals')}: {fmtMoney(5000)}</li>
-            <li className="font-semibold pt-1 border-t border-gray-100 mt-1">{t('Total')}: {fmtMoney(29500)}</li>
-          </ul>
+      {/* Tabs + search */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-3">
+        <div className="flex gap-2 border-b border-gray-200">
+          {([['registration', t('Registration')], ['payments', t('Paid / Not paid')]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${tab === key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <h2 className="text-sm font-semibold text-gray-900 mb-2">{t('UPPER SIXTH · A Level')}</h2>
-          <p className="text-xs text-gray-500 mb-2">{t('3 to 5 subjects.')}</p>
-          <ul className="text-sm text-gray-700 space-y-0.5">
-            <li>{t('Registration')}: {fmtMoney(9000)}</li>
-            <li>{t('Stamps')}: {fmtMoney(1500)}</li>
-            <li>{t('Handling')}: {fmtMoney(4000)}</li>
-            <li>{t('Per subject')}: {fmtMoney(2000)}</li>
-            <li>{t('Practical surcharge (Physics, Chemistry, Biology, ICT/Computer Science)')}: +{fmtMoney(5000)} {t('per subject')}</li>
-          </ul>
+        <div className="relative">
+          <MagnifyingGlassIcon className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('Search student by name or matricule…')}
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
       </div>
 
@@ -325,6 +379,120 @@ export default function GceRegistrationPage() {
         </div>
       </div>
 
+      {tab === 'payments' && (
+        <>
+          {/* Analytics: students who have paid, per class */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <h2 className="text-sm font-semibold text-gray-900">{t('Students who have paid, per class')}</h2>
+              <p className="text-xs text-gray-500">{t('Paid = GCE fee fully paid. Not paid includes students not yet registered.')}</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[t('Class'), t('Students'), t('Paid'), t('Partially paid'), t('Not paid'), t('% paid'), t('Collected'), t('Expected')].map((h, i) => (
+                      <th key={i} className={`px-4 py-2 text-xs font-medium text-gray-500 uppercase ${i === 0 ? 'text-left' : 'text-right'}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[...classAnalytics, { ...totals, name: t('All classes') }].map((c, idx, arr) => (
+                    <tr key={c.name} className={idx === arr.length - 1 ? 'bg-gray-50 font-semibold' : ''}>
+                      <td className="px-4 py-2 text-gray-900">{c.name}</td>
+                      <td className="px-4 py-2 text-right">{c.total}</td>
+                      <td className="px-4 py-2 text-right text-green-700">{c.paid}</td>
+                      <td className="px-4 py-2 text-right text-amber-700">{c.partial}</td>
+                      <td className="px-4 py-2 text-right text-red-700">{c.unpaid}</td>
+                      <td className="px-4 py-2 text-right">{c.total ? Math.round((c.paid / c.total) * 100) : 0}%</td>
+                      <td className="px-4 py-2 text-right">{fmtMoney(c.collected)}</td>
+                      <td className="px-4 py-2 text-right">{fmtMoney(c.expected)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Paid / not paid list */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-200 flex flex-wrap items-center gap-2">
+              {([['ALL', t('All')], ['PAID', t('Paid')], ['PARTIAL', t('Partially paid')], ['UNPAID', t('Not paid')]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPayFilter(key)}
+                  className={`px-3 py-1 rounded-full text-xs border ${payFilter === key ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}
+                >
+                  {label}
+                </button>
+              ))}
+              <span className="text-xs text-gray-500 ml-auto">{paymentRows.length} {t('students')}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {[t('Student'), t('Class'), t('Expected'), t('Paid'), t('Balance'), t('Status')].map((h, i) => (
+                      <th key={i} className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {isLoading ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</td></tr>
+                  ) : paymentRows.length === 0 ? (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">{t('No students found.')}</td></tr>
+                  ) : (
+                    paymentRows.map((row) => (
+                      <tr key={row.enrollmentId} className="hover:bg-gray-50">
+                        <td className="px-4 py-2">
+                          <div className="font-medium text-gray-900">{row.student.name}</div>
+                          <div className="text-xs text-gray-500">{row.student.matricule}</div>
+                        </td>
+                        <td className="px-4 py-2 text-gray-600">{row.subClass?.name ?? row.class.name}</td>
+                        <td className="px-4 py-2">{row.amountExpected ? fmtMoney(row.amountExpected) : '—'}</td>
+                        <td className="px-4 py-2">{fmtMoney(row.amountPaid)}</td>
+                        <td className="px-4 py-2">{row.registrationId ? fmtMoney(row.balance) : '—'}</td>
+                        <td className="px-4 py-2">{statusBadge(row, t)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {tab === 'registration' && (<>
+      {/* Fee structure reference */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">{t('FORM 5 · O Level')}</h2>
+          <p className="text-xs text-gray-500 mb-2">{t('Exactly 11 subjects required.')}</p>
+          <ul className="text-sm text-gray-700 space-y-0.5">
+            <li>{t('11 subjects × 1,000')} = {fmtMoney(11000)}</li>
+            <li>{t('Registration')}: {fmtMoney(8000)}</li>
+            <li>{t('Stamps')}: {fmtMoney(1500)}</li>
+            <li>{t('Handling')}: {fmtMoney(4000)}</li>
+            <li>{t('ICT practicals')}: {fmtMoney(5000)}</li>
+            <li className="font-semibold pt-1 border-t border-gray-100 mt-1">{t('Total')}: {fmtMoney(29500)}</li>
+          </ul>
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">{t('UPPER SIXTH · A Level')}</h2>
+          <p className="text-xs text-gray-500 mb-2">{t('3 to 5 subjects.')}</p>
+          <ul className="text-sm text-gray-700 space-y-0.5">
+            <li>{t('Registration')}: {fmtMoney(9000)}</li>
+            <li>{t('Stamps')}: {fmtMoney(1500)}</li>
+            <li>{t('Handling')}: {fmtMoney(4000)}</li>
+            <li>{t('Per subject')}: {fmtMoney(2000)}</li>
+            <li>{t('Practical surcharge (Physics, Chemistry, Biology, ICT/Computer Science)')}: +{fmtMoney(5000)} {t('per subject')}</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Roster table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="hidden md:block overflow-x-auto">
@@ -347,12 +515,12 @@ export default function GceRegistrationPage() {
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</td>
                 </tr>
-              ) : roster.length === 0 ? (
+              ) : filteredRoster.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-4 py-8 text-center text-gray-500">{t('No FORM 5 / UPPER SIXTH students found.')}</td>
                 </tr>
               ) : (
-                roster.map((row) => (
+                filteredRoster.map((row) => (
                   <tr key={row.enrollmentId} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-gray-900">{row.student.name}</div>
@@ -406,10 +574,10 @@ export default function GceRegistrationPage() {
         <div className="md:hidden divide-y divide-gray-100">
           {isLoading ? (
             <div className="px-4 py-8 text-center text-gray-500">{t('Loading…')}</div>
-          ) : roster.length === 0 ? (
+          ) : filteredRoster.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">{t('No FORM 5 / UPPER SIXTH students found.')}</div>
           ) : (
-            roster.map((row) => (
+            filteredRoster.map((row) => (
               <div key={row.enrollmentId} className="p-4 space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -442,6 +610,8 @@ export default function GceRegistrationPage() {
           )}
         </div>
       </div>
+
+      </>)}
 
       {/* Subject picker modal */}
       <Modal
