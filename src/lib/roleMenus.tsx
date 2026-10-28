@@ -346,6 +346,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/secretary/enrollment' },
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
+    { icon: ClipboardDocumentListIcon, label: 'Mark Sheet', href: '/dashboard/secretary/marksheet' },
     { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/secretary/forms' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/secretary/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
