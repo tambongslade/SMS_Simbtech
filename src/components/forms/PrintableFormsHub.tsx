@@ -80,6 +80,8 @@ interface TeacherRosterEntry {
     weeklyPeriods: number;
 }
 
+const CLASS_LIST_MAX_COLUMNS = 20;
+
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const FORM_TYPES = [
@@ -413,6 +415,7 @@ export default function PrintableFormsHub() {
     const [isGenerating, setIsGenerating] = useState(false);
     const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
+    const [classListColumns, setClassListColumns] = useState<string>('5');
 
     useEffect(() => {
         let cancelled = false;
@@ -498,7 +501,7 @@ export default function PrintableFormsHub() {
         for (const target of targets) {
             try {
                 if (formType === 'classlist') {
-                    const qs = new URLSearchParams({ subClassId: String(target.subClassId) });
+                    const qs = new URLSearchParams({ subClassId: String(target.subClassId), columns: String(classListColumnCount) });
                     if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
                     const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
                     await saveFile(blob, `class-list-${slug(target.className)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
@@ -596,6 +599,8 @@ export default function PrintableFormsHub() {
         }
     };
 
+    const classListColumnCount = Math.min(Math.max(parseInt(classListColumns, 10) || 0, 0), CLASS_LIST_MAX_COLUMNS);
+
     const handleGenerate = () => (needsClassSelection ? handleGenerateClassBased() : handleGenerateTeacherBased());
 
     return (
@@ -657,6 +662,30 @@ export default function PrintableFormsHub() {
                         <p className="text-xs text-gray-500 mt-2">
                             Classes that don&apos;t take this subject are skipped and listed as failed.
                         </p>
+                    </CardBody>
+                </Card>
+            )}
+
+            {formType === 'classlist' && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Empty columns</CardTitle>
+                    </CardHeader>
+                    <CardBody>
+                        <label className="block text-sm text-gray-700 mb-1" htmlFor="classlist-columns">
+                            How many empty columns do you want next to the student names?
+                        </label>
+                        <input
+                            id="classlist-columns"
+                            type="number"
+                            min={0}
+                            max={CLASS_LIST_MAX_COLUMNS}
+                            value={classListColumns}
+                            onChange={(e) => setClassListColumns(e.target.value)}
+                            disabled={isGenerating}
+                            className="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">From 0 to {CLASS_LIST_MAX_COLUMNS}. The columns share the page width equally.</p>
                     </CardBody>
                 </Card>
             )}
