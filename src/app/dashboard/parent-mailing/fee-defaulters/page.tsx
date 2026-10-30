@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
@@ -11,9 +11,17 @@ import {
     PaperAirplaneIcon,
     ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, Input, TextArea, Button } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, Input, TextArea, Select, Button } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
+
+type InstallmentKey = 'first' | 'second' | 'third';
+const INSTALLMENT_OPTIONS: Array<{ value: '' | InstallmentKey; label: string }> = [
+    { value: '', label: 'Total outstanding (all installments)' },
+    { value: 'first', label: '1st Installment' },
+    { value: 'second', label: '2nd Installment' },
+    { value: 'third', label: '3rd Installment' },
+];
 
 interface DefaulterStudent {
     studentId: number;
@@ -22,6 +30,7 @@ interface DefaulterStudent {
     className: string;
     subClassName: string;
     outstandingAmount: number;
+    installments?: Record<InstallmentKey, { expected: number; paid: number; outstanding: number }>;
 }
 
 interface DefaultersReportData {
@@ -35,6 +44,7 @@ export default function FeeDefaultersMailingPage() {
     const { selectedAcademicYear } = useAuth();
 
     const [search, setSearch] = useState('');
+    const [installment, setInstallment] = useState<'' | InstallmentKey>('');
     const [selected, setSelected] = useState<Set<number>>(new Set());
     const [customMessage, setCustomMessage] = useState('');
     const [dueDate, setDueDate] = useState('');
@@ -43,6 +53,7 @@ export default function FeeDefaultersMailingPage() {
 
     const params = new URLSearchParams();
     if (selectedAcademicYear?.id) params.set('academicYearId', String(selectedAcademicYear.id));
+    if (installment) params.set('installment', installment);
 
     const { data: reportRes, error, isLoading } = useSWR<{ data?: DefaultersReportData }>(
         `/bursar/defaulters-report?${params.toString()}`,
@@ -50,6 +61,22 @@ export default function FeeDefaultersMailingPage() {
         { onError: (err) => { if (err?.message !== 'Unauthorized') toast.error('Failed to load fee defaulters.'); } }
     );
     const allStudents = reportRes?.data?.students ?? [];
+
+    // The amount quoted for each student: their balance on the chosen installment,
+    // or their total outstanding balance when no installment is selected.
+    const amountFor = (s: DefaulterStudent) =>
+        installment ? (s.installments?.[installment]?.outstanding ?? 0) : s.outstandingAmount;
+
+    // Switching the academic year or installment can drop students from the list;
+    // selections that no longer apply are silently dropped too.
+    useEffect(() => {
+        setSelected(prev => {
+            const validIds = new Set(allStudents.map(s => s.studentId));
+            const next = new Set(Array.from(prev).filter(id => validIds.has(id)));
+            return next.size === prev.size ? prev : next;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [reportRes]);
 
     const filtered = useMemo(() => {
         if (!search.trim()) return allStudents;
@@ -59,10 +86,34 @@ export default function FeeDefaultersMailingPage() {
         );
     }, [allStudents, search]);
 
+    // Distinct classes present in the current (installment-filtered) defaulters
+    // list, each with the student IDs it covers, so a whole class can be
+    // selected/deselected for mailing in one click.
+    const classGroups = useMemo(() => {
+        const map = new Map<string, { className: string; studentIds: number[] }>();
+        for (const s of allStudents) {
+            const g = map.get(s.className) || { className: s.className, studentIds: [] };
+            g.studentIds.push(s.studentId);
+            map.set(s.className, g);
+        }
+        return Array.from(map.values()).sort((a, b) =>
+            a.className.localeCompare(b.className, undefined, { numeric: true, sensitivity: 'base' })
+        );
+    }, [allStudents]);
+
     const toggle = (id: number) => {
         setSelected(prev => {
             const next = new Set(prev);
             if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleClass = (studentIds: number[]) => {
+        setSelected(prev => {
+            const next = new Set(prev);
+            const allIn = studentIds.every(id => next.has(id));
+            studentIds.forEach(id => allIn ? next.delete(id) : next.add(id));
             return next;
         });
     };
@@ -81,8 +132,9 @@ export default function FeeDefaultersMailingPage() {
     };
 
     const selectedTotal = useMemo(
-        () => allStudents.filter(s => selected.has(s.studentId)).reduce((sum, s) => sum + s.outstandingAmount, 0),
-        [allStudents, selected],
+        () => allStudents.filter(s => selected.has(s.studentId)).reduce((sum, s) => sum + amountFor(s), 0),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [allStudents, selected, installment],
     );
 
     const handleGenerate = async () => {
@@ -98,6 +150,7 @@ export default function FeeDefaultersMailingPage() {
                     customMessage: customMessage.trim() || undefined,
                     dueDate: dueDate.trim() || undefined,
                     exclusionDate: exclusionDate.trim() || undefined,
+                    installment: installment || undefined,
                 },
                 undefined,
                 'blob',
@@ -133,6 +186,13 @@ export default function FeeDefaultersMailingPage() {
             <Card>
                 <CardHeader><CardTitle>Message</CardTitle></CardHeader>
                 <CardBody className="space-y-4">
+                    <Select
+                        label="Installment being chased"
+                        value={installment}
+                        onChange={(e) => setInstallment(e.target.value as '' | InstallmentKey)}
+                        options={INSTALLMENT_OPTIONS}
+                        helperText="When an installment is chosen, only parents still owing on it are listed, and the letter states the amount owed on that installment."
+                    />
                     <TextArea
                         label="Custom message (optional)"
                         placeholder="Any additional note for this batch of letters, shown under &quot;Dear Parent,&quot; and before the fee details."
@@ -156,6 +216,31 @@ export default function FeeDefaultersMailingPage() {
                     </div>
                 </CardBody>
             </Card>
+
+            {classGroups.length > 0 && (
+                <Card>
+                    <CardHeader><CardTitle>Select whole classes</CardTitle></CardHeader>
+                    <CardBody className="flex flex-wrap gap-2">
+                        {classGroups.map((g) => {
+                            const active = g.studentIds.every(id => selected.has(id));
+                            return (
+                                <button
+                                    key={g.className}
+                                    type="button"
+                                    onClick={() => toggleClass(g.studentIds)}
+                                    className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                                        active
+                                            ? 'bg-blue-600 border-blue-600 text-white'
+                                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {g.className} <span className={active ? 'text-blue-100' : 'text-gray-400'}>({g.studentIds.length})</span>
+                                </button>
+                            );
+                        })}
+                    </CardBody>
+                </Card>
+            )}
 
             <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
                 <div className="flex-1 min-w-[200px]">
@@ -200,7 +285,9 @@ export default function FeeDefaultersMailingPage() {
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Outstanding</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {installment ? 'Owed (this installment)' : 'Outstanding'}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-100">
@@ -223,7 +310,7 @@ export default function FeeDefaultersMailingPage() {
                                                 <p className="text-xs text-gray-500">{s.matricule}</p>
                                             </td>
                                             <td className="px-4 py-2.5 text-sm text-gray-700">{s.className} {s.subClassName}</td>
-                                            <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(s.outstandingAmount)}</td>
+                                            <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(amountFor(s))}</td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -236,7 +323,7 @@ export default function FeeDefaultersMailingPage() {
             {selected.size > 0 && (
                 <p className="text-xs text-gray-500 flex items-center gap-1.5">
                     <ExclamationTriangleIcon className="w-3.5 h-3.5 text-amber-500" />
-                    One letter per selected student will be generated as a single PDF, in the same order as the list above.
+                    One PDF will be generated with all {selected.size.toLocaleString()} letter{selected.size === 1 ? '' : 's'}, 3 per A4 page, in the same order as the list above.
                 </p>
             )}
         </div>
