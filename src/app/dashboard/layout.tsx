@@ -60,7 +60,7 @@ const formatRoleName = (role: string | undefined | null): string => {
 
 // Dashboard sections that belong to every role rather than to one, so their
 // first path segment is a page name and not a role.
-const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'marks-management'];
+const SHARED_SECTIONS = ['settings', 'leave-and-loans', 'file-management', 'marks-management', 'parent-mailing'];
 
 // Scaffold roles whose menu (see roleMenus.tsx) intentionally links into another
 // role's URL prefix instead of duplicating that role's pages under their own.

@@ -29,6 +29,7 @@ import {
   FolderOpenIcon,
   ChatBubbleLeftRightIcon,
   ScaleIcon,
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -108,6 +109,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: DocumentChartBarIcon, label: 'Report Card Readiness', href: '/dashboard/bursar/report-card-readiness' },
     { icon: ChartBarIcon, label: 'Fee Statistics', href: '/dashboard/bursar/fee-statistics' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/bursar/defaulters' },
+    { icon: EnvelopeIcon, label: 'Parent Mailing', href: '/dashboard/parent-mailing' },
     { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/bursar/forms' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/bursar/reports' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/bursar/overview' },
@@ -349,6 +351,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: ClipboardDocumentListIcon, label: 'Mark Sheet', href: '/dashboard/secretary/marksheet' },
     { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/secretary/forms' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/secretary/defaulters' },
+    { icon: EnvelopeIcon, label: 'Parent Mailing', href: '/dashboard/parent-mailing' },
     { icon: BanknotesIcon, label: 'Finance Requests', href: '/dashboard/secretary/finance-requests' },
     { icon: ReceiptRefundIcon, label: 'Expenditures', href: '/dashboard/secretary/expenditures' },
     { icon: DocumentChartBarIcon, label: 'Overview', href: '/dashboard/secretary/overview' },
