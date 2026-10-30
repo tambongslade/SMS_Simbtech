@@ -22,6 +22,11 @@ const INSTALLMENT_OPTIONS: Array<{ value: '' | InstallmentKey; label: string }> 
     { value: 'second', label: '2nd Installment' },
     { value: 'third', label: '3rd Installment' },
 ];
+const INSTALLMENT_LABELS: Record<InstallmentKey, string> = {
+    first: '1st Installment',
+    second: '2nd Installment',
+    third: '3rd Installment',
+};
 
 interface DefaulterStudent {
     studentId: number;
@@ -137,6 +142,22 @@ export default function FeeDefaultersMailingPage() {
         [allStudents, selected, installment],
     );
 
+    // Preview uses the first selected student's real data once something is
+    // picked, else a placeholder sample, so the letter wording can be checked
+    // before any PDF is generated.
+    const previewStudent = useMemo(() => {
+        const first = allStudents.find(s => selected.has(s.studentId));
+        if (first) {
+            return { studentName: first.studentName, className: first.className, subClassName: first.subClassName, amount: amountFor(first) };
+        }
+        return { studentName: 'Student Name', className: 'Form 1', subClassName: 'A', amount: 25000 };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allStudents, selected, installment]);
+    const previewDate = useMemo(
+        () => new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+        [],
+    );
+
     const handleGenerate = async () => {
         if (selected.size === 0) return;
         setGenerating(true);
@@ -214,6 +235,39 @@ export default function FeeDefaultersMailingPage() {
                             onChange={(e) => setExclusionDate(e.target.value)}
                         />
                     </div>
+                </CardBody>
+            </Card>
+
+            <Card>
+                <CardHeader><CardTitle>Letter Preview</CardTitle></CardHeader>
+                <CardBody>
+                    <div className="mx-auto max-w-md rounded-md border border-gray-300 bg-white p-4 text-[11px] leading-snug text-gray-900 shadow-sm">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="/letterhead.png"
+                            alt="School letterhead"
+                            className="mb-3 max-h-14 w-full border-b border-blue-900 object-contain pb-1"
+                        />
+                        <p className="mb-3 text-right text-gray-500">{previewDate}</p>
+                        <p className="mb-2">Dear Parent,</p>
+                        {customMessage.trim() && (
+                            <p className="mb-2 whitespace-pre-wrap">{customMessage}</p>
+                        )}
+                        <p className="mb-2">
+                            We will like to inform you that your child <b>{previewStudent.studentName}</b> of{' '}
+                            <b>{previewStudent.className} {previewStudent.subClassName}</b> is owing{' '}
+                            <b>{formatMoney(previewStudent.amount)}</b>
+                            {installment && <> for the <b>{INSTALLMENT_LABELS[installment]}</b></>}
+                            {dueDate.trim() && <> which was expected before <b>{dueDate}</b></>}.{' '}
+                            {exclusionDate.trim() && <>Your child will not be allowed on campus as of <b>{exclusionDate}</b>.</>}
+                        </p>
+                        <p className="mb-2">Endeavour to pay and send justification of payment.</p>
+                        <p className="mt-4 font-bold">The Principal</p>
+                    </div>
+                    <p className="mt-2 text-center text-xs text-gray-500">
+                        {selected.size > 0 ? "Showing the first selected student." : 'Showing a sample — select students below to preview real data.'}{' '}
+                        Each letter prints like this, 3 per A4 page.
+                    </p>
                 </CardBody>
             </Card>
 
