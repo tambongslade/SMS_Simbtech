@@ -4,7 +4,7 @@
 // is a plain radio list rather than a hardcoded page specifically so a new
 // form type is a small addition later, not a redesign.
 //
-// Five form types:
+// Six form types:
 // - Attendance Form: pick one or more classes -> one register PDF per class
 //   (each class gets its own download, not one combined PDF, so a class
 //   teacher only ever has to print their own sheet), Monday-Saturday across
@@ -24,6 +24,10 @@
 //   Name of Student | Sex | 1st..6th Seq columns left empty for the teacher.
 //   Unlike the others this PDF is rendered server-side
 //   (GET /exams/marksheet/pdf) so it carries the school letterhead.
+//
+// - Class List: pick classes -> one landscape PDF per subclass on the school
+//   letterhead (GET /exams/classlist/pdf): only the student names are filled in,
+//   every other column is empty.
 //
 // All of these are paper forms/reports, not digital records -- nothing here
 // is saved back to the server.
@@ -104,6 +108,11 @@ const FORM_TYPES = [
         label: 'Mark Sheet',
         description: 'One subject per class: student name, sex and empty columns for the 1st–6th sequence marks.',
     },
+    {
+        key: 'classlist',
+        label: 'Class List',
+        description: 'Landscape class list on the school letterhead: student names only, all other columns empty.',
+    },
     // Future form types go here.
 ] as const;
 type FormTypeKey = typeof FORM_TYPES[number]['key'];
@@ -116,6 +125,7 @@ const NEEDS_CLASS_SELECTION: Record<FormTypeKey, boolean> = {
     'teacher-blank': false,
     'teacher-periods': false,
     'marksheet': true,
+    'classlist': true,
 };
 
 const slug = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
@@ -487,6 +497,14 @@ export default function PrintableFormsHub() {
 
         for (const target of targets) {
             try {
+                if (formType === 'classlist') {
+                    const qs = new URLSearchParams({ subClassId: String(target.subClassId) });
+                    if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
+                    const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
+                    await saveFile(blob, `class-list-${slug(target.className)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
+                    succeeded++;
+                    continue;
+                }
                 if (formType === 'marksheet') {
                     const qs = new URLSearchParams({
                         subClassId: String(target.subClassId),
