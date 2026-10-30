@@ -25,7 +25,7 @@
 //   Unlike the others this PDF is rendered server-side
 //   (GET /exams/marksheet/pdf) so it carries the school letterhead.
 //
-// - Class List: pick classes -> one landscape PDF per subclass on the school
+// - Class List: pick classes -> one PDF per subclass (landscape or portrait) on the school
 //   letterhead (GET /exams/classlist/pdf): only the student names are filled in,
 //   every other column is empty.
 //
@@ -82,6 +82,20 @@ interface TeacherRosterEntry {
 
 const CLASS_LIST_MAX_COLUMNS = 20;
 
+// What an extra Class List column can show; 'empty' leaves it blank to fill in by hand.
+const CLASS_LIST_FIELD_OPTIONS = [
+    { value: 'empty', label: 'Empty (fill in by hand)' },
+    { value: 'matricule', label: 'Matricule' },
+    { value: 'sex', label: 'Sex' },
+    { value: 'date_of_birth', label: 'Date of birth' },
+    { value: 'place_of_birth', label: 'Place of birth' },
+    { value: 'residence', label: 'Residence' },
+    { value: 'repeater', label: 'Repeater' },
+    { value: 'student_type', label: 'New / Old student' },
+    { value: 'parent_name', label: 'Parent / guardian name' },
+    { value: 'parent_phone', label: 'Parent phone' },
+];
+
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 const FORM_TYPES = [
@@ -113,7 +127,7 @@ const FORM_TYPES = [
     {
         key: 'classlist',
         label: 'Class List',
-        description: 'Landscape class list on the school letterhead: student names only, all other columns empty.',
+        description: 'Class list on the school letterhead, landscape or portrait: student names, with a chosen number of empty columns or none.',
     },
     // Future form types go here.
 ] as const;
@@ -416,6 +430,9 @@ export default function PrintableFormsHub() {
     const [subjects, setSubjects] = useState<{ id: number; name: string }[]>([]);
     const [selectedSubjectId, setSelectedSubjectId] = useState<number | ''>('');
     const [classListColumns, setClassListColumns] = useState<string>('5');
+    const [classListOrientation, setClassListOrientation] = useState<'landscape' | 'portrait'>('landscape');
+    const [classListNamesOnly, setClassListNamesOnly] = useState(false);
+    const [classListFields, setClassListFields] = useState<string[]>([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -501,7 +518,7 @@ export default function PrintableFormsHub() {
         for (const target of targets) {
             try {
                 if (formType === 'classlist') {
-                    const qs = new URLSearchParams({ subClassId: String(target.subClassId), columns: String(classListColumnCount) });
+                    const qs = new URLSearchParams({ subClassId: String(target.subClassId), columns: String(classListColumnCount), orientation: classListOrientation, namesOnly: String(classListNamesOnly), fields: classListFieldChoices.join(',') });
                     if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
                     const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
                     await saveFile(blob, `class-list-${slug(target.className)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
@@ -601,6 +618,9 @@ export default function PrintableFormsHub() {
 
     const classListColumnCount = Math.min(Math.max(parseInt(classListColumns, 10) || 0, 0), CLASS_LIST_MAX_COLUMNS);
 
+    // One choice per extra column; columns the user has not touched stay empty.
+    const classListFieldChoices = Array.from({ length: classListColumnCount }, (_, i) => classListFields[i] || 'empty');
+
     const handleGenerate = () => (needsClassSelection ? handleGenerateClassBased() : handleGenerateTeacherBased());
 
     return (
@@ -669,23 +689,77 @@ export default function PrintableFormsHub() {
             {formType === 'classlist' && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Empty columns</CardTitle>
+                        <CardTitle>Class list options</CardTitle>
                     </CardHeader>
-                    <CardBody>
-                        <label className="block text-sm text-gray-700 mb-1" htmlFor="classlist-columns">
-                            How many empty columns do you want next to the student names?
+                    <CardBody className="space-y-4">
+                        <div>
+                            <p className="text-sm text-gray-700 mb-1">Page orientation</p>
+                            <div className="flex gap-4">
+                                {(['landscape', 'portrait'] as const).map(o => (
+                                    <label key={o} className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="classlist-orientation"
+                                            checked={classListOrientation === o}
+                                            onChange={() => setClassListOrientation(o)}
+                                            disabled={isGenerating}
+                                            className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                        />
+                                        {o === 'landscape' ? 'Landscape' : 'Portrait'}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-gray-800 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={classListNamesOnly}
+                                onChange={(e) => setClassListNamesOnly(e.target.checked)}
+                                disabled={isGenerating}
+                                className="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                            />
+                            Student names only (no empty columns)
                         </label>
-                        <input
-                            id="classlist-columns"
-                            type="number"
-                            min={0}
-                            max={CLASS_LIST_MAX_COLUMNS}
-                            value={classListColumns}
-                            onChange={(e) => setClassListColumns(e.target.value)}
-                            disabled={isGenerating}
-                            className="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        />
-                        <p className="text-xs text-gray-500 mt-2">From 0 to {CLASS_LIST_MAX_COLUMNS}. The columns share the page width equally.</p>
+                        <div className={classListNamesOnly ? 'opacity-50' : ''}>
+                            <label className="block text-sm text-gray-700 mb-1" htmlFor="classlist-columns">
+                                How many empty columns do you want next to the student names?
+                            </label>
+                            <input
+                                id="classlist-columns"
+                                type="number"
+                                min={0}
+                                max={CLASS_LIST_MAX_COLUMNS}
+                                value={classListColumns}
+                                onChange={(e) => setClassListColumns(e.target.value)}
+                                disabled={isGenerating || classListNamesOnly}
+                                className="w-28 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-2">From 0 to {CLASS_LIST_MAX_COLUMNS}. The columns share the page width equally.</p>
+                        </div>
+                        {!classListNamesOnly && classListColumnCount > 0 && (
+                            <div>
+                                <p className="text-sm text-gray-700 mb-1">What goes in each column? Leave it empty to fill in by hand, or pick the information to print.</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                    {classListFieldChoices.map((choice, i) => (
+                                        <label key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                                            <span className="w-20 shrink-0">Column {i + 1}</span>
+                                            <select
+                                                value={choice}
+                                                onChange={(e) => {
+                                                    const next = classListFieldChoices.slice();
+                                                    next[i] = e.target.value;
+                                                    setClassListFields(next);
+                                                }}
+                                                disabled={isGenerating}
+                                                className="flex-1 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                {CLASS_LIST_FIELD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                            </select>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </CardBody>
                 </Card>
             )}
