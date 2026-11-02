@@ -350,6 +350,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: AcademicCapIcon, label: 'Teachers', href: '/dashboard/secretary/teachers' },
     { icon: DocumentChartBarIcon, label: 'Class Lists', href: '/dashboard/secretary/class-lists' },
     { icon: ClipboardDocumentListIcon, label: 'Mark Sheet', href: '/dashboard/secretary/marksheet' },
+    { icon: DocumentChartBarIcon, label: 'Report Card Management', href: '/dashboard/secretary/report-card-management' },
     { icon: DocumentTextIcon, label: 'Forms', href: '/dashboard/secretary/forms' },
     { icon: CurrencyDollarIcon, label: 'Fee Defaulters', href: '/dashboard/secretary/defaulters' },
     { icon: EnvelopeIcon, label: 'Parent Mailing', href: '/dashboard/parent-mailing' },
