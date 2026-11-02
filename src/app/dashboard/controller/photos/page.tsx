@@ -166,7 +166,7 @@ export default function ControllerPhotosPage() {
       if (whiteBackground) {
         const result = await whitenOrOriginal(blob);
         blob = result.blob;
-        if (!result.ok) toast.error(t('The background could not be removed, the original photo is kept.'));
+        if (!result.ok) toast.error(`${t('The background could not be removed, the original photo is kept.')} (${result.error})`, { duration: 8000 });
       }
       const filename = await saveStudentPhoto(studentId, blob, academicYearId);
       markSaved(studentId, filename);

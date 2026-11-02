@@ -139,7 +139,7 @@ export default function CaptureSession({
       const result = await whitenOrOriginal(blob);
       setProcessing(false);
       photo = result.blob;
-      if (!result.ok) toast.error(t('The background could not be removed, the original photo is kept.'));
+      if (!result.ok) toast.error(`${t('The background could not be removed, the original photo is kept.')} (${result.error})`, { duration: 8000 });
     }
     setCaptured({ blob: photo, url: URL.createObjectURL(photo) });
   };

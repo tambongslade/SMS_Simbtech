@@ -19,6 +19,9 @@ interface Segmenter {
 
 let segmenterPromise: Promise<Segmenter> | null = null;
 
+const describe = (err: unknown): string =>
+  (err instanceof Error ? err.message : String(err)).replace(/s+/g, ' ').slice(0, 140);
+
 function loadSegmenter(): Promise<Segmenter> {
   if (!segmenterPromise) {
     segmenterPromise = (async () => {
@@ -26,15 +29,24 @@ function loadSegmenter(): Promise<Segmenter> {
       const bundleUrl = `${BASE}/vision_bundle.mjs`;
       const mod = await import(/* webpackIgnore: true */ bundleUrl);
       const fileset = await mod.FilesetResolver.forVisionTasks(`${BASE}/wasm`);
-      return (await mod.ImageSegmenter.createFromOptions(fileset, {
-        baseOptions: { modelAssetPath: `${BASE}/selfie_segmenter.tflite`, delegate: 'CPU' },
-        runningMode: 'IMAGE',
-        outputConfidenceMasks: true,
-        outputCategoryMask: false,
-      })) as Segmenter;
+      let lastError: unknown;
+      // CPU inference is the most widely supported; some devices only manage the GPU one.
+      for (const delegate of ['CPU', 'GPU']) {
+        try {
+          return (await mod.ImageSegmenter.createFromOptions(fileset, {
+            baseOptions: { modelAssetPath: `${BASE}/selfie_segmenter.tflite`, delegate },
+            runningMode: 'IMAGE',
+            outputConfidenceMasks: true,
+            outputCategoryMask: false,
+          })) as Segmenter;
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      throw lastError;
     })().catch((err) => {
       segmenterPromise = null; // let the next photo try again
-      throw err;
+      throw new Error(`model load: ${describe(err)}`);
     });
   }
   return segmenterPromise;
@@ -65,20 +77,30 @@ export async function whitenBackground(photo: Blob): Promise<Blob> {
     ctx.drawImage(bitmap, 0, 0);
 
     const segmenter = await loadSegmenter();
-    const result = segmenter.segment(canvas);
+    let result: ReturnType<Segmenter['segment']>;
+    try {
+      result = segmenter.segment(canvas);
+    } catch (err) {
+      throw new Error(`segment: ${describe(err)}`);
+    }
     try {
       const mask = result.confidenceMasks?.[0];
       if (!mask) throw new Error('The background could not be detected');
       const conf = mask.getAsFloat32Array();
-      if (mask.width !== canvas.width || mask.height !== canvas.height) {
-        throw new Error('Unexpected mask size');
-      }
+      const mw = mask.width;
+      const mh = mask.height;
+      if (conf.length !== mw * mh) throw new Error('Unexpected mask size');
 
       const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const px = image.data;
-      for (let i = 0, p = 0; i < conf.length; i++, p += 4) {
+      const sameSize = mw === canvas.width && mh === canvas.height;
+      const w = canvas.width;
+      const total = w * canvas.height;
+      for (let i = 0, p = 0; i < total; i++, p += 4) {
+        // A mask at another resolution is stretched over the picture (nearest neighbour).
+        const c = sameSize ? conf[i] : conf[Math.floor(((i / w) | 0) * mh / canvas.height) * mw + Math.floor((i % w) * mw / w)];
         // Soft edge between 'surely background' (<0.35) and 'surely person' (>0.65).
-        const a = smoothstep(0.35, 0.65, conf[i]);
+        const a = smoothstep(0.35, 0.65, c);
         px[p] = px[p] * a + 255 * (1 - a);
         px[p + 1] = px[p + 1] * a + 255 * (1 - a);
         px[p + 2] = px[p + 2] * a + 255 * (1 - a);
@@ -98,11 +120,12 @@ export async function whitenBackground(photo: Blob): Promise<Blob> {
   }
 }
 
-/** Same as whitenBackground, but never fails: if it cannot be done the original photo comes back with ok=false. */
-export async function whitenOrOriginal(photo: Blob): Promise<{ blob: Blob; ok: boolean }> {
+/** Same as whitenBackground, but never fails: if it cannot be done the original photo comes back with ok=false and the reason. */
+export async function whitenOrOriginal(photo: Blob): Promise<{ blob: Blob; ok: boolean; error?: string }> {
   try {
     return { blob: await whitenBackground(photo), ok: true };
-  } catch {
-    return { blob: photo, ok: false };
+  } catch (err) {
+    console.error('Background removal failed', err);
+    return { blob: photo, ok: false, error: describe(err) };
   }
 }
