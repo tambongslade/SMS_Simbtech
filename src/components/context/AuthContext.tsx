@@ -185,6 +185,19 @@ class HttpError extends Error {
 // Server messages that mean the token itself is no good (auth.middleware.ts).
 const TOKEN_REJECTED = /invalid token|token expired|invalidated|not active|no token provided/i;
 
+// ExamSequence rows have no display name in the database (only a sequenceNumber
+// and status) -- derive one here so every page reading examSequences off
+// selectedAcademicYear/availableAcademicYears gets a real label instead of a
+// blank name next to the status.
+const withDerivedSequenceNames = (years: AcademicYear[]): AcademicYear[] =>
+    years.map((year: any) => ({
+        ...year,
+        examSequences: (year.examSequences || []).map((seq: any) => ({
+            ...seq,
+            name: seq.name || `Sequence ${seq.sequenceNumber}`,
+        })),
+    }));
+
 // API functions
 const apiCall = async <T,>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const token = getAuthToken();
@@ -434,7 +447,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Fetch academic years relevant to the selected role
             if (ROLES_REQUIRING_ACADEMIC_YEAR.includes(role)) {
                 const academicYearsResponse = await apiCall<{ data: { academicYears: AcademicYear[], currentAcademicYearId: number, userHasAccessTo: number[] } }>(`/academic-years/available-for-role?role=${role}`);
-                const fetchedAcademicYears = academicYearsResponse.data.academicYears;
+                const fetchedAcademicYears = withDerivedSequenceNames(academicYearsResponse.data.academicYears);
                 setAvailableAcademicYears(fetchedAcademicYears);
 
                 if (fetchedAcademicYears.length === 1) {
@@ -565,7 +578,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 // We only ensure availableAcademicYears is populated.
 
                 const academicYearsResponse = await apiCall<{ data: { academicYears: AcademicYear[], currentAcademicYearId: number } }>(`/academic-years/available-for-role?role=${refreshedSelectedRole}`);
-                const fetchedAcademicYears = academicYearsResponse.data.academicYears;
+                const fetchedAcademicYears = withDerivedSequenceNames(academicYearsResponse.data.academicYears);
                 setAvailableAcademicYears(fetchedAcademicYears);
 
                 // If no academic years are found for the role, toast an error.
