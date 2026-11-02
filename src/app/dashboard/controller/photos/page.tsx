@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { ArrowUpTrayIcon, CameraIcon, CheckCircleIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { ArrowUpTrayIcon, CameraIcon, CheckCircleIcon, TrashIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { getPhotoUrl } from '@/lib/photoService';
@@ -13,7 +13,7 @@ import {
   type SubClassInfo,
 } from '@/app/dashboard/secretary/lib/secretaryApi';
 import CaptureSession, { type PhotoStudent } from './CaptureSession';
-import { fileToJpeg, saveStudentPhoto } from './imageUtils';
+import { deleteStudentPhoto, fileToJpeg, saveStudentPhoto } from './imageUtils';
 import { whitenOrOriginal } from './whiteBackground';
 
 const WHITE_BG_KEY = 'controllerPhotosWhiteBackground';
@@ -44,6 +44,7 @@ export default function ControllerPhotosPage() {
   const [retakeAll, setRetakeAll] = useState(false);
   const [whiteBackground, setWhiteBackgroundState] = useState(true);
   const [uploading, setUploading] = useState<Set<number>>(new Set());
+  const [deleting, setDeleting] = useState<Set<number>>(new Set());
   const [session, setSession] = useState<{ queue: ClassStudent[]; startIndex: number } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -105,6 +106,27 @@ export default function ControllerPhotosPage() {
       prev.map((s) => (s.id === studentId ? { ...s, photo: filename, version: s.version + 1 } : s)),
     );
   }, []);
+
+  const removePhoto = async (student: ClassStudent) => {
+    if (!academicYearId || !student.photo) return;
+    if (!window.confirm(`${t('Delete the photo of')} ${student.name}?`)) return;
+    setDeleting((prev) => new Set(prev).add(student.id));
+    try {
+      await deleteStudentPhoto(student.id, academicYearId);
+      setStudents((prev) =>
+        prev.map((s) => (s.id === student.id ? { ...s, photo: null, version: s.version + 1 } : s)),
+      );
+      toast.success(t('Photo deleted'));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('The photo could not be deleted. Try again.'));
+    } finally {
+      setDeleting((prev) => {
+        const next = new Set(prev);
+        next.delete(student.id);
+        return next;
+      });
+    }
+  };
 
   const startSession = (fromStudentId?: number) => {
     if (fromStudentId !== undefined) {
@@ -231,10 +253,10 @@ export default function ControllerPhotosPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
         {visible.map((s) => {
-          const busy = uploading.has(s.id);
+          const busy = uploading.has(s.id) || deleting.has(s.id);
           return (
             <div key={s.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
-              <div className="relative aspect-[3/4] bg-gray-100">
+              <div className="relative aspect-square bg-gray-100">
                 {s.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -253,7 +275,7 @@ export default function ControllerPhotosPage() {
                 )}
                 {busy && (
                   <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-sm font-medium text-gray-700">
-                    {t('Saving…')}
+                    {deleting.has(s.id) ? t('Deleting…') : t('Saving…')}
                   </div>
                 )}
               </div>
@@ -281,6 +303,17 @@ export default function ControllerPhotosPage() {
                     <CameraIcon className="w-4 h-4" />
                     {t('Camera')}
                   </button>
+                  {s.photo && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => removePhoto(s)}
+                      className="col-span-2 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-red-200 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                      {t('Delete photo')}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

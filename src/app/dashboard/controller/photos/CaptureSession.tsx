@@ -241,7 +241,7 @@ export default function CaptureSession({
       ) : (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-md mx-auto p-4 space-y-4">
-            <div className="relative w-full aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow">
+            <div className="relative w-full aspect-square bg-black rounded-2xl overflow-hidden shadow">
               {/* The video stays mounted so the camera is not restarted for every student. */}
               <video
                 ref={videoRef}

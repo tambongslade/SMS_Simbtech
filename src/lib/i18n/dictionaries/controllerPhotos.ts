@@ -45,4 +45,9 @@ export const controllerPhotos: Record<string, string> = {
   'White background': 'Fond blanc',
   'Removing the background…': 'Suppression de l’arrière-plan…',
   'The background could not be removed, the original photo is kept.': 'L’arrière-plan n’a pas pu être supprimé, la photo d’origine est conservée.',
+  'Delete photo': 'Supprimer la photo',
+  'Delete the photo of': 'Supprimer la photo de',
+  'Photo deleted': 'Photo supprimée',
+  'Deleting…': 'Suppression…',
+  'The photo could not be deleted. Try again.': 'La photo n’a pas pu être supprimée. Réessayez.',
 };

@@ -1,10 +1,10 @@
 import apiService from '@/lib/apiService';
 
-// Student photos are portrait (3:4). Phone cameras produce 3-8 MB frames, which the backend rejects
-// above 5 MB and which are slow over the school Wi-Fi, so every photo is cropped and shrunk first.
-const MAX_WIDTH = 720;
-const MAX_HEIGHT = 960;
-const TARGET_RATIO = 3 / 4;
+// Student photos are square, the standard 4 x 4 inch format: always exactly 1200 x 1200 px (300 dpi). Phone
+// cameras produce 3-8 MB frames, which the backend rejects above 5 MB and which are slow over the school
+// Wi-Fi, so every photo is cropped to the centre square and resized first.
+const OUTPUT_SIZE = 1200;
+const TARGET_RATIO = 1;
 
 function cropToJpeg(source: CanvasImageSource, width: number, height: number): Promise<Blob> {
   let sw = width;
@@ -18,10 +18,9 @@ function cropToJpeg(source: CanvasImageSource, width: number, height: number): P
     sh = Math.round(width / TARGET_RATIO);
     sy = Math.round((height - sh) / 2);
   }
-  const scale = Math.min(1, MAX_WIDTH / sw, MAX_HEIGHT / sh);
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(sw * scale);
-  canvas.height = Math.round(sh * scale);
+  canvas.width = OUTPUT_SIZE;
+  canvas.height = OUTPUT_SIZE;
   const ctx = canvas.getContext('2d');
   if (!ctx) return Promise.reject(new Error('Canvas is not available'));
   ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
@@ -30,12 +29,12 @@ function cropToJpeg(source: CanvasImageSource, width: number, height: number): P
   });
 }
 
-/** Crop the centre of a live <video> frame to a 3:4 portrait JPEG. */
+/** Crop the centre of a live <video> frame to a square JPEG. */
 export function videoFrameToJpeg(video: HTMLVideoElement): Promise<Blob> {
   return cropToJpeg(video, video.videoWidth, video.videoHeight);
 }
 
-/** Crop and shrink a picked/captured image file to a 3:4 portrait JPEG (honours EXIF rotation). */
+/** Crop and shrink a picked/captured image file to a square JPEG (honours EXIF rotation). */
 export async function fileToJpeg(file: File): Promise<Blob> {
   if (typeof createImageBitmap === 'function') {
     try {
@@ -77,4 +76,9 @@ export async function saveStudentPhoto(studentId: number, photo: Blob, academicY
     academic_year_id: academicYearId,
   });
   return filename;
+}
+
+/** Delete the student's photo for the given academic year. */
+export async function deleteStudentPhoto(studentId: number, academicYearId: number): Promise<void> {
+  await apiService.delete(`/students/${studentId}/enrollment-photo?academic_year_id=${academicYearId}`);
 }
