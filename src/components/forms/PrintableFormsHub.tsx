@@ -25,8 +25,9 @@
 //   Unlike the others this PDF is rendered server-side
 //   (GET /exams/marksheet/pdf) so it carries the school letterhead.
 //
-// - Class List: pick classes -> one PDF per subclass (landscape or portrait) on the school
-//   letterhead (GET /exams/classlist/pdf): only the student names are filled in,
+// - Class List: pick classes -> one combined PDF (landscape or portrait) on the school
+//   letterhead (GET /exams/classlist/pdf, one request with all subClassIds), each
+//   class starting on its own page: only the student names are filled in,
 //   every other column is empty.
 //
 // All of these are paper forms/reports, not digital records -- nothing here
@@ -513,22 +514,43 @@ export default function PrintableFormsHub() {
         }
 
         setIsGenerating(true);
+
+        // Class List: every selected class goes into one combined PDF (one
+        // request, comma-separated subClassIds), each class starting on its
+        // own page server-side -- not a separate download per class.
+        if (formType === 'classlist') {
+            const toastId = toast.loading(`Preparing class list${targets.length === 1 ? '' : ` (${targets.length} classes)`}...`);
+            try {
+                const qs = new URLSearchParams({
+                    subClassId: targets.map(t => t.subClassId).join(','),
+                    columns: String(classListColumnCount),
+                    orientation: classListOrientation,
+                    namesOnly: String(classListNamesOnly),
+                    fields: classListFieldChoices.join(','),
+                });
+                if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
+                if (classListDocumentTitle.trim()) qs.set('documentTitle', classListDocumentTitle.trim());
+                if (classListColumnLabelChoices.some(l => l.trim())) qs.set('columnLabels', JSON.stringify(classListColumnLabelChoices));
+                const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
+                const filename = targets.length === 1
+                    ? `class-list-${slug(targets[0].className)}-${slug(targets[0].subClassName)}.pdf`
+                    : `class-list-combined-${targets.length}-classes.pdf`;
+                await saveFile(blob, filename, 'application/pdf');
+                toast.success('Downloaded 1 PDF.', { id: toastId });
+            } catch (err) {
+                toast.error(err instanceof Error ? err.message : 'Failed to generate class list.', { id: toastId });
+            } finally {
+                setIsGenerating(false);
+            }
+            return;
+        }
+
         const toastId = toast.loading(`Preparing ${targets.length} PDF${targets.length === 1 ? '' : 's'}...`);
         let succeeded = 0;
         const failed: string[] = [];
 
         for (const target of targets) {
             try {
-                if (formType === 'classlist') {
-                    const qs = new URLSearchParams({ subClassId: String(target.subClassId), columns: String(classListColumnCount), orientation: classListOrientation, namesOnly: String(classListNamesOnly), fields: classListFieldChoices.join(',') });
-                    if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
-                    if (classListDocumentTitle.trim()) qs.set('documentTitle', classListDocumentTitle.trim());
-                    if (classListColumnLabelChoices.some(l => l.trim())) qs.set('columnLabels', JSON.stringify(classListColumnLabelChoices));
-                    const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
-                    await saveFile(blob, `class-list-${slug(target.className)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
-                    succeeded++;
-                    continue;
-                }
                 if (formType === 'marksheet') {
                     const qs = new URLSearchParams({
                         subClassId: String(target.subClassId),
