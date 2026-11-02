@@ -433,6 +433,8 @@ export default function PrintableFormsHub() {
     const [classListOrientation, setClassListOrientation] = useState<'landscape' | 'portrait'>('landscape');
     const [classListNamesOnly, setClassListNamesOnly] = useState(false);
     const [classListFields, setClassListFields] = useState<string[]>([]);
+    const [classListDocumentTitle, setClassListDocumentTitle] = useState('');
+    const [classListColumnLabels, setClassListColumnLabels] = useState<string[]>([]);
 
     useEffect(() => {
         let cancelled = false;
@@ -520,6 +522,8 @@ export default function PrintableFormsHub() {
                 if (formType === 'classlist') {
                     const qs = new URLSearchParams({ subClassId: String(target.subClassId), columns: String(classListColumnCount), orientation: classListOrientation, namesOnly: String(classListNamesOnly), fields: classListFieldChoices.join(',') });
                     if (selectedAcademicYear?.id) qs.set('academicYearId', String(selectedAcademicYear.id));
+                    if (classListDocumentTitle.trim()) qs.set('documentTitle', classListDocumentTitle.trim());
+                    if (classListColumnLabelChoices.some(l => l.trim())) qs.set('columnLabels', JSON.stringify(classListColumnLabelChoices));
                     const blob = await apiService.get<Blob>(`/exams/classlist/pdf?${qs.toString()}`, undefined, 'blob');
                     await saveFile(blob, `class-list-${slug(target.className)}-${slug(target.subClassName)}.pdf`, 'application/pdf');
                     succeeded++;
@@ -620,6 +624,8 @@ export default function PrintableFormsHub() {
 
     // One choice per extra column; columns the user has not touched stay empty.
     const classListFieldChoices = Array.from({ length: classListColumnCount }, (_, i) => classListFields[i] || 'empty');
+    // One custom header override per extra column; '' means "use the field's default label".
+    const classListColumnLabelChoices = Array.from({ length: classListColumnCount }, (_, i) => classListColumnLabels[i] || '');
 
     const handleGenerate = () => (needsClassSelection ? handleGenerateClassBased() : handleGenerateTeacherBased());
 
@@ -693,6 +699,22 @@ export default function PrintableFormsHub() {
                     </CardHeader>
                     <CardBody className="space-y-4">
                         <div>
+                            <label className="block text-sm text-gray-700 mb-1" htmlFor="classlist-title">
+                                Document title
+                            </label>
+                            <input
+                                id="classlist-title"
+                                type="text"
+                                maxLength={80}
+                                value={classListDocumentTitle}
+                                onChange={(e) => setClassListDocumentTitle(e.target.value)}
+                                disabled={isGenerating}
+                                placeholder="Class List"
+                                className="w-full sm:w-96 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Printed at the top of the page. Leave blank to use &quot;Class List&quot;.</p>
+                        </div>
+                        <div>
                             <p className="text-sm text-gray-700 mb-1">Page orientation</p>
                             <div className="flex gap-4">
                                 {(['landscape', 'portrait'] as const).map(o => (
@@ -738,10 +760,10 @@ export default function PrintableFormsHub() {
                         </div>
                         {!classListNamesOnly && classListColumnCount > 0 && (
                             <div>
-                                <p className="text-sm text-gray-700 mb-1">What goes in each column? Leave it empty to fill in by hand, or pick the information to print.</p>
+                                <p className="text-sm text-gray-700 mb-1">What goes in each column? Leave it empty to fill in by hand, or pick the information to print. Optionally give the column a custom header — otherwise it uses the field&apos;s default name (blank for an empty column).</p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                     {classListFieldChoices.map((choice, i) => (
-                                        <label key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                                        <div key={i} className="flex items-center gap-2 text-sm text-gray-700">
                                             <span className="w-20 shrink-0">Column {i + 1}</span>
                                             <select
                                                 value={choice}
@@ -755,7 +777,20 @@ export default function PrintableFormsHub() {
                                             >
                                                 {CLASS_LIST_FIELD_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                             </select>
-                                        </label>
+                                            <input
+                                                type="text"
+                                                maxLength={40}
+                                                value={classListColumnLabelChoices[i]}
+                                                onChange={(e) => {
+                                                    const next = classListColumnLabelChoices.slice();
+                                                    next[i] = e.target.value;
+                                                    setClassListColumnLabels(next);
+                                                }}
+                                                disabled={isGenerating}
+                                                placeholder="Custom header"
+                                                className="w-28 shrink-0 border border-gray-300 rounded-md px-2 py-1.5 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             </div>
