@@ -1,8 +1,12 @@
 "use client";
 
-// Super Manager fee management is read-only for payments (view + search) —
-// recording payments is the Bursar's job. This page adds the Class Fees tab
-// where the fee structure of each class is configured.
+// Super Manager fee management is read-only for payments in the Students tab
+// (view + search) -- recording payments there is the Bursar's job. The Payment
+// Records tab is the exception: searching and selecting a student there opens a
+// panel where a Super Manager can edit or add that student's payments (the
+// backend has no time-window restriction for this role), with a full edit log.
+// This page also adds the Class Fees tab where the fee structure of each class
+// is configured.
 
 import { useState } from "react";
 import { useFeeManagement } from "./hooks/useFeeManagement";
@@ -15,6 +19,7 @@ import { TransactionsModal } from "./components/ui/PaymentModal";
 import { SubclassSummaryModal } from "./components/ui/SubclassSummaryModal";
 import { RecordPaymentSearch } from "./components/ui/RecordPaymentSearch";
 import { PaymentRecordsView } from "./components/ui/PaymentRecordsView";
+import { StudentPaymentPanel } from "./components/ui/StudentPaymentPanel";
 import { ClassFeesEditor } from "./components/ui/ClassFeesEditor";
 import { Student } from './types';
 import { useLanguage } from '@/components/context/LanguageContext';
@@ -29,6 +34,12 @@ export default function FeeManagementPage() {
         setStudentSearchTerm,
         studentSearchResults,
         isSearchingStudents,
+        handleUpdatePayment,
+        recordsSelectedStudent,
+        setRecordsSelectedStudent,
+        handleAddPaymentForStudent,
+        studentPaymentAuditLog,
+        isLoadingStudentPaymentAuditLog,
         selectedClass,
         setSelectedClass,
         selectedPaymentStatus,
@@ -80,10 +91,15 @@ export default function FeeManagementPage() {
         setShowSubclassSummaryModal(true);
     };
 
-    // Search popup pick → open the student's payment history (read-only)
+    // Search popup pick → on the Payment Records tab, select the student for
+    // editing/adding payments; on any other tab, open the read-only history modal.
     const handleSearchSelectStudent = (student: Student) => {
         setStudentSearchTerm('');
-        handleViewTransactions(student);
+        if (viewTab === 'records') {
+            setRecordsSelectedStudent(student);
+        } else {
+            handleViewTransactions(student);
+        }
     };
 
     return (
@@ -127,10 +143,24 @@ export default function FeeManagementPage() {
             {viewTab === 'class-fees' && <ClassFeesEditor />}
 
             {viewTab === 'records' && (
-                <PaymentRecordsView
-                    records={paymentRecords}
-                    isLoading={isLoadingPaymentRecords}
-                />
+                <div className="space-y-4">
+                    {recordsSelectedStudent && (
+                        <StudentPaymentPanel
+                            student={recordsSelectedStudent}
+                            records={paymentRecords.filter(r => String(r.studentId) === String(recordsSelectedStudent.id))}
+                            auditLog={studentPaymentAuditLog}
+                            isLoadingAuditLog={isLoadingStudentPaymentAuditLog}
+                            onUpdatePayment={handleUpdatePayment}
+                            onAddPayment={handleAddPaymentForStudent}
+                            onClose={() => setRecordsSelectedStudent(null)}
+                        />
+                    )}
+
+                    <PaymentRecordsView
+                        records={paymentRecords}
+                        isLoading={isLoadingPaymentRecords}
+                    />
+                </div>
             )}
 
             {viewTab === 'students' && (

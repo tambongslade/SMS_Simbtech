@@ -88,11 +88,9 @@ export const feeService = {
     getFeeById: (id: number): Promise<ApiResponse<FeeResponse>> =>
         apiService.get(`/fees/${id}`),
 
-    createFee: (data: FeeRequest): Promise<ApiResponse<FeeResponse>> =>
-        apiService.post('/fees', data),
-
-    updateFee: (id: number, data: Partial<FeeRequest>): Promise<ApiResponse<FeeResponse>> =>
-        apiService.put(`/fees/${id}`, data),
+    // createFee/updateFee were removed: the backend no longer exposes a direct
+    // "set amountPaid to anything" edit. Fees are created by the enrollment flow;
+    // record/edit payments via recordPayment/updatePayment below.
 
     deleteFee: (id: number): Promise<ApiResponse<void>> =>
         apiService.delete(`/fees/${id}`),

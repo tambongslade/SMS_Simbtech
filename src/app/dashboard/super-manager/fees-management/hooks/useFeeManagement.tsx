@@ -261,6 +261,7 @@ export const useFeeManagement = () => {
       toast.success('Payment updated successfully!');
       mutateFeeRecords();
       mutatePaymentRecords();
+      mutateStudentPaymentAuditLog();
       return true;
     } catch (error: any) {
       console.error('Error updating payment:', error);
@@ -268,6 +269,55 @@ export const useFeeManagement = () => {
       return false;
     }
   };
+
+  // --- Payment Records tab: search → select a student → edit/add their payments ---
+  const [recordsSelectedStudent, setRecordsSelectedStudent] = useState<Student | null>(null);
+
+  const handleAddPaymentForStudent = async (
+    feeId: number | string,
+    data: { amount: number; paymentDate?: string; paymentMethod?: string; receiptNumber?: string }
+  ): Promise<boolean> => {
+    const payload: Record<string, unknown> = {
+      amount: data.amount,
+      paymentDate: data.paymentDate || new Date().toISOString().split('T')[0],
+      paymentMethod: data.paymentMethod,
+      ...(data.receiptNumber ? { receiptNumber: data.receiptNumber } : {}),
+    };
+    try {
+      let res: any;
+      try {
+        res = await apiService.post(`/fees/${feeId}/payments`, payload, { silent: true });
+      } catch (err: any) {
+        if (err instanceof ApiError && err.data?.code === 'OVERPAYMENT_CONFIRMATION_REQUIRED'
+          && typeof window !== 'undefined' && window.confirm(err.data?.error || err.message)) {
+          res = await apiService.post(`/fees/${feeId}/payments`, { ...payload, confirmOverpayment: true }, { silent: true });
+        } else {
+          throw err;
+        }
+      }
+      const receiptNo = res?.data?.receiptNumber;
+      toast.success(`Payment recorded successfully${receiptNo ? ` — receipt ${receiptNo}` : ''}!`);
+      mutateFeeRecords();
+      mutatePaymentRecords();
+      mutateStudentPaymentAuditLog();
+      return true;
+    } catch (error: any) {
+      console.error('Error recording payment:', error);
+      if (!String(error.message).includes('Unauthorized')) toast.error(error.message || 'Failed to record payment.');
+      return false;
+    }
+  };
+
+  // Edit history for the selected student's payment records (who changed what, when).
+  const {
+    data: studentPaymentAuditLogResult,
+    isLoading: isLoadingStudentPaymentAuditLog,
+    mutate: mutateStudentPaymentAuditLog,
+  } = useSWR(
+    recordsSelectedStudent ? `/fees/student/${recordsSelectedStudent.id}/payment-audit-log` : null,
+    fetcher
+  );
+  const studentPaymentAuditLog = useMemo(() => studentPaymentAuditLogResult?.data || [], [studentPaymentAuditLogResult]);
 
   // --- Consolidated Loading and Error State --- 
   const isLoading = isLoadingClassesSWR || isLoadingFeeRecordsSWR || (!currentAcademicYear && !allYearsErrorSWR);
@@ -546,6 +596,11 @@ export const useFeeManagement = () => {
     studentSearchResults,
     isSearchingStudents,
     handleUpdatePayment,
+    recordsSelectedStudent,
+    setRecordsSelectedStudent,
+    handleAddPaymentForStudent,
+    studentPaymentAuditLog,
+    isLoadingStudentPaymentAuditLog,
     selectedClass,
     setSelectedClass,
     selectedTerm,
