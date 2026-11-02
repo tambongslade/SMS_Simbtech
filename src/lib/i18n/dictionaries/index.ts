@@ -12,6 +12,7 @@ import { manager } from './manager';
 import { misc } from './misc';
 import { components } from './components';
 import { resultsLogbook } from './resultsLogbook';
+import { controllerPhotos } from './controllerPhotos';
 
 // Order matters only when the same key exists in multiple dictionaries.
 // Later entries win — role-specific translations can override common ones
@@ -31,4 +32,5 @@ export const dictionary: Record<string, string> = {
   ...hod,
   ...manager,
   ...misc,
+  ...controllerPhotos,
 };

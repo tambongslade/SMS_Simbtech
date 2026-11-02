@@ -30,6 +30,7 @@ import {
   ChatBubbleLeftRightIcon,
   ScaleIcon,
   EnvelopeIcon,
+  CameraIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -364,6 +365,7 @@ export const menuItems: MenuItemsStructure = {
   controller: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/controller' },
     { icon: ClipboardDocumentCheckIcon, label: 'Control Fee Management', href: '/dashboard/controller/fee-management' },
+    { icon: CameraIcon, label: 'Photos', href: '/dashboard/controller/photos' },
     { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/controller/finance-requests' },
   ],
 };
