@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { fileToJpeg, saveStudentPhoto, videoFrameToJpeg } from './imageUtils';
+import { preloadWhiteBackground, whitenOrOriginal } from './whiteBackground';
 
 export interface PhotoStudent {
   id: number;
@@ -26,6 +27,8 @@ interface Props {
   queue: PhotoStudent[];
   startIndex: number;
   academicYearId: number;
+  whiteBackground: boolean;
+  onWhiteBackgroundChange: (on: boolean) => void;
   onSaved: (studentId: number, filename: string) => void;
   onClose: () => void;
 }
@@ -38,11 +41,20 @@ interface Captured {
 type Facing = 'user' | 'environment';
 
 // One student at a time: take the picture, confirm it, and the next student comes up by itself.
-export default function CaptureSession({ queue, startIndex, academicYearId, onSaved, onClose }: Props) {
+export default function CaptureSession({
+  queue,
+  startIndex,
+  academicYearId,
+  whiteBackground,
+  onWhiteBackgroundChange,
+  onSaved,
+  onClose,
+}: Props) {
   const { t } = useLanguage();
   const [index, setIndex] = useState(startIndex);
   const [captured, setCaptured] = useState<Captured | null>(null);
   const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
   const [facing, setFacing] = useState<Facing>('environment');
   const [live, setLive] = useState(false);
@@ -115,13 +127,28 @@ export default function CaptureSession({ queue, startIndex, academicYearId, onSa
     };
   }, [captured]);
 
-  const keep = (blob: Blob) => setCaptured({ blob, url: URL.createObjectURL(blob) });
+  // Download the segmentation model while the first student is being lined up.
+  useEffect(() => {
+    if (whiteBackground) preloadWhiteBackground();
+  }, [whiteBackground]);
+
+  const keep = async (blob: Blob) => {
+    let photo = blob;
+    if (whiteBackground) {
+      setProcessing(true);
+      const result = await whitenOrOriginal(blob);
+      setProcessing(false);
+      photo = result.blob;
+      if (!result.ok) toast.error(t('The background could not be removed, the original photo is kept.'));
+    }
+    setCaptured({ blob: photo, url: URL.createObjectURL(photo) });
+  };
 
   const takeLive = async () => {
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
     try {
-      keep(await videoFrameToJpeg(video));
+      await keep(await videoFrameToJpeg(video));
     } catch {
       toast.error(t('Could not capture the photo. Try again.'));
     }
@@ -132,7 +159,7 @@ export default function CaptureSession({ queue, startIndex, academicYearId, onSa
     e.target.value = '';
     if (!file) return;
     try {
-      keep(await fileToJpeg(file));
+      await keep(await fileToJpeg(file));
     } catch {
       toast.error(t('That picture could not be read. Try again.'));
     }
@@ -236,12 +263,27 @@ export default function CaptureSession({ queue, startIndex, academicYearId, onSa
                   </p>
                 </div>
               )}
+              {processing && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-6 text-center text-white text-sm font-medium">
+                  {t('Removing the background…')}
+                </div>
+              )}
               {!captured && canLive && !live && (
                 <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-white text-sm">
                   {liveError ?? t('Starting the camera…')}
                 </div>
               )}
             </div>
+
+            <label className="flex items-center justify-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={whiteBackground}
+                disabled={processing || saving}
+                onChange={(e) => onWhiteBackgroundChange(e.target.checked)}
+              />
+              {t('White background')}
+            </label>
 
             {captured ? (
               <div className="space-y-2">
@@ -272,7 +314,7 @@ export default function CaptureSession({ queue, startIndex, academicYearId, onSa
                 {canLive ? (
                   <button
                     type="button"
-                    disabled={!live}
+                    disabled={!live || processing}
                     onClick={takeLive}
                     className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-blue-600 text-white text-lg font-semibold disabled:opacity-50"
                   >

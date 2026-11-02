@@ -42,4 +42,7 @@ export const controllerPhotos: Record<string, string> = {
   'The camera could not be started on this device.': 'La caméra n’a pas pu démarrer sur cet appareil.',
   'Could not capture the photo. Try again.': 'Impossible de capturer la photo. Réessayez.',
   'That picture could not be read. Try again.': 'Cette image n’a pas pu être lue. Réessayez.',
+  'White background': 'Fond blanc',
+  'Removing the background…': 'Suppression de l’arrière-plan…',
+  'The background could not be removed, the original photo is kept.': 'L’arrière-plan n’a pas pu être supprimé, la photo d’origine est conservée.',
 };

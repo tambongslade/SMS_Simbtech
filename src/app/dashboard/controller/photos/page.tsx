@@ -14,6 +14,9 @@ import {
 } from '@/app/dashboard/secretary/lib/secretaryApi';
 import CaptureSession, { type PhotoStudent } from './CaptureSession';
 import { fileToJpeg, saveStudentPhoto } from './imageUtils';
+import { whitenOrOriginal } from './whiteBackground';
+
+const WHITE_BG_KEY = 'controllerPhotosWhiteBackground';
 
 interface ClassStudent extends PhotoStudent {
   /** Bumped after a new photo is saved so the browser does not show the cached old one. */
@@ -39,11 +42,30 @@ export default function ControllerPhotosPage() {
   const [loading, setLoading] = useState(false);
   const [onlyMissing, setOnlyMissing] = useState(false);
   const [retakeAll, setRetakeAll] = useState(false);
+  const [whiteBackground, setWhiteBackgroundState] = useState(true);
   const [uploading, setUploading] = useState<Set<number>>(new Set());
   const [session, setSession] = useState<{ queue: ClassStudent[]; startIndex: number } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const uploadTarget = useRef<number | null>(null);
+
+  // Remembered per device; on unless the Controller turned it off.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(WHITE_BG_KEY) === 'off') setWhiteBackgroundState(false);
+    } catch {
+      /* storage unavailable: keep the default */
+    }
+  }, []);
+
+  const setWhiteBackground = useCallback((on: boolean) => {
+    setWhiteBackgroundState(on);
+    try {
+      window.localStorage.setItem(WHITE_BG_KEY, on ? 'on' : 'off');
+    } catch {
+      /* storage unavailable: applies to this visit only */
+    }
+  }, []);
 
   useEffect(() => {
     fetchSubClasses().then(setSubClasses).catch(() => toast.error(t('Could not load the classes')));
@@ -116,7 +138,12 @@ export default function ControllerPhotosPage() {
     }
     setUploading((prev) => new Set(prev).add(studentId));
     try {
-      const blob = await fileToJpeg(file);
+      let blob = await fileToJpeg(file);
+      if (whiteBackground) {
+        const result = await whitenOrOriginal(blob);
+        blob = result.blob;
+        if (!result.ok) toast.error(t('The background could not be removed, the original photo is kept.'));
+      }
       const filename = await saveStudentPhoto(studentId, blob, academicYearId);
       markSaved(studentId, filename);
       toast.success(t('Photo saved'));
@@ -181,6 +208,10 @@ export default function ControllerPhotosPage() {
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
                 {t('Show only students without a photo')}
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={whiteBackground} onChange={(e) => setWhiteBackground(e.target.checked)} />
+                {t('White background')}
               </label>
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={retakeAll} onChange={(e) => setRetakeAll(e.target.checked)} />
@@ -262,6 +293,8 @@ export default function ControllerPhotosPage() {
           queue={session.queue}
           startIndex={session.startIndex}
           academicYearId={academicYearId}
+          whiteBackground={whiteBackground}
+          onWhiteBackgroundChange={setWhiteBackground}
           onSaved={markSaved}
           onClose={() => setSession(null)}
         />
