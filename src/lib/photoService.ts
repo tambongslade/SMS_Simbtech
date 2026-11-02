@@ -154,6 +154,11 @@ export const getPhotoUrl = (photoPath: string | null): string => {
         return `${API_BASE_URL}${photoPath}`;
     }
 
+    // Student pictures that an older upload saved under the users folder (user-<id>-<time>.jpg)
+    if (photoPath.startsWith('user-')) {
+        return `${API_BASE_URL}/uploads/users/${photoPath}`;
+    }
+
     // Otherwise, construct the path
     return `${API_BASE_URL}/uploads/students/${photoPath}`;
 }; 

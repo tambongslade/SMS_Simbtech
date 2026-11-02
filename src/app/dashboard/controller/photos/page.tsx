@@ -45,6 +45,8 @@ export default function ControllerPhotosPage() {
   const [whiteBackground, setWhiteBackgroundState] = useState(true);
   const [uploading, setUploading] = useState<Set<number>>(new Set());
   const [deleting, setDeleting] = useState<Set<number>>(new Set());
+  // Photos whose file could not be loaded (e.g. saved on the other server): show the placeholder, not a broken image.
+  const [brokenKeys, setBrokenKeys] = useState<Set<string>>(new Set());
   const [session, setSession] = useState<{ queue: ClassStudent[]; startIndex: number } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -257,12 +259,13 @@ export default function ControllerPhotosPage() {
           return (
             <div key={s.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col">
               <div className="relative aspect-square bg-gray-100">
-                {s.photo ? (
+                {s.photo && !brokenKeys.has(`${s.id}:${s.photo}:${s.version}`) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`${getPhotoUrl(s.photo)}${s.version ? `?v=${s.version}` : ''}`}
                     alt={s.name}
                     loading="lazy"
+                    onError={() => setBrokenKeys((prev) => new Set(prev).add(`${s.id}:${s.photo}:${s.version}`))}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                 ) : (
