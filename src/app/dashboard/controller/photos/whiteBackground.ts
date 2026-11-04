@@ -20,7 +20,7 @@ interface Segmenter {
 let segmenterPromise: Promise<Segmenter> | null = null;
 
 const describe = (err: unknown): string =>
-  (err instanceof Error ? err.message : String(err)).replace(/s+/g, ' ').slice(0, 140);
+  (err instanceof Error ? err.message : String(err)).replace(/\s+/g, ' ').slice(0, 140);
 
 function loadSegmenter(): Promise<Segmenter> {
   if (!segmenterPromise) {
