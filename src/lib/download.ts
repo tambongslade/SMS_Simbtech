@@ -67,6 +67,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
     gif: 'image/gif',
     webp: 'image/webp',
     zip: 'application/zip',
+    apk: 'application/vnd.android.package-archive',
 };
 
 export const guessMimeType = (filename: string): string => {

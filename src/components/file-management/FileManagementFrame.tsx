@@ -4,9 +4,10 @@
 // The SMS backend checks who is signed in, works out which ARCHIVES folders their role may open, and proxies the
 // file app. An iframe cannot send the login token, so we first ask for a short-lived link that sets a cookie for it.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import apiService from '@/lib/apiService';
 import { Button } from '@/components/ui';
+import { isNativeApp, saveFile } from '@/lib/download';
 
 type State =
     | { kind: 'loading' }
@@ -44,6 +45,30 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
 
     useEffect(() => { open(); }, [open]);
 
+    // Inside the mobile app the file page (in the frame) fetches a download itself and hands the bytes up here, and
+    // this page saves them through the app. Otherwise Android's download manager fetches the file a second time,
+    // and away from the school network it held that request back for ten minutes or more.
+    const frameRef = useRef<HTMLIFrameElement>(null);
+    useEffect(() => {
+        const onMessage = async (e: MessageEvent) => {
+            const frame = frameRef.current?.contentWindow;
+            if (!frame || e.source !== frame) return;
+            const msg = e.data as { type?: string; id?: string; name?: string; mime?: string; data?: ArrayBuffer };
+            if (msg?.type === 'sms-file-hello') {
+                frame.postMessage({ type: 'sms-file-native', native: isNativeApp() }, '*');
+            } else if (msg?.type === 'sms-file-save' && msg.data && msg.name) {
+                try {
+                    await saveFile(msg.data, msg.name, msg.mime || undefined);
+                    frame.postMessage({ type: 'sms-file-saved', id: msg.id, ok: true }, '*');
+                } catch (err) {
+                    frame.postMessage({ type: 'sms-file-saved', id: msg.id, ok: false, message: (err as Error)?.message || 'The file could not be saved.' }, '*');
+                }
+            }
+        };
+        window.addEventListener('message', onMessage);
+        return () => window.removeEventListener('message', onMessage);
+    }, []);
+
     return (
         <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -61,6 +86,7 @@ export default function FileManagementFrame({ page = 'files' }: { page?: 'files'
 
             {state.kind === 'ready' && (
                 <iframe
+                    ref={frameRef}
                     key={state.src}
                     src={state.src}
                     title={title}
