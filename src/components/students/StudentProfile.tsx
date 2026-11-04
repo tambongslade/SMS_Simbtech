@@ -80,7 +80,7 @@ const seqTerm = (a: any) => {
 };
 const seqAvg = (a: any) => a?.average ?? a?.average_mark ?? a?.averageMark;
 const seqRank = (a: any) => a?.rank ?? a?.position;
-const enrollmentPhoto = (e: any) => e?.photo_url ?? e?.photoUrl ?? e?.photo;
+const enrollmentPhoto = (e: any) => e?.photo ?? e?.photoUrl ?? e?.photo_url;
 
 const num = (v: any) => (v == null || isNaN(Number(v)) ? null : Number(v));
 const fmtMoney = (v: any) => {

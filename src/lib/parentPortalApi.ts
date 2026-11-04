@@ -14,6 +14,7 @@ export const formatMoney = (n: number | null | undefined): string => {
   return `${v.toLocaleString('fr-FR')} ${CURRENCY}`;
 };
 
+import { getPhotoUrl } from './photoService';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000/api/v1';
 
 export const getSavedMatricules = (): string[] => {
@@ -148,11 +149,6 @@ export const uploadChildPhoto = async (matricule: string, file: Blob | File): Pr
   return json.data as UploadChildPhotoResult;
 };
 
-export const getPhotoAbsoluteUrl = (filename?: string | null): string | null => {
-  if (!filename) return null;
-  // Full URLs pass through untouched (backend sometimes returns absolute URLs)
-  if (/^https?:\/\//.test(filename)) return filename;
-  const root = API_BASE_URL.replace(/\/api\/v1\/?$/, '');
-  if (filename.startsWith('/uploads/')) return `${root}${filename}`;
-  return `${root}/uploads/students/${filename}`;
-};
+// One address for a student's picture, shared with every other page (see lib/photoService).
+export const getPhotoAbsoluteUrl = (filename?: string | null): string | null =>
+  filename ? getPhotoUrl(filename) : null;
