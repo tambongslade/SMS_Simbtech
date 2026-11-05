@@ -51,7 +51,12 @@ let lastGoodWay: Way | null = null;
 const describe = (err: unknown): string =>
   (err instanceof Error ? err.message : String(err)).replace(/\s+/g, ' ').slice(0, 140);
 
-let filesetPromise: Promise<{ mod: any; fileset: unknown }> | null = null;
+interface VisionModule {
+  FilesetResolver: { forVisionTasks(path: string): Promise<unknown> };
+  ImageSegmenter: { createFromOptions(fileset: unknown, options: object): Promise<unknown> };
+}
+
+let filesetPromise: Promise<{ mod: VisionModule; fileset: unknown }> | null = null;
 const segmenters: Partial<Record<Delegate, Promise<Segmenter>>> = {};
 
 function loadFileset() {
@@ -59,7 +64,7 @@ function loadFileset() {
     filesetPromise = (async () => {
       // A runtime import: the bundle is a plain file in /public, not something webpack should process.
       const bundleUrl = `${BASE}/vision_bundle.mjs`;
-      const mod = await import(/* webpackIgnore: true */ bundleUrl);
+      const mod = (await import(/* webpackIgnore: true */ bundleUrl)) as VisionModule;
       const fileset = await mod.FilesetResolver.forVisionTasks(`${BASE}/wasm`);
       return { mod, fileset };
     })().catch((err) => {
