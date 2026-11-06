@@ -127,6 +127,8 @@ const CACHE_DENYLIST: RegExp[] = [
     /\/report-cards?\/generate/,
     /^\/notifications\/unread-count/,
     /^\/messages\/unread/,
+    // Live state of the bell module: a cached copy would show a stale "ringing" state.
+    /^\/bell(\/|$)/,
 ];
 
 export const isCacheableRead = (method: string, endpoint: string, responseType: string): boolean => {
