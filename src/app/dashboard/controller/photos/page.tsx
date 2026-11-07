@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import {
-  ArrowDownTrayIcon,
   ArrowUpTrayIcon,
   CameraIcon,
   CheckCircleIcon,
@@ -14,7 +13,6 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
-import { saveFile } from '@/lib/download';
 import { getPhotoUrl } from '@/lib/photoService';
 import {
   fetchStudents,
@@ -24,7 +22,6 @@ import {
 } from '@/app/dashboard/secretary/lib/secretaryApi';
 import CaptureSession, { type PhotoStudent } from './CaptureSession';
 import { deleteStudentPhoto, fileToJpeg, saveStudentPhoto } from './imageUtils';
-import { missingPhotosPdf, type MissingPhotoGroup } from './missingPhotosPdf';
 import { whitenOrOriginal } from './whiteBackground';
 
 const WHITE_BG_KEY = 'controllerPhotosWhiteBackground';
@@ -43,6 +40,15 @@ interface YearStudent {
 interface PhotoCount {
   withPhoto: number;
   total: number;
+}
+
+/** One class in the list of students without a photo. */
+interface MissingGroup {
+  subClassId: number;
+  className: string;
+  /** Students in the class, with or without a photo. */
+  total: number;
+  students: { name: string; matricule?: string }[];
 }
 
 /** Share with a photo, rounded down to one decimal so 100% only shows when every student has one. */
@@ -65,12 +71,10 @@ export default function ControllerPhotosPage() {
   const { selectedAcademicYear } = useAuth();
   const { t } = useLanguage();
   const academicYearId = selectedAcademicYear?.id;
-  const academicYearName = selectedAcademicYear?.name ?? '';
 
   // Every student of the year (null while loading), for the counts per class and the missing-photo list.
   const [yearStudents, setYearStudents] = useState<YearStudent[] | null>(null);
   const [showMissing, setShowMissing] = useState(false);
-  const [exporting, setExporting] = useState(false);
 
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
   const [subClassId, setSubClassId] = useState('');
@@ -206,7 +210,7 @@ export default function ControllerPhotosPage() {
   }, [countsBySubClass]);
 
   // Students without a photo, by class in the order of the class list.
-  const missingGroups = useMemo<(MissingPhotoGroup & { subClassId: number })[]>(() => {
+  const missingGroups = useMemo<MissingGroup[]>(() => {
     const bySub = new Map<number, YearStudent[]>();
     for (const s of yearStudents ?? []) {
       if (s.photo) continue;
@@ -232,29 +236,6 @@ export default function ControllerPhotosPage() {
   const setYearPhoto = useCallback((studentId: number, photo: string | null) => {
     setYearStudents((prev) => prev?.map((s) => (s.id === studentId ? { ...s, photo } : s)) ?? prev);
   }, []);
-
-  const downloadMissingPdf = async () => {
-    if (missingGroups.length === 0) return;
-    setExporting(true);
-    try {
-      const missing = overall.total - overall.withPhoto;
-      const blob = missingPhotosPdf(missingGroups, {
-        title: t('Students without a photo'),
-        subtitle: `${academicYearName} · ${missing} ${t('students in')} ${missingGroups.length} ${t('classes')} · ${new Date().toLocaleDateString()}`,
-        number: t('No.'),
-        name: t('Name'),
-        matricule: t('Matricule'),
-        classSummary: (m, n) => `${m} / ${n} ${t('without a photo')}`,
-        continued: t('continued'),
-        page: (p, of) => `${p} / ${of}`,
-      });
-      await saveFile(blob, `students-without-photo-${new Date().toISOString().slice(0, 10)}.pdf`, 'application/pdf');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('The list could not be downloaded'));
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const markSaved = useCallback(
     (studentId: number, filename: string) => {
@@ -391,15 +372,6 @@ export default function ControllerPhotosPage() {
                 >
                   {showMissing ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
                   {t('Students without a photo, by class')}
-                </button>
-                <button
-                  type="button"
-                  onClick={downloadMissingPdf}
-                  disabled={missingGroups.length === 0 || exporting}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <ArrowDownTrayIcon className="w-4 h-4" />
-                  {exporting ? t('Preparing…') : t('Download the list (PDF)')}
                 </button>
               </div>
 
