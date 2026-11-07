@@ -2,9 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { ArrowUpTrayIcon, CameraIcon, CheckCircleIcon, TrashIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  CameraIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  TrashIcon,
+  UserCircleIcon,
+} from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
+import { saveFile } from '@/lib/download';
 import { getPhotoUrl } from '@/lib/photoService';
 import {
   fetchStudents,
@@ -14,9 +24,29 @@ import {
 } from '@/app/dashboard/secretary/lib/secretaryApi';
 import CaptureSession, { type PhotoStudent } from './CaptureSession';
 import { deleteStudentPhoto, fileToJpeg, saveStudentPhoto } from './imageUtils';
+import { missingPhotosPdf, type MissingPhotoGroup } from './missingPhotosPdf';
 import { whitenOrOriginal } from './whiteBackground';
 
 const WHITE_BG_KEY = 'controllerPhotosWhiteBackground';
+const YEAR_PAGE_SIZE = 500;
+
+/** A student of the whole academic year, for the counts and the list of students without a photo. */
+interface YearStudent {
+  id: number;
+  name: string;
+  matricule?: string;
+  subClassId: number;
+  subClassName: string;
+  photo: string | null;
+}
+
+interface PhotoCount {
+  withPhoto: number;
+  total: number;
+}
+
+/** Share with a photo, rounded down to one decimal so 100% only shows when every student has one. */
+const percent = (c: PhotoCount) => (c.total ? Math.floor((c.withPhoto * 1000) / c.total) / 10 : 0);
 
 interface ClassStudent extends PhotoStudent {
   /** Bumped after a new photo is saved so the browser does not show the cached old one. */
@@ -35,6 +65,12 @@ export default function ControllerPhotosPage() {
   const { selectedAcademicYear } = useAuth();
   const { t } = useLanguage();
   const academicYearId = selectedAcademicYear?.id;
+  const academicYearName = selectedAcademicYear?.name ?? '';
+
+  // Every student of the year (null while loading), for the counts per class and the missing-photo list.
+  const [yearStudents, setYearStudents] = useState<YearStudent[] | null>(null);
+  const [showMissing, setShowMissing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [subClasses, setSubClasses] = useState<SubClassInfo[]>([]);
   const [subClassId, setSubClassId] = useState('');
@@ -100,14 +136,135 @@ export default function ControllerPhotosPage() {
     loadStudents();
   }, [loadStudents]);
 
+  useEffect(() => {
+    if (!academicYearId) {
+      setYearStudents(null);
+      return;
+    }
+    let cancelled = false;
+    setYearStudents(null);
+    (async () => {
+      const all: SecretaryStudent[] = [];
+      for (let page = 1; page <= 40; page++) {
+        const res = await fetchStudents({ academicYearId, page, limit: YEAR_PAGE_SIZE });
+        const batch = res.data || [];
+        all.push(...batch);
+        const total = res.meta?.total;
+        if (batch.length < YEAR_PAGE_SIZE || (typeof total === 'number' && all.length >= total)) break;
+      }
+      if (cancelled) return;
+      setYearStudents(
+        all
+          // Same students as the class list: enrolled this year in a class, not withdrawn.
+          .filter(
+            (s) =>
+              s.subClassId != null &&
+              String(s.academicYearId) === String(academicYearId) &&
+              String(s.status ?? '').toUpperCase() !== 'WITHDRAWN',
+          )
+          .map((s) => ({
+            id: s.id,
+            name: s.name,
+            matricule: s.matricule,
+            subClassId: Number(s.subClassId),
+            subClassName: s.subClassName ?? '',
+            photo: s.photo ?? null,
+          })),
+      );
+    })().catch(() => {
+      if (cancelled) return;
+      setYearStudents([]);
+      toast.error(t('Could not load the photo statistics'));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [academicYearId, t]);
+
   const withPhoto = students.filter((s) => s.photo).length;
   const visible = useMemo(() => (onlyMissing ? students.filter((s) => !s.photo) : students), [students, onlyMissing]);
 
-  const markSaved = useCallback((studentId: number, filename: string) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, photo: filename, version: s.version + 1 } : s)),
-    );
+  const countsBySubClass = useMemo(() => {
+    const m = new Map<number, PhotoCount>();
+    for (const s of yearStudents ?? []) {
+      const c = m.get(s.subClassId) ?? { withPhoto: 0, total: 0 };
+      c.total += 1;
+      if (s.photo) c.withPhoto += 1;
+      m.set(s.subClassId, c);
+    }
+    return m;
+  }, [yearStudents]);
+
+  const overall = useMemo<PhotoCount>(() => {
+    let w = 0;
+    let n = 0;
+    countsBySubClass.forEach((c) => {
+      w += c.withPhoto;
+      n += c.total;
+    });
+    return { withPhoto: w, total: n };
+  }, [countsBySubClass]);
+
+  // Students without a photo, by class in the order of the class list.
+  const missingGroups = useMemo<(MissingPhotoGroup & { subClassId: number })[]>(() => {
+    const bySub = new Map<number, YearStudent[]>();
+    for (const s of yearStudents ?? []) {
+      if (s.photo) continue;
+      bySub.set(s.subClassId, [...(bySub.get(s.subClassId) ?? []), s]);
+    }
+    const order = [
+      ...subClasses.map((sc) => sc.id),
+      ...[...bySub.keys()].filter((id) => !subClasses.some((sc) => sc.id === id)),
+    ];
+    return order
+      .filter((id) => bySub.has(id))
+      .map((id) => {
+        const list = (bySub.get(id) ?? []).sort((a, b) => a.name.localeCompare(b.name));
+        return {
+          subClassId: id,
+          className: subClasses.find((sc) => sc.id === id)?.name ?? list[0]?.subClassName ?? '',
+          total: countsBySubClass.get(id)?.total ?? list.length,
+          students: list.map((s) => ({ name: s.name, matricule: s.matricule })),
+        };
+      });
+  }, [yearStudents, subClasses, countsBySubClass]);
+
+  const setYearPhoto = useCallback((studentId: number, photo: string | null) => {
+    setYearStudents((prev) => prev?.map((s) => (s.id === studentId ? { ...s, photo } : s)) ?? prev);
   }, []);
+
+  const downloadMissingPdf = async () => {
+    if (missingGroups.length === 0) return;
+    setExporting(true);
+    try {
+      const missing = overall.total - overall.withPhoto;
+      const blob = missingPhotosPdf(missingGroups, {
+        title: t('Students without a photo'),
+        subtitle: `${academicYearName} · ${missing} ${t('students in')} ${missingGroups.length} ${t('classes')} · ${new Date().toLocaleDateString()}`,
+        number: t('No.'),
+        name: t('Name'),
+        matricule: t('Matricule'),
+        classSummary: (m, n) => `${m} / ${n} ${t('without a photo')}`,
+        continued: t('continued'),
+        page: (p, of) => `${p} / ${of}`,
+      });
+      await saveFile(blob, `students-without-photo-${new Date().toISOString().slice(0, 10)}.pdf`, 'application/pdf');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('The list could not be downloaded'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const markSaved = useCallback(
+    (studentId: number, filename: string) => {
+      setStudents((prev) =>
+        prev.map((s) => (s.id === studentId ? { ...s, photo: filename, version: s.version + 1 } : s)),
+      );
+      setYearPhoto(studentId, filename);
+    },
+    [setYearPhoto],
+  );
 
   const removePhoto = async (student: ClassStudent) => {
     if (!academicYearId || !student.photo) return;
@@ -118,6 +275,7 @@ export default function ControllerPhotosPage() {
       setStudents((prev) =>
         prev.map((s) => (s.id === student.id ? { ...s, photo: null, version: s.version + 1 } : s)),
       );
+      setYearPhoto(student.id, null);
       toast.success(t('Photo deleted'));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t('The photo could not be deleted. Try again.'));
@@ -196,6 +354,89 @@ export default function ControllerPhotosPage() {
           {t('Select an academic year first.')}
         </p>
       ) : (
+        <>
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          {yearStudents === null ? (
+            <p className="text-sm text-gray-500">{t('Counting photos…')}</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                <div>
+                  <p className="text-sm text-gray-600">{t('Students with a photo')}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {overall.withPhoto} <span className="text-base font-medium text-gray-500">/ {overall.total}</span>
+                    <span className="ml-3 text-lg font-semibold text-blue-700">{percent(overall)}%</span>
+                  </p>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <span className="font-semibold text-red-600">{overall.total - overall.withPhoto}</span>{' '}
+                  {t('without a photo')}
+                </div>
+              </div>
+              <div
+                className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={percent(overall)}
+              >
+                <div className="h-full bg-green-600 rounded-full" style={{ width: `${percent(overall)}%` }} />
+              </div>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowMissing((v) => !v)}
+                  disabled={missingGroups.length === 0}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {showMissing ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                  {t('Students without a photo, by class')}
+                </button>
+                <button
+                  type="button"
+                  onClick={downloadMissingPdf}
+                  disabled={missingGroups.length === 0 || exporting}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <ArrowDownTrayIcon className="w-4 h-4" />
+                  {exporting ? t('Preparing…') : t('Download the list (PDF)')}
+                </button>
+              </div>
+
+              {showMissing && (
+                <div className="border-t border-gray-100 pt-3 space-y-4 max-h-[60vh] overflow-y-auto">
+                  {missingGroups.map((g) => (
+                    <div key={g.subClassId}>
+                      <div className="flex flex-wrap items-baseline justify-between gap-2 bg-blue-50 rounded-lg px-3 py-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setSubClassId(String(g.subClassId))}
+                          className="font-semibold text-blue-800 hover:underline text-left"
+                          title={t('Open this class')}
+                        >
+                          {g.className}
+                        </button>
+                        <span className="text-xs text-gray-600">
+                          {g.students.length} / {g.total} {t('without a photo')}
+                        </span>
+                      </div>
+                      <ol className="mt-1 divide-y divide-gray-100 text-sm">
+                        {g.students.map((s, i) => (
+                          <li key={`${g.subClassId}-${i}`} className="flex gap-3 px-3 py-1.5">
+                            <span className="w-6 text-gray-400 text-right">{i + 1}</span>
+                            <span className="flex-1 text-gray-900">{s.name}</span>
+                            {s.matricule && <span className="text-gray-500 text-xs">{s.matricule}</span>}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-end gap-3">
             <label className="flex-1 block">
@@ -206,11 +447,15 @@ export default function ControllerPhotosPage() {
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">{t('Select a class')}</option>
-                {subClasses.map((sc) => (
-                  <option key={sc.id} value={sc.id}>
-                    {sc.name}
-                  </option>
-                ))}
+                {subClasses.map((sc) => {
+                  const c = countsBySubClass.get(sc.id);
+                  return (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.name}
+                      {yearStudents ? ` — ${c?.withPhoto ?? 0}/${c?.total ?? 0}` : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
             <button
@@ -227,7 +472,7 @@ export default function ControllerPhotosPage() {
           {subClassId && students.length > 0 && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-700">
               <span className="font-medium">
-                {withPhoto} / {students.length} {t('have a photo')}
+                {withPhoto} / {students.length} {t('have a photo')} ({percent({ withPhoto, total: students.length })}%)
               </span>
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={onlyMissing} onChange={(e) => setOnlyMissing(e.target.checked)} />
@@ -244,6 +489,7 @@ export default function ControllerPhotosPage() {
             </div>
           )}
         </div>
+        </>
       )}
 
       {subClassId && loading && <p className="text-sm text-gray-500">{t('Loading…')}</p>}
