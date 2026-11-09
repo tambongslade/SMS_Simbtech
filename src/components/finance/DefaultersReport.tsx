@@ -36,6 +36,10 @@ interface InstallmentAmount {
     expected: number;
     paid: number;
     outstanding: number;
+    /** What should have been paid in all by this installment (registration and earlier ones included). */
+    cumulativeExpected?: number;
+    /** How much of that is still missing. */
+    cumulativeOutstanding?: number;
 }
 
 interface DefaulterStudent {
@@ -95,15 +99,16 @@ const INSTALLMENT_SHORT_LABEL: Record<InstallmentKey, string> = {
 // filter is set (they're a defaulter at all) or they specifically still owe
 // on the selected installment.
 const owesUnderFilter = (s: DefaulterStudent, installment: 'all' | InstallmentKey): boolean =>
-    installment === 'all' || s.installments[installment].outstanding > 0;
+    installment === 'all' || displayOutstanding(s, installment) > 0;
 
 // The amount to show/sum/export under the current filter. Filtered to one
-// installment, "outstanding" has to mean what's left of THAT installment --
-// e.g. a 30,000 first installment with 40,000 paid isn't owing anything on
-// it (the extra rolls onto the 2nd), even though the student's total across
-// all three installments might still be nonzero.
-const displayOutstanding = (s: DefaulterStudent, installment: 'all' | InstallmentKey): number =>
-    installment === 'all' ? s.outstandingAmount : s.installments[installment].outstanding;
+// installment, it is what is still missing of everything due by then
+// (registration and earlier installments included), the same figure as the PDF.
+function displayOutstanding(s: DefaulterStudent, installment: 'all' | InstallmentKey): number {
+    if (installment === 'all') return s.outstandingAmount;
+    const inst = s.installments[installment];
+    return inst.cumulativeOutstanding ?? inst.outstanding;
+}
 
 function InstallmentBadges({ installments }: { installments: Record<InstallmentKey, InstallmentAmount> }) {
     const owed = (['first', 'second', 'third'] as InstallmentKey[]).filter(k => installments[k].outstanding > 0);
