@@ -37,6 +37,8 @@ interface ControlPaymentTransaction {
   paymentMethod: string;
   controlFeeId: number;
   createdAt: string;
+  recordedById?: number;
+  notes?: string | null;
 }
 
 interface ControlFeeRecord {
@@ -173,7 +175,7 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
         ...(receiptNumber ? { receiptNumber } : {}),
         academicYearId,
       });
-      toast.success(t('Payment recorded successfully'));
+      toast.success(t('Payment recorded. You can correct it in Payment History for 10 minutes.'), { duration: 6000 });
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -313,25 +315,118 @@ function NewPaymentModal({ academicYearId, onClose, onSuccess }: NewPaymentModal
 interface PaymentHistoryModalProps {
   record: ControlFeeRecord;
   onClose: () => void;
+  onChanged: () => void;
 }
 
-function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
+// A payment can be corrected by whoever recorded it during the first 10 minutes (the server checks this too).
+const EDIT_WINDOW_MS = 10 * 60 * 1000;
+const editMsLeft = (tx: ControlPaymentTransaction, now: number) => EDIT_WINDOW_MS - (now - new Date(tx.createdAt).getTime());
+const mmss = (ms: number) => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+function EditPaymentForm({ tx, msLeft, onCancel, onSaved }: {
+  tx: ControlPaymentTransaction;
+  msLeft: number;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
   const { t } = useLanguage();
+  const [amount, setAmount] = useState(String(tx.amount));
+  const [paymentDate, setPaymentDate] = useState(tx.paymentDate.slice(0, 10));
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(tx.paymentMethod as PaymentMethod);
+  const [receiptNumber, setReceiptNumber] = useState(tx.receiptNumber || '');
+  const [saving, setSaving] = useState(false);
+
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const numAmount = parseFloat(amount);
+    if (!numAmount || numAmount <= 0) { toast.error(t('Please enter a valid amount')); return; }
+    setSaving(true);
+    try {
+      await apiService.put(`/control-fees/payments/${tx.id}`, { amount: numAmount, paymentDate, paymentMethod, receiptNumber });
+      toast.success(t('Payment corrected'));
+      onSaved();
+    } catch {
+      // apiService already showed the server's message (e.g. the 10 minutes are over)
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const input = 'w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500';
+  return (
+    <form onSubmit={save} className="p-3 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-blue-900">{t('Correct payment')}</p>
+        <p className={`text-xs ${msLeft < 60000 ? 'text-red-600 font-medium' : 'text-blue-700'}`}>{mmss(msLeft)} {t('left')}</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <label className="block">
+          <span className="block text-xs text-gray-600 mb-1">{t('Amount (XAF)')}</span>
+          <input type="number" min="1" value={amount} onChange={e => setAmount(e.target.value)} required className={input} />
+        </label>
+        <label className="block">
+          <span className="block text-xs text-gray-600 mb-1">{t('Payment Date')}</span>
+          <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} required className={input} />
+        </label>
+        <label className="block">
+          <span className="block text-xs text-gray-600 mb-1">{t('Payment Method')}</span>
+          <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value as PaymentMethod)} className={input}>
+            {(Object.keys(paymentMethodLabels) as PaymentMethod[]).map(m => (
+              <option key={m} value={m}>{paymentMethodLabels[m]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="block text-xs text-gray-600 mb-1">{t('Receipt Number (optional)')}</span>
+          <input type="text" value={receiptNumber} onChange={e => setReceiptNumber(e.target.value)} className={input} />
+        </label>
+      </div>
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancel} className="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+          {t('Cancel')}
+        </button>
+        <button type="submit" disabled={saving || msLeft <= 0} className="px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50">
+          {saving ? t('Saving…') : t('Save correction')}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PaymentHistoryModal({ record, onClose, onChanged }: PaymentHistoryModalProps) {
+  const { t } = useLanguage();
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState<ControlPaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
+  const load = useCallback(async () => {
+    try {
+      const res = await apiService.get(`/control-fees/${record.id}/payments`);
+      setTransactions(res?.data || res || []);
+    } catch {
+      toast.error(t('Failed to load payment history'));
+    } finally {
+      setLoading(false);
+    }
+  }, [record.id, t]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const editable = (tx: ControlPaymentTransaction) =>
+    !!user?.id && tx.recordedById === user.id && editMsLeft(tx, now) > 0;
+  const anyEditable = transactions.some(editable);
+
+  // Tick the countdown only while something can still be edited.
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await apiService.get(`/control-fees/${record.id}/payments`);
-        setTransactions(res?.data || res || []);
-      } catch {
-        toast.error(t('Failed to load payment history'));
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [record.id]);
+    if (!anyEditable && editingId === null) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [anyEditable, editingId]);
 
   const total = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
@@ -360,18 +455,40 @@ function PaymentHistoryModal({ record, onClose }: PaymentHistoryModalProps) {
           ) : (
             <>
               <div className="space-y-3">
-                {transactions.map(tx => (
-                  <div key={tx.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                    <div>
+                {transactions.map(tx => editingId === tx.id ? (
+                  <EditPaymentForm
+                    key={tx.id}
+                    tx={tx}
+                    msLeft={editMsLeft(tx, now)}
+                    onCancel={() => setEditingId(null)}
+                    onSaved={() => { setEditingId(null); load(); onChanged(); }}
+                  />
+                ) : (
+                  <div key={tx.id} className="flex items-center justify-between gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">{formatCurrency(tx.amount)}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{formatDate(tx.paymentDate)}</p>
                       {tx.receiptNumber && (
                         <p className="text-xs text-gray-400">{t('Receipt')}: {tx.receiptNumber}</p>
                       )}
+                      {tx.notes && tx.notes.includes('Corrected') && (
+                        <p className="text-[11px] text-amber-700 mt-0.5">{t('Corrected after recording')}</p>
+                      )}
                     </div>
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {paymentMethodLabels[tx.paymentMethod as PaymentMethod] || tx.paymentMethod}
-                    </span>
+                    <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                        {paymentMethodLabels[tx.paymentMethod as PaymentMethod] || tx.paymentMethod}
+                      </span>
+                      {editable(tx) && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(tx.id)}
+                          className="text-xs font-medium text-blue-600 hover:text-blue-800"
+                        >
+                          {t('Edit')} · {mmss(editMsLeft(tx, now))}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -874,6 +991,7 @@ export default function ControllerFeeManagementPage() {
         <PaymentHistoryModal
           record={historyFor}
           onClose={() => setHistoryFor(null)}
+          onChanged={() => mutate()}
         />
       )}
 
