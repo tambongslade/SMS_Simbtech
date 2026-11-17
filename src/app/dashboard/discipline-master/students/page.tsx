@@ -11,6 +11,8 @@ import {
   BellIcon,
   UserGroupIcon,
   ScaleIcon,
+  BanknotesIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/components/context/AuthContext';
 import { apiService } from '@/lib/apiService';
@@ -18,12 +20,15 @@ import { StudentPhoto } from '@/components/ui';
 import {
   ISSUE_TYPES,
   getStudentDisciplineHistory,
+  fmtMoney,
   type DisciplineIssue,
 } from '@/lib/disciplineApi';
 import {
   ACTION_TYPE_LABELS,
   listDisciplinaryActions,
   type DisciplinaryAction,
+  type DisciplinaryActionStatus,
+  type DisciplinaryActionType,
 } from '@/lib/disciplinaryActionsApi';
 import {
   listWarnings,
@@ -49,6 +54,117 @@ const ISSUE_LABELS: Record<string, string> = ISSUE_TYPES.reduce(
 );
 
 const dateLabel = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString(appDateLocale()) : '—');
+
+// --- List views (GET /discipline-profiles/...) ---
+interface ListStudent extends SearchStudent {
+  subClassId?: number | null;
+}
+interface RecentStudent extends ListStudent {
+  actionCount: number;
+  latestAction: {
+    id: number;
+    actionType: DisciplinaryActionType;
+    status: DisciplinaryActionStatus;
+    days?: number | null;
+    startDate?: string | null;
+    endDate?: string | null;
+    reason?: string | null;
+    createdAt: string;
+  };
+}
+interface RosterStudent extends ListStudent {
+  issues: number;
+  actions: number;
+  openWarnings: number;
+  pendingSummons: number;
+  lastActionAt: string | null;
+}
+interface SubClassOption {
+  id: number;
+  name: string;
+  className: string;
+}
+// Outstanding fees on the installment that applies today (GET /discipline-profiles/student/:id/fees)
+interface FeeStatus {
+  installmentsCount: 2 | 3;
+  totalExpected: number;
+  totalPaid: number;
+  totalOutstanding: number;
+  current: { number: number; dueDate: string; passed: boolean; dueByThen: number; outstanding: number } | null;
+  next: { number: number; dueDate: string; dueByThen: number; outstanding: number } | null;
+}
+
+const RECENT = 'recent';
+const ORDINAL = ['', '1st', '2nd', '3rd'];
+
+const STATUS_CHIP: Record<string, string> = {
+  ACTIVE: 'bg-red-100 text-red-700',
+  PENDING: 'bg-amber-100 text-amber-700',
+  COMPLETED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-600',
+};
+
+function FeeCard({ fee, loading, t }: { fee: FeeStatus | null; loading: boolean; t: (s: string) => string }) {
+  const header = (
+    <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+      <BanknotesIcon className="w-5 h-5 text-emerald-600" />
+      <h2 className="font-semibold text-gray-900 text-sm">{t('School Fees')}</h2>
+    </div>
+  );
+  if (loading) {
+    return <section className="bg-white rounded-lg shadow overflow-hidden">{header}<p className="p-4 text-sm text-gray-400">{t('Loading fees…')}</p></section>;
+  }
+  if (!fee) {
+    return <section className="bg-white rounded-lg shadow overflow-hidden">{header}<p className="p-4 text-sm text-gray-400">{t('No school fee record for this year.')}</p></section>;
+  }
+  const c = fee.current;
+  const owing = c ? c.outstanding > 0 : fee.totalOutstanding > 0;
+  return (
+    <section className="bg-white rounded-lg shadow overflow-hidden">
+      {header}
+      <div className="p-4 space-y-3">
+        {c ? (
+          <div className={`rounded-lg p-3 ${owing ? (c.passed ? 'bg-red-50' : 'bg-amber-50') : 'bg-green-50'}`}>
+            <p className="text-xs text-gray-600">
+              {ORDINAL[c.number]} {t('installment')} · {c.passed ? t('was due') : t('due')} {dateLabel(c.dueDate)}
+            </p>
+            <p className={`text-2xl font-bold ${owing ? (c.passed ? 'text-red-700' : 'text-amber-700') : 'text-green-700'}`}>
+              {owing ? fmtMoney(c.outstanding) : t('Paid up')}
+            </p>
+            <p className="text-xs text-gray-600 mt-0.5">
+              {owing ? `${t('still to pay of')} ${fmtMoney(c.dueByThen)} ${t('due by then')}` : `${fmtMoney(c.dueByThen)} ${t('due by then is paid')}`}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-amber-700">{t('Installment due dates are not set (Academic Years → term fee deadlines).')}</p>
+        )}
+        <dl className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-md bg-gray-50 p-2">
+            <dt className="text-[11px] text-gray-500">{t('Year total')}</dt>
+            <dd className="text-sm font-semibold text-gray-900">{fmtMoney(fee.totalExpected)}</dd>
+          </div>
+          <div className="rounded-md bg-gray-50 p-2">
+            <dt className="text-[11px] text-gray-500">{t('Paid')}</dt>
+            <dd className="text-sm font-semibold text-gray-900">{fmtMoney(fee.totalPaid)}</dd>
+          </div>
+          <div className="rounded-md bg-gray-50 p-2">
+            <dt className="text-[11px] text-gray-500">{t('Year balance')}</dt>
+            <dd className="text-sm font-semibold text-gray-900">{fmtMoney(fee.totalOutstanding)}</dd>
+          </div>
+        </dl>
+        {fee.next && (
+          <p className="text-xs text-gray-500">
+            {t('Next')}: {ORDINAL[fee.next.number]} {t('installment')} {t('due')} {dateLabel(fee.next.dueDate)}
+            {fee.next.outstanding > 0 ? ` · ${fmtMoney(fee.next.outstanding)} ${t('to pay by then')}` : ''}
+          </p>
+        )}
+        {fee.installmentsCount === 2 && (
+          <p className="text-xs text-gray-500">{t('This class pays in 2 installments.')}</p>
+        )}
+      </div>
+    </section>
+  );
+}
 
 function StatChip({ label, value, tone }: { label: string; value: number; tone: 'red' | 'amber' | 'blue' | 'purple' | 'gray' }) {
   const tones = {
@@ -80,6 +196,56 @@ export default function StudentDisciplineProfilesPage() {
   const [warnings, setWarnings] = useState<DisciplineWarning[]>([]);
   const [summons, setSummons] = useState<ParentSummons[]>([]);
   const [actions, setActions] = useState<DisciplinaryAction[]>([]);
+  const [fee, setFee] = useState<FeeStatus | null>(null);
+  const [isLoadingFee, setIsLoadingFee] = useState(false);
+
+  // List view: recent disciplinary actions (default) or one sub-class
+  const [view, setView] = useState<string>(RECENT);
+  const [subClasses, setSubClasses] = useState<SubClassOption[]>([]);
+  const [recent, setRecent] = useState<RecentStudent[]>([]);
+  const [roster, setRoster] = useState<RosterStudent[]>([]);
+  const [isLoadingList, setIsLoadingList] = useState(false);
+  const yearQs = selectedAcademicYear?.id ? `academicYearId=${selectedAcademicYear.id}` : '';
+
+  useEffect(() => {
+    apiService
+      .get<{ data?: { id: number; name: string; className?: string; class?: { name?: string } }[] }>('/classes/sub-classes?limit=500', { silent: true })
+      .then((res) => {
+        const list = res?.data ?? [];
+        setSubClasses(
+          list
+            .map((s) => ({ id: s.id, name: s.name, className: s.class?.name ?? s.className ?? '' }))
+            .sort((a, b) => a.className.localeCompare(b.className, undefined, { numeric: true }) || a.name.localeCompare(b.name, undefined, { numeric: true })),
+        );
+      })
+      .catch(() => setSubClasses([]));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingList(true);
+    const url = view === RECENT ? `/discipline-profiles/recent?limit=50&${yearQs}` : `/discipline-profiles/sub-class/${view}?${yearQs}`;
+    apiService
+      .get<{ data?: (RecentStudent & RosterStudent)[] }>(url)
+      .then((res) => {
+        if (cancelled) return;
+        if (view === RECENT) setRecent(res?.data ?? []);
+        else setRoster(res?.data ?? []);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        if (view === RECENT) setRecent([]);
+        else setRoster([]);
+      })
+      .finally(() => !cancelled && setIsLoadingList(false));
+    return () => { cancelled = true; };
+  }, [view, yearQs]);
+
+  const subClassGroups = useMemo(() => {
+    const groups = new Map<string, SubClassOption[]>();
+    subClasses.forEach((s) => groups.set(s.className, [...(groups.get(s.className) || []), s]));
+    return [...groups.entries()];
+  }, [subClasses]);
 
   // Debounced student search
   useEffect(() => {
@@ -117,7 +283,14 @@ export default function StudentDisciplineProfilesPage() {
     setSelected(student);
     setIsLoadingProfile(true);
     setIssues([]); setWarnings([]); setSummons([]); setActions([]);
+    setFee(null);
+    setIsLoadingFee(true);
     const yearId = selectedAcademicYear?.id;
+    apiService
+      .get(`/discipline-profiles/student/${student.id}/fees?${yearQs}`, { silent: true })
+      .then((res: { data?: FeeStatus | null }) => setFee(res?.data ?? null))
+      .catch(() => setFee(null))
+      .finally(() => setIsLoadingFee(false));
     const [issuesRes, warningsRes, summonsRes, actionsRes] = await Promise.allSettled([
       getStudentDisciplineHistory(student.id, yearId),
       listWarnings({ studentId: student.id, academicYearId: yearId }),
@@ -150,7 +323,7 @@ export default function StudentDisciplineProfilesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('Student Discipline Profiles')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              {t('Search a student to see their full discipline record')}
+              {t('Search a student, or pick a class, to see their full discipline record')}
               {selectedAcademicYear ? ` · ${selectedAcademicYear.name}` : ''}.
             </p>
           </div>
@@ -167,6 +340,112 @@ export default function StudentDisciplineProfilesPage() {
             />
           </div>
 
+          {searchTerm.trim().length < 2 ? (
+            <>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <label htmlFor="profiles-view" className="text-sm font-medium text-gray-700 shrink-0">{t('Show')}</label>
+                <select
+                  id="profiles-view"
+                  value={view}
+                  onChange={e => setView(e.target.value)}
+                  className="w-full sm:w-auto sm:min-w-[18rem] border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={RECENT}>{t('Recent disciplinary actions')}</option>
+                  {subClassGroups.map(([className, list]) => (
+                    <optgroup key={className} label={className || t('Other')}>
+                      {list.map(s => (
+                        <option key={s.id} value={String(s.id)}>{className ? `${className} – ${s.name}` : s.name}</option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              </div>
+
+              {isLoadingList ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center text-sm text-gray-500">{t('Loading…')}</div>
+              ) : view === RECENT ? (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <ScaleIcon className="w-5 h-5 text-red-500" />
+                    <h2 className="font-semibold text-gray-900 text-sm">{t('Students with recent disciplinary actions')}</h2>
+                  </div>
+                  {recent.length === 0 ? (
+                    <p className="p-6 text-sm text-gray-400 text-center">{t('No disciplinary actions recorded this year.')}</p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {recent.map(s => (
+                        <li key={s.id}>
+                          <button onClick={() => openProfile(s)} className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 active:bg-gray-100">
+                            <StudentPhoto studentId={s.id} photo={s.photo || undefined} size="sm" studentName={s.name} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {s.matricule || t('No matricule')}
+                                {s.subClassName ? ` · ${s.className || ''} ${s.subClassName}` : s.className ? ` · ${s.className}` : ''}
+                              </p>
+                              <p className="text-xs text-gray-700 mt-0.5 truncate">
+                                {ACTION_TYPE_LABELS[s.latestAction.actionType] || enumLabel(s.latestAction.actionType)}
+                                {s.latestAction.days ? ` · ${s.latestAction.days} ${s.latestAction.days > 1 ? t('days') : t('day')}` : ''}
+                                {' · '}{dateLabel(s.latestAction.createdAt)}
+                                {s.actionCount > 1 ? ` · ${s.actionCount} ${t('actions this year')}` : ''}
+                              </p>
+                            </div>
+                            <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${STATUS_CHIP[s.latestAction.status] || 'bg-gray-100 text-gray-600'}`}>
+                              {enumLabel(s.latestAction.status)}
+                            </span>
+                            <ChevronRightIcon className="w-4 h-4 text-gray-300 shrink-0" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+                    <UserGroupIcon className="w-5 h-5 text-blue-500" />
+                    <h2 className="font-semibold text-gray-900 text-sm">
+                      {(() => { const s = subClasses.find(x => String(x.id) === view); return s ? `${s.className} – ${s.name}` : t('Class'); })()}
+                      {' '}({roster.length})
+                    </h2>
+                  </div>
+                  {roster.length === 0 ? (
+                    <p className="p-6 text-sm text-gray-400 text-center">{t('No students in this class.')}</p>
+                  ) : (
+                    <ul className="divide-y divide-gray-100">
+                      {roster.map(s => (
+                        <li key={s.id}>
+                          <button onClick={() => openProfile(s)} className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 active:bg-gray-100">
+                            <StudentPhoto studentId={s.id} photo={s.photo || undefined} size="sm" studentName={s.name} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {s.matricule || t('No matricule')}
+                                {s.lastActionAt ? ` · ${t('last action')} ${dateLabel(s.lastActionAt)}` : ''}
+                              </p>
+                            </div>
+                            <div className="hidden sm:flex gap-1 shrink-0">
+                              {s.issues > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{s.issues} {t('issues')}</span>}
+                              {s.openWarnings > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">{s.openWarnings} {t('warnings')}</span>}
+                              {s.pendingSummons > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{s.pendingSummons} {t('summons')}</span>}
+                              {s.actions > 0 && <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-50 text-red-700">{s.actions} {t('sanctions')}</span>}
+                            </div>
+                            {(s.issues + s.openWarnings + s.pendingSummons + s.actions) > 0 && (
+                              <span className="sm:hidden text-[11px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 shrink-0">
+                                {s.issues + s.openWarnings + s.pendingSummons + s.actions}
+                              </span>
+                            )}
+                            <ChevronRightIcon className="w-4 h-4 text-gray-300 shrink-0" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+          <>
           {isSearching && <p className="text-sm text-gray-400">{t('Searching…')}</p>}
 
           <div className="bg-white rounded-lg shadow divide-y divide-gray-100 overflow-hidden">
@@ -190,12 +469,14 @@ export default function StudentDisciplineProfilesPage() {
               <p className="p-6 text-sm text-gray-400 text-center">{t('No students found.')}</p>
             )}
           </div>
+          </>
+          )}
         </>
       ) : (
         <>
           {/* Profile header */}
           <button onClick={() => setSelected(null)} className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">
-            <ArrowLeftIcon className="w-4 h-4" /> {t('Back to search')}
+            <ArrowLeftIcon className="w-4 h-4" /> {t('Back to list')}
           </button>
 
           <div className="bg-white rounded-lg shadow p-4 flex items-center gap-4">
@@ -208,6 +489,8 @@ export default function StudentDisciplineProfilesPage() {
               </p>
             </div>
           </div>
+
+          <FeeCard fee={fee} loading={isLoadingFee} t={t} />
 
           {isLoadingProfile ? (
             <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">{t('Loading discipline record…')}</div>
