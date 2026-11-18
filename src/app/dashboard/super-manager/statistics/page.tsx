@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { saveFile } from '@/lib/download';
 import { useAuth } from '@/components/context/AuthContext';
@@ -8,7 +9,10 @@ import { useLanguage } from '@/components/context/LanguageContext';
 import { apiService } from '@/lib/apiService';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import StudentAbsenceRecordsModal from '@/components/discipline/StudentAbsenceRecordsModal';
 import {
+  ChevronDownIcon,
+  ChevronRightIcon,
   ChartBarIcon,
   ArrowDownTrayIcon,
   CalendarDaysIcon,
@@ -92,6 +96,14 @@ interface FinancialPoiRow {
   subClassName: string;
   outstandingAmount: number;
 }
+interface SubClassAttendanceRow {
+  subClassId: number;
+  subClassName: string;
+  enrollment: number;
+  present: number;
+  absence: number;
+  percentagePresent: number;
+}
 interface ClassAttendanceRow {
   classId: number;
   className: string;
@@ -99,6 +111,7 @@ interface ClassAttendanceRow {
   present: number;
   absence: number;
   percentagePresent: number;
+  subClasses?: SubClassAttendanceRow[];
 }
 interface StatisticsReportData {
   range: { from: string; to: string };
@@ -166,7 +179,13 @@ function SubSection({ title, count, children }: { title: string; count: number; 
   );
 }
 
-function DataTable({ headers, rows, empty }: { headers: string[]; rows: React.ReactNode[][]; empty: string }) {
+function DataTable({ headers, rows, empty, onRowClick, rowTitle }: {
+  headers: string[];
+  rows: React.ReactNode[][];
+  empty: string;
+  onRowClick?: (index: number) => void;
+  rowTitle?: string;
+}) {
   if (rows.length === 0) {
     return <p className="text-sm text-gray-400 italic py-2">{empty}</p>;
   }
@@ -182,7 +201,12 @@ function DataTable({ headers, rows, empty }: { headers: string[]; rows: React.Re
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b last:border-none hover:bg-gray-50">
+            <tr
+              key={i}
+              className={`border-b last:border-none ${onRowClick ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'}`}
+              onClick={onRowClick ? () => onRowClick(i) : undefined}
+              title={onRowClick ? rowTitle : undefined}
+            >
               {row.map((cell, j) => (
                 <td key={j} className="py-1.5 px-2 whitespace-nowrap">{cell}</td>
               ))}
@@ -214,6 +238,20 @@ export default function StatisticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [openClasses, setOpenClasses] = useState<Set<number>>(new Set());
+  const [absenceStudent, setAbsenceStudent] = useState<number | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const toggleClass = (id: number) =>
+    setOpenClasses(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const openSubClass = (subClassId: number) => {
+    const base = (pathname ?? '').replace(/\/$/, '');
+    router.push(`${base}/sub-class/${subClassId}?from=${from}&to=${to}`);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -358,33 +396,84 @@ export default function StatisticsPage() {
         <>
           <Section title={t('Discipline Overview')}>
             <SubSection title={t('Class Attendance')} count={data.discipline.classAttendance.length}>
-              <DataTable
-                headers={[t('Class'), t('Enrollment'), t('Present'), t('%'), t('Absence')]}
-                rows={[
-                  ...data.discipline.classAttendance.map((r) => [
-                    r.className, String(r.enrollment), String(r.present), `${r.percentagePresent}%`, String(r.absence),
-                  ]),
-                  ...(data.discipline.classAttendance.length > 0
-                    ? [(() => {
+              {data.discipline.classAttendance.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-2">{t('No roll-call data recorded in this range.')}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead className="text-[11px] uppercase text-gray-500 bg-gray-50 border-b">
+                      <tr>
+                        {[t('Class'), t('Enrollment'), t('Present'), t('%'), t('Absence')].map(h => (
+                          <th key={h} className="text-left py-1.5 px-2 whitespace-nowrap">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.discipline.classAttendance.map(r => {
+                        const open = openClasses.has(r.classId);
+                        const subs = r.subClasses ?? [];
+                        return (
+                          <Fragment key={r.classId}>
+                            <tr
+                              className={`border-b cursor-pointer ${open ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                              onClick={() => toggleClass(r.classId)}
+                              title={t('Click to show the sub-classes')}
+                            >
+                              <td className="py-1.5 px-2 whitespace-nowrap font-medium text-gray-900">
+                                <span className="inline-flex items-center gap-1">
+                                  {open ? <ChevronDownIcon className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}
+                                  {r.className}
+                                </span>
+                              </td>
+                              <td className="py-1.5 px-2">{r.enrollment}</td>
+                              <td className="py-1.5 px-2">{r.present}</td>
+                              <td className="py-1.5 px-2">{r.percentagePresent}%</td>
+                              <td className="py-1.5 px-2">{r.absence}</td>
+                            </tr>
+                            {open && (subs.length === 0 ? (
+                              <tr className="border-b bg-gray-50/60">
+                                <td colSpan={5} className="py-1.5 pl-8 pr-2 text-gray-400 italic">{t('No sub-classes')}</td>
+                              </tr>
+                            ) : subs.map(sc => (
+                              <tr
+                                key={`${r.classId}-${sc.subClassId}`}
+                                className={`border-b bg-gray-50/60 ${sc.subClassId ? 'hover:bg-blue-100 cursor-pointer' : ''}`}
+                                onClick={sc.subClassId ? () => openSubClass(sc.subClassId) : undefined}
+                                title={sc.subClassId ? t('Open the students of this sub-class') : undefined}
+                              >
+                                <td className="py-1.5 pl-8 pr-2 whitespace-nowrap text-blue-700">
+                                  {sc.subClassName} {sc.subClassId ? <span className="text-gray-400">›</span> : null}
+                                </td>
+                                <td className="py-1.5 px-2 text-gray-700">{sc.enrollment}</td>
+                                <td className="py-1.5 px-2 text-gray-700">{sc.present}</td>
+                                <td className="py-1.5 px-2 text-gray-700">{sc.percentagePresent}%</td>
+                                <td className="py-1.5 px-2 text-gray-700">{sc.absence}</td>
+                              </tr>
+                            )))}
+                          </Fragment>
+                        );
+                      })}
+                      {(() => {
                         const totals = data.discipline.classAttendance.reduce(
                           (a, r) => ({ enrollment: a.enrollment + r.enrollment, present: a.present + r.present, absence: a.absence + r.absence }),
                           { enrollment: 0, present: 0, absence: 0 }
                         );
-                        const pct = totals.enrollment > 0
-                          ? Math.round((totals.present / totals.enrollment) * 10000) / 100
-                          : 0;
-                        return [
-                          <span key="t0" className="font-semibold text-gray-900">{t('Total')}</span>,
-                          <span key="t1" className="font-semibold text-gray-900">{totals.enrollment}</span>,
-                          <span key="t2" className="font-semibold text-gray-900">{totals.present}</span>,
-                          <span key="t3" className="font-semibold text-gray-900">{pct}%</span>,
-                          <span key="t4" className="font-semibold text-gray-900">{totals.absence}</span>,
-                        ];
-                      })()]
-                    : []),
-                ]}
-                empty={t('No roll-call data recorded in this range.')}
-              />
+                        const pct = totals.enrollment > 0 ? Math.round((totals.present / totals.enrollment) * 10000) / 100 : 0;
+                        return (
+                          <tr className="font-semibold text-gray-900">
+                            <td className="py-1.5 px-2">{t('Total')}</td>
+                            <td className="py-1.5 px-2">{totals.enrollment}</td>
+                            <td className="py-1.5 px-2">{totals.present}</td>
+                            <td className="py-1.5 px-2">{pct}%</td>
+                            <td className="py-1.5 px-2">{totals.absence}</td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                  <p className="mt-1 text-[11px] text-gray-400">{t('Click a class to see its sub-classes, then a sub-class to see its students.')}</p>
+                </div>
+              )}
             </SubSection>
             <SubSection title={t('Lateness')} count={data.discipline.lateness.length}>
               <DataTable
@@ -403,6 +492,8 @@ export default function StatisticsPage() {
                   <span key="count" className="font-semibold text-gray-900">{r.count}</span>,
                 ])}
                 empty={t('No class absences recorded in this range.')}
+                onRowClick={(i) => setAbsenceStudent(data.discipline.absences[i].studentId)}
+                rowTitle={t('Click to see each absence')}
               />
             </SubSection>
             <SubSection title={t('Sanctions')} count={data.discipline.sanctions.length}>
@@ -427,6 +518,14 @@ export default function StatisticsPage() {
               />
             </SubSection>
           </Section>
+
+          <StudentAbsenceRecordsModal
+            studentId={absenceStudent}
+            from={from}
+            to={to}
+            academicYearId={selectedAcademicYear?.id}
+            onClose={() => setAbsenceStudent(null)}
+          />
 
           <Section title={t('Teaching Statistics')}>
             <h3 className="text-sm font-semibold text-gray-700 mb-1.5 border-b border-gray-200 pb-1">
