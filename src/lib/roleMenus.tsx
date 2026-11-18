@@ -338,6 +338,7 @@ export const menuItems: MenuItemsStructure = {
   // (Teachers Attendance Overview is still hidden for anyone not on TEACHER_OVERVIEW_EMAILS.)
   'discipline-coordinator': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-coordinator' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: UserGroupIcon, label: 'Personnel Management', href: '/dashboard/principal/personnel-management' },
