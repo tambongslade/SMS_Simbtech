@@ -11,8 +11,9 @@ import {
     ArrowDownTrayIcon,
     ChevronRightIcon,
     ArrowLeftIcon,
+    PrinterIcon,
 } from '@heroicons/react/24/outline';
-import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge, Input, Select, Button } from '@/components/ui';
+import { Card, CardHeader, CardTitle, CardBody, StatsCard, Badge, Input, Select, Button, Modal } from '@/components/ui';
 import { useAuth } from '@/components/context/AuthContext';
 import apiService from '@/lib/apiService';
 import { sortClassesByLevel } from '@/lib/classOrdering';
@@ -169,11 +170,15 @@ async function downloadDefaultersPdf(opts: {
     academicYearId?: number;
     academicYearName?: string;
     installmentFilter: 'all' | InstallmentKey;
-}) {
-    const { academicYearId, academicYearName, installmentFilter } = opts;
+    /** Only these classes; undefined prints every class. */
+    classIds?: number[];
+    fileSuffix?: string;
+}): Promise<boolean> {
+    const { academicYearId, academicYearName, installmentFilter, classIds, fileSuffix } = opts;
     const params = new URLSearchParams();
     if (academicYearId) params.set('academicYearId', String(academicYearId));
     if (installmentFilter !== 'all') params.set('installment', installmentFilter);
+    if (classIds?.length) params.set('classIds', classIds.join(','));
 
     const toastId = toast.loading('Preparing PDF...');
     try {
@@ -183,11 +188,91 @@ async function downloadDefaultersPdf(opts: {
             'blob',
         );
         const slug = (v?: string) => (v || 'current').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'current';
-        await saveFile(blob, `fee-defaulters-${slug(academicYearName)}.pdf`, 'application/pdf');
+        await saveFile(blob, `fee-defaulters-${slug(academicYearName)}${fileSuffix ? '-' + slug(fileSuffix) : ''}.pdf`, 'application/pdf');
         toast.success('PDF downloaded.', { id: toastId });
+        return true;
     } catch (err) {
         toast.error(err instanceof Error ? err.message : 'PDF download failed', { id: toastId });
+        return false;
     }
+}
+
+// Pick which classes go into the printed PDF. Lists the classes that have
+// someone owing under the current installment filter, all ticked by default
+// (or just the class being viewed, when opened from inside one).
+function PrintClassesModal({ isOpen, onClose, classRows, initialKeys, installmentLabel, onPrint }: {
+    isOpen: boolean;
+    onClose: () => void;
+    classRows: { key: string; label: string; count: number }[];
+    initialKeys: string[] | null;
+    installmentLabel: string;
+    onPrint: (keys: string[]) => Promise<void>;
+}) {
+    const [picked, setPicked] = useState<Set<string>>(new Set());
+    const [busy, setBusy] = useState(false);
+    const [wasOpen, setWasOpen] = useState(false);
+    // Reset the ticks each time the dialog opens.
+    if (isOpen !== wasOpen) {
+        setWasOpen(isOpen);
+        if (isOpen) setPicked(new Set(initialKeys ?? classRows.map(r => r.key)));
+    }
+
+    const toggle = (key: string) => setPicked(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
+    const chosen = classRows.filter(r => picked.has(r.key));
+    const students = chosen.reduce((n, r) => n + r.count, 0);
+
+    return (
+        <Modal isOpen={isOpen} onClose={busy ? () => undefined : onClose} title="Print fee defaulters" size="md">
+            <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                    Choose the classes to include ({installmentLabel}). Each sub-class prints on its own page.
+                </p>
+                <div className="flex items-center gap-3 text-sm">
+                    <button type="button" className="text-blue-600 hover:underline" onClick={() => setPicked(new Set(classRows.map(r => r.key)))}>Select all</button>
+                    <span className="text-gray-300">|</span>
+                    <button type="button" className="text-blue-600 hover:underline" onClick={() => setPicked(new Set())}>Clear</button>
+                </div>
+                <div className="max-h-80 overflow-y-auto border border-gray-100 rounded divide-y divide-gray-100">
+                    {classRows.length === 0 ? (
+                        <p className="p-4 text-sm text-gray-500 text-center">No classes with defaulters.</p>
+                    ) : classRows.map(r => (
+                        <label key={r.key} className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={picked.has(r.key)}
+                                onChange={() => toggle(r.key)}
+                                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                            />
+                            <span className="flex-1 text-sm text-gray-900">{r.label}</span>
+                            <span className="text-xs text-red-700 font-medium">{r.count} owing</span>
+                        </label>
+                    ))}
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                    <span className="text-xs text-gray-500">
+                        {chosen.length} class{chosen.length === 1 ? '' : 'es'} · {students.toLocaleString()} student{students === 1 ? '' : 's'}
+                    </span>
+                    <div className="flex gap-2 justify-end">
+                        <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
+                        <Button
+                            leftIcon={ArrowDownTrayIcon}
+                            disabled={busy || chosen.length === 0}
+                            onClick={async () => {
+                                setBusy(true);
+                                try { await onPrint(chosen.map(r => r.key)); } finally { setBusy(false); }
+                            }}
+                        >
+                            {busy ? 'Preparing…' : 'Download PDF'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
 }
 
 export default function DefaultersReport() {
@@ -199,6 +284,7 @@ export default function DefaultersReport() {
     const [selectedSubClassKey, setSelectedSubClassKey] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [showContacts, setShowContacts] = useState(true);
+    const [printOpen, setPrintOpen] = useState(false);
 
     const params = new URLSearchParams();
     if (selectedAcademicYear?.id) params.set('academicYearId', String(selectedAcademicYear.id));
@@ -354,18 +440,40 @@ export default function DefaultersReport() {
                     </div>
                     <Button
                         variant="outline"
-                        leftIcon={ArrowDownTrayIcon}
-                        onClick={() => downloadDefaultersPdf({
-                            academicYearId: selectedAcademicYear?.id,
-                            academicYearName: selectedAcademicYear?.name,
-                            installmentFilter,
-                        })}
+                        leftIcon={PrinterIcon}
+                        onClick={() => setPrintOpen(true)}
                         disabled={isLoading || totalDefaultersUnderFilter === 0}
                     >
-                        Download All Classes
+                        Print Classes…
                     </Button>
                 </div>
             </div>
+
+            <PrintClassesModal
+                isOpen={printOpen}
+                onClose={() => setPrintOpen(false)}
+                classRows={classRows}
+                initialKeys={selectedClassKey && classRows.some(r => r.key === selectedClassKey) ? [selectedClassKey] : null}
+                installmentLabel={installmentLabel}
+                onPrint={async (keys) => {
+                    const all = keys.length === classRows.length;
+                    // Rows without a class id (key "name:...") can only be printed as part of "all".
+                    const classIds = keys.map(Number).filter(n => Number.isInteger(n) && n > 0);
+                    const labels = classRows.filter(r => keys.includes(r.key)).map(r => r.label);
+                    if (!all && classIds.length === 0) {
+                        toast.error('These rows have no class assigned; print all classes instead.');
+                        return;
+                    }
+                    const ok = await downloadDefaultersPdf({
+                        academicYearId: selectedAcademicYear?.id,
+                        academicYearName: selectedAcademicYear?.name,
+                        installmentFilter,
+                        classIds: all ? undefined : classIds,
+                        fileSuffix: all ? undefined : (labels.length <= 3 ? labels.join(' ') : `${labels.length} classes`),
+                    });
+                    if (ok) setPrintOpen(false);
+                }}
+            />
 
             {/* Breadcrumb */}
             {view !== 'classes' && (
