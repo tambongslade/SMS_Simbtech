@@ -213,3 +213,38 @@ export const markAllTeachersPresent = async (
   });
   return res.data;
 };
+
+// ---- Period statistics (day / week / month around a date) -------------------
+
+export interface PeriodCounts {
+  scheduled: number;
+  present: number;
+  late: number;
+  absent: number;
+  notRecorded: number;
+  upcoming: number;
+}
+
+export interface PeriodStatsRange {
+  from: string;
+  to: string;
+  totals: PeriodCounts;
+  bySubClass: (PeriodCounts & { id: number; name: string; className: string })[];
+  byTeacher: (PeriodCounts & { id: number; name: string })[];
+}
+
+export interface PeriodStats {
+  academicYearId: number;
+  anchor: string;
+  today: string;
+  day: PeriodStatsRange;
+  week: PeriodStatsRange;
+  month: PeriodStatsRange;
+}
+
+export const getTeacherAttendanceStats = async (date: string, academicYearId?: number): Promise<PeriodStats> => {
+  const qs = new URLSearchParams({ date });
+  if (academicYearId) qs.append('academicYearId', String(academicYearId));
+  const res = await apiService.get<{ data: PeriodStats }>(`/discipline-master/teacher-attendance/stats?${qs.toString()}`);
+  return res.data;
+};

@@ -29,6 +29,7 @@ import {
 } from '@/app/dashboard/super-manager/timetable/components/TimetableContext';
 import DeanAssignmentsModal from './DeanAssignmentsModal';
 import EditAttendanceModal, { type EditTarget } from './EditAttendanceModal';
+import PeriodStatsPanel from './PeriodStatsPanel';
 
 // The tables refresh themselves so a period the discipline masters just saved
 // shows up without anyone reloading the page.
@@ -255,9 +256,9 @@ export default function TeachersAttendanceOverviewPage() {
 
   // Present / late / absent are coloured; anything not recorded (yet) stays grey.
   const STATUS_TEXT: Record<CellState, { label: string; text: string; bg: string }> = {
-    PRESENT: { label: t('Present'), text: 'text-green-700', bg: 'bg-green-100' },
-    LATE: { label: t('Late'), text: 'text-yellow-700', bg: 'bg-yellow-100' },
-    ABSENT: { label: t('Absent'), text: 'text-red-700', bg: 'bg-red-100' },
+    PRESENT: { label: t('Present'), text: 'text-green-950', bg: 'bg-green-400' },
+    LATE: { label: t('Late'), text: 'text-yellow-950', bg: 'bg-yellow-300' },
+    ABSENT: { label: t('Absent'), text: 'text-red-950', bg: 'bg-red-400' },
     PENDING: { label: t('Not recorded yet'), text: 'text-gray-500', bg: 'bg-gray-200' },
     UPCOMING: { label: '', text: 'text-gray-400', bg: 'bg-gray-200' },
   };
@@ -276,7 +277,7 @@ export default function TeachersAttendanceOverviewPage() {
       if (!inScope(block.subClass.id)) return;
       block.slots.forEach(slot => {
         if (slot.periodType && !isAssignablePeriod(slot.periodType)) return;
-        if (activeMode !== 'class' && span === 'day' && slot.day !== dayName) return; // daily view: just that day
+        if (span === 'day' && slot.day !== dayName) return; // daily view: just that day
         const date = dateByDay[slot.day];
         if (!date || !data) return;
         const rec = attendanceByKey.get(`${slot.id}|${date}`);
@@ -285,7 +286,7 @@ export default function TeachersAttendanceOverviewPage() {
       });
     });
     return acc;
-  }, [data, dateByDay, attendanceByKey, inScope, activeMode, span, dayName]);
+  }, [data, dateByDay, attendanceByKey, inScope, span, dayName]);
 
   // ---- Mark all present (one day at a time) ----------------------------------
   // Scope follows the tab: whole school, the dean's own classes, or the chosen class.
@@ -532,12 +533,103 @@ export default function TeachersAttendanceOverviewPage() {
       </div>
     ));
 
+  // Daily view of one class: that day's timetable, one row per period, each lesson
+  // coloured green (present), yellow (late), red (absent) or grey (not recorded).
+  const renderClassDay = () => {
+    if (!classBlock) return null;
+    const date = dateByDay[dayName];
+    const editable = !!date && canEditDay(dayName);
+    const rows = classRows.filter(row => row.byDay[dayName]);
+    if (rows.length === 0) {
+      return <div className="p-6 text-center text-gray-500 bg-white rounded-lg shadow">{t('No lessons on this day.')}</div>;
+    }
+    return (
+      <div className="w-full border rounded-lg overflow-hidden bg-white">
+        <div className="px-4 py-2 bg-blue-50 border-b text-sm font-bold text-blue-900">
+          {classBlock.subClass.className} {classBlock.subClass.name} · {dayHeader(dayName)}
+        </div>
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50">
+            <tr className="text-[11px] uppercase tracking-wider text-gray-500">
+              <th className="px-3 py-2 text-left w-28 border-b">{t('Period')}</th>
+              <th className="px-3 py-2 text-left w-32 border-b">{t('Time')}</th>
+              <th className="px-3 py-2 text-left border-b">{t('Lesson')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => {
+              const period = row.byDay[dayName]!;
+              const time = formatTimeRange(period.startTime, period.endTime);
+              if (!isAssignablePeriod(period.type)) {
+                return (
+                  <tr key={row.sequence} className="bg-gray-100 text-gray-500">
+                    <td className="px-3 py-1.5 border-b font-medium">{period.name}</td>
+                    <td className="px-3 py-1.5 border-b whitespace-nowrap">{time}</td>
+                    <td className="px-3 py-1.5 border-b italic">{period.type === 'PREP' ? t('Preps') : t('Break')}</td>
+                  </tr>
+                );
+              }
+              const slots = slotsByCell.get(`${classBlock.subClass.id}|${period.id}`) ?? [];
+              return (
+                <tr key={row.sequence}>
+                  <td className="px-3 py-2 border-b font-semibold text-gray-800">{period.name}</td>
+                  <td className="px-3 py-2 border-b text-gray-600 whitespace-nowrap">{time}</td>
+                  <td className="px-2 py-1.5 border-b">
+                    {slots.length === 0 ? (
+                      <span className="text-gray-300">{t('Free period')}</span>
+                    ) : (
+                      <div className="flex flex-col sm:flex-row gap-1.5">
+                        {slots.map(slot => {
+                          const state = statusOf(slot, date);
+                          const rec = date ? attendanceByKey.get(`${slot.id}|${date}`) : undefined;
+                          const dim = filtering && !matchesFilters(slot, state);
+                          return (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              disabled={!editable}
+                              onClick={() => openEdit(slot, dayName, period)}
+                              title={editable ? t('Click to change') : undefined}
+                              className={`flex-1 text-left rounded-md px-3 py-2 ${STATUS_TEXT[state].bg} ${dim ? 'opacity-30' : ''} ${
+                                editable ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'
+                              }`}
+                            >
+                              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                                <span className="font-semibold text-gray-900">{slot.teacherName ?? t('No teacher')}</span>
+                                <span className={`text-xs font-bold uppercase ${STATUS_TEXT[state].text}`}>
+                                  {STATUS_TEXT[state].label || t('Upcoming')}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-700">{slot.subjectName ?? ''}</div>
+                              {(rec?.reason || rec?.recordedBy) && (
+                                <div className="text-[11px] text-gray-700 mt-0.5">
+                                  {rec?.reason ? `${t('Reason')}: ${rec.reason}` : ''}
+                                  {rec?.reason && rec?.recordedBy ? ' · ' : ''}
+                                  {rec?.recordedBy ? `${t('Recorded by')} ${rec.recordedBy.name}` : ''}
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   // One class, laid out like the school timetable's class view: periods down, days across.
   const renderClassTable = () => {
     if (!classBlock) return <div className="p-4 text-center text-gray-500">{t('Choose a class.')}</div>;
     if (classRows.length === 0) {
       return <div className="p-4 text-center text-gray-500">{t('This class has no timetable yet.')}</div>;
     }
+    if (span === 'day') return renderClassDay();
     return (
       <div className="w-full border rounded-lg">
         <div className="overflow-auto max-h-[80vh]">
@@ -590,7 +682,7 @@ export default function TeachersAttendanceOverviewPage() {
         <div>
           <h2 className="text-xl sm:text-2xl font-bold">{t('Teachers Attendance Overview')}</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {t('Weekly timetable of every teacher, filled in automatically as the discipline masters take attendance.')}
+            {t('Timetable of every teacher, coloured as the discipline masters take attendance: green present, yellow late, red absent.')}
           </p>
         </div>
         {canAssign && (
@@ -716,47 +808,8 @@ export default function TeachersAttendanceOverviewPage() {
 
       {/* Controls */}
       <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-4">
-        {activeMode === 'class' ? (
-          <>
-            {/* Class view: the class grid is always a week, so it keeps week navigation and a date jump */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAnchor(addDays(anchor, -7))}
-                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-                aria-label={t('Previous week')}
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-              </button>
-              <div className="text-sm font-medium text-gray-800 min-w-[190px] text-center">{rangeLabel}</div>
-              <button
-                onClick={() => setAnchor(addDays(anchor, 7))}
-                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-                aria-label={t('Next week')}
-              >
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
-              {weekStart !== thisWeek && (
-                <button
-                  onClick={() => setAnchor(toWeekday(toIso(new Date())))}
-                  className="px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm"
-                >
-                  {t('This week')}
-                </button>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Go to date')}</label>
-              <input
-                type="date"
-                value={anchor}
-                onChange={e => e.target.value && setAnchor(e.target.value)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            {/* School view / My classes: Daily view (default) or Weekly view, no calendar */}
+        <>
+            {/* Every tab: Daily view (default) or Weekly view */}
             <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label={t('View')}>
               {([
                 { key: 'day', label: t('Daily view') },
@@ -801,8 +854,16 @@ export default function TeachersAttendanceOverviewPage() {
                 </button>
               )}
             </div>
-          </>
-        )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Go to date')}</label>
+              <input
+                type="date"
+                value={anchor}
+                onChange={e => e.target.value && setAnchor(span === 'day' ? toWeekday(e.target.value) : e.target.value)}
+                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+              />
+            </div>
+        </>
         <div className="flex-1 min-w-[200px]">
           <label className="block text-sm font-medium text-gray-700 mb-1">{t('Search teacher')}</label>
           <input
@@ -859,6 +920,15 @@ export default function TeachersAttendanceOverviewPage() {
         <div className="p-4 text-center text-gray-500">{t('No timetable found for this academic year.')}</div>
       ) : (
         renderSchoolTables()
+      )}
+
+      {!emptyMine && (
+        <PeriodStatsPanel
+          date={anchor}
+          academicYearId={selectedAcademicYear?.id}
+          refreshKey={lastUpdated?.getTime()}
+          focusSubClassId={activeMode === 'class' ? classId : null}
+        />
       )}
 
       {canAssign && (
