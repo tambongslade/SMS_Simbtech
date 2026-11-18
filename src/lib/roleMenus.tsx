@@ -341,6 +341,8 @@ export const menuItems: MenuItemsStructure = {
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
+    { icon: ClipboardDocumentCheckIcon, label: 'Administrators Attendance', href: '/dashboard/discipline-coordinator/administrators-attendance' },
+    { icon: CalendarDaysIcon, label: 'Duty Roster', href: '/dashboard/discipline-coordinator/duty-roster' },
   ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
