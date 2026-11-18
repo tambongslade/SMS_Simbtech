@@ -1,6 +1,6 @@
 'use client';
 
-// Live CCTV for the Super Manager: the NVR's cameras in a grid, click one to watch it large.
+// Live CCTV (Super Manager, Manager, Principal, Vice Principal, Dean of Discipline): the NVR's cameras in a grid, click one to watch it large.
 // Works at school and online; see CameraPlayer for how the video gets here.
 
 import { useEffect, useMemo, useState } from 'react';

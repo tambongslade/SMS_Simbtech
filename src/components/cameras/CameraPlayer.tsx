@@ -9,7 +9,7 @@
 // into a <video> through Media Source Extensions.
 //
 // Every stream needs a fresh ticket from the backend: nginx asks the backend whether the
-// ticket belongs to an active Super Manager before it connects the socket to go2rtc.
+// ticket belongs to an active user allowed to watch before it connects the socket to go2rtc.
 
 import { useEffect, useRef, useState } from 'react';
 import apiService from '@/lib/apiService';

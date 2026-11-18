@@ -85,6 +85,7 @@ export type MenuItemsStructure = Record<RoleKey, MenuItem[]>;
 export const menuItems: MenuItemsStructure = {
   principal: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/principal' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/principal/students' },
     { icon: UsersIcon, label: 'Enrollment', href: '/dashboard/principal/enrollment' },
     { icon: UserGroupIcon, label: 'Personnel', href: '/dashboard/principal/personnel-management' },
@@ -214,7 +215,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Academic Year', href: '/dashboard/super-manager/academic-years', icon: CalendarIcon },
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
     { label: 'School Bell', href: '/dashboard/super-manager/school-bell', icon: BellAlertIcon },
-    { label: 'Cameras', href: '/dashboard/super-manager/cameras', icon: VideoCameraIcon },
+    { label: 'Cameras', href: '/dashboard/cameras', icon: VideoCameraIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
@@ -246,6 +247,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   'vice-principal': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/vice-principal' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: UserGroupIcon, label: 'Students', href: '/dashboard/vice-principal/students' },
     { icon: AcademicCapIcon, label: 'Classes', href: '/dashboard/vice-principal/classes' },
     { icon: ClipboardDocumentCheckIcon, label: 'Subjects', href: '/dashboard/vice-principal/subjects' },
@@ -276,6 +278,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   manager: [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/manager' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: UserGroupIcon, label: 'Personnel Management', href: '/dashboard/manager/personnel-management' },
     { icon: BuildingLibraryIcon, label: 'Classes & Subclasses', href: '/dashboard/super-manager/classes' },
     { icon: DocumentChartBarIcon, label: 'Financial Reports', href: '/dashboard/manager/financial-reports' },
@@ -304,6 +307,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   'dean-of-discipline': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-discipline' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
