@@ -120,8 +120,8 @@ export default function TeachersAttendanceOverviewPage() {
 
   // A dean lands on their own classes; everyone else on the whole school.
   useEffect(() => {
-    if (mode === null && selectedRole) setMode(isDean ? 'mine' : 'school');
-  }, [mode, selectedRole, isDean]);
+    if (mode === null && selectedRole) setMode('school');
+  }, [mode, selectedRole]);
   const activeMode: ViewMode = mode ?? 'school';
 
   const load = useCallback(
@@ -533,114 +533,26 @@ export default function TeachersAttendanceOverviewPage() {
       </div>
     ));
 
-  // Daily view of one class: that day's timetable, one row per period, each lesson
-  // coloured green (present), yellow (late), red (absent) or grey (not recorded).
-  const renderClassDay = () => {
-    if (!classBlock) return null;
-    const date = dateByDay[dayName];
-    const editable = !!date && canEditDay(dayName);
-    const rows = classRows.filter(row => row.byDay[dayName]);
-    if (rows.length === 0) {
-      return <div className="p-6 text-center text-gray-500 bg-white rounded-lg shadow">{t('No lessons on this day.')}</div>;
-    }
-    return (
-      <div className="w-full border rounded-lg overflow-hidden bg-white">
-        <div className="px-4 py-2 bg-blue-50 border-b text-sm font-bold text-blue-900">
-          {classBlock.subClass.className} {classBlock.subClass.name} · {dayHeader(dayName)}
-        </div>
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr className="text-[11px] uppercase tracking-wider text-gray-500">
-              <th className="px-3 py-2 text-left w-28 border-b">{t('Period')}</th>
-              <th className="px-3 py-2 text-left w-32 border-b">{t('Time')}</th>
-              <th className="px-3 py-2 text-left border-b">{t('Lesson')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map(row => {
-              const period = row.byDay[dayName]!;
-              const time = formatTimeRange(period.startTime, period.endTime);
-              if (!isAssignablePeriod(period.type)) {
-                return (
-                  <tr key={row.sequence} className="bg-gray-100 text-gray-500">
-                    <td className="px-3 py-1.5 border-b font-medium">{period.name}</td>
-                    <td className="px-3 py-1.5 border-b whitespace-nowrap">{time}</td>
-                    <td className="px-3 py-1.5 border-b italic">{period.type === 'PREP' ? t('Preps') : t('Break')}</td>
-                  </tr>
-                );
-              }
-              const slots = slotsByCell.get(`${classBlock.subClass.id}|${period.id}`) ?? [];
-              return (
-                <tr key={row.sequence}>
-                  <td className="px-3 py-2 border-b font-semibold text-gray-800">{period.name}</td>
-                  <td className="px-3 py-2 border-b text-gray-600 whitespace-nowrap">{time}</td>
-                  <td className="px-2 py-1.5 border-b">
-                    {slots.length === 0 ? (
-                      <span className="text-gray-300">{t('Free period')}</span>
-                    ) : (
-                      <div className="flex flex-col sm:flex-row gap-1.5">
-                        {slots.map(slot => {
-                          const state = statusOf(slot, date);
-                          const rec = date ? attendanceByKey.get(`${slot.id}|${date}`) : undefined;
-                          const dim = filtering && !matchesFilters(slot, state);
-                          return (
-                            <button
-                              key={slot.id}
-                              type="button"
-                              disabled={!editable}
-                              onClick={() => openEdit(slot, dayName, period)}
-                              title={editable ? t('Click to change') : undefined}
-                              className={`flex-1 text-left rounded-md px-3 py-2 ${STATUS_TEXT[state].bg} ${dim ? 'opacity-30' : ''} ${
-                                editable ? 'hover:brightness-95 cursor-pointer' : 'cursor-default'
-                              }`}
-                            >
-                              <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-                                <span className="font-semibold text-gray-900">{slot.teacherName ?? t('No teacher')}</span>
-                                <span className={`text-xs font-bold uppercase ${STATUS_TEXT[state].text}`}>
-                                  {STATUS_TEXT[state].label || t('Upcoming')}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-700">{slot.subjectName ?? ''}</div>
-                              {(rec?.reason || rec?.recordedBy) && (
-                                <div className="text-[11px] text-gray-700 mt-0.5">
-                                  {rec?.reason ? `${t('Reason')}: ${rec.reason}` : ''}
-                                  {rec?.reason && rec?.recordedBy ? ' · ' : ''}
-                                  {rec?.recordedBy ? `${t('Recorded by')} ${rec.recordedBy.name}` : ''}
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
-
   // One class, laid out like the school timetable's class view: periods down, days across.
   const renderClassTable = () => {
     if (!classBlock) return <div className="p-4 text-center text-gray-500">{t('Choose a class.')}</div>;
     if (classRows.length === 0) {
       return <div className="p-4 text-center text-gray-500">{t('This class has no timetable yet.')}</div>;
     }
-    if (span === 'day') return renderClassDay();
+    // Daily view: just that day's column, same cell size as the weekly grid.
+    const days = span === 'day' ? DAYS_ORDER.filter(d => d === dayName) : DAYS_ORDER;
+    const dayWidth = span === 'day' ? { width: '240px', minWidth: '240px' } : undefined;
     return (
-      <div className="w-full border rounded-lg">
+      <div className={`border rounded-lg ${span === 'day' ? 'w-fit max-w-full' : 'w-full'}`}>
         <div className="overflow-auto max-h-[80vh]">
-          <table className="min-w-full text-xs border-separate border-spacing-0">
+          <table className={`${span === 'day' ? '' : 'min-w-full'} text-xs border-separate border-spacing-0`}>
             <thead className="bg-gray-50 sticky top-0 z-20">
               <tr>
                 <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider border-r border-b sticky left-0 bg-gray-50 z-30 min-w-[84px]">
                   {t('Period')} / {t('Time')}
                 </th>
-                {DAYS_ORDER.map(day => (
-                  <th key={day} className="sticky top-0 bg-gray-50 px-2 py-1.5 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-b min-w-[112px]">
+                {days.map(day => (
+                  <th key={day} style={dayWidth} className="sticky top-0 bg-gray-50 px-2 py-1.5 text-center text-[11px] font-medium text-gray-500 uppercase tracking-wider border-r border-b min-w-[112px]">
                     {day.charAt(0) + day.slice(1).toLowerCase()}
                     {dateByDay[day] && <div className="text-[10px] font-normal normal-case text-gray-400">{dateByDay[day]}</div>}
                   </th>
@@ -656,7 +568,7 @@ export default function TeachersAttendanceOverviewPage() {
                       {formatTimeRange(row.label.startTime, row.label.endTime)}
                     </div>
                   </th>
-                  {DAYS_ORDER.map(day => renderCell(classBlock.subClass.id, row.byDay[day], day))}
+                  {days.map(day => renderCell(classBlock.subClass.id, row.byDay[day], day))}
                 </tr>
               ))}
             </tbody>
@@ -669,7 +581,6 @@ export default function TeachersAttendanceOverviewPage() {
   const thisWeek = mondayOf(toIso(new Date()));
   const rangeLabel = data ? `${data.weekStart} → ${data.weekEnd}` : weekStart;
   const tabs: { key: ViewMode; label: string }[] = [
-    ...(isDean ? [{ key: 'mine' as ViewMode, label: t('My classes') }] : []),
     { key: 'school', label: t('School view') },
     { key: 'class', label: t('Class view') },
   ];
@@ -677,96 +588,57 @@ export default function TeachersAttendanceOverviewPage() {
   const emptyMine = activeMode === 'mine' && (data?.mySubClassIds.length ?? 0) === 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4 sm:space-y-6 w-full">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold">{t('Teachers Attendance Overview')}</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {t('Timetable of every teacher, coloured as the discipline masters take attendance: green present, yellow late, red absent.')}
-          </p>
+    <div className="p-3 md:p-4 space-y-2 w-full">
+      {/* Row 1: title, view tabs, cycle / class picker, assign button */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <h2 className="text-base sm:text-lg font-bold text-gray-900 mr-1">{t('Teachers Attendance Overview')}</h2>
+        <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-xs" role="tablist">
+          {tabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setMode(tab.key)}
+              className={`px-2.5 py-1 font-medium ${activeMode === tab.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
+        {activeMode === 'school' && cycles.length > 0 && (
+          <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-xs" role="group" aria-label={t('Cycle')}>
+            {[{ key: 'all', label: t('Whole school') }, ...cycles].map(c => (
+              <button
+                key={c.key}
+                onClick={() => setCycle(c.key)}
+                className={`px-2.5 py-1 ${cycle === c.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {activeMode === 'class' && (
+          <select
+            value={classId ?? ''}
+            onChange={e => setClassId(Number(e.target.value) || null)}
+            className="rounded-md border border-gray-300 px-2 py-1 text-xs bg-white"
+            aria-label={t('Class')}
+          >
+            {allSubClasses.map(sc => (
+              <option key={sc.id} value={sc.id}>
+                {sc.className} — {sc.name}
+              </option>
+            ))}
+          </select>
+        )}
         {canAssign && (
           <button
             onClick={() => setAssignOpen(true)}
-            className="px-3 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-sm"
+            className="ml-auto px-2.5 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 text-xs"
           >
             {t('Assign classes to deans')}
           </button>
         )}
       </div>
-
-      {/* View tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-200">
-        {tabs.map(tab => (
-          <button
-            key={tab.key}
-            onClick={() => setMode(tab.key)}
-            className={`px-4 py-2 text-sm font-medium -mb-px border-b-2 ${
-              activeMode === tab.key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-        <div className="ml-auto flex flex-wrap items-center gap-3 mb-1">
-          <span className="text-xs text-gray-400">
-            {isDean
-              ? t("Tip: click a cell of today's column to change present / late / absent. Other days are read-only.")
-              : t('Tip: click any cell to change present / late / absent.')}
-          </span>
-          {activeMode === 'school' && cycles.length > 0 && (
-            <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label={t('Cycle')}>
-              {[{ key: 'all', label: t('Whole school') }, ...cycles].map(c => (
-                <button
-                  key={c.key}
-                  onClick={() => setCycle(c.key)}
-                  className={`px-3 py-1.5 ${cycle === c.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          )}
-          {activeMode === 'class' && (
-            <select
-              value={classId ?? ''}
-              onChange={e => setClassId(Number(e.target.value) || null)}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm bg-white"
-              aria-label={t('Class')}
-            >
-              {allSubClasses.map(sc => (
-                <option key={sc.id} value={sc.id}>
-                  {sc.className} — {sc.name}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      </div>
-
-      {/* Mark all present -- TODAY only, only periods with nothing recorded yet.
-          Not offered in the school-wide view (only in "My classes" and the class view). */}
-      {activeMode !== 'school' && (
-      <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-center gap-3">
-        {(
-          <>
-            <button
-              onClick={() => setMarkConfirmOpen(true)}
-              disabled={!canMarkAll || unrecordedForMarkDay === 0}
-              className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-            >
-              {t('Mark all present')}
-              {markDay ? ` — ${markDay.charAt(0) + markDay.slice(1).toLowerCase()} ${dateByDay[markDay]}` : ''}
-            </button>
-            <span className="text-xs text-gray-500">
-              {markDay
-                ? `${unrecordedForMarkDay} ${t('periods not recorded yet')} · ${scopeLabel}`
-                : t('Today is not a school day in the week shown. Go to this week to mark today.')}
-            </span>
-          </>
-        )}
-      </div>
-      )}
 
       <EditAttendanceModal
         target={editTarget}
@@ -806,106 +678,113 @@ export default function TeachersAttendanceOverviewPage() {
         </div>
       </Modal>
 
-      {/* Controls */}
-      <div className="bg-white rounded-lg shadow p-4 flex flex-wrap items-end gap-4">
-        <>
-            {/* Every tab: Daily view (default) or Weekly view */}
-            <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-sm" role="group" aria-label={t('View')}>
-              {([
-                { key: 'day', label: t('Daily view') },
-                { key: 'week', label: t('Weekly view') },
-              ] as { key: 'day' | 'week'; label: string }[]).map(o => (
-                <button
-                  key={o.key}
-                  onClick={() => {
-                    setSpan(o.key);
-                    if (o.key === 'day') setAnchor(a => toWeekday(a));
-                  }}
-                  className={`px-4 py-2 ${span === o.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                >
-                  {o.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, -1) : addDays(anchor, -7))}
-                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-                aria-label={span === 'day' ? t('Previous day') : t('Previous week')}
-              >
-                <ChevronLeftIcon className="w-4 h-4" />
-              </button>
-              <div className="text-sm font-medium text-gray-800 min-w-[190px] text-center">
-                {span === 'day' ? `${dayName.charAt(0) + dayName.slice(1).toLowerCase()} ${anchor}` : rangeLabel}
-              </div>
-              <button
-                onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, 1) : addDays(anchor, 7))}
-                className="p-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-700"
-                aria-label={span === 'day' ? t('Next day') : t('Next week')}
-              >
-                <ChevronRightIcon className="w-4 h-4" />
-              </button>
-              {(span === 'day' ? anchor !== toWeekday(toIso(new Date())) : weekStart !== thisWeek) && (
-                <button
-                  onClick={() => setAnchor(toWeekday(toIso(new Date())))}
-                  className="px-3 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 text-sm"
-                >
-                  {span === 'day' ? t('Today') : t('This week')}
-                </button>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{t('Go to date')}</label>
-              <input
-                type="date"
-                value={anchor}
-                onChange={e => e.target.value && setAnchor(span === 'day' ? toWeekday(e.target.value) : e.target.value)}
-                className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-              />
-            </div>
-        </>
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{t('Search teacher')}</label>
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t('Name')}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+      {/* Row 2: one compact toolbar */}
+      <div className="bg-white rounded-lg shadow px-2 py-1.5 flex flex-wrap items-center gap-2 text-xs">
+        <div className="inline-flex rounded-md border border-gray-300 overflow-hidden" role="group" aria-label={t('View')}>
+          {([
+            { key: 'day', label: t('Daily') },
+            { key: 'week', label: t('Weekly') },
+          ] as { key: 'day' | 'week'; label: string }[]).map(o => (
+            <button
+              key={o.key}
+              onClick={() => {
+                setSpan(o.key);
+                if (o.key === 'day') setAnchor(a => toWeekday(a));
+              }}
+              className={`px-2.5 py-1 ${span === o.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, -1) : addDays(anchor, -7))}
+            className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+            aria-label={span === 'day' ? t('Previous day') : t('Previous week')}
+          >
+            <ChevronLeftIcon className="w-3.5 h-3.5" />
+          </button>
+          <span className="font-medium text-gray-800 text-center whitespace-nowrap px-1">
+            {span === 'day' ? `${dayName.charAt(0) + dayName.slice(1).toLowerCase()} ${anchor}` : rangeLabel}
+          </span>
+          <button
+            onClick={() => setAnchor(span === 'day' ? stepWeekday(anchor, 1) : addDays(anchor, 7))}
+            className="p-1 rounded bg-gray-100 hover:bg-gray-200 text-gray-700"
+            aria-label={span === 'day' ? t('Next day') : t('Next week')}
+          >
+            <ChevronRightIcon className="w-3.5 h-3.5" />
+          </button>
+          {(span === 'day' ? anchor !== toWeekday(toIso(new Date())) : weekStart !== thisWeek) && (
+            <button
+              onClick={() => setAnchor(toWeekday(toIso(new Date())))}
+              className="px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
+            >
+              {span === 'day' ? t('Today') : t('This week')}
+            </button>
+          )}
+        </div>
+        <input
+          type="date"
+          value={anchor}
+          title={t('Go to date')}
+          onChange={e => e.target.value && setAnchor(span === 'day' ? toWeekday(e.target.value) : e.target.value)}
+          className="rounded border border-gray-300 px-1.5 py-0.5 text-xs"
+        />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder={t('Search teacher')}
+          className="flex-1 min-w-[140px] rounded border border-gray-300 px-2 py-1 text-xs"
+        />
+        <label className="flex items-center gap-1 text-gray-700 whitespace-nowrap">
           <input
             type="checkbox"
             checked={onlyIssues}
             onChange={e => setOnlyIssues(e.target.checked)}
-            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+            className="h-3.5 w-3.5 text-blue-600 border-gray-300 rounded"
           />
           {t('Only late or absent')}
         </label>
         <button
           onClick={() => load()}
-          className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+          title={t('Refresh')}
+          className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
         >
-          <ArrowPathIcon className="w-4 h-4" /> {t('Refresh')}
+          <ArrowPathIcon className="w-3.5 h-3.5" />
         </button>
+        {/* Mark all present -- TODAY only, only unrecorded periods; class view only. */}
+        {activeMode === 'class' && (
+          <button
+            onClick={() => setMarkConfirmOpen(true)}
+            disabled={!canMarkAll || unrecordedForMarkDay === 0}
+            title={markDay
+              ? `${unrecordedForMarkDay} ${t('periods not recorded yet')} · ${scopeLabel}`
+              : t('Today is not a school day in the week shown. Go to this week to mark today.')}
+            className="px-2.5 py-1 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 font-medium whitespace-nowrap"
+          >
+            {t('Mark all present')}{markDay ? ` (${unrecordedForMarkDay})` : ''}
+          </button>
+        )}
       </div>
 
-      {/* Summary + legend */}
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        {(['PRESENT', 'LATE', 'ABSENT', 'PENDING'] as CellState[]).map(s => {
-          const count = s === 'PRESENT' ? summary.present : s === 'LATE' ? summary.late : s === 'ABSENT' ? summary.absent : summary.pending;
+      {/* Row 3: counts + legend */}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        {(['PRESENT', 'LATE', 'ABSENT', 'PENDING'] as CellState[]).map(st => {
+          const count = st === 'PRESENT' ? summary.present : st === 'LATE' ? summary.late : st === 'ABSENT' ? summary.absent : summary.pending;
           return (
-            <span key={s} className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-medium ${STATUS_TEXT[s].bg} ${STATUS_TEXT[s].text}`}>
-              {STATUS_TEXT[s].label}: {count}
+            <span key={st} className={`inline-flex items-center rounded-full px-2 py-0.5 font-medium ${STATUS_TEXT[st].bg} ${STATUS_TEXT[st].text}`}>
+              {STATUS_TEXT[st].label}: {count}
             </span>
           );
         })}
-        {lastUpdated && (
-          <span className="text-xs text-gray-400 ml-auto">
-            {t('Updated')} {lastUpdated.toLocaleTimeString()} · {t('auto-refreshes every 30 s')}
-          </span>
-        )}
+        <span className="text-gray-400 ml-auto">
+          {isDean
+            ? t("Click a cell of today's column to change present / late / absent.")
+            : t('Click any cell to change present / late / absent.')}
+          {lastUpdated && ` · ${t('Updated')} ${lastUpdated.toLocaleTimeString()}`}
+        </span>
       </div>
 
       {isLoading && !data ? (
