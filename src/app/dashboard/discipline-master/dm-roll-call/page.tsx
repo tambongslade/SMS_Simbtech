@@ -51,6 +51,10 @@ export default function DmRollCallPage() {
   const [roster, setRoster] = useState<DmRosterEntry[]>([]);
   const [alreadyRecorded, setAlreadyRecorded] = useState(false);
   const [statuses, setStatuses] = useState<Record<number, DMRollCallStatus>>({});
+  // studentId -> amount still owed by the current installment (same figure as
+  // Fee Defaulters "Remaining"); null while unknown so we don't show a false "OK".
+  const [owing, setOwing] = useState<Record<number, number> | null>(null);
+  const [owingInstallment, setOwingInstallment] = useState<'second' | 'third' | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,6 +116,22 @@ export default function DmRollCallPage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Fees owed, fetched separately so a slow/failed fee lookup never blocks the roll call.
+  useEffect(() => {
+    setOwing(null);
+    setOwingInstallment(null);
+    if (!subClassId) return;
+    let cancelled = false;
+    apiService.get(`/discipline-profiles/roll-call-fees?subClassId=${subClassId}`)
+      .then((res: { data?: { owing?: Record<number, number>; installment?: 'second' | 'third' | null } }) => {
+        if (cancelled) return;
+        setOwing(res?.data?.owing ?? {});
+        setOwingInstallment(res?.data?.installment ?? null);
+      })
+      .catch(() => { if (!cancelled) setOwing(null); });
+    return () => { cancelled = true; };
+  }, [subClassId]);
 
   const counts = useMemo(() => {
     const c = { PRESENT: 0, LATE: 0, ABSENT: 0 };
@@ -272,6 +292,11 @@ export default function DmRollCallPage() {
               <span className="text-green-700">{counts.PRESENT} P</span>
               <span className="text-yellow-700">{counts.LATE} L</span>
               <span className="text-red-700">{counts.ABSENT} A</span>
+              {owingInstallment && (
+                <span className="text-[11px] text-gray-500">
+                  {t('Fees')}: {owingInstallment === 'third' ? t('3rd installment') : t('2nd installment')}
+                </span>
+              )}
               {alreadyRecorded && (
                 <span className="inline-flex items-center gap-1 text-[11px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
                   <ClockIcon className="w-3 h-3" /> {t('recorded — saving replaces')}
@@ -295,7 +320,15 @@ export default function DmRollCallPage() {
                   <p className="text-[13px] sm:text-sm font-medium text-gray-900 truncate" title={r.student.name}>
                     {r.student.name.trim().split(/\s+/).slice(0, 2).join(' ')}
                   </p>
-                  <p className="text-[11px] text-gray-500 truncate">{r.student.matricule || '—'}</p>
+                  {owing && (
+                    owing[r.student.id] ? (
+                      <p className="text-[11px] font-semibold text-red-600 truncate">
+                        {t('Owes')} FCFA {owing[r.student.id].toLocaleString()}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] font-semibold text-green-600">OK</p>
+                    )
+                  )}
                 </div>
                 <div className="flex gap-1 shrink-0">
                   {STATUS_OPTIONS.map(opt => (
