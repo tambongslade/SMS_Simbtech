@@ -43,7 +43,7 @@ import { useLanguage } from '@/components/context/LanguageContext';
 import NotificationIndicator from '@/components/messaging/NotificationIndicator';
 import ChatIndicator from '@/components/chat/ChatIndicator';
 import SyncStatusMarquee from '@/components/dashboard/SyncStatusMarquee';
-import { menuItems, type MenuItem } from '@/lib/roleMenus';
+import { menuItems, hideRestrictedMenuItems, type MenuItem } from '@/lib/roleMenus';
 import { useAiAssistantAvailable, isAiAssistantHref } from '@/lib/aiAssistantStatus';
 
 
@@ -225,9 +225,9 @@ export default function DashboardLayout({
   const roleMenu = roleFromPath ? menuItems[roleFromPath as keyof typeof menuItems] : undefined;
   const aiAvailable = useAiAssistantAvailable(!!roleMenu?.some(item => isAiAssistantHref(item.href)));
   const currentMenuItems = useMemo(() => {
-    const items = roleMenu ?? [];
+    const items = hideRestrictedMenuItems(roleMenu ?? [], roleFromPath, user?.email);
     return aiAvailable ? items : items.filter(item => !isAiAssistantHref(item.href));
-  }, [roleMenu, aiAvailable]);
+  }, [roleMenu, aiAvailable, roleFromPath, user?.email]);
 
   // Map role keys (like 'discipline-master') to display titles
   const roleTitle: { [key: string]: string } = {

@@ -43,6 +43,22 @@ export interface MenuItem {
   navigates?: boolean;
 }
 
+// Teachers Attendance Overview is only for the Super Manager and these named
+// accounts (matched by email, which is the same on the school and online servers).
+// The backend enforces the same list.
+export const TEACHER_OVERVIEW_EMAILS = ['pewingh@gmail.com'];
+export const isTeacherOverviewHref = (href: string) => /\/teachers-attendance-overview\/?$/.test(href);
+export const canSeeTeacherOverview = (email?: string | null) =>
+  !!email && TEACHER_OVERVIEW_EMAILS.includes(email.trim().toLowerCase());
+
+/** Drops the Teachers Attendance Overview entry for everyone but the Super Manager menu and the named accounts. */
+export function hideRestrictedMenuItems(items: MenuItem[], roleKey: string | null | undefined, email?: string | null): MenuItem[] {
+  if (roleKey === 'super-manager' || canSeeTeacherOverview(email)) return items;
+  return items
+    .filter(item => !isTeacherOverviewHref(item.href))
+    .map(item => (item.subItems ? { ...item, subItems: item.subItems.filter(sub => !isTeacherOverviewHref(sub.href)) } : item));
+}
+
 export type RoleKey =
   | 'principal'
   | 'bursar'
@@ -272,7 +288,6 @@ export const menuItems: MenuItemsStructure = {
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/manager/seized-items' },
     { icon: ClipboardDocumentCheckIcon, label: 'Marks Management', href: '/dashboard/marks-management' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/manager/overview' },
-    { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/manager/teachers-attendance-overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/manager/statistics' },
   ],
   'dean-of-studies': [
