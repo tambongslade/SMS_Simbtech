@@ -327,21 +327,31 @@ export const menuItems: MenuItemsStructure = {
   // already accept DISCIPLINE_COORDINATOR everywhere DoD is allowed, so those pages work as-is.
   // Personnel Management points at Principal's — the coordinator's personnel-scope guard on the
   // /users/* endpoints keeps the actor from touching anyone outside the DM/SDM/DoD chain.
+  // Every Dean of Discipline item (same order), plus the coordinator's own:
+  // Personnel Management, Administrators Attendance and Duty Roster.
+  // (Teachers Attendance Overview is still hidden for anyone not on TEACHER_OVERVIEW_EMAILS.)
   'discipline-coordinator': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-coordinator' },
     { icon: ChartBarIcon, label: 'Overview', href: '/dashboard/dean-of-discipline/overview' },
     { icon: ChartBarIcon, label: 'Statistics', href: '/dashboard/dean-of-discipline/statistics' },
     { icon: UserGroupIcon, label: 'Personnel Management', href: '/dashboard/principal/personnel-management' },
-    { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/dean-of-discipline/dm-roll-call' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/dean-of-discipline/warnings-summons' },
+    { icon: ExclamationTriangleIcon, label: 'Class Absences', href: '/dashboard/dean-of-discipline/absences' },
+    { icon: UserPlusIcon, label: 'DM Assignments', href: '/dashboard/dean-of-discipline/dm-assignments' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Roll Calls', href: '/dashboard/dean-of-discipline/teacher-roll-calls' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/dean-of-discipline/teacher-attendance' },
+    { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/dean-of-discipline/teachers-attendance-overview' },
+    { icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/dean-of-discipline/students' },
+    { icon: CurrencyDollarIcon, label: 'Owing Fees', href: '/dashboard/dean-of-discipline/owing-fees' },
+    { icon: ExclamationTriangleIcon, label: 'Student Absences', href: '/dashboard/dean-of-discipline/student-absences' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
+    { icon: ScaleIcon, label: 'Disciplinary Council', href: '/dashboard/dean-of-discipline/disciplinary-council' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/dean-of-discipline/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/dean-of-discipline/broken-property' },
     { icon: DocumentChartBarIcon, label: 'Report Requests', href: '/dashboard/dean-of-discipline/report-requests' },
+    { icon: BanknotesIcon, label: 'Request Money', href: '/dashboard/dean-of-discipline/finance-requests' },
     { icon: ClipboardDocumentCheckIcon, label: 'Administrators Attendance', href: '/dashboard/discipline-coordinator/administrators-attendance' },
     { icon: CalendarDaysIcon, label: 'Duty Roster', href: '/dashboard/discipline-coordinator/duty-roster' },
   ],

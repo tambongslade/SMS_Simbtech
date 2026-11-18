@@ -4,12 +4,18 @@ import { useMemo } from 'react';
 import { useAuth } from '@/components/context/AuthContext';
 import { useLanguage } from '@/components/context/LanguageContext';
 import { QuickActionGrid } from '@/components/dashboard/QuickActionGrid';
-import { getQuickActionsForRole } from '@/lib/roleMenus';
+import { canSeeTeacherOverview, getQuickActionsForRole, isTeacherOverviewHref } from '@/lib/roleMenus';
 
 export default function DisciplineCoordinatorMenu() {
   const { selectedAcademicYear, user } = useAuth();
   const { t } = useLanguage();
-  const quickActions = useMemo(() => getQuickActionsForRole('discipline-coordinator', t), [t]);
+  const quickActions = useMemo(
+    () =>
+      getQuickActionsForRole('discipline-coordinator', t).filter(
+        a => canSeeTeacherOverview(user?.email) || !isTeacherOverviewHref(a.href)
+      ),
+    [t, user?.email]
+  );
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
