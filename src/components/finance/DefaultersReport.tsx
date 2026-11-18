@@ -51,6 +51,7 @@ interface DefaulterStudent {
     className: string;
     subClassId: number | null;
     subClassName: string;
+    totalPaid?: number;
     outstandingAmount: number;
     installments: Record<InstallmentKey, InstallmentAmount>;
     dueDate: string | null;
@@ -90,12 +91,6 @@ const INSTALLMENT_OPTIONS: { value: 'all' | InstallmentKey; label: string }[] = 
     { value: 'third', label: '3rd Installment' },
 ];
 
-const INSTALLMENT_SHORT_LABEL: Record<InstallmentKey, string> = {
-    first: '1st',
-    second: '2nd',
-    third: '3rd',
-};
-
 // A student "owes" under the current installment filter when either no
 // filter is set (they're a defaulter at all) or they specifically still owe
 // on the selected installment.
@@ -111,23 +106,18 @@ function displayOutstanding(s: DefaulterStudent, installment: 'all' | Installmen
     return inst.cumulativeOutstanding ?? inst.outstanding;
 }
 
-function InstallmentBadges({ installments }: { installments: Record<InstallmentKey, InstallmentAmount> }) {
-    const owed = (['first', 'second', 'third'] as InstallmentKey[]).filter(k => installments[k].outstanding > 0);
-    if (owed.length === 0) return <span className="text-gray-400">—</span>;
-    return (
-        <div className="flex flex-wrap gap-1">
-            {owed.map(k => (
-                <span
-                    key={k}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-700"
-                    title={`${INSTALLMENT_SHORT_LABEL[k]} installment`}
-                >
-                    {INSTALLMENT_SHORT_LABEL[k]} {formatMoney(installments[k].outstanding)}
-                </span>
-            ))}
-        </div>
-    );
+// What the student should have paid in all by the selected installment
+// (registration + 1st + ... up to it); "all" = the whole year's fees.
+function displayExpected(s: DefaulterStudent, installment: 'all' | InstallmentKey): number {
+    if (installment === 'all') {
+        return s.installments?.third?.cumulativeExpected ?? ((s.totalPaid ?? 0) + s.outstandingAmount);
+    }
+    const inst = s.installments[installment];
+    return inst.cumulativeExpected ?? inst.expected;
 }
+
+// Everything the student has paid so far this year.
+const displayPaid = (s: DefaulterStudent): number => s.totalPaid ?? 0;
 
 // Rows of {label, count} sorted highest-first, click to drill in. Used for
 // both the class list and the sub-class list -- same shape, same behaviour.
@@ -298,6 +288,7 @@ export default function DefaultersReport() {
     const allStudents = reportRes?.data?.students ?? [];
 
     const installmentLabel = INSTALLMENT_OPTIONS.find(o => o.value === installmentFilter)!.label;
+    const expectedTitle = installmentFilter === 'all' ? 'Expected (Year)' : `Expected by ${installmentLabel}`;
 
     // Level 1: one row per class, count = distinct students owing under the
     // current installment filter.
@@ -561,24 +552,24 @@ export default function DefaultersReport() {
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Owing by Installment</th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            {installmentFilter === 'all' ? 'Total Outstanding' : `${installmentLabel} Outstanding`}
-                                        </th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{expectedTitle}</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Paid</th>
+                                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Remaining</th>
                                         <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Overdue</th>
                                         {showContacts && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Parent Contact</th>}
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-100">
                                     {studentRows.length === 0 ? (
-                                        <tr><td colSpan={5} className="px-4 py-6 text-sm text-gray-400 text-center">No defaulters found.</td></tr>
+                                        <tr><td colSpan={showContacts ? 6 : 5} className="px-4 py-6 text-sm text-gray-400 text-center">No defaulters found.</td></tr>
                                     ) : studentRows.map((s) => (
                                         <tr key={s.studentId} className="hover:bg-gray-50">
                                             <td className="px-4 py-2.5">
                                                 <p className="text-sm font-medium text-gray-900">{s.studentName}</p>
                                                 <p className="text-xs text-gray-500">{s.matricule}</p>
                                             </td>
-                                            <td className="px-4 py-2.5"><InstallmentBadges installments={s.installments} /></td>
+                                            <td className="px-4 py-2.5 text-sm text-gray-900 text-right whitespace-nowrap">{formatMoney(displayExpected(s, installmentFilter))}</td>
+                                            <td className="px-4 py-2.5 text-sm text-green-700 text-right whitespace-nowrap">{formatMoney(displayPaid(s))}</td>
                                             <td className="px-4 py-2.5 text-sm font-semibold text-red-700 text-right whitespace-nowrap">{formatMoney(displayOutstanding(s, installmentFilter))}</td>
                                             <td className="px-4 py-2.5 text-right">
                                                 <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
@@ -611,14 +602,16 @@ export default function DefaultersReport() {
                                         </div>
                                         <Badge color={overdueColor(s.daysOverdue)} size="sm">{s.daysOverdue}d</Badge>
                                     </div>
-                                    <div className="flex items-start justify-between gap-3">
-                                        <span className="text-xs text-gray-500 pt-0.5">Owing by installment</span>
-                                        <InstallmentBadges installments={s.installments} />
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-gray-500">{expectedTitle}</span>
+                                        <span className="text-sm text-gray-900">{formatMoney(displayExpected(s, installmentFilter))}</span>
                                     </div>
                                     <div className="flex items-center justify-between gap-3">
-                                        <span className="text-xs text-gray-500">
-                                            {installmentFilter === 'all' ? 'Total Outstanding' : `${installmentLabel} Outstanding`}
-                                        </span>
+                                        <span className="text-xs text-gray-500">Paid</span>
+                                        <span className="text-sm text-green-700">{formatMoney(displayPaid(s))}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-gray-500">Remaining</span>
                                         <span className="text-sm font-semibold text-red-700">{formatMoney(displayOutstanding(s, installmentFilter))}</span>
                                     </div>
                                     {showContacts && s.contactParentPhone && (
