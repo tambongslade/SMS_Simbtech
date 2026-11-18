@@ -313,6 +313,7 @@ export const menuItems: MenuItemsStructure = {
     { icon: CalendarDaysIcon, label: 'Teachers Attendance Overview', href: '/dashboard/dean-of-discipline/teachers-attendance-overview' },
     { icon: UserGroupIcon, label: 'Student Profiles', href: '/dashboard/dean-of-discipline/students' },
     { icon: CurrencyDollarIcon, label: 'Owing Fees', href: '/dashboard/dean-of-discipline/owing-fees' },
+    { icon: ExclamationTriangleIcon, label: 'Student Absences', href: '/dashboard/dean-of-discipline/student-absences' },
     { icon: ArchiveBoxIcon, label: 'Seized Items', href: '/dashboard/dean-of-discipline/seized-items' },
     { icon: ClipboardDocumentListIcon, label: 'Disciplinary Actions', href: '/dashboard/dean-of-discipline/disciplinary-actions' },
     { icon: ScaleIcon, label: 'Disciplinary Council', href: '/dashboard/dean-of-discipline/disciplinary-council' },
