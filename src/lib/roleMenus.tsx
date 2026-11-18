@@ -32,6 +32,7 @@ import {
   ScaleIcon,
   EnvelopeIcon,
   CameraIcon,
+  VideoCameraIcon,
 } from '@heroicons/react/24/outline';
 import type { QuickAction, QuickActionColor } from '@/components/dashboard/QuickActionGrid';
 
@@ -213,6 +214,7 @@ export const menuItems: MenuItemsStructure = {
     { label: 'Academic Year', href: '/dashboard/super-manager/academic-years', icon: CalendarIcon },
     { label: 'Timetable Management', href: '/dashboard/super-manager/timetable', icon: CalendarIcon },
     { label: 'School Bell', href: '/dashboard/super-manager/school-bell', icon: BellAlertIcon },
+    { label: 'Cameras', href: '/dashboard/super-manager/cameras', icon: VideoCameraIcon },
     { label: 'Communication', href: '/dashboard/super-manager/communication', icon: MegaphoneIcon },
     { label: 'Settings', href: '/dashboard/super-manager/settings', icon: Cog6ToothIcon },
     { label: 'Data Sync', href: '/dashboard/super-manager/data-sync', icon: ArrowPathIcon },
