@@ -255,20 +255,10 @@ export default function StudentManagement() {
     // Hydrate from sessionStorage so filters/search/page persist across profile navigation.
     const persistedListState = useMemo(readPersistedListState, []);
     const [searchTerm, setSearchTerm] = useState(persistedListState.searchTerm ?? '');
-    // Photos are ~180 KB each, so a 100-row page is ~17 MB of pictures: off by default,
-    // the choice is remembered in this browser.
+    // Photos are ~180 KB each, so a 100-row page is ~17 MB of pictures: always off when
+    // the page opens; the user can switch them on for the current visit.
     const [showPhotos, setShowPhotos] = useState(false);
-    useEffect(() => {
-        try {
-            setShowPhotos(window.localStorage.getItem('ssic.studentManagement.showPhotos') === '1');
-        } catch { /* storage unavailable: keep off */ }
-    }, []);
-    const toggleShowPhotos = (on: boolean) => {
-        setShowPhotos(on);
-        try {
-            window.localStorage.setItem('ssic.studentManagement.showPhotos', on ? '1' : '0');
-        } catch { /* ignore */ }
-    };
+    const toggleShowPhotos = (on: boolean) => setShowPhotos(on);
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(persistedListState.searchTerm ?? ''); // Server-side search term
     const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>(persistedListState.enrollmentFilter ?? 'all');
     const [subClassFilter, setSubClassFilter] = useState<string>(persistedListState.subClassFilter ?? 'all'); // Store subclass ID as string or 'all'
