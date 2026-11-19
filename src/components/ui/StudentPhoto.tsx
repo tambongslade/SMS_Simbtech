@@ -126,6 +126,8 @@ export const StudentPhoto: React.FC<StudentPhotoProps> = ({
                             className="w-full h-full object-cover"
                             onError={handleImageError}
                             crossOrigin="anonymous"
+                            loading="lazy"
+                            decoding="async"
                         />
                     ) : (
                         <div className="w-full h-full flex items-center justify-center bg-gray-200">

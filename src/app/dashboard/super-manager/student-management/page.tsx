@@ -255,6 +255,20 @@ export default function StudentManagement() {
     // Hydrate from sessionStorage so filters/search/page persist across profile navigation.
     const persistedListState = useMemo(readPersistedListState, []);
     const [searchTerm, setSearchTerm] = useState(persistedListState.searchTerm ?? '');
+    // Photos are ~180 KB each, so a 100-row page is ~17 MB of pictures: off by default,
+    // the choice is remembered in this browser.
+    const [showPhotos, setShowPhotos] = useState(false);
+    useEffect(() => {
+        try {
+            setShowPhotos(window.localStorage.getItem('ssic.studentManagement.showPhotos') === '1');
+        } catch { /* storage unavailable: keep off */ }
+    }, []);
+    const toggleShowPhotos = (on: boolean) => {
+        setShowPhotos(on);
+        try {
+            window.localStorage.setItem('ssic.studentManagement.showPhotos', on ? '1' : '0');
+        } catch { /* ignore */ }
+    };
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(persistedListState.searchTerm ?? ''); // Server-side search term
     const [enrollmentFilter, setEnrollmentFilter] = useState<EnrollmentStatusFilter>(persistedListState.enrollmentFilter ?? 'all');
     const [subClassFilter, setSubClassFilter] = useState<string>(persistedListState.subClassFilter ?? 'all'); // Store subclass ID as string or 'all'
@@ -1317,6 +1331,15 @@ export default function StudentManagement() {
                                     placeholder="Name, matricule..."
                                 />
                             </div>
+                            <label className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={showPhotos}
+                                    onChange={(e) => toggleShowPhotos(e.target.checked)}
+                                    className="h-3.5 w-3.5 text-blue-600 border-gray-300 rounded"
+                                />
+                                Show pictures (slower)
+                            </label>
                         </div>
 
                         {/* Academic Year Filter */}
@@ -1449,7 +1472,7 @@ export default function StudentManagement() {
                                                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                             />
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Photo</th>
+                                        {showPhotos && <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">Photo</th>}
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Student Info</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Enrollment</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-48">Personal Details</th>
@@ -1460,7 +1483,7 @@ export default function StudentManagement() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {isLoading && students.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8">
+                                            <td colSpan={showPhotos ? 6 : 5} className="text-center py-8">
                                                 <div className="flex flex-col items-center">
                                                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
                                                     <p className="text-gray-500">Loading students...</p>
@@ -1470,7 +1493,7 @@ export default function StudentManagement() {
                                     )}
                                     {!isLoading && filteredStudents.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="text-center py-8">
+                                            <td colSpan={showPhotos ? 6 : 5} className="text-center py-8">
                                                 <div className="flex flex-col items-center">
                                                     <svg className="h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
@@ -1504,6 +1527,7 @@ export default function StudentManagement() {
                                                 />
                                             </td>
                                             {/* Photo Column */}
+                                            {showPhotos && (
                                             <td className="px-4 py-3">
                                                 <StudentPhoto
                                                     studentId={student.id}
@@ -1523,6 +1547,7 @@ export default function StudentManagement() {
                                                     }}
                                                 />
                                             </td>
+                                            )}
                                             {/* Student Info Column */}
                                             <td className="px-4 py-3">
                                                 <div className="space-y-1">
@@ -1725,15 +1750,21 @@ export default function StudentManagement() {
                                                 onChange={(e) => handleSelectStudent(student.id, e.target.checked)}
                                                 className="h-4 w-4 shrink-0 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                             />
-                                            <StudentPhoto
-                                                studentId={student.id}
-                                                photo={student.photo}
-                                                size="xs"
-                                                showUploadButton={false}
-                                                canUpload={false}
-                                                studentName={student.name}
-                                                fetchPhoto={!student.photo && !student.photoResolved}
-                                            />
+                                            {showPhotos ? (
+                                                <StudentPhoto
+                                                    studentId={student.id}
+                                                    photo={student.photo}
+                                                    size="xs"
+                                                    showUploadButton={false}
+                                                    canUpload={false}
+                                                    studentName={student.name}
+                                                    fetchPhoto={!student.photo && !student.photoResolved}
+                                                />
+                                            ) : (
+                                                <span className="h-8 w-8 shrink-0 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center">
+                                                    {(student.name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()}
+                                                </span>
+                                            )}
                                             <button
                                                 onClick={() => router.push(`/dashboard/super-manager/student-management/${student.id}`)}
                                                 className="min-w-0 flex-1 text-left"
