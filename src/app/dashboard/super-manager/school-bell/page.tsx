@@ -30,7 +30,8 @@ type ModuleState = {
     rssi: number;
 };
 type Bell = { time: string; days: number[]; seconds: number; label: string };
-type BellData = { moduleUrl: string; serverTime: string; state: ModuleState; bells: Bell[] };
+// via: 'device' = the bell calls this server (school server); 'relay' = the school server passes it on (online server)
+type BellData = { moduleUrl: string; via?: 'device' | 'relay'; lastSeenSeconds?: number; serverTime: string; state: ModuleState; bells: Bell[] };
 type Res<T> = { success: boolean; data: T; error?: string };
 
 const DAYS = [
@@ -48,7 +49,8 @@ const STATUS_POLL_MS = 3000;
 // While the button is held, a heartbeat every second keeps the bell ringing (each one rings 3 s on the module).
 const HOLD_HEARTBEAT_MS = 1000;
 
-const source = (s: string) => (s === 'internet' ? 'internet time' : s === 'manuelle' ? 'set by hand' : 'not set');
+const source = (s: string) =>
+    s === 'serveur' ? 'school server' : s === 'internet' ? 'internet time' : s === 'manuelle' ? 'set by hand' : 'not set';
 const signal = (rssi: number) => (rssi >= -60 ? 'good' : rssi >= -75 ? 'fair' : 'weak');
 // The backend's own message (e.g. "cannot be reached from this server") when there is one.
 const errorText = (e: unknown, fallback: string): string => {
@@ -262,6 +264,9 @@ export default function SchoolBellPage() {
                             <span className="font-medium">Press and hold</span> the button: the bell rings while you hold it and stops when you let go.
                         </p>
                         <p className="text-gray-500">If the connection drops while you hold it, the bell stops on its own within 3 seconds.</p>
+                        {data?.via === 'relay' && (
+                            <p className="text-gray-500">From outside the school, commands take a few seconds to reach the bell.</p>
+                        )}
                         {s && (
                             <p className={s.sonne ? 'font-medium text-red-700' : 'text-gray-500'}>
                                 {s.sonne ? `The bell is ringing${s.libelle ? ` (${s.libelle})` : ''}` : 'The bell is quiet.'}
@@ -324,6 +329,11 @@ export default function SchoolBellPage() {
                             <dd className="flex items-center gap-1">
                                 <WifiIcon className="h-4 w-4 text-gray-400" /> {s.ip} · signal {signal(s.rssi)} ({s.rssi} dBm)
                             </dd>
+                            <dt className="text-gray-500">Link</dt>
+                            <dd>
+                                {data?.via === 'relay' ? 'Through the school server' : 'Calls the school server'}
+                                {data?.lastSeenSeconds !== undefined && `, last call ${data.lastSeenSeconds} s ago`}
+                            </dd>
                         </dl>
                         <button
                             disabled={busy !== null}
@@ -333,7 +343,7 @@ export default function SchoolBellPage() {
                             Set clock from server time
                         </button>
                         <p className="text-xs text-gray-500">
-                            The module has no battery clock: after a power cut it takes the time from the internet, or you set it here.
+                            The module has no battery clock: it takes the time from the school server, which it calls every second.
                         </p>
                     </section>
 
