@@ -302,7 +302,7 @@ function FocusedCamera({ channel, cameras, canRename, canMove, onSwitch, onRenam
     };
 
     return (
-        <div className="rounded-lg bg-gray-950 flex flex-col h-[calc(100vh-11rem)] min-h-[320px]">
+        <div className="rounded-lg bg-gray-950 flex flex-col h-[calc(100vh-14rem)] min-h-[320px]">
             <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-white">
                 <div className="flex items-center gap-2 min-w-0">
                     {editing ? (
