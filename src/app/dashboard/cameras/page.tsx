@@ -1,7 +1,7 @@
 'use client';
 
-// Live CCTV (Super Manager, Manager, Principal, Vice Principal, Dean of Discipline,
-// Discipline Coordinator). Works at school and online; see CameraPlayer for how the video
+// Live CCTV (Super Manager, Manager, Principal, Vice Principal, Deans of Discipline and
+// Studies, Discipline Coordinator, Senior Discipline Masters, Discipline Masters). Works at school and online; see CameraPlayer for how the video
 // gets here and lib/cameraSite for names, renaming and pan/tilt.
 //
 // The grid is a set of slots: pick a layout (1, 4, 9 or 12 per screen), fill it with a

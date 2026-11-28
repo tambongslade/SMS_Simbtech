@@ -136,6 +136,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   'discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/discipline-master' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: ClockIcon, label: 'Roll Call', href: '/dashboard/discipline-master/dm-roll-call' },
     { icon: ClipboardDocumentCheckIcon, label: 'Teacher Attendance', href: '/dashboard/discipline-master/teacher-attendance' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/discipline-master/warnings-summons' },
@@ -297,6 +298,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   'dean-of-studies': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/dean-of-studies' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: CalendarDaysIcon, label: 'Timetable', href: '/dashboard/dean-of-studies/timetable' },
     { icon: CalendarDaysIcon, label: 'Examination Structure', href: '/dashboard/dean-of-studies/examination-structure' },
     { icon: ChartBarIcon, label: 'Results', href: '/dashboard/dean-of-studies/results' },
@@ -364,6 +366,7 @@ export const menuItems: MenuItemsStructure = {
   ],
   'senior-discipline-master': [
     { icon: HomeIcon, label: 'Menu', href: '/dashboard/senior-discipline-master' },
+    { icon: VideoCameraIcon, label: 'Cameras', href: '/dashboard/cameras' },
     { icon: BellIcon, label: 'Warnings & Summons', href: '/dashboard/senior-discipline-master/warnings-summons' },
     { icon: CalendarDaysIcon, label: 'Saturday Punishments', href: '/dashboard/senior-discipline-master/punishments' },
     { icon: BanknotesIcon, label: 'Broken Property', href: '/dashboard/senior-discipline-master/broken-property' },
