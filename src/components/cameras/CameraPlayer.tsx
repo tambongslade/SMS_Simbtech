@@ -1,8 +1,8 @@
 'use client';
 
-// Plays one NVR channel live in the browser.
+// Plays one camera live in the browser.
 //
-// The school server runs go2rtc, which reads the NVR and re-packs the camera's H.264 (or
+// The school server runs go2rtc, which reads each camera and re-packs the camera's H.264 (or
 // H.265 for HD) into fragmented MP4 without re-encoding. This component opens go2rtc's
 // WebSocket through nginx at /camera-stream/api/ws (same site as the page, at school and
 // online alike), tells it which codecs this browser can play, and feeds what comes back
@@ -12,7 +12,7 @@
 // ticket belongs to an active user allowed to watch before it connects the socket to go2rtc.
 
 import { useEffect, useRef, useState } from 'react';
-import apiService from '@/lib/apiService';
+import { cameraTicket } from '@/lib/cameraSite';
 
 export type CameraStatus = 'connecting' | 'playing' | 'error';
 
@@ -36,9 +36,7 @@ function mediaSourceClass(): typeof MediaSource | null {
 }
 
 async function streamUrl(stream: string): Promise<string> {
-    const res = await apiService.get<{ success: boolean; data: { ticket: string } }>('/cameras/stream-ticket', { silent: true });
-    const ticket = res?.data?.ticket;
-    if (!ticket) throw new Error('no ticket');
+    const ticket = await cameraTicket();
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     return `${proto}//${window.location.host}/camera-stream/api/ws?src=${encodeURIComponent(stream)}&ticket=${encodeURIComponent(ticket)}`;
 }
@@ -46,12 +44,20 @@ async function streamUrl(stream: string): Promise<string> {
 interface Props {
     stream: string; // go2rtc stream name, e.g. cam3 or cam3_hd
     className?: string;
+    muted?: boolean; // the camera's microphone; tiles stay muted, the large view can unmute
 }
 
-export default function CameraPlayer({ stream, className }: Props) {
+export default function CameraPlayer({ stream, className, muted = true }: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [status, setStatus] = useState<CameraStatus>('connecting');
     const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+        video.muted = muted;
+        if (!muted) video.play().catch(() => { /* needs a click first; the sound button is one */ });
+    }, [muted]);
 
     useEffect(() => {
         const video = videoRef.current;
