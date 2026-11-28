@@ -26,6 +26,8 @@ const CODECS = [
 const MAX_BUFFER_SECONDS = 6;
 const MAX_LAG_SECONDS = 1.5;
 const RETRY_MS = 4000;
+// A 1x1 transparent poster so no browser paints its own placeholder over the black screen.
+const BLANK_POSTER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 function mediaSourceClass(): typeof MediaSource | null {
     if (typeof window === 'undefined') return null;
@@ -182,11 +184,25 @@ export default function CameraPlayer({ stream, className, muted = true }: Props)
     }, [stream]);
 
     return (
-        <div className={`relative bg-black ${className ?? ''}`}>
-            <video ref={videoRef} className="w-full h-full object-contain" muted playsInline autoPlay />
+        <div className={`relative bg-black overflow-hidden ${className ?? ''}`}>
+            {/* Hidden until frames arrive: mobile browsers otherwise draw their own big "play" placeholder. */}
+            <video
+                ref={videoRef}
+                className={`w-full h-full object-contain transition-opacity duration-300 ${status === 'playing' ? 'opacity-100' : 'opacity-0'}`}
+                muted
+                playsInline
+                autoPlay
+                poster={BLANK_POSTER}
+            />
             {status !== 'playing' && (
-                <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-300 text-center px-2">
-                    {status === 'connecting' ? (message || 'Connecting…') : message}
+                <div className="absolute inset-0 flex items-center justify-center bg-black" aria-live="polite">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo.png" alt="" aria-hidden className="absolute h-1/2 max-h-40 w-auto opacity-[0.08] select-none pointer-events-none" />
+                    {status === 'connecting' ? (
+                        <span className="relative h-8 w-8 rounded-full border-2 border-white/20 border-t-white animate-spin" role="status" aria-label="Loading camera" />
+                    ) : (
+                        <span className="relative px-3 text-center text-xs text-gray-300">{message}</span>
+                    )}
                 </div>
             )}
         </div>
